@@ -28,37 +28,21 @@ export function TopUpModal({ isOpen, onClose, user, onTopUpSuccess }: { isOpen: 
     setError("");
 
     try {
-      // Create topup record first
-      const { data: topup, error: topupError } = await supabase
-        .from('topups')
-        .insert([{
-          user_id: user.id,
-          email: user.email,
-          amount: Number(amount),
-          status: 'pending'
-        }])
-        .select()
-        .single();
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("userId", user.id);
+      formData.append("email", user.email);
+      formData.append("amount", amount);
 
-      if (topupError) throw topupError;
+      const res = await fetch("/api/topup/create", {
+        method: "POST",
+        body: formData,
+      });
 
-      // Upload receipt
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${topup.id}_${user.email}.${fileExt}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from("receipts")
-        .upload(fileName, file);
-
-      if (uploadError) throw uploadError;
-
-      // Update topup with receipt URL
-      const { data: publicUrlData } = supabase.storage.from("receipts").getPublicUrl(fileName);
-      
-      await supabase
-        .from('topups')
-        .update({ receipt_url: publicUrlData.publicUrl })
-        .eq('id', topup.id);
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to submit top-up request.");
+      }
 
       setSuccess(true);
       setTimeout(() => {
