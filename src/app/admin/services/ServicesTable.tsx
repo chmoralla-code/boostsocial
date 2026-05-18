@@ -61,41 +61,25 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
     }
 
     try {
+      const res = await fetch("/api/admin/save-service", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: editingService?.id,
+          title,
+          description,
+          starting_price: priceNum,
+          icon_type: iconType,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to save service");
+
       if (editingService) {
-        // Edit flow
-        const { data, error: updateErr } = await supabase
-          .from("services")
-          .update({
-            title,
-            description,
-            starting_price: priceNum,
-            icon_type: iconType,
-          })
-          .eq("id", editingService.id)
-          .select()
-          .single();
-
-        if (updateErr) throw updateErr;
-
-        setServices(services.map(s => s.id === editingService.id ? data : s));
+        setServices(services.map(s => s.id === editingService.id ? data.service : s));
       } else {
-        // Add flow
-        const { data, error: insertErr } = await supabase
-          .from("services")
-          .insert([
-            {
-              title,
-              description,
-              starting_price: priceNum,
-              icon_type: iconType,
-            }
-          ])
-          .select()
-          .single();
-
-        if (insertErr) throw insertErr;
-
-        setServices([...services, data]);
+        setServices([...services, data.service]);
       }
 
       setIsModalOpen(false);
@@ -112,12 +96,14 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
     }
 
     try {
-      const { error: deleteErr } = await supabase
-        .from("services")
-        .delete()
-        .eq("id", id);
+      const res = await fetch("/api/admin/delete-service", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
 
-      if (deleteErr) throw deleteErr;
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to delete service");
 
       setServices(services.filter(s => s.id !== id));
     } catch (err: any) {
