@@ -85,16 +85,6 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
 
       setOrderId(insertData.id);
       setSuccess(true);
-      
-      // Auto-close success screen after 7 seconds
-      setTimeout(() => {
-        onClose();
-        setSuccess(false);
-        setOrderId("");
-        setEmail("");
-        setUrl("");
-        setQuantity(1000);
-      }, 7000);
     } catch (err: any) {
       setError(err.message || "Something went wrong.");
       generateCaptcha();
@@ -120,20 +110,65 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
           <p className="text-slate-400 text-sm mb-6">Process your amplification request securely.</p>
 
           {success ? (
-            <div className="bg-[#121212] text-white p-6 rounded-xl border border-slate-800 text-center space-y-4 animate-in zoom-in duration-300">
-              <div className="w-12 h-12 bg-green-500/10 border border-green-500/20 text-[#1DB954] rounded-full flex items-center justify-center mx-auto">
-                <ShieldCheck size={28} />
+            <div className="bg-[#121212] text-white p-5 rounded-xl border border-slate-800 text-center space-y-4 animate-in zoom-in duration-300 max-h-[72vh] overflow-y-auto">
+              <div className="w-10 h-10 bg-green-500/10 border border-green-500/20 text-[#1DB954] rounded-full flex items-center justify-center mx-auto">
+                <ShieldCheck size={24} />
               </div>
               <div>
-                <p className="text-lg font-bold text-white">Order Registered!</p>
-                <p className="text-xs text-slate-400 mt-1">Keep your Order ID for real-time tracking:</p>
+                <p className="text-base font-bold text-white">Order Registered!</p>
+                <p className="text-[11px] text-slate-400 mt-0.5">Please copy your Order ID for real-time tracking:</p>
               </div>
-              <div className="bg-[#282828] border border-slate-700/80 p-3.5 rounded-lg font-mono text-sm text-[#1DB954] break-all select-all font-bold tracking-wider">
+              <div className="bg-[#282828] border border-slate-700/80 p-2.5 rounded-lg font-mono text-sm text-[#1DB954] break-all select-all font-bold tracking-wider">
                 {orderId}
               </div>
-              <p className="text-[11px] text-slate-500">
-                You can use this ID in our support chatbot on the landing page to track status updates instantly.
-              </p>
+
+              {/* 🎁 Trial & Payment Instructions */}
+              <div className="text-left bg-[#181818] border border-slate-850 p-4 rounded-xl space-y-3">
+                <h3 className="text-xs font-black uppercase tracking-widest text-[#1DB954]">💳 Trial & GCash Payment Steps</h3>
+                
+                <div className="space-y-2.5 text-xs text-slate-300">
+                  <div className="flex gap-2">
+                    <span className="bg-[#1DB954]/10 text-[#1DB954] font-bold w-4 h-4 rounded-full flex items-center justify-center text-[10px] flex-shrink-0 mt-0.5">1</span>
+                    <p>
+                      <strong>Get 50 Free Trial:</strong> We will first deliver 50 free followers, reactions, or views to your target link so you can verify our speed & authenticity!
+                    </p>
+                  </div>
+                  
+                  <div className="flex gap-2">
+                    <span className="bg-[#1DB954]/10 text-[#1DB954] font-bold w-4 h-4 rounded-full flex items-center justify-center text-[10px] flex-shrink-0 mt-0.5">2</span>
+                    <p>
+                      <strong>Pay via GCash:</strong> Once you see the free 50 delivered, scan the QR code below to pay the remaining balance: <strong className="text-[#1DB954]">₱{totalPrice.toFixed(2)}</strong>.
+                    </p>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <span className="bg-[#1DB954]/10 text-[#1DB954] font-bold w-4 h-4 rounded-full flex items-center justify-center text-[10px] flex-shrink-0 mt-0.5">3</span>
+                    <p>
+                      <strong>Confirm Order:</strong> Send your Order ID and GCash payment screenshot to our **Support Chatbot** (bottom right) to instantly start your full delivery!
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* 📷 GCash QR Code Image */}
+              <div className="space-y-2 pt-2 border-t border-slate-800/80">
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 block">GCash InstaPay QR Code</span>
+                <div className="bg-white p-2 rounded-xl inline-block shadow-md max-w-[200px] mx-auto overflow-hidden border border-slate-700/20">
+                  <img 
+                    src="/gcash-qr.png" 
+                    alt="GCash QR Code" 
+                    className="w-full h-auto rounded-lg object-contain mx-auto"
+                  />
+                </div>
+                <p className="text-[10px] text-slate-400 italic">Transfer fees may apply • Account Name: HE***Y S.</p>
+              </div>
+
+              <button 
+                onClick={onClose}
+                className="w-full bg-[#1DB954] hover:bg-[#1ed760] text-black font-extrabold py-3 rounded-full transition-all duration-300 uppercase text-xs tracking-wider mt-2"
+              >
+                Close & View Website
+              </button>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
