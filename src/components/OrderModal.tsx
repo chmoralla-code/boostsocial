@@ -31,6 +31,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
   const [copied, setCopied] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
+  const [isWalletPayment, setIsWalletPayment] = useState(false);
 
   // Dynamic min quantity and free trial amount based on JSON description pack
   const parsedDetails = (() => {
@@ -142,6 +143,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
       if (insertError) throw insertError;
 
       setOrderId(insertData.id);
+      setIsWalletPayment(false);
       setSuccess(true);
       if (typeof window !== "undefined") {
         localStorage.setItem("last_order_id", insertData.id);
@@ -191,6 +193,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
       }
 
       setOrderId(data.orderId);
+      setIsWalletPayment(true);
       setSuccess(true);
       // Automatically refresh the wallet balance in the header if possible 
       // (in a real app we'd use global state, but here we update local profile state to prevent double clicking)
@@ -255,46 +258,68 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                 </div>
               </div>
 
-              {/* 🎁 Trial & Payment Instructions */}
-              <div className="text-left bg-[#181818] border border-slate-850 p-4 rounded-xl space-y-3">
-                <h3 className="text-xs font-black uppercase tracking-widest text-[#1DB954]">💳 Trial & GCash Payment Steps</h3>
-                
-                <div className="space-y-2.5 text-xs text-slate-300">
-                  <div className="flex gap-2">
-                    <span className="bg-[#1DB954]/10 text-[#1DB954] font-bold w-4 h-4 rounded-full flex items-center justify-center text-[10px] flex-shrink-0 mt-0.5">1</span>
-                    <p>
-                      <strong>Get {parsedDetails.free_trial_amount} Free Trial:</strong> We will first deliver {parsedDetails.free_trial_amount} free followers, reactions, or views to your target link so you can verify our speed & authenticity!
-                    </p>
+              {/* 🎁 Trial & Payment Instructions (Or Wallet Success verification) */}
+              {isWalletPayment ? (
+                <div className="text-left bg-[#1DB954]/10 border border-[#1DB954]/25 p-5 rounded-xl space-y-3.5">
+                  <h3 className="text-xs font-black uppercase tracking-widest text-[#1DB954] flex items-center gap-1.5">
+                    🎉 Balance Payment Successful!
+                  </h3>
+                  <p className="text-xs text-slate-300 leading-relaxed font-semibold">
+                    We deducted <strong className="text-white">₱{totalPrice.toFixed(2)} PHP</strong> directly from your account wallet balance. Your boost has been automatically approved and is already set to **Processing**!
+                  </p>
+                  <div className="bg-[#121212] border border-slate-800/80 p-3.5 rounded-lg text-xs space-y-1 text-center">
+                    <span className="text-[9px] text-slate-500 font-black uppercase tracking-widest block">Amplification Flow Status</span>
+                    <span className="text-[#1DB954] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 animate-pulse">
+                      ⚡ ACTIVE & PROCESSING
+                    </span>
                   </div>
-                  
-                  <div className="flex gap-2">
-                    <span className="bg-[#1DB954]/10 text-[#1DB954] font-bold w-4 h-4 rounded-full flex items-center justify-center text-[10px] flex-shrink-0 mt-0.5">2</span>
-                    <p>
-                      <strong>Pay via GCash:</strong> Once you see the free {parsedDetails.free_trial_amount} delivered, scan the QR code below to pay the remaining balance: <strong className="text-[#1DB954]">₱{totalPrice.toFixed(2)}</strong>.
-                    </p>
+                  <p className="text-[9px] text-slate-450 leading-relaxed font-bold">
+                    No further actions or manual GCash receipt verification are required. Our system will deliver your complete boost package shortly!
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <div className="text-left bg-[#181818] border border-slate-850 p-4 rounded-xl space-y-3">
+                    <h3 className="text-xs font-black uppercase tracking-widest text-[#1DB954]">💳 Trial & GCash Payment Steps</h3>
+                    
+                    <div className="space-y-2.5 text-xs text-slate-300">
+                      <div className="flex gap-2">
+                        <span className="bg-[#1DB954]/10 text-[#1DB954] font-bold w-4 h-4 rounded-full flex items-center justify-center text-[10px] flex-shrink-0 mt-0.5">1</span>
+                        <p>
+                          <strong>Get {parsedDetails.free_trial_amount} Free Trial:</strong> We will first deliver {parsedDetails.free_trial_amount} free followers, reactions, or views to your target link so you can verify our speed & authenticity!
+                        </p>
+                      </div>
+                      
+                      <div className="flex gap-2">
+                        <span className="bg-[#1DB954]/10 text-[#1DB954] font-bold w-4 h-4 rounded-full flex items-center justify-center text-[10px] flex-shrink-0 mt-0.5">2</span>
+                        <p>
+                          <strong>Pay via GCash:</strong> Once you see the free {parsedDetails.free_trial_amount} delivered, scan the QR code below to pay the remaining balance: <strong className="text-[#1DB954]">₱{totalPrice.toFixed(2)}</strong>.
+                        </p>
+                      </div>
+
+                      <div className="flex gap-2">
+                        <span className="bg-[#1DB954]/10 text-[#1DB954] font-bold w-4 h-4 rounded-full flex items-center justify-center text-[10px] flex-shrink-0 mt-0.5">3</span>
+                        <p>
+                          <strong>Confirm Order:</strong> Send your **Tracking ID** and GCash payment screenshot to our **Support Chatbot** (bottom right) to instantly start your full delivery!
+                        </p>
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="flex gap-2">
-                    <span className="bg-[#1DB954]/10 text-[#1DB954] font-bold w-4 h-4 rounded-full flex items-center justify-center text-[10px] flex-shrink-0 mt-0.5">3</span>
-                    <p>
-                      <strong>Confirm Order:</strong> Send your **Tracking ID** and GCash payment screenshot to our **Support Chatbot** (bottom right) to instantly start your full delivery!
-                    </p>
+                  {/* 📷 GCash QR Code Image */}
+                  <div className="space-y-2 pt-2 border-t border-slate-800/80">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 block">GCash InstaPay QR Code</span>
+                    <div className="bg-white p-2 rounded-xl inline-block shadow-md max-w-[200px] mx-auto overflow-hidden border border-slate-700/20">
+                      <img 
+                        src="/gcash-qr.png" 
+                        alt="GCash QR Code" 
+                        className="w-full h-auto rounded-lg object-contain mx-auto"
+                      />
+                    </div>
+                    <p className="text-[10px] text-slate-400 italic">Transfer fees may apply • Account Name: HE***Y S.</p>
                   </div>
-                </div>
-              </div>
-
-              {/* 📷 GCash QR Code Image */}
-              <div className="space-y-2 pt-2 border-t border-slate-800/80">
-                <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 block">GCash InstaPay QR Code</span>
-                <div className="bg-white p-2 rounded-xl inline-block shadow-md max-w-[200px] mx-auto overflow-hidden border border-slate-700/20">
-                  <img 
-                    src="/gcash-qr.png" 
-                    alt="GCash QR Code" 
-                    className="w-full h-auto rounded-lg object-contain mx-auto"
-                  />
-                </div>
-                <p className="text-[10px] text-slate-400 italic">Transfer fees may apply • Account Name: HE***Y S.</p>
-              </div>
+                </>
+              )}
 
               <button 
                 onClick={onClose}
