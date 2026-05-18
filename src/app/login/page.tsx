@@ -23,7 +23,7 @@ export default function LoginPage() {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       if (params.get("verified") === "true" || params.get("code")) {
-        setSuccess("🎉 Email verified successfully! Your account is now fully active. Please sign in below to access your My Orders tracker workspace!");
+        setSuccess("✨ Account Successfully Activated! Your email has been verified. Welcome to your BoostSocial workspace! Please sign in below to manage your services and track your orders in real time. 🚀");
       }
     }
 
