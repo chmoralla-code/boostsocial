@@ -21,6 +21,7 @@ export function ServicesSection({ services }: ServicesSectionProps) {
   const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
   const [selectedServiceTitle, setSelectedServiceTitle] = useState("");
   const [selectedServicePrice, setSelectedServicePrice] = useState(0);
+  const [selectedService, setSelectedService] = useState<Service | null>(null);
 
   const handleOrder = (id: string, title: string, price: number) => {
     setSelectedServiceId(id);
@@ -44,7 +45,10 @@ export function ServicesSection({ services }: ServicesSectionProps) {
               description={service.description}
               startingPrice={service.starting_price}
               iconType={service.icon_type}
-              onOrder={handleOrder}
+              onOrder={(id, title, price) => {
+                setSelectedService(service);
+                handleOrder(id, title, price);
+              }}
             />
           ))}
         </div>
@@ -56,6 +60,7 @@ export function ServicesSection({ services }: ServicesSectionProps) {
         serviceId={selectedServiceId}
         serviceTitle={selectedServiceTitle}
         serviceBasePrice={selectedServicePrice}
+        service={selectedService}
       />
     </>
   );

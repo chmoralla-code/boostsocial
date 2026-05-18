@@ -23,6 +23,10 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
   const [description, setDescription] = useState("");
   const [startingPrice, setStartingPrice] = useState("");
   const [iconType, setIconType] = useState("followers");
+  const [subtitle, setSubtitle] = useState("");
+  const [buttonText, setButtonText] = useState("");
+  const [minQuantity, setMinQuantity] = useState("100");
+  const [freeTrialAmount, setFreeTrialAmount] = useState("50");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -32,6 +36,10 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
     setEditingService(null);
     setTitle("");
     setDescription("");
+    setSubtitle("");
+    setButtonText("");
+    setMinQuantity("100");
+    setFreeTrialAmount("50");
     setStartingPrice("");
     setIconType("followers");
     setError("");
@@ -41,10 +49,59 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
   const openEditModal = (service: Service) => {
     setEditingService(service);
     setTitle(service.title);
-    setDescription(service.description);
     setStartingPrice(String(service.starting_price));
     setIconType(service.icon_type);
     setError("");
+
+    const defaults = {
+      description: service.description,
+      subtitle: "",
+      button_text: "",
+      min_quantity: 100,
+      free_trial_amount: 50,
+    };
+
+    switch (service.icon_type) {
+      case "followers":
+        defaults.subtitle = "Build Your Audience";
+        defaults.button_text = "Boost Followers";
+        break;
+      case "reactions":
+        defaults.subtitle = "Increase Engagement";
+        defaults.button_text = "Boost Reacts";
+        break;
+      case "views":
+        defaults.subtitle = "Maximize Exposure";
+        defaults.button_text = "Boost Views";
+        break;
+      default:
+        defaults.subtitle = "Instant Amplification";
+        defaults.button_text = "Order Now";
+        break;
+    }
+
+    try {
+      if (service.description && service.description.trim().startsWith("{")) {
+        const parsed = JSON.parse(service.description);
+        setDescription(parsed.description || defaults.description);
+        setSubtitle(parsed.subtitle || defaults.subtitle);
+        setButtonText(parsed.button_text || defaults.button_text);
+        setMinQuantity(String(parsed.min_quantity) || String(defaults.min_quantity));
+        setFreeTrialAmount(String(parsed.free_trial_amount) || String(defaults.free_trial_amount));
+      } else {
+        setDescription(service.description);
+        setSubtitle(defaults.subtitle);
+        setButtonText(defaults.button_text);
+        setMinQuantity(String(defaults.min_quantity));
+        setFreeTrialAmount(String(defaults.free_trial_amount));
+      }
+    } catch (e) {
+      setDescription(service.description);
+      setSubtitle(defaults.subtitle);
+      setButtonText(defaults.button_text);
+      setMinQuantity(String(defaults.min_quantity));
+      setFreeTrialAmount(String(defaults.free_trial_amount));
+    }
     setIsModalOpen(true);
   };
 
@@ -60,6 +117,14 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
       return;
     }
 
+    const packedDescription = JSON.stringify({
+      description: description.trim(),
+      subtitle: subtitle.trim(),
+      button_text: buttonText.trim(),
+      min_quantity: Number(minQuantity) || 100,
+      free_trial_amount: Number(freeTrialAmount) || 50,
+    });
+
     try {
       const res = await fetch("/api/admin/save-service", {
         method: "POST",
@@ -67,7 +132,7 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
         body: JSON.stringify({
           id: editingService?.id,
           title,
-          description,
+          description: packedDescription,
           starting_price: priceNum,
           icon_type: iconType,
         }),
@@ -159,7 +224,14 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
                   {service.title}
                 </td>
                 <td className="py-4 px-6 text-sm text-slate-600 max-w-sm truncate">
-                  {service.description}
+                  {(() => {
+                    try {
+                      if (service.description && service.description.trim().startsWith("{")) {
+                        return JSON.parse(service.description).description || service.description;
+                      }
+                    } catch (e) {}
+                    return service.description;
+                  })()}
                 </td>
                 <td className="py-4 px-6 text-sm font-semibold text-slate-900">
                   ₱{Number(service.starting_price).toFixed(2)}
@@ -256,6 +328,63 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
                   <option value="reactions">Reactions (Thumbs Up Icon)</option>
                   <option value="views">Views (Play Button Icon)</option>
                 </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+                  Feature Subtitle (e.g. Build Your Audience)
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={subtitle}
+                  onChange={(e) => setSubtitle(e.target.value)}
+                  placeholder="e.g. Build Your Audience"
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all text-slate-950 font-medium"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+                  Button Text (e.g. Boost Followers)
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={buttonText}
+                  onChange={(e) => setButtonText(e.target.value)}
+                  placeholder="e.g. Boost Followers"
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all text-slate-950 font-medium"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+                    Min Quantity
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    value={minQuantity}
+                    onChange={(e) => setMinQuantity(e.target.value)}
+                    placeholder="e.g. 100"
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all text-slate-950 font-medium"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+                    Free Trial Amount
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    value={freeTrialAmount}
+                    onChange={(e) => setFreeTrialAmount(e.target.value)}
+                    placeholder="e.g. 50"
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all text-slate-950 font-medium"
+                  />
+                </div>
               </div>
 
               <div>

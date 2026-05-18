@@ -25,23 +25,44 @@ export function ServiceCard({ id, title, description, startingPrice, iconType, o
     }
   };
 
-  const getButtonText = () => {
-    switch (iconType) {
-      case 'followers': return 'Boost Followers';
-      case 'reactions': return 'Boost Reacts';
-      case 'views': return 'Boost Views';
-      default: return 'Order Now';
-    }
-  };
+  const parsed = (() => {
+    const defaults = {
+      description: description,
+      subtitle: "",
+      button_text: "",
+    };
 
-  const getFeatureSubtitle = () => {
     switch (iconType) {
-      case 'followers': return 'Build Your Audience';
-      case 'reactions': return 'Increase Engagement';
-      case 'views': return 'Maximize Exposure';
-      default: return 'Instant Amplification';
+      case 'followers':
+        defaults.subtitle = 'Build Your Audience';
+        defaults.button_text = 'Boost Followers';
+        break;
+      case 'reactions':
+        defaults.subtitle = 'Increase Engagement';
+        defaults.button_text = 'Boost Reacts';
+        break;
+      case 'views':
+        defaults.subtitle = 'Maximize Exposure';
+        defaults.button_text = 'Boost Views';
+        break;
+      default:
+        defaults.subtitle = 'Instant Amplification';
+        defaults.button_text = 'Order Now';
+        break;
     }
-  };
+
+    try {
+      if (description && description.trim().startsWith("{")) {
+        const p = JSON.parse(description);
+        return {
+          description: p.description || defaults.description,
+          subtitle: p.subtitle || defaults.subtitle,
+          button_text: p.button_text || defaults.button_text,
+        };
+      }
+    } catch (e) {}
+    return defaults;
+  })();
 
   return (
     <div className="bg-[#181818] hover:bg-[#282828] rounded-2xl p-8 flex flex-col items-start text-left w-full border border-slate-800/40 hover:border-slate-700/60 shadow-xl transition-all duration-300 transform hover:-translate-y-1.5 group">
@@ -50,10 +71,10 @@ export function ServiceCard({ id, title, description, startingPrice, iconType, o
       </div>
       
       <h3 className="uppercase text-xs font-black tracking-widest text-slate-500 mb-2">{title}</h3>
-      <h4 className="text-xl font-bold text-white mb-3 group-hover:text-[#1DB954] transition-colors">{getFeatureSubtitle()}</h4>
+      <h4 className="text-xl font-bold text-white mb-3 group-hover:text-[#1DB954] transition-colors">{parsed.subtitle}</h4>
       
-      <p className="text-slate-400 text-sm leading-relaxed mb-8 flex-grow">
-        {description}
+      <p className="text-slate-400 text-sm leading-relaxed mb-8 flex-grow whitespace-pre-line">
+        {parsed.description}
       </p>
       
       <div className="flex justify-between items-end w-full mb-6 pt-4 border-t border-slate-800/60">
@@ -67,7 +88,7 @@ export function ServiceCard({ id, title, description, startingPrice, iconType, o
         onClick={() => onOrder(id, title, startingPrice)}
         className="w-full bg-[#1DB954] hover:bg-[#1ed760] text-black font-extrabold py-3.5 rounded-full transition-all duration-300 uppercase text-xs tracking-wider transform group-hover:scale-[1.02] shadow-lg shadow-green-500/5"
       >
-        {getButtonText()}
+        {parsed.button_text}
       </button>
     </div>
   );

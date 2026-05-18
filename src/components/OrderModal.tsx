@@ -10,9 +10,16 @@ interface OrderModalProps {
   serviceId: string | null;
   serviceTitle: string;
   serviceBasePrice: number;
+  service?: {
+    id: string;
+    title: string;
+    description: string;
+    starting_price: number;
+    icon_type: string;
+  } | null;
 }
 
-export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBasePrice }: OrderModalProps) {
+export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBasePrice, service }: OrderModalProps) {
   const [email, setEmail] = useState("");
   const [url, setUrl] = useState("");
   const [quantity, setQuantity] = useState<number>(1000);
@@ -23,6 +30,33 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
   const [copied, setCopied] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
+
+  // Dynamic min quantity and free trial amount based on JSON description pack
+  const parsedDetails = (() => {
+    const defaults = {
+      min_quantity: 100,
+      free_trial_amount: 50,
+    };
+
+    if (service && service.description) {
+      try {
+        if (service.description.trim().startsWith("{")) {
+          const p = JSON.parse(service.description);
+          return {
+            min_quantity: Number(p.min_quantity) || defaults.min_quantity,
+            free_trial_amount: Number(p.free_trial_amount) || defaults.free_trial_amount,
+          };
+        }
+      } catch (e) {}
+    }
+    return defaults;
+  })();
+
+  useEffect(() => {
+    if (parsedDetails.min_quantity > 0 && quantity < parsedDetails.min_quantity) {
+      setQuantity(parsedDetails.min_quantity);
+    }
+  }, [parsedDetails.min_quantity]);
 
   // Anti-Spam Math Verification
   const [num1, setNum1] = useState(0);
@@ -69,8 +103,8 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
     e.preventDefault();
     if (!serviceId) return;
 
-    if (quantity < 100) {
-      setError("Minimum quantity is 100.");
+    if (quantity < parsedDetails.min_quantity) {
+      setError(`Minimum quantity is ${parsedDetails.min_quantity}.`);
       return;
     }
 
@@ -119,8 +153,8 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
     e.preventDefault();
     if (!serviceId || !user) return;
 
-    if (quantity < 100) {
-      setError("Minimum quantity is 100.");
+    if (quantity < parsedDetails.min_quantity) {
+      setError(`Minimum quantity is ${parsedDetails.min_quantity}.`);
       return;
     }
 
@@ -224,14 +258,14 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                   <div className="flex gap-2">
                     <span className="bg-[#1DB954]/10 text-[#1DB954] font-bold w-4 h-4 rounded-full flex items-center justify-center text-[10px] flex-shrink-0 mt-0.5">1</span>
                     <p>
-                      <strong>Get 50 Free Trial:</strong> We will first deliver 50 free followers, reactions, or views to your target link so you can verify our speed & authenticity!
+                      <strong>Get {parsedDetails.free_trial_amount} Free Trial:</strong> We will first deliver {parsedDetails.free_trial_amount} free followers, reactions, or views to your target link so you can verify our speed & authenticity!
                     </p>
                   </div>
                   
                   <div className="flex gap-2">
                     <span className="bg-[#1DB954]/10 text-[#1DB954] font-bold w-4 h-4 rounded-full flex items-center justify-center text-[10px] flex-shrink-0 mt-0.5">2</span>
                     <p>
-                      <strong>Pay via GCash:</strong> Once you see the free 50 delivered, scan the QR code below to pay the remaining balance: <strong className="text-[#1DB954]">₱{totalPrice.toFixed(2)}</strong>.
+                      <strong>Pay via GCash:</strong> Once you see the free {parsedDetails.free_trial_amount} delivered, scan the QR code below to pay the remaining balance: <strong className="text-[#1DB954]">₱{totalPrice.toFixed(2)}</strong>.
                     </p>
                   </div>
 
@@ -314,12 +348,12 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                 <input 
                   type="number" 
                   required
-                  min="100"
+                  min={parsedDetails.min_quantity}
                   step="100"
                   value={quantity}
                   onChange={(e) => setQuantity(parseInt(e.target.value) || 0)}
                   className="w-full px-4 py-3 rounded-xl bg-[#282828] border border-slate-700/60 focus:outline-none focus:ring-2 focus:ring-[#1DB954] text-white transition-all text-sm font-bold"
-                  placeholder="1000"
+                  placeholder={String(parsedDetails.min_quantity)}
                 />
                 <div className="flex justify-between items-center mt-2 bg-[#121212] px-3.5 py-2.5 rounded-lg border border-slate-800">
                   <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Estimated Total:</span>
