@@ -22,6 +22,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
   const [user, setUser] = useState<any>(null);
+  const [profile, setProfile] = useState<any>(null);
 
   // Anti-Spam Math Verification
   const [num1, setNum1] = useState(0);
@@ -52,6 +53,9 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
         if (data.user) {
           setUser(data.user);
           setEmail(data.user.email || "");
+          supabase.from('profiles').select('*').eq('id', data.user.id).single().then(({ data: pData }) => {
+            if (pData) setProfile(pData);
+          });
         }
       });
     }
@@ -106,6 +110,55 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
     } catch (err: any) {
       setError(err.message || "Something went wrong.");
       generateCaptcha();
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleWalletCheckout = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!serviceId || !user) return;
+
+    if (quantity < 100) {
+      setError("Minimum quantity is 100.");
+      return;
+    }
+
+    if (Number(profile?.balance || 0) < totalPrice) {
+      setError("Insufficient wallet balance. Please top up first.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    setError("");
+
+    try {
+      const res = await fetch("/api/checkout-wallet", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: user.id,
+          serviceId,
+          email: user.email,
+          url: url.trim(),
+          quantity,
+          totalPrice
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Wallet checkout failed");
+      }
+
+      setOrderId(data.orderId);
+      setSuccess(true);
+      // Automatically refresh the wallet balance in the header if possible 
+      // (in a real app we'd use global state, but here we update local profile state to prevent double clicking)
+      setProfile({ ...profile, balance: data.newBalance });
+      
+    } catch (err: any) {
+      setError(err.message || "Something went wrong.");
     } finally {
       setIsSubmitting(false);
     }
@@ -300,13 +353,26 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                 </div>
               )}
 
-              <button 
-                type="submit" 
-                disabled={isSubmitting}
-                className="w-full bg-[#1DB954] hover:bg-[#1ed760] disabled:bg-slate-700 text-black font-extrabold py-3.5 rounded-full transition-all duration-300 flex justify-center items-center gap-2 mt-4 tracking-wider uppercase text-xs"
-              >
-                {isSubmitting ? <Loader2 className="animate-spin text-black" size={18} /> : 'Place Order'}
-              </button>
+              <div className="flex flex-col gap-2 mt-4">
+                {user && profile && Number(profile.balance) >= totalPrice && (
+                  <button 
+                    type="button" 
+                    onClick={handleWalletCheckout}
+                    disabled={isSubmitting}
+                    className="w-full bg-[#1DB954]/20 hover:bg-[#1DB954]/30 border border-[#1DB954]/50 disabled:opacity-50 text-[#1DB954] font-extrabold py-3.5 rounded-full transition-all duration-300 flex justify-center items-center gap-2 tracking-wider uppercase text-xs"
+                  >
+                    {isSubmitting ? <Loader2 className="animate-spin text-[#1DB954]" size={18} /> : `Pay with Wallet (₱${totalPrice.toFixed(2)})`}
+                  </button>
+                )}
+                
+                <button 
+                  type="submit" 
+                  disabled={isSubmitting}
+                  className="w-full bg-[#1DB954] hover:bg-[#1ed760] disabled:bg-slate-700 text-black font-extrabold py-3.5 rounded-full transition-all duration-300 flex justify-center items-center gap-2 tracking-wider uppercase text-xs shadow-[0_0_15px_rgba(29,185,84,0.3)]"
+                >
+                  {isSubmitting ? <Loader2 className="animate-spin text-black" size={18} /> : (user && profile && Number(profile.balance) >= totalPrice ? 'Pay via GCash Instead' : 'Place Order')}
+                </button>
+              </div>
             </form>
           )}
         </div>
