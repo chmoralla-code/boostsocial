@@ -2,13 +2,16 @@
 
 import { useState } from "react";
 import { format } from "date-fns";
-import { Search, ArrowUpDown, Mail, ShoppingBag, DollarSign, Calendar } from "lucide-react";
+import { Search, ArrowUpDown, Mail, ShoppingBag, DollarSign, Calendar, Landmark } from "lucide-react";
 
 interface Customer {
+  id?: string;
   email: string;
   totalOrders: number;
   totalSpent: number;
+  balance: number;
   lastActive: string;
+  hasProfile: boolean;
   statuses: {
     pending: number;
     processing: number;
@@ -19,8 +22,13 @@ interface Customer {
 
 export function CustomersList({ initialCustomers }: { initialCustomers: Customer[] }) {
   const [searchTerm, setSearchTerm] = useState("");
-  const [sortBy, setSortBy] = useState<"spent" | "orders" | "active">("spent");
+  const [sortBy, setSortBy] = useState<"spent" | "orders" | "active" | "balance">("spent");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+
+  // Edit Balance States
+  const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
+  const [newBalanceValue, setNewBalanceValue] = useState("");
+  const [isUpdatingBalance, setIsUpdatingBalance] = useState(false);
 
   // Search Filter
   const filteredCustomers = initialCustomers.filter((c) =>
@@ -38,6 +46,9 @@ export function CustomersList({ initialCustomers }: { initialCustomers: Customer
     } else if (sortBy === "orders") {
       valA = a.totalOrders;
       valB = b.totalOrders;
+    } else if (sortBy === "balance") {
+      valA = a.balance;
+      valB = b.balance;
     } else if (sortBy === "active") {
       valA = new Date(a.lastActive).getTime();
       valB = new Date(b.lastActive).getTime();
@@ -50,7 +61,7 @@ export function CustomersList({ initialCustomers }: { initialCustomers: Customer
     }
   });
 
-  const toggleSort = (field: "spent" | "orders" | "active") => {
+  const toggleSort = (field: "spent" | "orders" | "active" | "balance") => {
     if (sortBy === field) {
       setSortOrder(sortOrder === "asc" ? "desc" : "asc");
     } else {
@@ -89,6 +100,16 @@ export function CustomersList({ initialCustomers }: { initialCustomers: Customer
             <ArrowUpDown size={12} />
           </button>
           <button
+            onClick={() => toggleSort("balance")}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold border flex items-center gap-1.5 transition-all
+              ${sortBy === "balance" 
+                ? "bg-blue-50 border-blue-200 text-blue-700" 
+                : "border-slate-200 text-slate-600 hover:bg-slate-50"}`}
+          >
+            <Landmark size={14} /> Wallet Balance
+            <ArrowUpDown size={12} />
+          </button>
+          <button
             onClick={() => toggleSort("orders")}
             className={`px-3 py-1.5 rounded-lg text-xs font-bold border flex items-center gap-1.5 transition-all
               ${sortBy === "orders" 
@@ -118,6 +139,7 @@ export function CustomersList({ initialCustomers }: { initialCustomers: Customer
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200">
                 <th className="py-4 px-6 font-semibold text-slate-700 text-sm">Customer Email</th>
+                <th className="py-4 px-6 font-semibold text-slate-700 text-sm">Wallet Balance</th>
                 <th className="py-4 px-6 font-semibold text-slate-700 text-sm text-center">Orders Count</th>
                 <th className="py-4 px-6 font-semibold text-slate-700 text-sm">Total Revenue</th>
                 <th className="py-4 px-6 font-semibold text-slate-700 text-sm">Last Active</th>
@@ -135,6 +157,13 @@ export function CustomersList({ initialCustomers }: { initialCustomers: Customer
                       </div>
                       {customer.email}
                     </div>
+                  </td>
+                  <td className="py-4 px-6 text-sm font-bold text-slate-900 whitespace-nowrap">
+                    {customer.hasProfile ? (
+                      <span className="text-slate-900">₱{customer.balance.toFixed(2)}</span>
+                    ) : (
+                      <span className="text-slate-400 italic text-xs">No Account</span>
+                    )}
                   </td>
                   <td className="py-4 px-6 text-sm text-slate-600 text-center font-bold">
                     {customer.totalOrders}
@@ -169,7 +198,18 @@ export function CustomersList({ initialCustomers }: { initialCustomers: Customer
                       )}
                     </div>
                   </td>
-                  <td className="py-4 px-6 text-sm text-right">
+                  <td className="py-4 px-6 text-sm text-right whitespace-nowrap space-x-2">
+                    {customer.hasProfile && (
+                      <button
+                        onClick={() => {
+                          setEditingCustomer(customer);
+                          setNewBalanceValue(customer.balance.toString());
+                        }}
+                        className="px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg text-xs font-bold transition-colors"
+                      >
+                        Edit Balance
+                      </button>
+                    )}
                     <button
                       onClick={async () => {
                         if (confirm(`Are you sure you want to delete ${customer.email}? This action cannot be undone.`)) {
@@ -180,7 +220,7 @@ export function CustomersList({ initialCustomers }: { initialCustomers: Customer
                               body: JSON.stringify({ email: customer.email })
                             });
                             if (res.ok) {
-                              alert("Customer deleted successfully. Please refresh the page.");
+                              alert("Customer deleted successfully.");
                               window.location.reload();
                             } else {
                               const data = await res.json();
@@ -191,7 +231,7 @@ export function CustomersList({ initialCustomers }: { initialCustomers: Customer
                           }
                         }
                       }}
-                      className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                      className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors inline-flex text-xs font-bold"
                       title="Delete Customer"
                     >
                       Delete
@@ -201,7 +241,7 @@ export function CustomersList({ initialCustomers }: { initialCustomers: Customer
               ))}
               {sortedCustomers.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="py-8 text-center text-slate-500">
+                  <td colSpan={7} className="py-8 text-center text-slate-500">
                     No customers found matching search criteria.
                   </td>
                 </tr>
@@ -210,6 +250,82 @@ export function CustomersList({ initialCustomers }: { initialCustomers: Customer
           </table>
         </div>
       </div>
+
+      {/* Edit Balance Modal */}
+      {editingCustomer && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#090909]/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-md shadow-2xl p-6 relative transform transition-all animate-in zoom-in-95 duration-200">
+            <h3 className="text-xl font-bold text-slate-900 mb-2 flex items-center gap-2">
+              Edit Wallet Balance
+            </h3>
+            <p className="text-sm text-slate-500 mb-6">
+              Update the balance for <strong className="text-slate-800">{editingCustomer.email}</strong>.
+            </p>
+
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              if (!editingCustomer.id) return;
+              
+              setIsUpdatingBalance(true);
+              try {
+                const res = await fetch("/api/admin/update-balance", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ userId: editingCustomer.id, balance: parseFloat(newBalanceValue) })
+                });
+
+                if (res.ok) {
+                  alert("Balance updated successfully!");
+                  window.location.reload();
+                } else {
+                  const data = await res.json();
+                  alert(data.error || "Failed to update balance");
+                }
+              } catch (err) {
+                alert("An error occurred");
+              } finally {
+                setIsUpdatingBalance(false);
+                setEditingCustomer(null);
+              }
+            }} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5">
+                  Wallet Balance (₱)
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  required
+                  value={newBalanceValue}
+                  onChange={(e) => setNewBalanceValue(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-600 text-slate-900 font-bold transition-all text-sm"
+                  placeholder="0.00"
+                />
+              </div>
+
+              <div className="flex gap-3 justify-end pt-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingCustomer(null)}
+                  disabled={isUpdatingBalance}
+                  className="px-4 py-2 border border-slate-200 hover:bg-slate-50 rounded-xl text-slate-600 font-bold text-sm transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isUpdatingBalance}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold rounded-xl text-sm transition-colors flex items-center gap-1.5"
+                >
+                  {isUpdatingBalance ? "Saving..." : "Save Changes"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
