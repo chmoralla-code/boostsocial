@@ -15,6 +15,39 @@ interface Message {
   content: string;
 }
 
+const parseMorallaName = (text: string, isUser: boolean) => {
+  const parts = [];
+  const regex = /Cyrhiel Moralla/gi;
+  let match;
+  let lastIndex = 0;
+
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(text.substring(lastIndex, match.index));
+    }
+    parts.push(
+      <a
+        key={`moralla-${match.index}`}
+        href="https://www.facebook.com/profile.php?id=61584774638218"
+        target="_blank"
+        rel="noopener noreferrer"
+        className={`underline hover:text-[#1ed760] font-black transition-colors ${
+          isUser ? 'text-white' : 'text-[#1DB954]'
+        }`}
+      >
+        {match[0]}
+      </a>
+    );
+    lastIndex = regex.lastIndex;
+  }
+
+  if (lastIndex < text.length) {
+    parts.push(text.substring(lastIndex));
+  }
+
+  return parts;
+};
+
 const renderMessageContent = (content: string, isUser: boolean) => {
   const lines = content.split('\n');
   
@@ -24,14 +57,14 @@ const renderMessageContent = (content: string, isUser: boolean) => {
     let cleanLine = isListItem ? trimmed.replace(/^[\*\-•]\s*/, '') : line;
 
     // Parse bold markdown **text**
-    const parts = [];
+    const parts: any[] = [];
     const regex = /\*\*([^*]+)\*\*/g;
     let match;
     let lastIndex = 0;
 
     while ((match = regex.exec(cleanLine)) !== null) {
       if (match.index > lastIndex) {
-        parts.push(cleanLine.substring(lastIndex, match.index));
+        parts.push(...parseMorallaName(cleanLine.substring(lastIndex, match.index), isUser));
       }
       parts.push(
         <strong 
@@ -42,14 +75,14 @@ const renderMessageContent = (content: string, isUser: boolean) => {
               : 'text-[#1DB954] text-sm'
           }`}
         >
-          {match[1]}
+          {parseMorallaName(match[1], isUser)}
         </strong>
       );
       lastIndex = regex.lastIndex;
     }
 
     if (lastIndex < cleanLine.length) {
-      parts.push(cleanLine.substring(lastIndex));
+      parts.push(...parseMorallaName(cleanLine.substring(lastIndex), isUser));
     }
 
     if (isListItem) {
