@@ -29,7 +29,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // 2. Delete user
+    // 2. Anonymize user's historical orders to preserve revenue but remove email from dashboard
+    await supabase.from("orders").update({ customer_email: "[Deleted User]" }).eq("customer_email", user.email);
+
+    // 3. Delete user
     const { error: deleteError } = await supabase.auth.admin.deleteUser(user.id);
     if (deleteError) throw deleteError;
 

@@ -29,6 +29,8 @@ export default async function CustomersPage() {
   if (orders) {
     orders.forEach((order) => {
       const email = order.customer_email.trim();
+      if (email === "[Deleted User]") return; // Skip deleted users from the customer list
+
       const amount = Number(order.amount) || 0;
       const status = (order.status || "Pending").toLowerCase();
       const date = order.created_at;
