@@ -36,7 +36,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
   };
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(orderId);
+    navigator.clipboard.writeText(`BS-${orderId.slice(0, 8).toUpperCase()}`);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -126,20 +126,33 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
               </div>
               <div>
                 <p className="text-base font-bold text-white">Order Registered!</p>
-                <p className="text-[11px] text-slate-400 mt-0.5">Please copy your Order ID for real-time tracking:</p>
+                <p className="text-[11px] text-slate-400 mt-0.5">Please copy your Tracking ID for real-time support tracking:</p>
               </div>
-              <div className="flex gap-2 items-center w-full">
-                <div className="flex-grow bg-[#282828] border border-slate-700/80 p-2.5 rounded-xl font-mono text-[10px] sm:text-xs text-[#1DB954] break-all select-all font-bold tracking-wider text-center">
-                  {orderId}
+              
+              <div className="space-y-3">
+                {/* Tracking ID (User Friendly) */}
+                <div className="space-y-1 text-left">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-[#1DB954] block mb-1">Your Tracking ID</span>
+                  <div className="flex gap-2 items-center w-full">
+                    <div className="flex-grow bg-[#282828] border border-slate-700/80 p-2.5 rounded-xl font-mono text-xs sm:text-sm text-[#1DB954] font-black tracking-widest text-center select-all">
+                      BS-{orderId.slice(0, 8).toUpperCase()}
+                    </div>
+                    <button
+                      onClick={handleCopy}
+                      type="button"
+                      className="bg-[#282828] hover:bg-[#333] border border-slate-700/80 p-2.5 rounded-xl text-slate-400 hover:text-white transition-all flex items-center justify-center flex-shrink-0"
+                      title="Copy Tracking ID"
+                    >
+                      {copied ? <Check size={16} className="text-[#1DB954]" /> : <Copy size={16} />}
+                    </button>
+                  </div>
                 </div>
-                <button
-                  onClick={handleCopy}
-                  type="button"
-                  className="bg-[#282828] hover:bg-[#333] border border-slate-700/80 p-2.5 rounded-xl text-slate-400 hover:text-white transition-all flex items-center justify-center flex-shrink-0"
-                  title="Copy Order ID"
-                >
-                  {copied ? <Check size={16} className="text-[#1DB954]" /> : <Copy size={16} />}
-                </button>
+
+                {/* Technical Order ID */}
+                <div className="space-y-1 text-left bg-[#121212] border border-slate-800/80 p-2.5 rounded-xl">
+                  <span className="text-[9px] font-bold uppercase tracking-widest text-slate-500 block mb-0.5">Technical Order ID</span>
+                  <span className="font-mono text-[10px] text-slate-400 select-all break-all block">{orderId}</span>
+                </div>
               </div>
 
               {/* 🎁 Trial & Payment Instructions */}
@@ -164,7 +177,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                   <div className="flex gap-2">
                     <span className="bg-[#1DB954]/10 text-[#1DB954] font-bold w-4 h-4 rounded-full flex items-center justify-center text-[10px] flex-shrink-0 mt-0.5">3</span>
                     <p>
-                      <strong>Confirm Order:</strong> Send your Order ID and GCash payment screenshot to our **Support Chatbot** (bottom right) to instantly start your full delivery!
+                      <strong>Confirm Order:</strong> Send your **Tracking ID** and GCash payment screenshot to our **Support Chatbot** (bottom right) to instantly start your full delivery!
                     </p>
                   </div>
                 </div>

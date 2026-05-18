@@ -85,43 +85,62 @@ export function Chathead() {
 
   const uploadReceiptFile = async (file: File) => {
     const uuidRegex = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
-    let orderId = "";
+    const trackRegex = /BS-([0-9a-f]{8})/i;
+    
+    // Helper function to resolve Tracking ID or UUID to the full UUID from database
+    const resolveToFullUuid = async (inputStr: string): Promise<string> => {
+      const uuidMatch = inputStr.match(uuidRegex);
+      if (uuidMatch) return uuidMatch[0];
 
-    // 1. Check current text input
-    const inputMatch = input.match(uuidRegex);
-    if (inputMatch) {
-      orderId = inputMatch[0];
+      const trackMatch = inputStr.match(trackRegex);
+      if (trackMatch) {
+        const shortHex = trackMatch[1].toLowerCase();
+        const { data, error } = await supabase
+          .from('orders')
+          .select('id')
+          .like('id', `${shortHex}%`)
+          .limit(1)
+          .single();
+        if (data && !error) {
+          return data.id;
+        }
+      }
+      return "";
+    };
+
+    let resolvedId = await resolveToFullUuid(input);
+
+    if (!resolvedId && typeof window !== "undefined") {
+      const storedId = localStorage.getItem("last_order_id") || "";
+      if (storedId) {
+        resolvedId = await resolveToFullUuid(storedId);
+      }
     }
 
-    // 2. Check localStorage
-    if (!orderId && typeof window !== "undefined") {
-      orderId = localStorage.getItem("last_order_id") || "";
-    }
-
-    // 3. Check chat messages
-    if (!orderId) {
+    if (!resolvedId) {
       for (let i = messages.length - 1; i >= 0; i--) {
-        const chatMatch = messages[i].content.match(uuidRegex);
-        if (chatMatch) {
-          orderId = chatMatch[0];
+        const checkId = await resolveToFullUuid(messages[i].content);
+        if (checkId) {
+          resolvedId = checkId;
           break;
         }
       }
     }
 
-    if (!orderId) {
-      alert("⚠️ Order ID not found!\n\nPlease enter your Order ID in the text input box first before uploading/pasting your GCash screenshot so we can match it to your order.");
+    if (!resolvedId) {
+      alert("⚠️ Tracking ID not found!\n\nPlease enter your Tracking ID (e.g. BS-D5D1D849) in the text input box first before uploading/pasting your GCash screenshot so we can match it to your order.");
       if (fileInputRef.current) fileInputRef.current.value = "";
       return;
     }
 
     setUploading(true);
-    setMessages(prev => [...prev, { role: 'user', content: `[Attached GCash Receipt Screenshot for Order ${orderId}]` }]);
+    const displayId = `BS-${resolvedId.slice(0, 8).toUpperCase()}`;
+    setMessages(prev => [...prev, { role: 'user', content: `[Attached GCash Receipt Screenshot for Order ${displayId}]` }]);
 
     try {
       const formData = new FormData();
       formData.append("file", file);
-      formData.append("orderId", orderId);
+      formData.append("orderId", resolvedId);
 
       // Route the file upload through the secure Next.js server API endpoint
       const res = await fetch("/api/upload-receipt", {
@@ -137,7 +156,7 @@ export function Chathead() {
       // Add success response from AI
       setMessages(prev => [...prev, { 
         role: 'assistant', 
-        content: `🎉 **Receipt screenshot successfully received!**\n\nIt has been automatically linked to **Order ID: ${orderId}** and is now visible on the Admin Dashboard.\n\nOur operations team will verify the payment and begin your full package delivery shortly! Thank you for your payment! 🙏` 
+        content: `🎉 **Receipt screenshot successfully received!**\n\nIt has been automatically linked to **Tracking ID: ${displayId}** and is now visible on the Admin Dashboard.\n\nOur operations team will verify the payment and begin your full package delivery shortly! Thank you for your payment! 🙏` 
       }]);
 
     } catch (err: any) {
@@ -186,22 +205,27 @@ export function Chathead() {
     setIsLoading(true);
 
     try {
-      // 1. Check for Order ID (UUID format) in the user's message
+      // 1. Check for Order ID or Tracking ID in the user's message
       const uuidRegex = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
-      const match = userMsg.match(uuidRegex);
+      const trackRegex = /BS-([0-9a-f]{8})/i;
       
-      if (match) {
-        const orderId = match[0];
-        // Fetch order details from Supabase
-        const { data, error } = await supabase
-          .from('orders')
-          .select('*, services(title)')
-          .eq('id', orderId)
-          .single();
+      const uuidMatch = userMsg.match(uuidRegex);
+      const trackMatch = userMsg.match(trackRegex);
+      
+      if (uuidMatch || trackMatch) {
+        let query = supabase.from('orders').select('*, services(title)');
+        if (uuidMatch) {
+          query = query.eq('id', uuidMatch[0]);
+        } else if (trackMatch) {
+          query = query.like('id', `${trackMatch[1].toLowerCase()}%`);
+        }
+
+        const { data, error } = await query.single();
 
         if (data && !error) {
+          const displayId = `BS-${data.id.slice(0, 8).toUpperCase()}`;
           // INSTANTLY reply directly without AI delay!
-          const reply = `🔍 **Order Status Details:**\n\n* **Order ID:** ${data.id}\n* **Service:** ${data.services?.title}\n* **Quantity:** ${data.quantity.toLocaleString()} items\n* **Target URL:** ${data.target_url}\n* **Amount:** ₱${Number(data.amount).toFixed(2)}\n* **Status:** **${data.status}**\n\n${
+          const reply = `🔍 **Order Status Details:**\n\n* **Tracking ID:** ${displayId}\n* **Service:** ${data.services?.title}\n* **Quantity:** ${data.quantity.toLocaleString()} items\n* **Target URL:** ${data.target_url}\n* **Amount:** ₱${Number(data.amount).toFixed(2)}\n* **Status:** **${data.status}**\n\n${
             data.status === 'Pending' 
               ? 'Your order is currently **Pending** verification. Once your GCash payment screenshot is uploaded (click 📷 or paste it here!), our team will verify and start full delivery shortly! 🚀' 
               : data.status === 'Processing' 
@@ -214,7 +238,8 @@ export function Chathead() {
           setIsLoading(false);
           return;
         } else {
-          const notFoundReply = `❌ **Order ID Not Found**\n\nI couldn't locate any order with ID: **${orderId}**.\n\nPlease double-check the ID or copy it directly from your checkout success modal and try again!`;
+          const checkId = uuidMatch ? uuidMatch[0] : `BS-${trackMatch![1].toUpperCase()}`;
+          const notFoundReply = `❌ **Order ID Not Found**\n\nI couldn't locate any order with ID: **${checkId}**.\n\nPlease double-check the ID or copy it directly from your checkout success modal and try again!`;
           setMessages(prev => [...prev, { role: 'assistant', content: notFoundReply }]);
           setIsLoading(false);
           return;

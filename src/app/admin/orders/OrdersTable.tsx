@@ -26,6 +26,7 @@ export function OrdersTable({ initialOrders, receiptFiles = [] }: { initialOrder
           <thead>
             <tr className="bg-slate-50 border-b border-slate-200">
               <th className="py-4 px-6 font-semibold text-slate-700 text-sm">Date</th>
+              <th className="py-4 px-6 font-semibold text-slate-700 text-sm">Tracking ID</th>
               <th className="py-4 px-6 font-semibold text-slate-700 text-sm">Customer</th>
               <th className="py-4 px-6 font-semibold text-slate-700 text-sm">Service</th>
               <th className="py-4 px-6 font-semibold text-slate-700 text-sm">Quantity</th>
@@ -40,6 +41,9 @@ export function OrdersTable({ initialOrders, receiptFiles = [] }: { initialOrder
               <tr key={order.id} className="hover:bg-slate-50/50 transition-colors">
                 <td className="py-4 px-6 text-sm text-slate-600 whitespace-nowrap">
                   {format(new Date(order.created_at), 'MMM d, yyyy')}
+                </td>
+                <td className="py-4 px-6 text-sm font-bold text-slate-800 font-mono tracking-widest whitespace-nowrap">
+                  BS-{order.id.slice(0, 8).toUpperCase()}
                 </td>
                 <td className="py-4 px-6 text-sm font-medium text-slate-900">
                   {order.customer_email}
@@ -100,7 +104,7 @@ export function OrdersTable({ initialOrders, receiptFiles = [] }: { initialOrder
             ))}
             {orders.length === 0 && (
               <tr>
-                <td colSpan={8} className="py-8 text-center text-slate-500">No orders found.</td>
+                <td colSpan={9} className="py-8 text-center text-slate-500">No orders found.</td>
               </tr>
             )}
           </tbody>
