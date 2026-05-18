@@ -2,24 +2,35 @@
 
 import { useState, useEffect } from "react";
 import Link from 'next/link';
-import { Rocket, LogOut, ClipboardList, X, Loader2 } from 'lucide-react';
+import { Rocket, LogOut, ClipboardList, X, Loader2, Wallet } from 'lucide-react';
 import { createClient } from "@/utils/supabase/client";
 import { format } from "date-fns";
+import { TopUpModal } from "./TopUpModal";
 
 export function Header() {
   const [user, setUser] = useState<any>(null);
   const [orders, setOrders] = useState<any[]>([]);
   const [showOrdersModal, setShowOrdersModal] = useState(false);
+  const [showTopUpModal, setShowTopUpModal] = useState(false);
   const [loadingOrders, setLoadingOrders] = useState(false);
   const supabase = createClient();
+
+  const [profile, setProfile] = useState<any>(null);
+
+  const fetchProfile = async (userId: string) => {
+    const { data } = await supabase.from('profiles').select('*').eq('id', userId).single();
+    if (data) setProfile(data);
+  };
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
       setUser(data.user);
+      if (data.user) fetchProfile(data.user.id);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
+      if (session?.user) fetchProfile(session.user.id);
     });
 
     return () => subscription.unsubscribe();
@@ -72,13 +83,21 @@ export function Header() {
           {user ? (
             <>
               <button 
+                onClick={() => setShowTopUpModal(true)}
+                className="flex items-center gap-1.5 bg-[#1DB954]/10 hover:bg-[#1DB954]/20 border border-[#1DB954]/30 text-[#1DB954] font-extrabold py-2 px-3 rounded-full transition-all text-xs uppercase tracking-wider cursor-pointer"
+              >
+                <Wallet size={14} /> 
+                ₱{profile?.balance ? Number(profile.balance).toFixed(2) : "0.00"}
+              </button>
+
+              <button 
                 onClick={() => setShowOrdersModal(true)}
-                className="flex items-center gap-2 bg-[#282828] hover:bg-[#333] border border-slate-800/80 text-[#1DB954] font-extrabold py-2 px-4 rounded-full transition-all text-xs uppercase tracking-wider cursor-pointer"
+                className="flex items-center gap-2 bg-[#282828] hover:bg-[#333] border border-slate-800/80 text-[#1DB954] font-extrabold py-2 px-4 rounded-full transition-all text-xs uppercase tracking-wider cursor-pointer hidden sm:flex"
               >
                 <ClipboardList size={14} /> My Orders
               </button>
               
-              <span className="hidden sm:inline text-xs font-semibold text-slate-400 max-w-[120px] truncate">
+              <span className="hidden md:inline text-xs font-semibold text-slate-400 max-w-[120px] truncate">
                 {user.email}
               </span>
 
@@ -175,6 +194,15 @@ export function Header() {
             </div>
           </div>
         </div>
+      )}
+
+      {user && (
+        <TopUpModal 
+          isOpen={showTopUpModal} 
+          onClose={() => setShowTopUpModal(false)} 
+          user={user}
+          onTopUpSuccess={() => fetchProfile(user.id)}
+        />
       )}
     </>
   );
