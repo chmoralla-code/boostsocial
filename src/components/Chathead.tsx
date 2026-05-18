@@ -190,22 +190,6 @@ export function Chathead() {
       const uuidRegex = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
       const match = userMsg.match(uuidRegex);
       
-      let systemContext = `You are a helpful, extremely concise customer support AI for BoostSocial, a platform that boosts Facebook followers, reactions, and views. 
-
-CRITICAL FORMATTING INSTRUCTIONS:
-Always format your responses beautifully using spacing, lists, and bold text:
-1. When providing order details, list each item on a separate line with a bullet point (e.g. * **Order ID:** 123-abc).
-2. Bold key labels (like **Order ID:**, **Service:**, **Status:**, **Amount:**, **Target URL:**) using double asterisks.
-3. Put important values (like the status "Cancelled", "Completed", etc.) in bold as well.
-4. Keep the summary friendly, brief, and very clean. Use spacing between paragraphs.
-
-Our core services and pricing:
-- Facebook Followers: ₱9.99 per 1,000 followers.
-- Post Reactions (Likes, Hearts, etc.): ₱4.99 per 1,000 reactions.
-- Video Views (for Reels, Stories, etc.): ₱12.99 per 1,000 views.
-
-We offer instant delivery and genuine engagement.`;
-
       if (match) {
         const orderId = match[0];
         // Fetch order details from Supabase
@@ -216,31 +200,52 @@ We offer instant delivery and genuine engagement.`;
           .single();
 
         if (data && !error) {
-          systemContext += `\n\nThe user is asking about an order. Here is the order info:
-Order ID: ${data.id}
-Service: ${data.services?.title}
-Status: ${data.status}
-Quantity: ${data.quantity}
-Target URL: ${data.target_url}
-Amount: ₱${data.amount}
-
-Inform the user about their order status based on this information. If the status is 'Pending', tell them it will be processed shortly.`;
+          // INSTANTLY reply directly without AI delay!
+          const reply = `🔍 **Order Status Details:**\n\n* **Order ID:** ${data.id}\n* **Service:** ${data.services?.title}\n* **Quantity:** ${data.quantity.toLocaleString()} items\n* **Target URL:** ${data.target_url}\n* **Amount:** ₱${Number(data.amount).toFixed(2)}\n* **Status:** **${data.status}**\n\n${
+            data.status === 'Pending' 
+              ? 'Your order is currently **Pending** verification. Once your GCash payment screenshot is uploaded (click 📷 or paste it here!), our team will verify and start full delivery shortly! 🚀' 
+              : data.status === 'Processing' 
+              ? 'Your order is currently **Processing** and active! Results are being delivered to your target link. ⚡' 
+              : data.status === 'Completed' 
+              ? 'Your order has been successfully **Completed**! All amplification quantities have been delivered. Thank you! 🎉' 
+              : 'Your order status is **Cancelled**. Please contact support if you believe this is an error.'
+          }`;
+          setMessages(prev => [...prev, { role: 'assistant', content: reply }]);
+          setIsLoading(false);
+          return;
         } else {
-          systemContext += `\n\nThe user asked about Order ID ${orderId}, but no such order was found in the database. Politely tell them you couldn't find an order with that ID and suggest they double-check the ID or contact support.`;
+          const notFoundReply = `❌ **Order ID Not Found**\n\nI couldn't locate any order with ID: **${orderId}**.\n\nPlease double-check the ID or copy it directly from your checkout success modal and try again!`;
+          setMessages(prev => [...prev, { role: 'assistant', content: notFoundReply }]);
+          setIsLoading(false);
+          return;
         }
       }
 
-      // 2. Call Pollinations AI (Free, unlimited, no API key required)
+      // 2. Call Pollinations AI for general chatbot messages (Free, unlimited, no API key required)
+      const systemContext = `You are a helpful, extremely concise customer support AI for BoostSocial, a platform that boosts Facebook followers, reactions, and views. Keep responses brief (1-3 sentences max).
+
+Our core services and pricing:
+- Facebook Followers: ₱9.99 per 1,000 followers.
+- Post Reactions (Likes, Hearts, etc.): ₱4.99 per 1,000 reactions.
+- Video Views (for Reels, Stories, etc.): ₱12.99 per 1,000 views.
+
+Format list items on separate lines with simple bullets (e.g. * **Item:** text). We offer instant delivery and genuine engagement.`;
+
+      // Slice messages history to the last 4 exchanges to keep request size tiny and super fast!
+      const recentMessages = messages.slice(-4);
       const apiMessages = [
         { role: 'system', content: systemContext },
-        ...messages.map(m => ({ role: m.role, content: m.content })),
+        ...recentMessages.map(m => ({ role: m.role, content: m.content })),
         { role: 'user', content: userMsg }
       ];
 
       const res = await fetch('https://text.pollinations.ai/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: apiMessages })
+        body: JSON.stringify({ 
+          messages: apiMessages,
+          model: 'openai' // Request the fast reasoning OpenAI engine
+        })
       });
 
       if (!res.ok) {
