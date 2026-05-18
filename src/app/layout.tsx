@@ -18,9 +18,6 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <head>
-        <Script src="https://js.puter.com/v2/" strategy="beforeInteractive" />
-      </head>
       <body className={`${inter.className} min-h-screen bg-[#f4f7fb] text-slate-800 flex flex-col`}>
         {children}
         <Chathead />

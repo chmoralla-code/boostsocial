@@ -78,22 +78,29 @@ Inform the user about their order status based on this information. If the statu
         }
       }
 
-      // 2. Call Puter AI with Claude 3.5 Sonnet
-      if (!window.puter) {
-        throw new Error("Puter is not loaded yet.");
+      // 2. Call Pollinations AI (Free, unlimited, no API key required)
+      const apiMessages = [
+        { role: 'system', content: systemContext },
+        ...messages.map(m => ({ role: m.role, content: m.content })),
+        { role: 'user', content: userMsg }
+      ];
+
+      const res = await fetch('https://text.pollinations.ai/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: apiMessages })
+      });
+
+      if (!res.ok) {
+        throw new Error(`API returned ${res.status}`);
       }
 
-      const historyString = messages.map(m => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`).join('\n');
-      const prompt = `${systemContext}\n\nChat History:\n${historyString}\n\nUser: ${userMsg}\n\nAssistant:`;
-
-      // Using Puter's default model (most reliable for free tier)
-      const response = await window.puter.ai.chat(prompt);
-
-      setMessages(prev => [...prev, { role: 'assistant', content: response.toString() }]);
+      const responseText = await res.text();
+      setMessages(prev => [...prev, { role: 'assistant', content: responseText }]);
 
     } catch (err: any) {
       console.error(err);
-      setMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, I am having trouble connecting to my AI brain right now. Please try again in a moment.' }]);
+      setMessages(prev => [...prev, { role: 'assistant', content: `Error connecting to AI: ${err.message || err.toString()}` }]);
     } finally {
       setIsLoading(false);
     }
@@ -116,7 +123,7 @@ Inform the user about their order status based on this information. If the statu
           <div className="bg-blue-600 p-4 text-white flex items-center justify-between">
             <div>
               <h3 className="font-bold">BoostSocial Support</h3>
-              <p className="text-xs text-blue-100">Powered by Puter AI (Free Tier)</p>
+              <p className="text-xs text-blue-100">Powered by Free Open AI</p>
             </div>
             <button onClick={() => setIsOpen(false)} className="text-white/80 hover:text-white">
               <X size={20} />
