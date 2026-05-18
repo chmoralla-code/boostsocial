@@ -86,8 +86,8 @@ Inform the user about their order status based on this information. If the statu
       const historyString = messages.map(m => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`).join('\n');
       const prompt = `${systemContext}\n\nChat History:\n${historyString}\n\nUser: ${userMsg}\n\nAssistant:`;
 
-      // Using Llama 3.1 8B (Free tier)
-      const response = await window.puter.ai.chat(prompt, { model: 'llama-3.1-8b' });
+      // Using Puter's default model (most reliable for free tier)
+      const response = await window.puter.ai.chat(prompt);
 
       setMessages(prev => [...prev, { role: 'assistant', content: response.toString() }]);
 
@@ -116,7 +116,7 @@ Inform the user about their order status based on this information. If the statu
           <div className="bg-blue-600 p-4 text-white flex items-center justify-between">
             <div>
               <h3 className="font-bold">BoostSocial Support</h3>
-              <p className="text-xs text-blue-100">Powered by Llama 3.1 (Puter Cloud)</p>
+              <p className="text-xs text-blue-100">Powered by Puter AI (Free Tier)</p>
             </div>
             <button onClick={() => setIsOpen(false)} className="text-white/80 hover:text-white">
               <X size={20} />
