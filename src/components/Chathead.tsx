@@ -109,9 +109,9 @@ Always format your responses beautifully using spacing, lists, and bold text:
 4. Keep the summary friendly, brief, and very clean. Use spacing between paragraphs.
 
 Our core services and pricing:
-- Facebook Followers: $9.99 per 1,000 followers.
-- Post Reactions (Likes, Hearts, etc.): $4.99 per 1,000 reactions.
-- Video Views (for Reels, Stories, etc.): $12.99 per 1,000 views.
+- Facebook Followers: ₱9.99 per 1,000 followers.
+- Post Reactions (Likes, Hearts, etc.): ₱4.99 per 1,000 reactions.
+- Video Views (for Reels, Stories, etc.): ₱12.99 per 1,000 views.
 
 We offer instant delivery and genuine engagement.`;
 
@@ -131,7 +131,7 @@ Service: ${data.services?.title}
 Status: ${data.status}
 Quantity: ${data.quantity}
 Target URL: ${data.target_url}
-Amount: $${data.amount}
+Amount: ₱${data.amount}
 
 Inform the user about their order status based on this information. If the status is 'Pending', tell them it will be processed shortly.`;
         } else {

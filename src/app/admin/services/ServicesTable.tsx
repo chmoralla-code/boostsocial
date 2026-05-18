@@ -176,7 +176,7 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
                   {service.description}
                 </td>
                 <td className="py-4 px-6 text-sm font-semibold text-slate-900">
-                  ${Number(service.starting_price).toFixed(2)}
+                  ₱{Number(service.starting_price).toFixed(2)}
                 </td>
                 <td className="py-4 px-6 text-sm flex items-center gap-3">
                   <button
@@ -244,7 +244,7 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
 
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-1.5">
-                  Starting Price ($ per 1,000)
+                  Starting Price (₱ per 1,000)
                 </label>
                 <input
                   type="number"

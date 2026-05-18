@@ -55,7 +55,7 @@ export function OrdersTable({ initialOrders }: { initialOrders: any[] }) {
                   </a>
                 </td>
                 <td className="py-4 px-6 text-sm font-medium text-slate-900">
-                  ${Number(order.amount).toFixed(2)}
+                  ₱{Number(order.amount).toFixed(2)}
                 </td>
                 <td className="py-4 px-6 text-sm">
                   <select 

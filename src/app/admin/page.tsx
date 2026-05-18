@@ -22,7 +22,7 @@ export default async function AdminOverview() {
           </div>
           <div>
             <div className="text-sm font-medium text-slate-500">Total Revenue</div>
-            <div className="text-2xl font-bold text-slate-900">${totalRevenue.toFixed(2)}</div>
+            <div className="text-2xl font-bold text-slate-900">₱{totalRevenue.toFixed(2)}</div>
           </div>
         </div>
 

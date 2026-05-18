@@ -175,7 +175,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                 />
                 <div className="flex justify-between items-center mt-2 bg-[#121212] px-3.5 py-2.5 rounded-lg border border-slate-800">
                   <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Estimated Total:</span>
-                  <span className="text-lg font-black text-white">${totalPrice.toFixed(2)}</span>
+                  <span className="text-lg font-black text-white">₱{totalPrice.toFixed(2)}</span>
                 </div>
               </div>
 

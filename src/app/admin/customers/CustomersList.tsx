@@ -139,7 +139,7 @@ export function CustomersList({ initialCustomers }: { initialCustomers: Customer
                     {customer.totalOrders}
                   </td>
                   <td className="py-4 px-6 text-sm font-bold text-green-600">
-                    ${customer.totalSpent.toFixed(2)}
+                    ₱{customer.totalSpent.toFixed(2)}
                   </td>
                   <td className="py-4 px-6 text-sm text-slate-500 whitespace-nowrap">
                     {format(new Date(customer.lastActive), 'MMM d, yyyy h:mm a')}

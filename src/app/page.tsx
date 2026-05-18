@@ -28,9 +28,9 @@ export default async function Home() {
             Amplify Your <br className="hidden md:inline" />
             <span className="spotify-shimmer-text">Facebook Reach</span> Instantly
           </h1>
-          <p className="text-lg md:text-xl text-slate-400 mb-10 max-w-2xl mx-auto font-semibold leading-relaxed">
-            Gain genuine followers, organic reactions, and high-retention views.<br/>
-            Boost your profile and pages safely with instant delivery.
+          <p className="text-lg md:text-xl text-slate-400 mb-10 max-w-3xl mx-auto font-semibold leading-relaxed">
+            Don't worry about transparency—we deliver 50 free trial followers, <br className="hidden sm:inline" />
+            reactions, or views so you can test our service before paying fully!
           </p>
           <a 
             href="#services" 
