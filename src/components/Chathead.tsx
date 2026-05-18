@@ -15,6 +15,61 @@ interface Message {
   content: string;
 }
 
+const renderMessageContent = (content: string, isUser: boolean) => {
+  const lines = content.split('\n');
+  
+  return lines.map((line, lineIdx) => {
+    const trimmed = line.trim();
+    const isListItem = trimmed.startsWith('* ') || trimmed.startsWith('- ') || trimmed.startsWith('• ');
+    let cleanLine = isListItem ? trimmed.replace(/^[\*\-•]\s*/, '') : line;
+
+    // Parse bold markdown **text**
+    const parts = [];
+    const regex = /\*\*([^*]+)\*\*/g;
+    let match;
+    let lastIndex = 0;
+
+    while ((match = regex.exec(cleanLine)) !== null) {
+      if (match.index > lastIndex) {
+        parts.push(cleanLine.substring(lastIndex, match.index));
+      }
+      parts.push(
+        <strong 
+          key={match.index} 
+          className={`font-semibold ${
+            isUser 
+              ? 'text-white underline decoration-wavy' 
+              : 'text-slate-900 bg-slate-100/90 px-1 py-0.5 rounded border border-slate-200/60 text-xs shadow-sm font-bold'
+          }`}
+        >
+          {match[1]}
+        </strong>
+      );
+      lastIndex = regex.lastIndex;
+    }
+
+    if (lastIndex < cleanLine.length) {
+      parts.push(cleanLine.substring(lastIndex));
+    }
+
+    if (isListItem) {
+      return (
+        <div key={lineIdx} className="flex items-start gap-1.5 my-1 pl-1">
+          <span className={`mt-1 flex-shrink-0 text-[10px] ${isUser ? 'text-blue-200' : 'text-blue-600'}`}>●</span>
+          <span className={`${isUser ? 'text-blue-50' : 'text-slate-700'} leading-relaxed text-sm`}>{parts}</span>
+        </div>
+      );
+    }
+
+    return (
+      <p key={lineIdx} className={`leading-relaxed text-sm ${trimmed === '' ? 'h-2' : 'my-1'}`}>
+        {parts}
+      </p>
+    );
+  });
+};
+
+
 export function Chathead() {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
@@ -44,8 +99,14 @@ export function Chathead() {
       const uuidRegex = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
       const match = userMsg.match(uuidRegex);
       
-      let systemContext = `You are a helpful customer support AI for BoostSocial, a platform that boosts Facebook followers, reactions, and views. 
-Keep your answers concise, friendly, and professional.
+      let systemContext = `You are a helpful, extremely concise customer support AI for BoostSocial, a platform that boosts Facebook followers, reactions, and views. 
+
+CRITICAL FORMATTING INSTRUCTIONS:
+Always format your responses beautifully using spacing, lists, and bold text:
+1. When providing order details, list each item on a separate line with a bullet point (e.g. * **Order ID:** 123-abc).
+2. Bold key labels (like **Order ID:**, **Service:**, **Status:**, **Amount:**, **Target URL:**) using double asterisks.
+3. Put important values (like the status "Cancelled", "Completed", etc.) in bold as well.
+4. Keep the summary friendly, brief, and very clean. Use spacing between paragraphs.
 
 Our core services and pricing:
 - Facebook Followers: $9.99 per 1,000 followers.
@@ -142,7 +203,7 @@ Inform the user about their order status based on this information. If the statu
                       : 'bg-white border border-slate-100 text-slate-800 rounded-bl-none'
                   }`}
                 >
-                  {msg.content}
+                  {renderMessageContent(msg.content, msg.role === 'user')}
                 </div>
               </div>
             ))}
