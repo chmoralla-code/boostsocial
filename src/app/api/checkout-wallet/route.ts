@@ -55,6 +55,7 @@ export async function POST(req: NextRequest) {
           target_url: url.trim(),
           amount: cost,
           status: 'Processing', // Instant processing for wallet payments
+          payment_method: 'Wallet',
           quantity: quantity
         }
       ])

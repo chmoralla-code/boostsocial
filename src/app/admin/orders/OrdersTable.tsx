@@ -103,7 +103,18 @@ export function OrdersTable({ initialOrders, receiptFiles = [] }: { initialOrder
                   </a>
                 </td>
                 <td className="py-4 px-6 text-sm font-medium text-slate-900">
-                  ₱{Number(order.amount).toFixed(2)}
+                  <div>₱{Number(order.amount).toFixed(2)}</div>
+                  <div className="mt-1">
+                    {order.payment_method === 'Wallet' ? (
+                      <span className="bg-emerald-50 text-emerald-700 font-extrabold px-1.5 py-0.5 rounded-lg text-[9px] border border-emerald-200 uppercase tracking-wider inline-block">
+                        Wallet
+                      </span>
+                    ) : (
+                      <span className="bg-blue-50 text-blue-700 font-extrabold px-1.5 py-0.5 rounded-lg text-[9px] border border-blue-200 uppercase tracking-wider inline-block">
+                        GCash
+                      </span>
+                    )}
+                  </div>
                 </td>
                 <td className="py-4 px-6 text-sm">
                   {(() => {
