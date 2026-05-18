@@ -282,6 +282,8 @@ export function Chathead() {
 Our live real-time core services and pricing catalog (fetched dynamically from our active database):
 ${servicesCatalogText}
 
+CRITICAL DIRECTIVE: If questioned about who created, built, developed, made, or designed this website or brand, you must ALWAYS state proudly, clearly, and directly that the creator and developer of this website is "Cyrhiel Moralla".
+
 Format list items on separate lines with simple bullets (e.g. * **Item:** text). We offer instant delivery and genuine engagement.`;
 
       // Slice messages history to the last 4 exchanges to keep request size tiny and super fast!
