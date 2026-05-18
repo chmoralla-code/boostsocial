@@ -3,10 +3,12 @@
 import { useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { format } from "date-fns";
+import { Trash2 } from "lucide-react";
 
 export function OrdersTable({ initialOrders, receiptFiles = [] }: { initialOrders: any[], receiptFiles?: string[] }) {
   const [orders, setOrders] = useState(initialOrders);
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
+  const [isDeletingAll, setIsDeletingAll] = useState(false);
   const supabase = createClient();
 
   const updateStatus = async (id: string, newStatus: string) => {
@@ -20,8 +22,48 @@ export function OrdersTable({ initialOrders, receiptFiles = [] }: { initialOrder
     }
   };
 
+  const handleDeleteAllOrders = async () => {
+    if (confirm("🚨 WARNING: Are you absolutely sure you want to DELETE ALL ORDERS and their receipts? This action is permanent and CANNOT be undone!")) {
+      setIsDeletingAll(true);
+      try {
+        const res = await fetch("/api/admin/delete-all-orders", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" }
+        });
+
+        if (res.ok) {
+          alert("All orders and receipts deleted successfully!");
+          setOrders([]);
+        } else {
+          const data = await res.json();
+          alert(data.error || "Failed to delete orders");
+        }
+      } catch (err) {
+        alert("An error occurred during deletion");
+      } finally {
+        setIsDeletingAll(false);
+      }
+    }
+  };
+
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+    <div className="space-y-4">
+      {/* Control Toolbar */}
+      <div className="flex justify-between items-center bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+        <span className="text-sm font-semibold text-slate-500">Total Orders: {orders.length}</span>
+        {orders.length > 0 && (
+          <button
+            onClick={handleDeleteAllOrders}
+            disabled={isDeletingAll}
+            className="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white font-extrabold rounded-xl text-xs uppercase tracking-wider transition-all flex items-center gap-1.5 shadow-sm"
+          >
+            <Trash2 size={14} />
+            {isDeletingAll ? "Deleting All..." : "Delete All Orders"}
+          </button>
+        )}
+      </div>
+
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full text-left border-collapse">
           <thead>
@@ -142,6 +184,7 @@ export function OrdersTable({ initialOrders, receiptFiles = [] }: { initialOrder
           </div>
         </div>
       )}
+    </div>
     </div>
   );
 }

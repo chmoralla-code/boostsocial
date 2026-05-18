@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { format } from "date-fns";
-import { Search, ArrowUpDown, Mail, ShoppingBag, DollarSign, Calendar, Landmark } from "lucide-react";
+import { Search, ArrowUpDown, Mail, ShoppingBag, DollarSign, Calendar, Landmark, Trash2 } from "lucide-react";
 
 interface Customer {
   id?: string;
@@ -29,6 +29,32 @@ export function CustomersList({ initialCustomers }: { initialCustomers: Customer
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [newBalanceValue, setNewBalanceValue] = useState("");
   const [isUpdatingBalance, setIsUpdatingBalance] = useState(false);
+  const [isDeletingAll, setIsDeletingAll] = useState(false);
+
+  const handleDeleteAllAccounts = async () => {
+    if (confirm("🚨 WARNING: Are you absolutely sure you want to DELETE ALL CUSTOMER ACCOUNTS? (The admin account admin@boostsocial.com will be spared, and orders will be anonymized). This action is permanent and CANNOT be undone!")) {
+      setIsDeletingAll(true);
+      try {
+        const res = await fetch("/api/admin/delete-all-accounts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" }
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          alert(`Successfully deleted ${data.count} customer accounts!`);
+          window.location.reload();
+        } else {
+          const data = await res.json();
+          alert(data.error || "Failed to delete customer accounts");
+        }
+      } catch (err) {
+        alert("An error occurred during account deletion");
+      } finally {
+        setIsDeletingAll(false);
+      }
+    }
+  };
 
   // Search Filter
   const filteredCustomers = initialCustomers.filter((c) =>
@@ -73,17 +99,29 @@ export function CustomersList({ initialCustomers }: { initialCustomers: Customer
   return (
     <div className="space-y-6">
       {/* Controls Grid */}
-      <div className="flex flex-col sm:flex-row gap-4 justify-between items-center bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
-        {/* Search Input */}
-        <div className="relative w-full sm:max-w-xs">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-          <input
-            type="text"
-            placeholder="Search customers..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all text-slate-900 font-medium"
-          />
+      <div className="flex flex-col md:flex-row gap-4 justify-between items-center bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+        {/* Search & Bulk Actions */}
+        <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto items-center">
+          <div className="relative w-full sm:w-72">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+            <input
+              type="text"
+              placeholder="Search customers..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all text-slate-900 font-medium"
+            />
+          </div>
+          {initialCustomers.length > 0 && (
+            <button
+              onClick={handleDeleteAllAccounts}
+              disabled={isDeletingAll}
+              className="w-full sm:w-auto px-4 py-2.5 bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 disabled:opacity-50 text-xs font-extrabold uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-1.5 flex-shrink-0 shadow-sm"
+            >
+              <Trash2 size={14} />
+              {isDeletingAll ? "Deleting..." : "Delete All Accounts"}
+            </button>
+          )}
         </div>
 
         {/* Sort Controls */}
