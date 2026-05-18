@@ -172,35 +172,34 @@ Inform the user about their order status based on this information. If the statu
       {/* Floating Button */}
       <button 
         onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-6 right-6 z-50 bg-blue-600 hover:bg-blue-700 text-white p-4 rounded-full shadow-2xl transition-transform hover:scale-105"
+        className="fixed bottom-6 right-6 z-50 bg-[#1DB954] hover:bg-[#1ed760] text-black p-4 rounded-full shadow-2xl transition-all duration-300 hover:scale-105 hover:rotate-12"
       >
         {isOpen ? <X size={24} /> : <MessageCircle size={24} />}
       </button>
 
       {/* Chat Window */}
       {isOpen && (
-        <div className="fixed bottom-24 right-6 z-50 w-80 sm:w-96 bg-white rounded-2xl shadow-2xl border border-slate-100 flex flex-col overflow-hidden h-[500px] max-h-[80vh]">
+        <div className="fixed bottom-24 right-6 z-50 w-80 sm:w-96 bg-[#181818] border border-slate-800/80 rounded-2xl shadow-2xl flex flex-col overflow-hidden h-[500px] max-h-[80vh]">
           {/* Header */}
-          <div className="bg-blue-600 p-4 text-white flex items-center justify-between">
+          <div className="bg-[#121212] border-b border-slate-800 p-4 text-white flex items-center justify-between">
             <div>
-              <h3 className="font-bold">BoostSocial Support</h3>
-              <p className="text-xs text-blue-100">Powered by Free Open AI</p>
+              <h3 className="font-bold text-sm tracking-tight text-white">Boost<span className="text-[#1DB954]">Social</span> Support</h3>
+              <p className="text-[10px] text-[#1DB954] font-semibold mt-0.5 tracking-wider uppercase">Powered by Free Open AI</p>
             </div>
-            <button onClick={() => setIsOpen(false)} className="text-white/80 hover:text-white">
-              <X size={20} />
+            <button onClick={() => setIsOpen(false)} className="text-slate-400 hover:text-white transition-colors">
+              <X size={18} />
             </button>
           </div>
 
-
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50">
+          <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-[#121212]">
             {messages.map((msg, i) => (
               <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                 <div 
-                  className={`max-w-[85%] rounded-2xl px-4 py-2 text-sm shadow-sm ${
+                  className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm shadow-sm ${
                     msg.role === 'user' 
-                      ? 'bg-blue-600 text-white rounded-br-none' 
-                      : 'bg-white border border-slate-100 text-slate-800 rounded-bl-none'
+                      ? 'bg-[#1DB954] text-black font-semibold rounded-br-none' 
+                      : 'bg-[#282828] border border-slate-800/60 text-slate-200 rounded-bl-none'
                   }`}
                 >
                   {renderMessageContent(msg.content, msg.role === 'user')}
@@ -209,8 +208,8 @@ Inform the user about their order status based on this information. If the statu
             ))}
             {isLoading && (
               <div className="flex justify-start">
-                <div className="bg-white border border-slate-100 text-slate-800 rounded-2xl rounded-bl-none px-4 py-2 text-sm flex items-center gap-2">
-                  <Loader2 size={16} className="animate-spin text-blue-600" /> Thinking...
+                <div className="bg-[#282828] border border-slate-800/60 text-slate-300 rounded-2xl rounded-bl-none px-4 py-2 text-sm flex items-center gap-2">
+                  <Loader2 size={16} className="animate-spin text-[#1DB954]" /> Thinking...
                 </div>
               </div>
             )}
@@ -218,21 +217,21 @@ Inform the user about their order status based on this information. If the statu
           </div>
 
           {/* Input Area */}
-          <form onSubmit={handleSubmit} className="p-3 bg-white border-t border-slate-100 flex gap-2">
+          <form onSubmit={handleSubmit} className="p-3 bg-[#181818] border-t border-slate-800 flex gap-2">
             <input
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder="Type your message..."
-              className="flex-1 px-4 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm"
+              className="flex-1 px-4 py-2 bg-[#282828] border border-slate-700/80 text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1DB954] text-sm font-medium placeholder-slate-500"
               disabled={isLoading}
             />
             <button 
               type="submit" 
               disabled={isLoading || !input.trim()}
-              className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white p-2 rounded-xl transition-colors"
+              className="bg-[#1DB954] hover:bg-[#1ed760] disabled:bg-slate-800 text-black font-bold p-2.5 rounded-xl transition-colors flex items-center justify-center"
             >
-              <Send size={18} />
+              <Send size={16} />
             </button>
           </form>
         </div>

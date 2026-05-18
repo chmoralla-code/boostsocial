@@ -32,7 +32,9 @@ export function ServicesSection({ services }: ServicesSectionProps) {
   return (
     <>
       <section id="services" className="w-full max-w-6xl mx-auto px-4 mt-20 mb-20 relative z-10">
-        <h2 className="text-3xl md:text-4xl font-extrabold text-center text-slate-900 mb-12">Our Core Services</h2>
+        <h2 className="text-3xl md:text-4xl font-black text-center text-white mb-12 tracking-tight">
+          Choose Your <span className="text-[#1DB954]">Boost Tier</span>
+        </h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {services.map((service) => (
             <ServiceCard 

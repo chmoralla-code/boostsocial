@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { X, Loader2 } from "lucide-react";
+import { useState, useEffect } from "react";
+import { X, Loader2, ShieldCheck } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 
 interface OrderModalProps {
@@ -21,7 +21,26 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
   const [orderId, setOrderId] = useState<string>("");
   const [error, setError] = useState("");
 
+  // Anti-Spam Math Verification
+  const [num1, setNum1] = useState(0);
+  const [num2, setNum2] = useState(0);
+  const [captchaAnswer, setCaptchaAnswer] = useState("");
+
   const supabase = createClient();
+
+  const generateCaptcha = () => {
+    setNum1(Math.floor(Math.random() * 8) + 2); // 2-9
+    setNum2(Math.floor(Math.random() * 8) + 2); // 2-9
+    setCaptchaAnswer("");
+  };
+
+  useEffect(() => {
+    if (isOpen) {
+      generateCaptcha();
+      setError("");
+      setSuccess(false);
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -36,6 +55,13 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
       return;
     }
 
+    // Validate CAPTCHA
+    if (parseInt(captchaAnswer) !== num1 + num2) {
+      setError(`Verification failed: ${num1} + ${num2} equals ${num1 + num2}. Prove you are human!`);
+      generateCaptcha();
+      return;
+    }
+
     setIsSubmitting(true);
     setError("");
 
@@ -45,8 +71,8 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
         .insert([
           {
             service_id: serviceId,
-            customer_email: email,
-            target_url: url,
+            customer_email: email.trim(),
+            target_url: url.trim(),
             amount: totalPrice,
             status: 'Pending',
             quantity: quantity
@@ -59,6 +85,8 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
 
       setOrderId(insertData.id);
       setSuccess(true);
+      
+      // Auto-close success screen after 7 seconds
       setTimeout(() => {
         onClose();
         setSuccess(false);
@@ -66,65 +94,75 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
         setEmail("");
         setUrl("");
         setQuantity(1000);
-      }, 5000); // Wait longer so they can copy it
+      }, 7000);
     } catch (err: any) {
       setError(err.message || "Something went wrong.");
+      generateCaptcha();
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden relative">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#090909]/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+      <div className="bg-[#181818] border border-slate-800/80 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden relative transform transition-all animate-in zoom-in-95 duration-200">
         <button 
           onClick={onClose}
-          className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 transition-colors"
+          className="absolute top-4 right-4 text-slate-400 hover:text-white transition-colors p-1 hover:bg-slate-800/50 rounded-lg"
         >
-          <X size={24} />
+          <X size={20} />
         </button>
         
         <div className="p-8">
-          <h2 className="text-2xl font-bold text-slate-900 mb-2">Order {serviceTitle}</h2>
-          <p className="text-slate-600 mb-6">Enter your details to process the order.</p>
+          <h2 className="text-2xl font-black text-white mb-1.5 tracking-tight flex items-center gap-2">
+            Order <span className="text-[#1DB954]">{serviceTitle}</span>
+          </h2>
+          <p className="text-slate-400 text-sm mb-6">Process your amplification request securely.</p>
 
           {success ? (
-            <div className="bg-green-50 text-green-700 p-6 rounded-xl border border-green-200 text-center font-medium">
-              <p className="text-lg font-bold mb-2">Order placed successfully!</p>
-              <p className="text-sm">Your Order ID is:</p>
-              <div className="bg-white border border-green-300 p-2 mt-2 rounded font-mono text-xs text-slate-800 break-all select-all">
+            <div className="bg-[#121212] text-white p-6 rounded-xl border border-slate-800 text-center space-y-4 animate-in zoom-in duration-300">
+              <div className="w-12 h-12 bg-green-500/10 border border-green-500/20 text-[#1DB954] rounded-full flex items-center justify-center mx-auto">
+                <ShieldCheck size={28} />
+              </div>
+              <div>
+                <p className="text-lg font-bold text-white">Order Registered!</p>
+                <p className="text-xs text-slate-400 mt-1">Keep your Order ID for real-time tracking:</p>
+              </div>
+              <div className="bg-[#282828] border border-slate-700/80 p-3.5 rounded-lg font-mono text-sm text-[#1DB954] break-all select-all font-bold tracking-wider">
                 {orderId}
               </div>
-              <p className="text-xs mt-3 opacity-80">You can use this ID in our support chat to track your order.</p>
+              <p className="text-[11px] text-slate-500">
+                You can use this ID in our support chatbot on the landing page to track status updates instantly.
+              </p>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Email Address</label>
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5">Email Address</label>
                 <input 
                   type="email" 
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all"
+                  className="w-full px-4 py-3 rounded-xl bg-[#282828] border border-slate-700/60 focus:outline-none focus:ring-2 focus:ring-[#1DB954] text-white transition-all text-sm font-medium"
                   placeholder="you@example.com"
                 />
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Target URL</label>
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5">Target Link / URL</label>
                 <input 
                   type="url" 
                   required
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all"
+                  className="w-full px-4 py-3 rounded-xl bg-[#282828] border border-slate-700/60 focus:outline-none focus:ring-2 focus:ring-[#1DB954] text-white transition-all text-sm font-medium"
                   placeholder="https://facebook.com/your-page"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Quantity</label>
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5">Quantity (per 1,000)</label>
                 <input 
                   type="number" 
                   required
@@ -132,22 +170,47 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                   step="100"
                   value={quantity}
                   onChange={(e) => setQuantity(parseInt(e.target.value) || 0)}
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all"
+                  className="w-full px-4 py-3 rounded-xl bg-[#282828] border border-slate-700/60 focus:outline-none focus:ring-2 focus:ring-[#1DB954] text-white transition-all text-sm font-bold"
                   placeholder="1000"
                 />
-                <p className="text-sm text-slate-500 mt-1">Total Price: <span className="font-bold text-slate-900">${totalPrice.toFixed(2)}</span></p>
+                <div className="flex justify-between items-center mt-2 bg-[#121212] px-3.5 py-2.5 rounded-lg border border-slate-800">
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Estimated Total:</span>
+                  <span className="text-lg font-black text-white">${totalPrice.toFixed(2)}</span>
+                </div>
+              </div>
+
+              {/* Anti-Spam Human Verification Verification Check */}
+              <div className="pt-2 border-t border-slate-800/80">
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5">
+                  🛡️ Human Verification
+                </label>
+                <div className="flex gap-3 items-center">
+                  <div className="bg-[#121212] px-4 py-2.5 rounded-xl border border-slate-800 text-sm font-black text-[#1DB954] tracking-wide whitespace-nowrap">
+                    {num1} + {num2} = ?
+                  </div>
+                  <input 
+                    type="number" 
+                    required
+                    value={captchaAnswer}
+                    onChange={(e) => setCaptchaAnswer(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-xl bg-[#282828] border border-slate-700/60 focus:outline-none focus:ring-2 focus:ring-[#1DB954] text-white transition-all text-sm font-bold"
+                    placeholder="Prove you are human"
+                  />
+                </div>
               </div>
 
               {error && (
-                <div className="text-red-500 text-sm">{error}</div>
+                <div className="text-red-500 text-xs font-semibold bg-red-500/10 border border-red-500/20 p-2.5 rounded-xl text-center">
+                  {error}
+                </div>
               )}
 
               <button 
                 type="submit" 
                 disabled={isSubmitting}
-                className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-70 text-white font-semibold py-3.5 rounded-xl transition-colors flex justify-center items-center gap-2 mt-4"
+                className="w-full bg-[#1DB954] hover:bg-[#1ed760] disabled:bg-slate-700 text-black font-extrabold py-3.5 rounded-full transition-all duration-300 flex justify-center items-center gap-2 mt-4 tracking-wider uppercase text-xs"
               >
-                {isSubmitting ? <Loader2 className="animate-spin" size={20} /> : 'Complete Order'}
+                {isSubmitting ? <Loader2 className="animate-spin text-black" size={18} /> : 'Place Order'}
               </button>
             </form>
           )}

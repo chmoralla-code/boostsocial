@@ -15,26 +15,28 @@ export default async function Home() {
     <>
       <Header />
       
-      <main className="flex-grow flex flex-col items-center pt-16 relative overflow-hidden">
-        {/* Background decorative elements */}
-        <div className="absolute top-0 left-0 w-full h-[500px] overflow-hidden -z-10">
-          <div className="absolute top-10 left-[10%] w-6 h-6 rounded-full bg-orange-100 opacity-50"></div>
-          <div className="absolute top-40 right-[15%] w-12 h-12 border-2 border-blue-100 rounded-lg transform rotate-12"></div>
-          <div className="absolute top-[40%] left-[5%] w-16 h-16 rounded-full bg-orange-200 blur-xl opacity-40"></div>
-          <div className="absolute top-20 right-[5%] w-8 h-8 rounded-full bg-orange-100 opacity-60"></div>
-          <div className="absolute top-60 left-[20%] w-4 h-4 border border-blue-200 transform rotate-45"></div>
+      <main className="flex-grow flex flex-col items-center pt-16 relative overflow-hidden bg-[#121212] min-h-screen">
+        {/* Spotify Neon Glow Backdrops */}
+        <div className="absolute top-0 left-0 w-full h-[600px] overflow-hidden -z-10 pointer-events-none">
+          <div className="absolute top-[-20%] left-[10%] w-[500px] h-[500px] rounded-full spotify-glow-blob"></div>
+          <div className="absolute top-[20%] right-[-10%] w-[600px] h-[600px] rounded-full spotify-glow-blob"></div>
+          <div className="absolute top-[40%] left-[-20%] w-[500px] h-[500px] rounded-full spotify-glow-blob"></div>
         </div>
 
-        <div className="text-center px-4 max-w-3xl mx-auto">
-          <h1 className="text-5xl md:text-6xl font-extrabold text-[#0f172a] leading-tight mb-6 tracking-tight">
-            Amplify Your Facebook<br/>Reach Instantly
+        <div className="text-center px-4 max-w-4xl mx-auto z-10">
+          <h1 className="text-5xl md:text-7xl font-black leading-tight mb-8 tracking-tighter">
+            Amplify Your <br className="hidden md:inline" />
+            <span className="spotify-shimmer-text">Facebook Reach</span> Instantly
           </h1>
-          <p className="text-lg md:text-xl text-slate-600 mb-8 max-w-2xl mx-auto font-medium">
-            Gain Genuine Followers, Reactions, and Views.<br/>
-            Boost Your Profile & Pages Fast & Safely.
+          <p className="text-lg md:text-xl text-slate-400 mb-10 max-w-2xl mx-auto font-semibold leading-relaxed">
+            Gain genuine followers, organic reactions, and high-retention views.<br/>
+            Boost your profile and pages safely with instant delivery.
           </p>
-          <a href="#services" className="inline-block bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 px-8 rounded-lg shadow-lg shadow-blue-600/30 transition-all hover:scale-105">
-            ORDER NOW
+          <a 
+            href="#services" 
+            className="inline-block bg-[#1DB954] hover:bg-[#1ed760] text-black font-black py-4 px-10 rounded-full shadow-lg shadow-green-500/10 transition-all duration-300 transform hover:scale-[1.05] tracking-wider uppercase text-xs"
+          >
+            Explore Services
           </a>
         </div>
 
