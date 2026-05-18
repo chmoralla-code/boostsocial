@@ -70,7 +70,11 @@ export default function LoginPage() {
       });
 
       if (signUpError) {
-        setError(signUpError.message);
+        if (signUpError.message.toLowerCase().includes("rate limit")) {
+          setError("⚠️ Email Rate Limit Exceeded: Supabase restricts signup emails to 3 per hour by default to prevent spam. To fix this, log in to your Supabase Dashboard -> Project Settings -> Auth -> Security -> Rate Limits and increase the limit (e.g. to 30 or 50)!");
+        } else {
+          setError(signUpError.message);
+        }
         setLoading(false);
       } else {
         setSuccess("📬 Verification link sent! Please check your email inbox (and spam folder) to confirm your account, then sign in below.");
