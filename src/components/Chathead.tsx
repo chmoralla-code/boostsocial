@@ -82,6 +82,17 @@ export function Chathead() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const supabase = createClient();
+  const [dbServices, setDbServices] = useState<any[]>([]);
+
+  useEffect(() => {
+    supabase
+      .from('services')
+      .select('*')
+      .order('created_at', { ascending: true })
+      .then(({ data }) => {
+        if (data) setDbServices(data);
+      });
+  }, []);
 
   const uploadReceiptFile = async (file: File) => {
     const uuidRegex = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
@@ -251,12 +262,25 @@ export function Chathead() {
       }
 
       // 2. Call Pollinations AI for general chatbot messages (Free, unlimited, no API key required)
-      const systemContext = `You are a helpful, extremely concise customer support AI for BoostSocial, a platform that boosts Facebook followers, reactions, and views. Keep responses brief (1-3 sentences max).
+      const servicesCatalogText = dbServices.length > 0
+        ? dbServices.map(srv => {
+            let minQtyStr = "";
+            let freeTrialStr = "";
+            try {
+              if (srv.description && srv.description.trim().startsWith("{")) {
+                const parsed = JSON.parse(srv.description);
+                if (parsed.min_qty) minQtyStr = ` (Min order: ${parsed.min_qty})`;
+                if (parsed.free_trial_amount) freeTrialStr = ` (Free Trial: ${parsed.free_trial_amount} units available!)`;
+              }
+            } catch (e) {}
+            return `- **${srv.title}:** ₱${Number(srv.starting_price).toFixed(2)} per 1,000 units.${minQtyStr}${freeTrialStr}`;
+          }).join('\n')
+        : `- Facebook Followers: ₱9.99 per 1,000 followers.\n- Post Reactions (Likes, Hearts, etc.): ₱4.99 per 1,000 reactions.\n- Video Views (for Reels, Stories, etc.): ₱12.99 per 1,000 views.`;
 
-Our core services and pricing:
-- Facebook Followers: ₱9.99 per 1,000 followers.
-- Post Reactions (Likes, Hearts, etc.): ₱4.99 per 1,000 reactions.
-- Video Views (for Reels, Stories, etc.): ₱12.99 per 1,000 views.
+      const systemContext = `You are a helpful, extremely concise customer support AI for BoostSocial, a platform that boosts Facebook followers, reactions, and views. Keep responses brief (1-3 sentences max). You can perfectly understand and reply in English, Tagalog, and Taglish/Bisaya!
+
+Our live real-time core services and pricing catalog (fetched dynamically from our active database):
+${servicesCatalogText}
 
 Format list items on separate lines with simple bullets (e.g. * **Item:** text). We offer instant delivery and genuine engagement.`;
 
