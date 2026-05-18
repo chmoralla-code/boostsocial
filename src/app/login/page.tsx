@@ -3,13 +3,15 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
-import { Loader2, Rocket, ArrowLeft } from "lucide-react";
+import { Loader2, Rocket, ArrowLeft, Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
 
 export default function LoginPage() {
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
@@ -39,6 +41,12 @@ export default function LoginPage() {
     const loginEmail = email.includes("@") ? email.trim() : `${email.trim()}@boostsocial.com`;
 
     if (isSignUp) {
+      if (password !== confirmPassword) {
+        setError("Passwords do not match. Please verify your passwords.");
+        setLoading(false);
+        return;
+      }
+
       // Sign Up flow
       const { data, error: signUpError } = await supabase.auth.signUp({
         email: loginEmail,
@@ -49,19 +57,11 @@ export default function LoginPage() {
         setError(signUpError.message);
         setLoading(false);
       } else {
-        setSuccess("Account successfully created! Logging in...");
-        // Auto sign-in after sign-up
-        setTimeout(async () => {
-          const { error: signInError } = await supabase.auth.signInWithPassword({
-            email: loginEmail,
-            password,
-          });
-          if (signInError) {
-            router.push("/");
-          } else {
-            router.push("/");
-          }
-        }, 1500);
+        setSuccess("📬 Verification link sent! Please check your email inbox (and spam folder) to confirm your account, then sign in below.");
+        setLoading(false);
+        setIsSignUp(false); // Instantly return to sign in view
+        setPassword("");
+        setConfirmPassword("");
       }
     } else {
       // Sign In flow
@@ -71,7 +71,11 @@ export default function LoginPage() {
       });
 
       if (signInError) {
-        setError(signInError.message);
+        if (signInError.message.toLowerCase().includes("confirm")) {
+          setError("📬 Email not confirmed. Please check your email inbox and click the verification link to activate your account!");
+        } else {
+          setError(signInError.message);
+        }
         setLoading(false);
       } else {
         if (loginEmail.endsWith("@boostsocial.com")) {
@@ -121,25 +125,50 @@ export default function LoginPage() {
               className="w-full bg-[#121212] border border-slate-800/80 px-4 py-3 rounded-xl focus:outline-none focus:border-[#1DB954] text-white text-sm transition-all"
             />
           </div>
+
           <div>
             <label className="block text-xs font-black uppercase tracking-widest text-slate-400 mb-1.5">Password</label>
-            <input 
-              type="password" 
-              required
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full bg-[#121212] border border-slate-800/80 px-4 py-3 rounded-xl focus:outline-none focus:border-[#1DB954] text-white text-sm transition-all"
-            />
+            <div className="relative">
+              <input 
+                type={showPassword ? "text" : "password"}
+                required
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full bg-[#121212] border border-slate-800/80 px-4 py-3 pr-10 rounded-xl focus:outline-none focus:border-[#1DB954] text-white text-sm transition-all"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors cursor-pointer"
+                title={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
           </div>
 
-          {error && <div className="text-red-500 text-xs font-semibold bg-red-500/10 border border-red-500/20 p-3 rounded-xl">{error}</div>}
-          {success && <div className="text-[#1DB954] text-xs font-semibold bg-[#1DB954]/10 border border-[#1DB954]/20 p-3 rounded-xl">{success}</div>}
+          {isSignUp && (
+            <div>
+              <label className="block text-xs font-black uppercase tracking-widest text-slate-400 mb-1.5">Confirm Password</label>
+              <input 
+                type={showPassword ? "text" : "password"}
+                required
+                placeholder="••••••••"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="w-full bg-[#121212] border border-slate-800/80 px-4 py-3 rounded-xl focus:outline-none focus:border-[#1DB954] text-white text-sm transition-all"
+              />
+            </div>
+          )}
+
+          {error && <div className="text-red-500 text-xs font-semibold bg-red-500/10 border border-red-500/20 p-3.5 rounded-xl text-left leading-relaxed">{error}</div>}
+          {success && <div className="text-[#1DB954] text-xs font-semibold bg-[#1DB954]/10 border border-[#1DB954]/20 p-3.5 rounded-xl text-left leading-relaxed">{success}</div>}
 
           <button 
             type="submit" 
             disabled={loading}
-            className="w-full bg-[#1DB954] hover:bg-[#1ed760] text-black font-black py-3.5 rounded-full transition-all duration-300 transform hover:scale-[1.02] flex justify-center items-center gap-2 mt-6 uppercase tracking-wider text-xs shadow-lg shadow-green-500/10"
+            className="w-full bg-[#1DB954] hover:bg-[#1ed760] text-black font-black py-3.5 rounded-full transition-all duration-300 transform hover:scale-[1.02] flex justify-center items-center gap-2 mt-6 uppercase tracking-wider text-xs shadow-lg shadow-green-500/10 cursor-pointer"
           >
             {loading ? <Loader2 className="animate-spin" size={16} /> : isSignUp ? 'Create Account' : 'Sign In'}
           </button>
@@ -151,8 +180,10 @@ export default function LoginPage() {
               setIsSignUp(!isSignUp);
               setError("");
               setSuccess("");
+              setPassword("");
+              setConfirmPassword("");
             }}
-            className="text-xs text-[#1DB954] hover:underline font-bold"
+            className="text-xs text-[#1DB954] hover:underline font-bold cursor-pointer"
           >
             {isSignUp ? "Already have an account? Sign In" : "Don't have an account? Create one"}
           </button>
