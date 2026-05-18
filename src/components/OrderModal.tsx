@@ -10,6 +10,7 @@ interface OrderModalProps {
   serviceId: string | null;
   serviceTitle: string;
   serviceBasePrice: number;
+  presetQuantity?: number;
   service?: {
     id: string;
     title: string;
@@ -19,7 +20,7 @@ interface OrderModalProps {
   } | null;
 }
 
-export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBasePrice, service }: OrderModalProps) {
+export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBasePrice, presetQuantity, service }: OrderModalProps) {
   const [email, setEmail] = useState("");
   const [url, setUrl] = useState("");
   const [quantity, setQuantity] = useState<number>(1000);
@@ -83,6 +84,10 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
       setError("");
       setSuccess(false);
       
+      if (presetQuantity) {
+        setQuantity(presetQuantity);
+      }
+      
       supabase.auth.getUser().then(({ data }) => {
         if (data.user) {
           setUser(data.user);
@@ -93,7 +98,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
         }
       });
     }
-  }, [isOpen]);
+  }, [isOpen, presetQuantity]);
 
   if (!isOpen) return null;
 

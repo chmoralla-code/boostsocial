@@ -3,6 +3,10 @@
 import { useState } from "react";
 import { ServiceCard } from "./ServiceCard";
 import { OrderModal } from "./OrderModal";
+import { PriceCalculator } from "./PriceCalculator";
+import { StatCounters } from "./StatCounters";
+import { FaqSection } from "./FaqSection";
+import { ReviewsSection } from "./ReviewsSection";
 
 interface Service {
   id: string;
@@ -22,17 +26,38 @@ export function ServicesSection({ services }: ServicesSectionProps) {
   const [selectedServiceTitle, setSelectedServiceTitle] = useState("");
   const [selectedServicePrice, setSelectedServicePrice] = useState(0);
   const [selectedService, setSelectedService] = useState<Service | null>(null);
+  const [presetQty, setPresetQty] = useState<number>(1000);
 
   const handleOrder = (id: string, title: string, price: number) => {
     setSelectedServiceId(id);
     setSelectedServiceTitle(title);
     setSelectedServicePrice(price);
+    setPresetQty(1000); // Standard default
+    setIsModalOpen(true);
+  };
+
+  const handleCalculatorOrder = (service: Service, quantity: number) => {
+    setSelectedService(service);
+    setSelectedServiceId(service.id);
+    setSelectedServiceTitle(service.title);
+    setSelectedServicePrice(service.starting_price);
+    setPresetQty(quantity);
     setIsModalOpen(true);
   };
 
   return (
     <>
-      <section id="services" className="w-full max-w-6xl mx-auto px-4 mt-20 mb-20 relative z-10">
+      {/* 1. SMM Price Calculator Widget */}
+      <PriceCalculator 
+        services={services} 
+        onOrder={handleCalculatorOrder} 
+      />
+
+      {/* 2. Brand Stat Counters */}
+      <StatCounters />
+
+      {/* 3. Choose Your Boost Tier Grid */}
+      <section id="services" className="w-full max-w-6xl mx-auto px-4 mt-12 mb-20 relative z-10">
         <h2 className="text-3xl md:text-4xl font-black text-center text-white mb-12 tracking-tight">
           Choose Your <span className="text-[#1DB954]">Boost Tier</span>
         </h2>
@@ -54,12 +79,20 @@ export function ServicesSection({ services }: ServicesSectionProps) {
         </div>
       </section>
 
+      {/* 4. Customer reviews Grid & Form */}
+      <ReviewsSection />
+
+      {/* 5. FAQs Section */}
+      <FaqSection />
+
+      {/* 6. Checkout Order Modal */}
       <OrderModal 
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         serviceId={selectedServiceId}
         serviceTitle={selectedServiceTitle}
         serviceBasePrice={selectedServicePrice}
+        presetQuantity={presetQty}
         service={selectedService}
       />
     </>
