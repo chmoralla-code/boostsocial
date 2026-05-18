@@ -130,7 +130,7 @@ export function TopUpModal({ isOpen, onClose, user, onTopUpSuccess }: { isOpen: 
                   <p className="text-xs text-slate-500">Send exactly the amount entered above</p>
                 </div>
                 <div className="w-48 h-48 bg-white p-2 rounded-xl flex items-center justify-center">
-                  <img src="/gcash.jpg" alt="GCash QR" className="w-full h-full object-contain" />
+                  <img src="/gcash-qr.png" alt="GCash QR" className="w-full h-full object-contain" />
                 </div>
               </div>
 
