@@ -26,10 +26,24 @@ export async function POST(req: NextRequest) {
       }
     });
 
-    const fileExt = file.name.split('.').pop() || 'png';
-    const fileName = `${orderId}.${fileExt}`;
+    // 1. Fetch the customer email associated with this order to personalize the receipt file
+    const { data: orderData, error: fetchError } = await supabase
+      .from("orders")
+      .select("customer_email")
+      .eq("id", orderId)
+      .single();
 
-    // Upload to bucket 'receipts' bypassing client-side constraints
+    if (fetchError) {
+      console.error("Failed to fetch order customer email:", fetchError);
+    }
+
+    const email = orderData?.customer_email ? orderData.customer_email.trim() : "unknown";
+    const fileExt = file.name.split('.').pop() || 'png';
+    
+    // 2. Name the file [orderId]_[email].[ext] to instantly identify who is paying in the storage bucket
+    const fileName = `${orderId}_${email}.${fileExt}`;
+
+    // 3. Upload to bucket 'receipts' bypassing client-side constraints
     const { data, error } = await supabase.storage
       .from('receipts')
       .upload(fileName, file, {
@@ -40,7 +54,17 @@ export async function POST(req: NextRequest) {
       throw error;
     }
 
-    return NextResponse.json({ success: true, data });
+    // 4. Automatically advance order status to 'Processing' in the database
+    const { error: updateError } = await supabase
+      .from("orders")
+      .update({ status: "Processing" })
+      .eq("id", orderId);
+
+    if (updateError) {
+      console.error("Failed to automatically update order status:", updateError);
+    }
+
+    return NextResponse.json({ success: true, data, email });
   } catch (err: any) {
     console.error("Upload endpoint failed:", err);
     return NextResponse.json({ error: err.message || err.toString() }, { status: 500 });
