@@ -122,6 +122,7 @@ export function CustomersList({ initialCustomers }: { initialCustomers: Customer
                 <th className="py-4 px-6 font-semibold text-slate-700 text-sm">Total Revenue</th>
                 <th className="py-4 px-6 font-semibold text-slate-700 text-sm">Last Active</th>
                 <th className="py-4 px-6 font-semibold text-slate-700 text-sm">Status Summary</th>
+                <th className="py-4 px-6 font-semibold text-slate-700 text-sm text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -167,6 +168,34 @@ export function CustomersList({ initialCustomers }: { initialCustomers: Customer
                         </span>
                       )}
                     </div>
+                  </td>
+                  <td className="py-4 px-6 text-sm text-right">
+                    <button
+                      onClick={async () => {
+                        if (confirm(`Are you sure you want to delete ${customer.email}? This action cannot be undone.`)) {
+                          try {
+                            const res = await fetch("/api/admin/delete-customer", {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ email: customer.email })
+                            });
+                            if (res.ok) {
+                              alert("Customer deleted successfully. Please refresh the page.");
+                              window.location.reload();
+                            } else {
+                              const data = await res.json();
+                              alert(data.error || "Failed to delete customer");
+                            }
+                          } catch (err) {
+                            alert("An error occurred");
+                          }
+                        }
+                      }}
+                      className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                      title="Delete Customer"
+                    >
+                      Delete
+                    </button>
                   </td>
                 </tr>
               ))}
