@@ -36,10 +36,10 @@ const renderMessageContent = (content: string, isUser: boolean) => {
       parts.push(
         <strong 
           key={match.index} 
-          className={`font-semibold ${
+          className={`font-bold ${
             isUser 
               ? 'text-white underline decoration-wavy' 
-              : 'text-slate-900 bg-slate-100/90 px-1 py-0.5 rounded border border-slate-200/60 text-xs shadow-sm font-bold'
+              : 'text-[#1DB954] text-sm'
           }`}
         >
           {match[1]}
@@ -55,8 +55,8 @@ const renderMessageContent = (content: string, isUser: boolean) => {
     if (isListItem) {
       return (
         <div key={lineIdx} className="flex items-start gap-1.5 my-1 pl-1">
-          <span className={`mt-1 flex-shrink-0 text-[10px] ${isUser ? 'text-blue-200' : 'text-blue-600'}`}>●</span>
-          <span className={`${isUser ? 'text-blue-50' : 'text-slate-700'} leading-relaxed text-sm`}>{parts}</span>
+          <span className={`mt-1 flex-shrink-0 text-[10px] ${isUser ? 'text-black/60' : 'text-[#1DB954]'}`}>●</span>
+          <span className={`${isUser ? 'text-black' : 'text-slate-200'} leading-relaxed text-sm`}>{parts}</span>
         </div>
       );
     }
@@ -83,10 +83,7 @@ export function Chathead() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const supabase = createClient();
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  const uploadReceiptFile = async (file: File) => {
     const uuidRegex = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
     let orderId = "";
 
@@ -113,7 +110,7 @@ export function Chathead() {
     }
 
     if (!orderId) {
-      alert("⚠️ Order ID not found!\n\nPlease enter your Order ID in the text input box first before uploading your GCash screenshot so we can match it to your order.");
+      alert("⚠️ Order ID not found!\n\nPlease enter your Order ID in the text input box first before uploading/pasting your GCash screenshot so we can match it to your order.");
       if (fileInputRef.current) fileInputRef.current.value = "";
       return;
     }
@@ -122,16 +119,20 @@ export function Chathead() {
     setMessages(prev => [...prev, { role: 'user', content: `[Attached GCash Receipt Screenshot for Order ${orderId}]` }]);
 
     try {
-      const fileExt = file.name.split('.').pop() || 'png';
-      const fileName = `${orderId}.${fileExt}`;
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("orderId", orderId);
 
-      const { data, error } = await supabase.storage
-        .from('receipts')
-        .upload(fileName, file, {
-          upsert: true
-        });
+      // Route the file upload through the secure Next.js server API endpoint
+      const res = await fetch("/api/upload-receipt", {
+        method: "POST",
+        body: formData
+      });
 
-      if (error) throw error;
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || "Server upload failed");
+      }
 
       // Add success response from AI
       setMessages(prev => [...prev, { 
@@ -148,6 +149,26 @@ export function Chathead() {
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      await uploadReceiptFile(file);
+    }
+  };
+
+  const handlePaste = async (e: React.ClipboardEvent<HTMLInputElement>) => {
+    const items = e.clipboardData.items;
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.indexOf("image") !== -1) {
+        const file = items[i].getAsFile();
+        if (file) {
+          e.preventDefault();
+          await uploadReceiptFile(file);
+        }
+      }
     }
   };
 
@@ -312,7 +333,8 @@ Inform the user about their order status based on this information. If the statu
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder={uploading ? "Uploading receipt..." : "Type your message..."}
+              onPaste={handlePaste}
+              placeholder={uploading ? "Uploading receipt..." : "Type message or paste screenshot..."}
               className="flex-1 px-4 py-2 bg-[#282828] border border-slate-700/80 text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1DB954] text-sm font-medium placeholder-slate-500"
               disabled={isLoading || uploading}
             />
