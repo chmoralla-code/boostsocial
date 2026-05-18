@@ -24,9 +24,9 @@ export default async function Home() {
         </div>
 
         <div className="text-center px-4 max-w-4xl mx-auto z-10">
-          <h1 className="text-5xl md:text-7xl font-black leading-tight mb-8 tracking-tighter">
-            Amplify Your <br className="hidden md:inline" />
-            <span className="spotify-shimmer-text">Facebook Reach</span> Instantly
+          <h1 className="text-5xl md:text-7xl font-black leading-tight mb-8 tracking-tighter uppercase">
+            MAS BARATO PA SA <br className="hidden md:inline" />
+            <span className="spotify-shimmer-text">FACEBOOK BOOSTING</span> SERVICES !
           </h1>
           <p className="text-lg md:text-xl text-slate-400 mb-10 max-w-3xl mx-auto font-semibold leading-relaxed">
             Don't worry about transparency—we deliver 50 free trial followers, <br className="hidden sm:inline" />
