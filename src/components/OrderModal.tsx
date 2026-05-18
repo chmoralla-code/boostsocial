@@ -21,6 +21,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
   const [orderId, setOrderId] = useState<string>("");
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
+  const [user, setUser] = useState<any>(null);
 
   // Anti-Spam Math Verification
   const [num1, setNum1] = useState(0);
@@ -46,6 +47,13 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
       generateCaptcha();
       setError("");
       setSuccess(false);
+      
+      supabase.auth.getUser().then(({ data }) => {
+        if (data.user) {
+          setUser(data.user);
+          setEmail(data.user.email || "");
+        }
+      });
     }
   }, [isOpen]);
 
@@ -205,17 +213,36 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5">Email Address</label>
-                <input 
-                  type="email" 
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl bg-[#282828] border border-slate-700/60 focus:outline-none focus:ring-2 focus:ring-[#1DB954] text-white transition-all text-sm font-medium"
-                  placeholder="you@example.com"
-                />
-              </div>
+              {user ? (
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5 flex justify-between items-center">
+                    <span>Email Address</span>
+                    <span className="text-[#1DB954] text-[10px] font-black uppercase tracking-wider">✓ Active Profile</span>
+                  </label>
+                  <input 
+                    type="email" 
+                    required
+                    disabled
+                    value={email}
+                    className="w-full px-4 py-3 rounded-xl bg-[#1e1e1e] border border-[#1DB954]/30 text-slate-400 cursor-not-allowed text-sm font-medium"
+                  />
+                </div>
+              ) : (
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5">Email Address</label>
+                  <input 
+                    type="email" 
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl bg-[#282828] border border-slate-700/60 focus:outline-none focus:ring-2 focus:ring-[#1DB954] text-white transition-all text-sm font-medium"
+                    placeholder="you@example.com"
+                  />
+                  <p className="text-[10px] text-slate-400 mt-1.5 leading-relaxed text-left">
+                    💡 Want to track orders automatically? <a href="/login" className="text-[#1DB954] font-extrabold hover:underline">Sign In / Register</a> first!
+                  </p>
+                </div>
+              )}
               
               <div>
                 <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5">Target Link / URL</label>

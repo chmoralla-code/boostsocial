@@ -1,76 +1,162 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
-import { Loader2 } from "lucide-react";
+import { Loader2, Rocket, ArrowLeft } from "lucide-react";
+import Link from "next/link";
 
 export default function LoginPage() {
-  const [username, setUsername] = useState("");
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const supabase = createClient();
 
-  const handleLogin = async (e: React.FormEvent) => {
+  useEffect(() => {
+    // Check if user is already logged in
+    supabase.auth.getUser().then(({ data }) => {
+      if (data.user) {
+        if (data.user.email?.endsWith("@boostsocial.com")) {
+          router.push("/admin");
+        } else {
+          router.push("/");
+        }
+      }
+    });
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError("");
+    setSuccess("");
 
-    // Automatically append @boostsocial.com if it's just a username
-    const loginEmail = username.includes("@") ? username : `${username}@boostsocial.com`;
+    // Automatically append @boostsocial.com if it's a simple username without @
+    const loginEmail = email.includes("@") ? email.trim() : `${email.trim()}@boostsocial.com`;
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email: loginEmail,
-      password,
-    });
+    if (isSignUp) {
+      // Sign Up flow
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email: loginEmail,
+        password,
+      });
 
-    if (error) {
-      setError(error.message);
-      setLoading(false);
+      if (signUpError) {
+        setError(signUpError.message);
+        setLoading(false);
+      } else {
+        setSuccess("Account successfully created! Logging in...");
+        // Auto sign-in after sign-up
+        setTimeout(async () => {
+          const { error: signInError } = await supabase.auth.signInWithPassword({
+            email: loginEmail,
+            password,
+          });
+          if (signInError) {
+            router.push("/");
+          } else {
+            router.push("/");
+          }
+        }, 1500);
+      }
     } else {
-      router.push("/admin");
+      // Sign In flow
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+        email: loginEmail,
+        password,
+      });
+
+      if (signInError) {
+        setError(signInError.message);
+        setLoading(false);
+      } else {
+        if (loginEmail.endsWith("@boostsocial.com")) {
+          router.push("/admin");
+        } else {
+          router.push("/");
+        }
+      }
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
-      <div className="bg-white p-8 rounded-2xl shadow-xl shadow-blue-100/50 w-full max-w-md border border-slate-100">
-        <h1 className="text-2xl font-bold text-slate-900 mb-6 text-center">Admin Login</h1>
+    <div className="min-h-screen flex items-center justify-center bg-[#121212] p-4 relative overflow-hidden">
+      {/* Glow effects */}
+      <div className="absolute top-[-10%] left-[10%] w-[300px] h-[300px] rounded-full spotify-glow-blob -z-10 pointer-events-none opacity-40"></div>
+      <div className="absolute bottom-[-10%] right-[10%] w-[300px] h-[300px] rounded-full spotify-glow-blob -z-10 pointer-events-none opacity-40"></div>
+
+      <div className="bg-[#181818] border border-slate-800/80 p-8 rounded-2xl w-full max-w-md shadow-2xl relative">
+        <Link 
+          href="/" 
+          className="absolute top-6 left-6 text-slate-400 hover:text-white transition-colors flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider"
+        >
+          <ArrowLeft size={14} /> Back
+        </Link>
+
+        <div className="flex flex-col items-center mb-8 mt-4">
+          <div className="text-[#1DB954] mb-3 drop-shadow-[0_0_10px_rgba(29,185,84,0.3)]">
+            <Rocket size={40} strokeWidth={2.5} />
+          </div>
+          <h1 className="text-2xl font-black text-white tracking-tight">
+            Boost<span className="text-[#1DB954]">Social</span> Auth
+          </h1>
+          <p className="text-slate-400 text-xs mt-1 text-center">
+            {isSignUp ? "Create a customer account to track orders" : "Access your amplification workspace"}
+          </p>
+        </div>
         
-        <form onSubmit={handleLogin} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Username</label>
+            <label className="block text-xs font-black uppercase tracking-widest text-slate-400 mb-1.5">Email / Username</label>
             <input 
               type="text" 
               required
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all"
+              placeholder="e.g. name@domain.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full bg-[#121212] border border-slate-800/80 px-4 py-3 rounded-xl focus:outline-none focus:border-[#1DB954] text-white text-sm transition-all"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Password</label>
+            <label className="block text-xs font-black uppercase tracking-widest text-slate-400 mb-1.5">Password</label>
             <input 
               type="password" 
               required
+              placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all"
+              className="w-full bg-[#121212] border border-slate-800/80 px-4 py-3 rounded-xl focus:outline-none focus:border-[#1DB954] text-white text-sm transition-all"
             />
           </div>
 
-          {error && <div className="text-red-500 text-sm">{error}</div>}
+          {error && <div className="text-red-500 text-xs font-semibold bg-red-500/10 border border-red-500/20 p-3 rounded-xl">{error}</div>}
+          {success && <div className="text-[#1DB954] text-xs font-semibold bg-[#1DB954]/10 border border-[#1DB954]/20 p-3 rounded-xl">{success}</div>}
 
           <button 
             type="submit" 
             disabled={loading}
-            className="w-full bg-slate-900 hover:bg-slate-800 text-white font-semibold py-3.5 rounded-xl transition-colors flex justify-center items-center gap-2 mt-4"
+            className="w-full bg-[#1DB954] hover:bg-[#1ed760] text-black font-black py-3.5 rounded-full transition-all duration-300 transform hover:scale-[1.02] flex justify-center items-center gap-2 mt-6 uppercase tracking-wider text-xs shadow-lg shadow-green-500/10"
           >
-            {loading ? <Loader2 className="animate-spin" size={20} /> : 'Sign In'}
+            {loading ? <Loader2 className="animate-spin" size={16} /> : isSignUp ? 'Create Account' : 'Sign In'}
           </button>
         </form>
+
+        <div className="mt-6 pt-6 border-t border-slate-800/80 text-center">
+          <button 
+            onClick={() => {
+              setIsSignUp(!isSignUp);
+              setError("");
+              setSuccess("");
+            }}
+            className="text-xs text-[#1DB954] hover:underline font-bold"
+          >
+            {isSignUp ? "Already have an account? Sign In" : "Don't have an account? Create one"}
+          </button>
+        </div>
       </div>
     </div>
   );

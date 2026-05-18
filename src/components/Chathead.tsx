@@ -98,7 +98,8 @@ export function Chathead() {
         const { data, error } = await supabase
           .from('orders')
           .select('id')
-          .like('id', `${shortHex}%`)
+          .gte('id', `${shortHex}-0000-0000-0000-000000000000`)
+          .lte('id', `${shortHex}-ffff-ffff-ffff-ffffffffffff`)
           .limit(1)
           .single();
         if (data && !error) {
@@ -217,7 +218,10 @@ export function Chathead() {
         if (uuidMatch) {
           query = query.eq('id', uuidMatch[0]);
         } else if (trackMatch) {
-          query = query.like('id', `${trackMatch[1].toLowerCase()}%`);
+          const lowerHex = trackMatch[1].toLowerCase();
+          query = query
+            .gte('id', `${lowerHex}-0000-0000-0000-000000000000`)
+            .lte('id', `${lowerHex}-ffff-ffff-ffff-ffffffffffff`);
         }
 
         const { data, error } = await query.single();
