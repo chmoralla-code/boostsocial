@@ -19,6 +19,14 @@ export default function LoginPage() {
   const supabase = createClient();
 
   useEffect(() => {
+    // Check query params for verification redirects
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("verified") === "true" || params.get("code")) {
+        setSuccess("🎉 Email verified successfully! Your account is now fully active. Please sign in below to access your My Orders tracker workspace!");
+      }
+    }
+
     // Check if user is already logged in
     supabase.auth.getUser().then(({ data }) => {
       if (data.user) {
@@ -47,10 +55,18 @@ export default function LoginPage() {
         return;
       }
 
-      // Sign Up flow
+      // Compute dynamic redirect URL to avoid hardcoded localhost links
+      const redirectUrl = typeof window !== "undefined"
+        ? `${window.location.origin}/login?verified=true`
+        : "https://faceboosting.vercel.app/login?verified=true";
+
+      // Sign Up flow with options.emailRedirectTo
       const { data, error: signUpError } = await supabase.auth.signUp({
         email: loginEmail,
         password,
+        options: {
+          emailRedirectTo: redirectUrl
+        }
       });
 
       if (signUpError) {
