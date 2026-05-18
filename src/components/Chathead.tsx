@@ -18,7 +18,7 @@ interface Message {
 export function Chathead() {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
-    { role: 'assistant', content: 'Hi there! I am the BoostSocial AI. Need help tracking an order? Just send me your Order ID.' }
+    { role: 'assistant', content: 'Hi there! 👋 I am your BoostSocial assistant. How can I help you amplify your reach today? If you have an Order ID, just send it over and I can track it for you!' }
   ]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -44,7 +44,15 @@ export function Chathead() {
       const uuidRegex = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
       const match = userMsg.match(uuidRegex);
       
-      let systemContext = "You are a helpful customer support AI for BoostSocial, a platform that boosts Facebook followers, reactions, and views. Keep your answers concise and friendly.";
+      let systemContext = `You are a helpful customer support AI for BoostSocial, a platform that boosts Facebook followers, reactions, and views. 
+Keep your answers concise, friendly, and professional.
+
+Our core services and pricing:
+- Facebook Followers: $9.99 per 1,000 followers.
+- Post Reactions (Likes, Hearts, etc.): $4.99 per 1,000 reactions.
+- Video Views (for Reels, Stories, etc.): $12.99 per 1,000 views.
+
+We offer instant delivery and genuine engagement.`;
 
       if (match) {
         const orderId = match[0];
@@ -56,13 +64,21 @@ export function Chathead() {
           .single();
 
         if (data && !error) {
-          systemContext += `\n\nThe user is asking about an order. Here is the order info:\nOrder ID: ${data.id}\nService: ${data.services?.title}\nStatus: ${data.status}\nQuantity: ${data.quantity}\nTarget URL: ${data.target_url}\nAmount: $${data.amount}\n\nInform the user about their order status based on this information.`;
+          systemContext += `\n\nThe user is asking about an order. Here is the order info:
+Order ID: ${data.id}
+Service: ${data.services?.title}
+Status: ${data.status}
+Quantity: ${data.quantity}
+Target URL: ${data.target_url}
+Amount: $${data.amount}
+
+Inform the user about their order status based on this information. If the status is 'Pending', tell them it will be processed shortly.`;
         } else {
-          systemContext += `\n\nThe user asked about Order ID ${orderId}, but no such order was found in the database. Tell them you couldn't find it.`;
+          systemContext += `\n\nThe user asked about Order ID ${orderId}, but no such order was found in the database. Politely tell them you couldn't find an order with that ID and suggest they double-check the ID or contact support.`;
         }
       }
 
-      // 2. Call Puter AI with Llama 3
+      // 2. Call Puter AI with Claude 3.5 Sonnet
       if (!window.puter) {
         throw new Error("Puter is not loaded yet.");
       }
@@ -70,14 +86,14 @@ export function Chathead() {
       const historyString = messages.map(m => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`).join('\n');
       const prompt = `${systemContext}\n\nChat History:\n${historyString}\n\nUser: ${userMsg}\n\nAssistant:`;
 
-      // Explicitly requesting llama3
-      const response = await window.puter.ai.chat(prompt, { model: 'llama3' });
+      // Using Claude 3.5 Sonnet
+      const response = await window.puter.ai.chat(prompt, { model: 'anthropic/claude-3-5-sonnet' });
 
       setMessages(prev => [...prev, { role: 'assistant', content: response.toString() }]);
 
     } catch (err: any) {
       console.error(err);
-      setMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, I am having trouble connecting to my AI brain right now.' }]);
+      setMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, I am having trouble connecting to my AI brain right now. Please try again in a moment.' }]);
     } finally {
       setIsLoading(false);
     }
@@ -100,12 +116,13 @@ export function Chathead() {
           <div className="bg-blue-600 p-4 text-white flex items-center justify-between">
             <div>
               <h3 className="font-bold">BoostSocial Support</h3>
-              <p className="text-xs text-blue-100">Powered by Llama 3 (Puter Cloud)</p>
+              <p className="text-xs text-blue-100">Powered by Claude 3.5 (Puter Cloud)</p>
             </div>
             <button onClick={() => setIsOpen(false)} className="text-white/80 hover:text-white">
               <X size={20} />
             </button>
           </div>
+
 
           {/* Messages */}
           <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50">
