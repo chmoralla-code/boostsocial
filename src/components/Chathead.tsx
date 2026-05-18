@@ -297,9 +297,29 @@ Format list items on separate lines with simple bullets (e.g. * **Item:** text).
       {/* Floating Button */}
       <button 
         onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-6 right-6 z-50 bg-[#1DB954] hover:bg-[#1ed760] text-black p-4 rounded-full shadow-2xl transition-all duration-300 hover:scale-105 hover:rotate-12"
+        className="fixed bottom-6 right-6 z-50 rounded-full shadow-[0_0_20px_rgba(29,185,84,0.4)] transition-all duration-300 hover:scale-110 hover:shadow-[0_0_25px_rgba(29,185,84,0.6)] focus:outline-none flex items-center justify-center group overflow-visible"
+        style={{ width: "60px", height: "60px" }}
       >
-        {isOpen ? <X size={24} /> : <MessageCircle size={24} />}
+        {isOpen ? (
+          <div className="bg-[#1DB954] hover:bg-[#1ed760] text-black w-full h-full rounded-full flex items-center justify-center transition-all duration-300">
+            <X size={24} className="transition-transform duration-300 group-hover:rotate-90" />
+          </div>
+        ) : (
+          <div className="relative w-full h-full rounded-full p-0.5 bg-gradient-to-tr from-[#1DB954] via-emerald-500 to-[#1ed760] flex items-center justify-center">
+            {/* Online Indicator Badge */}
+            <span className="absolute -top-0.5 -right-0.5 flex h-3.5 w-3.5 z-10">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#1DB954] opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-[#1DB954] border-2 border-[#121212]"></span>
+            </span>
+            <div className="w-full h-full rounded-full overflow-hidden bg-[#181818] flex items-center justify-center">
+              <img 
+                src="/chathead-face.png" 
+                alt="Support Face" 
+                className="w-full h-full object-cover select-none pointer-events-none group-hover:scale-105 transition-transform duration-300"
+              />
+            </div>
+          </div>
+        )}
       </button>
 
       {/* Chat Window */}
