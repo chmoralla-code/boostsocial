@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { MessageCircle, X, Send, Loader2 } from "lucide-react";
+import { MessageCircle, X, Send, Loader2, Image } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 
 declare global {
@@ -77,9 +77,79 @@ export function Chathead() {
   ]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const supabase = createClient();
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const uuidRegex = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
+    let orderId = "";
+
+    // 1. Check current text input
+    const inputMatch = input.match(uuidRegex);
+    if (inputMatch) {
+      orderId = inputMatch[0];
+    }
+
+    // 2. Check localStorage
+    if (!orderId && typeof window !== "undefined") {
+      orderId = localStorage.getItem("last_order_id") || "";
+    }
+
+    // 3. Check chat messages
+    if (!orderId) {
+      for (let i = messages.length - 1; i >= 0; i--) {
+        const chatMatch = messages[i].content.match(uuidRegex);
+        if (chatMatch) {
+          orderId = chatMatch[0];
+          break;
+        }
+      }
+    }
+
+    if (!orderId) {
+      alert("⚠️ Order ID not found!\n\nPlease enter your Order ID in the text input box first before uploading your GCash screenshot so we can match it to your order.");
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+
+    setUploading(true);
+    setMessages(prev => [...prev, { role: 'user', content: `[Attached GCash Receipt Screenshot for Order ${orderId}]` }]);
+
+    try {
+      const fileExt = file.name.split('.').pop() || 'png';
+      const fileName = `${orderId}.${fileExt}`;
+
+      const { data, error } = await supabase.storage
+        .from('receipts')
+        .upload(fileName, file, {
+          upsert: true
+        });
+
+      if (error) throw error;
+
+      // Add success response from AI
+      setMessages(prev => [...prev, { 
+        role: 'assistant', 
+        content: `🎉 **Receipt screenshot successfully received!**\n\nIt has been automatically linked to **Order ID: ${orderId}** and is now visible on the Admin Dashboard.\n\nOur operations team will verify the payment and begin your full package delivery shortly! Thank you for your payment! 🙏` 
+      }]);
+
+    } catch (err: any) {
+      console.error(err);
+      setMessages(prev => [...prev, { 
+        role: 'assistant', 
+        content: `❌ **Failed to upload screenshot:** ${err.message || err.toString()}. Please try again or contact support.` 
+      }]);
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -217,19 +287,39 @@ Inform the user about their order status based on this information. If the statu
           </div>
 
           {/* Input Area */}
-          <form onSubmit={handleSubmit} className="p-3 bg-[#181818] border-t border-slate-800 flex gap-2">
+          <form onSubmit={handleSubmit} className="p-3 bg-[#181818] border-t border-slate-800 flex gap-2 items-center">
+            <input 
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileChange}
+              accept="image/*"
+              className="hidden"
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isLoading || uploading}
+              className="bg-[#282828] hover:bg-[#333] border border-slate-700/80 text-slate-400 hover:text-white p-2.5 rounded-xl transition-colors flex items-center justify-center flex-shrink-0"
+              title="Attach GCash Screenshot"
+            >
+              {uploading ? (
+                <Loader2 size={16} className="animate-spin text-[#1DB954]" />
+              ) : (
+                <Image size={16} />
+              )}
+            </button>
             <input
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Type your message..."
+              placeholder={uploading ? "Uploading receipt..." : "Type your message..."}
               className="flex-1 px-4 py-2 bg-[#282828] border border-slate-700/80 text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1DB954] text-sm font-medium placeholder-slate-500"
-              disabled={isLoading}
+              disabled={isLoading || uploading}
             />
             <button 
               type="submit" 
-              disabled={isLoading || !input.trim()}
-              className="bg-[#1DB954] hover:bg-[#1ed760] disabled:bg-slate-800 text-black font-bold p-2.5 rounded-xl transition-colors flex items-center justify-center"
+              disabled={isLoading || uploading || !input.trim()}
+              className="bg-[#1DB954] hover:bg-[#1ed760] disabled:bg-slate-800 text-black font-bold p-2.5 rounded-xl transition-colors flex items-center justify-center flex-shrink-0"
             >
               <Send size={16} />
             </button>

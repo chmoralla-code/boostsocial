@@ -12,10 +12,14 @@ export default async function OrdersPage() {
     `)
     .order('created_at', { ascending: false });
 
+  // Fetch the list of GCash receipt screenshot files from storage
+  const { data: files } = await supabase.storage.from('receipts').list();
+  const receiptFiles = files?.map(f => f.name) || [];
+
   return (
     <div>
       <h1 className="text-3xl font-bold text-slate-900 mb-8">Order Management</h1>
-      <OrdersTable initialOrders={orders || []} />
+      <OrdersTable initialOrders={orders || []} receiptFiles={receiptFiles} />
     </div>
   );
 }

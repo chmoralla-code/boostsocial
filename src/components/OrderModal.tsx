@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Loader2, ShieldCheck } from "lucide-react";
+import { X, Loader2, ShieldCheck, Copy, Check } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 
 interface OrderModalProps {
@@ -20,6 +20,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
   const [success, setSuccess] = useState(false);
   const [orderId, setOrderId] = useState<string>("");
   const [error, setError] = useState("");
+  const [copied, setCopied] = useState(false);
 
   // Anti-Spam Math Verification
   const [num1, setNum1] = useState(0);
@@ -32,6 +33,12 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
     setNum1(Math.floor(Math.random() * 8) + 2); // 2-9
     setNum2(Math.floor(Math.random() * 8) + 2); // 2-9
     setCaptchaAnswer("");
+  };
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(orderId);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   useEffect(() => {
@@ -85,6 +92,9 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
 
       setOrderId(insertData.id);
       setSuccess(true);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("last_order_id", insertData.id);
+      }
     } catch (err: any) {
       setError(err.message || "Something went wrong.");
       generateCaptcha();
@@ -118,8 +128,18 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                 <p className="text-base font-bold text-white">Order Registered!</p>
                 <p className="text-[11px] text-slate-400 mt-0.5">Please copy your Order ID for real-time tracking:</p>
               </div>
-              <div className="bg-[#282828] border border-slate-700/80 p-2.5 rounded-lg font-mono text-sm text-[#1DB954] break-all select-all font-bold tracking-wider">
-                {orderId}
+              <div className="flex gap-2 items-center w-full">
+                <div className="flex-grow bg-[#282828] border border-slate-700/80 p-2.5 rounded-xl font-mono text-[10px] sm:text-xs text-[#1DB954] break-all select-all font-bold tracking-wider text-center">
+                  {orderId}
+                </div>
+                <button
+                  onClick={handleCopy}
+                  type="button"
+                  className="bg-[#282828] hover:bg-[#333] border border-slate-700/80 p-2.5 rounded-xl text-slate-400 hover:text-white transition-all flex items-center justify-center flex-shrink-0"
+                  title="Copy Order ID"
+                >
+                  {copied ? <Check size={16} className="text-[#1DB954]" /> : <Copy size={16} />}
+                </button>
               </div>
 
               {/* 🎁 Trial & Payment Instructions */}
