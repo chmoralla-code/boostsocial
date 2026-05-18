@@ -6,7 +6,7 @@ import { createClient } from "@/utils/supabase/client";
 import { Loader2 } from "lucide-react";
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -18,8 +18,11 @@ export default function LoginPage() {
     setLoading(true);
     setError("");
 
+    // Automatically append @boostsocial.com if it's just a username
+    const loginEmail = username.includes("@") ? username : `${username}@boostsocial.com`;
+
     const { error } = await supabase.auth.signInWithPassword({
-      email,
+      email: loginEmail,
       password,
     });
 
@@ -38,12 +41,12 @@ export default function LoginPage() {
         
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Username</label>
             <input 
-              type="email" 
+              type="text" 
               required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
               className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all"
             />
           </div>
