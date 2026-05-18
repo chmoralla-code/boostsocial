@@ -1,4 +1,5 @@
 import { createClient } from "@/utils/supabase/server";
+import { createClient as createServiceClient } from "@supabase/supabase-js";
 import { OrdersTable } from "./OrdersTable";
 
 export default async function OrdersPage() {
@@ -12,8 +13,14 @@ export default async function OrdersPage() {
     `)
     .order('created_at', { ascending: false });
 
-  // Fetch the list of GCash receipt screenshot files from storage
-  const { data: files } = await supabase.storage.from('receipts').list();
+  // Use service role client to list receipts to bypass RLS/anon limitations
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+  const serviceSupabase = createServiceClient(supabaseUrl, serviceRoleKey, {
+    auth: { persistSession: false }
+  });
+
+  const { data: files } = await serviceSupabase.storage.from('receipts').list();
   const receiptFiles = files?.map(f => f.name) || [];
 
   return (

@@ -6,6 +6,7 @@ import { format } from "date-fns";
 
 export function OrdersTable({ initialOrders, receiptFiles = [] }: { initialOrders: any[], receiptFiles?: string[] }) {
   const [orders, setOrders] = useState(initialOrders);
+  const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
   const supabase = createClient();
 
   const updateStatus = async (id: string, newStatus: string) => {
@@ -68,15 +69,13 @@ export function OrdersTable({ initialOrders, receiptFiles = [] }: { initialOrder
                     if (matchingFile) {
                       const receiptUrl = supabase.storage.from('receipts').getPublicUrl(matchingFile).data.publicUrl;
                       return (
-                        <a 
-                          href={receiptUrl} 
-                          target="_blank" 
-                          rel="noopener noreferrer" 
+                        <button 
+                          onClick={() => setPreviewImageUrl(receiptUrl)}
                           className="inline-flex items-center gap-1.5 bg-green-50 hover:bg-green-100 border border-green-200 text-green-700 font-bold px-3 py-1 rounded-xl text-xs transition-colors shadow-sm"
                         >
                           <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
                           View Receipt
-                        </a>
+                        </button>
                       );
                     }
                     return (
@@ -110,6 +109,39 @@ export function OrdersTable({ initialOrders, receiptFiles = [] }: { initialOrder
           </tbody>
         </table>
       </div>
+
+      {/* Receipt Image Preview Modal */}
+      {previewImageUrl && (
+        <div 
+          onClick={() => setPreviewImageUrl(null)}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[#090909]/90 backdrop-blur-sm p-4 animate-in fade-in duration-200 cursor-zoom-out"
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="relative max-w-lg w-full bg-[#121212] border border-slate-800/80 rounded-2xl overflow-hidden shadow-2xl p-6 flex flex-col items-center animate-in zoom-in-95 duration-200 cursor-default"
+          >
+            <div className="w-full flex justify-between items-center mb-4 pb-2 border-b border-slate-800/60">
+              <h3 className="text-sm font-black uppercase tracking-wider text-[#1DB954]">
+                GCash Proof of Payment
+              </h3>
+              <button 
+                onClick={() => setPreviewImageUrl(null)}
+                className="text-slate-400 hover:text-white transition-colors bg-slate-800/50 hover:bg-slate-700/50 px-2.5 py-1 rounded-lg text-xs font-bold"
+              >
+                Close
+              </button>
+            </div>
+            
+            <div className="w-full max-h-[70vh] rounded-xl overflow-hidden bg-black flex items-center justify-center border border-slate-800">
+              <img 
+                src={previewImageUrl} 
+                alt="GCash Proof of Payment" 
+                className="max-w-full max-h-[68vh] object-contain"
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
