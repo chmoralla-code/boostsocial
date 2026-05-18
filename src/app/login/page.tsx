@@ -55,29 +55,33 @@ export default function LoginPage() {
         return;
       }
 
-      // Call our secure server-side endpoint to register and verify the user instantly
-      try {
-        const res = await fetch("/api/auth/signup", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: loginEmail, password })
-        });
+      // Compute dynamic redirect URL to avoid hardcoded localhost links
+      const redirectUrl = typeof window !== "undefined"
+        ? `${window.location.origin}/login?verified=true`
+        : "https://faceboosting.vercel.app/login?verified=true";
 
-        const resData = await res.json();
-
-        if (!res.ok) {
-          setError(resData.error || "Failed to create account.");
-          setLoading(false);
-        } else {
-          setSuccess("🎉 Account successfully registered and activated! Please sign in below to access your My Orders tracker workspace!");
-          setLoading(false);
-          setIsSignUp(false); // Instantly return to sign in view
-          setPassword("");
-          setConfirmPassword("");
+      // Sign Up flow with options.emailRedirectTo
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email: loginEmail,
+        password,
+        options: {
+          emailRedirectTo: redirectUrl
         }
-      } catch (err: any) {
-        setError(err.message || "An unexpected error occurred during registration.");
+      });
+
+      if (signUpError) {
+        if (signUpError.message.toLowerCase().includes("rate limit")) {
+          setError("⚠️ Email Rate Limit Exceeded: Supabase restricts signup emails to 3 per hour by default to prevent spam. To fix this, log in to your Supabase Dashboard -> Project Settings -> Auth -> Security -> Rate Limits and increase the limit (e.g. to 30 or 50)!");
+        } else {
+          setError(signUpError.message);
+        }
         setLoading(false);
+      } else {
+        setSuccess("📬 Verification link sent! Please check your email inbox (and spam folder) to confirm your account, then sign in below.");
+        setLoading(false);
+        setIsSignUp(false); // Instantly return to sign in view
+        setPassword("");
+        setConfirmPassword("");
       }
     } else {
       // Sign In flow
