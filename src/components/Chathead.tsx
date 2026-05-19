@@ -327,12 +327,12 @@ Format list items on separate lines with simple bullets (e.g. * **Item:** text).
         { role: 'user', content: userMsg }
       ];
 
-      const res = await fetch('https://text.pollinations.ai/', {
+      const res = await fetch('https://text.pollinations.ai/openai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           messages: apiMessages,
-          model: 'openai' // Request the fast reasoning OpenAI engine
+          model: 'openai'
         })
       });
 
@@ -340,7 +340,8 @@ Format list items on separate lines with simple bullets (e.g. * **Item:** text).
         throw new Error(`API returned ${res.status}`);
       }
 
-      const responseText = await res.text();
+      const data = await res.json();
+      const responseText = data.choices?.[0]?.message?.content || "Sorry, I couldn't generate a response.";
       setMessages(prev => [...prev, { role: 'assistant', content: responseText }]);
 
     } catch (err: any) {
