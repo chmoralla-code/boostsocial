@@ -36,10 +36,10 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === 'approve') {
-      // 2. Fetch current profile
+      // 2. Fetch current profile including who referred them
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
-        .select("balance")
+        .select("balance, referred_by")
         .eq("id", topup.user_id)
         .single();
 
@@ -62,6 +62,44 @@ export async function POST(req: NextRequest) {
         .eq("id", topupId);
 
       if (updateTopupError) throw updateTopupError;
+
+      // 5. Calculate & credit referral commission if referred
+      if (profile.referred_by) {
+        const commission = Number(topup.amount) * 0.10;
+        
+        // Fetch referrer's current balance
+        const { data: referrer, error: referrerError } = await supabase
+          .from("profiles")
+          .select("balance")
+          .eq("id", profile.referred_by)
+          .single();
+
+        if (referrer && !referrerError) {
+          const referrerNewBalance = Number(referrer.balance || 0) + commission;
+          
+          // Update referrer balance
+          const { error: updateReferrerError } = await supabase
+            .from("profiles")
+            .update({ balance: referrerNewBalance })
+            .eq("id", profile.referred_by);
+
+          if (!updateReferrerError) {
+            // Log referral transaction
+            await supabase
+              .from("referral_transactions")
+              .insert([
+                {
+                  referrer_id: profile.referred_by,
+                  referee_id: topup.user_id,
+                  amount: commission,
+                  description: `10% referral commission from approved GCash top-up of ₱${Number(topup.amount).toFixed(2)}`
+                }
+              ]);
+          } else {
+            console.error("Failed to update referrer balance:", updateReferrerError);
+          }
+        }
+      }
 
       return NextResponse.json({ success: true, newBalance });
     } else if (action === 'reject') {

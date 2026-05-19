@@ -2,16 +2,18 @@
 
 import { useState, useEffect } from "react";
 import Link from 'next/link';
-import { Rocket, LogOut, ClipboardList, X, Loader2, Wallet } from 'lucide-react';
+import { Rocket, LogOut, ClipboardList, X, Loader2, Wallet, Gift } from 'lucide-react';
 import { createClient } from "@/utils/supabase/client";
 import { format } from "date-fns";
 import { TopUpModal } from "./TopUpModal";
+import { ReferralsModal } from "./ReferralsModal";
 
 export function Header() {
   const [user, setUser] = useState<any>(null);
   const [orders, setOrders] = useState<any[]>([]);
   const [showOrdersModal, setShowOrdersModal] = useState(false);
   const [showTopUpModal, setShowTopUpModal] = useState(false);
+  const [showReferralsModal, setShowReferralsModal] = useState(false);
   const [loadingOrders, setLoadingOrders] = useState(false);
   const supabase = createClient();
 
@@ -88,6 +90,13 @@ export function Header() {
               >
                 <Wallet size={14} /> 
                 ₱{profile?.balance ? Number(profile.balance).toFixed(0) : "0"}
+              </button>
+
+              <button 
+                onClick={() => setShowReferralsModal(true)}
+                className="flex items-center gap-2 bg-[#282828] hover:bg-[#333] border border-slate-800/80 text-[#1DB954] font-extrabold py-2 px-4 rounded-full transition-all text-xs uppercase tracking-wider cursor-pointer hidden sm:flex"
+              >
+                <Gift size={14} /> Invite & Earn
               </button>
 
               <button 
@@ -202,6 +211,15 @@ export function Header() {
           onClose={() => setShowTopUpModal(false)} 
           user={user}
           onTopUpSuccess={() => fetchProfile(user.id)}
+        />
+      )}
+
+      {user && (
+        <ReferralsModal 
+          isOpen={showReferralsModal} 
+          onClose={() => setShowReferralsModal(false)} 
+          user={user}
+          profile={profile}
         />
       )}
     </>

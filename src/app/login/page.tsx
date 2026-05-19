@@ -15,6 +15,7 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
+  const [referralCode, setReferralCode] = useState("");
   const router = useRouter();
   const supabase = createClient();
 
@@ -24,6 +25,11 @@ export default function LoginPage() {
       const params = new URLSearchParams(window.location.search);
       if (params.get("verified") === "true" || params.get("code")) {
         setSuccess("✨ Account Successfully Activated! Your email has been verified. Welcome to your BoostSocial workspace! Please sign in below to manage your services and track your orders in real time. 🚀");
+      }
+      const ref = params.get("ref");
+      if (ref) {
+        setReferralCode(ref);
+        setIsSignUp(true);
       }
     }
 
@@ -60,7 +66,7 @@ export default function LoginPage() {
         const res = await fetch("/api/auth/signup", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: loginEmail, password })
+          body: JSON.stringify({ email: loginEmail, password, referralCode: referralCode.trim() })
         });
 
         const resData = await res.json();
@@ -165,17 +171,30 @@ export default function LoginPage() {
           </div>
 
           {isSignUp && (
-            <div>
-              <label className="block text-xs font-black uppercase tracking-widest text-slate-400 mb-1.5">Confirm Password</label>
-              <input 
-                type={showPassword ? "text" : "password"}
-                required
-                placeholder="••••••••"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full bg-[#121212] border border-slate-800/80 px-4 py-3 rounded-xl focus:outline-none focus:border-[#1DB954] text-white text-sm transition-all"
-              />
-            </div>
+            <>
+              <div>
+                <label className="block text-xs font-black uppercase tracking-widest text-slate-400 mb-1.5">Confirm Password</label>
+                <input 
+                  type={showPassword ? "text" : "password"}
+                  required
+                  placeholder="••••••••"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="w-full bg-[#121212] border border-slate-800/80 px-4 py-3 rounded-xl focus:outline-none focus:border-[#1DB954] text-white text-sm transition-all"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-black uppercase tracking-widest text-slate-400 mb-1.5">Referral Code (Optional)</label>
+                <input 
+                  type="text"
+                  placeholder="e.g. REF-12345678"
+                  value={referralCode}
+                  onChange={(e) => setReferralCode(e.target.value)}
+                  className="w-full bg-[#121212] border border-slate-800/80 px-4 py-3 rounded-xl focus:outline-none focus:border-[#1DB954] text-white text-sm transition-all font-mono"
+                />
+              </div>
+            </>
           )}
 
           {error && <div className="text-red-500 text-xs font-semibold bg-red-500/10 border border-red-500/20 p-3.5 rounded-xl text-left leading-relaxed">{error}</div>}
