@@ -192,8 +192,8 @@ export function PriceCalculator({ services, onOrder }: PriceCalculatorProps) {
                 <span className="text-xs text-slate-400 font-bold">PHP</span>
               </div>
               <p className="text-[10px] text-slate-500 font-semibold italic">
-                {isPageService
-                  ? `*Computed rate: ₱${selectedService.starting_price.toFixed(0)} per page`
+                {isSingleItem
+                  ? `*Computed rate: ₱${selectedService.starting_price.toFixed(0)} per item`
                   : `*Computed rate: ₱${selectedService.starting_price.toFixed(0)} per 1,000 units`
                 }
               </p>
@@ -214,7 +214,7 @@ export function PriceCalculator({ services, onOrder }: PriceCalculatorProps) {
               onClick={handleBoostClick}
               className="w-full bg-[#1DB954] hover:bg-[#1ed760] text-black font-black py-4 rounded-xl shadow-lg transition-all duration-300 transform hover:scale-[1.02] tracking-wider uppercase text-xs flex items-center justify-center gap-2"
             >
-              🚀 Boost {quantity.toLocaleString()} {isPageService ? (quantity === 1 ? "Page" : "Pages") : "Now"}
+              🚀 Boost {quantity.toLocaleString()} {isSingleItem ? (quantity === 1 ? "Item" : "Items") : "Now"}
             </button>
           </div>
         </div>
