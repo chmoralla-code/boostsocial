@@ -142,7 +142,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
 
   if (!isOpen) return null;
 
-  const totalPrice = isPageService 
+  const totalPrice = parsedDetails.min_quantity === 1 
     ? quantity * serviceBasePrice 
     : (quantity / 1000) * serviceBasePrice;
 
@@ -655,13 +655,13 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
 
               <div>
                 <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5">
-                  {isPageService ? "Number of Pages" : "Quantity (per 1,000)"}
+                  {parsedDetails.min_quantity === 1 ? "Number of Items" : "Quantity (per 1,000)"}
                 </label>
                 <input 
                   type="number" 
                   required
                   min={parsedDetails.min_quantity}
-                  step={isPageService ? "1" : "100"}
+                  step={parsedDetails.min_quantity === 1 ? "1" : "100"}
                   value={quantity}
                   onChange={(e) => setQuantity(parseInt(e.target.value) || 0)}
                   className="w-full px-4 py-3 rounded-xl bg-[#282828] border border-slate-700/60 focus:outline-none focus:ring-2 focus:ring-[#1DB954] text-white transition-all text-sm font-bold"
