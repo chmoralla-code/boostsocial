@@ -21,6 +21,16 @@ interface OrderModalProps {
   } | null;
 }
 
+const REACTION_OPTIONS = [
+  { name: "Like", emoji: "👍", color: "#1877F2", glow: "rgba(24, 119, 242, 0.4)" },
+  { name: "Love", emoji: "❤️", color: "#F33E58", glow: "rgba(243, 62, 88, 0.4)" },
+  { name: "Care", emoji: "🥰", color: "#F7B125", glow: "rgba(247, 177, 37, 0.4)" },
+  { name: "Haha", emoji: "😆", color: "#F7B125", glow: "rgba(247, 177, 37, 0.4)" },
+  { name: "Wow", emoji: "😮", color: "#F7B125", glow: "rgba(247, 177, 37, 0.4)" },
+  { name: "Sad", emoji: "😢", color: "#F7B125", glow: "rgba(247, 177, 37, 0.4)" },
+  { name: "Angry", emoji: "😡", color: "#E96630", glow: "rgba(233, 102, 48, 0.4)" }
+];
+
 export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBasePrice, presetQuantity, service }: OrderModalProps) {
   const [email, setEmail] = useState("");
   const [url, setUrl] = useState("");
@@ -34,6 +44,25 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
   const [profile, setProfile] = useState<any>(null);
   const [isWalletPayment, setIsWalletPayment] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [selectedReactions, setSelectedReactions] = useState<string[]>(["Like"]);
+
+  const toggleReaction = (name: string) => {
+    if (selectedReactions.includes(name)) {
+      if (selectedReactions.length > 1) {
+        setSelectedReactions(selectedReactions.filter(r => r !== name));
+      }
+    } else {
+      setSelectedReactions([...selectedReactions, name]);
+    }
+  };
+
+  const toggleAllReactions = () => {
+    if (selectedReactions.length === REACTION_OPTIONS.length) {
+      setSelectedReactions(["Like"]);
+    } else {
+      setSelectedReactions(REACTION_OPTIONS.map(r => r.name));
+    }
+  };
 
   const compressAndUploadAsset = async (file: File, orderId: string, assetType: string): Promise<string> => {
     try {
@@ -67,6 +96,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
   const [notes, setNotes] = useState("");
 
   const isPageService = serviceTitle.toLowerCase().includes("page");
+  const isReactionService = serviceTitle.toLowerCase().includes("reaction");
 
   // Dynamic min quantity and free trial amount based on JSON description pack
   const parsedDetails = (() => {
@@ -122,6 +152,8 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
       generateCaptcha();
       setError("");
       setSuccess(false);
+      
+      setSelectedReactions(["Like"]);
       
       if (presetQuantity) {
         setQuantity(presetQuantity);
@@ -184,6 +216,8 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
         tempUrl = "Custom Request: " + Object.entries(customFieldValues).map(([k, v]) => `[${k}: ${v}]`).join(" ");
       } else if (isPageService) {
         tempUrl = "Compiling page specifications...";
+      } else if (isReactionService) {
+        tempUrl = `Reactions: [${selectedReactions.join(", ")}] Link: ${url.trim()}`;
       }
 
       const { data: insertData, error: insertError } = await supabase
@@ -277,6 +311,8 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
         tempUrl = "Custom Request: " + Object.entries(customFieldValues).map(([k, v]) => `[${k}: ${v}]`).join(" ");
       } else if (isPageService) {
         tempUrl = "Compiling page specifications...";
+      } else if (isReactionService) {
+        tempUrl = `Reactions: [${selectedReactions.join(", ")}] Link: ${url.trim()}`;
       }
 
       const res = await fetch("/api/checkout-wallet", {
@@ -550,16 +586,69 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                   )}
                 </div>
               ) : !isPageService ? (
-                <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5">Target Link / URL</label>
-                  <input 
-                    type="url" 
-                    required
-                    value={url}
-                    onChange={(e) => setUrl(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl bg-[#282828] border border-slate-700/60 focus:outline-none focus:ring-2 focus:ring-[#1877F2] text-white transition-all text-sm font-medium"
-                    placeholder="https://facebook.com/your-page"
-                  />
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5">Target Link / URL</label>
+                    <input 
+                      type="url" 
+                      required
+                      value={url}
+                      onChange={(e) => setUrl(e.target.value)}
+                      className="w-full px-4 py-3 rounded-xl bg-[#282828] border border-slate-700/60 focus:outline-none focus:ring-2 focus:ring-[#1877F2] text-white transition-all text-sm font-medium"
+                      placeholder="https://facebook.com/your-page"
+                    />
+                  </div>
+
+                  {isReactionService && (
+                    <div className="space-y-3 bg-[#121212] border border-slate-800/80 p-4 rounded-xl animate-in slide-in-from-bottom-2">
+                      <div className="flex justify-between items-center border-b border-slate-850 pb-2">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-[#1877F2] flex items-center gap-1.5">
+                          🎭 Reaction Types Selection
+                        </span>
+                        <button
+                          type="button"
+                          onClick={toggleAllReactions}
+                          className="text-[9px] font-black uppercase tracking-widest text-slate-400 hover:text-[#1877F2] transition-colors"
+                        >
+                          {selectedReactions.length === REACTION_OPTIONS.length ? "Reset to Like" : "Select All"}
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-4 gap-2">
+                        {REACTION_OPTIONS.map((rx) => {
+                          const isSelected = selectedReactions.includes(rx.name);
+                          return (
+                            <button
+                              key={rx.name}
+                              type="button"
+                              onClick={() => toggleReaction(rx.name)}
+                              style={{
+                                borderColor: isSelected ? rx.color : "transparent",
+                                boxShadow: isSelected ? `0 0 10px ${rx.glow}` : "none",
+                              }}
+                              className={`flex flex-col items-center justify-center p-2 rounded-xl border-2 transition-all duration-200 active:scale-95 ${
+                                isSelected 
+                                  ? "bg-[#181818] text-white" 
+                                  : "bg-[#282828] border-slate-850 hover:border-slate-750 text-slate-400 hover:text-slate-200"
+                              }`}
+                            >
+                              <span className="text-2xl mb-1 select-none transform hover:scale-125 transition-transform duration-200">{rx.emoji}</span>
+                              <span className="text-[10px] font-bold tracking-tight select-none">{rx.name}</span>
+                              {isSelected && (
+                                <span 
+                                  style={{ backgroundColor: rx.color }}
+                                  className="w-1.5 h-1.5 rounded-full mt-1.5"
+                                />
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <p className="text-[9px] text-slate-400 leading-relaxed font-semibold italic text-center">
+                        Selected: {selectedReactions.join(", ")}
+                      </p>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="space-y-4 bg-[#121212] border border-slate-800/80 p-4 rounded-xl">
