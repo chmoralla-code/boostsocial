@@ -379,18 +379,33 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1.5">
-                  Upload Custom PNG Icon (Overrides Selection)
+                <label className="block text-sm font-semibold text-slate-700 mb-1.5 flex items-center gap-2">
+                  <span>Upload Custom PNG Icon</span>
+                  <span className="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Overrides Selection</span>
                 </label>
-                <input 
-                  type="file" 
-                  accept="image/png"
-                  onChange={(e) => setCustomIconFile(e.target.files?.[0] || null)}
-                  className="w-full text-xs text-slate-550 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-black file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
-                />
+                <div className="flex items-center gap-4 bg-slate-50 p-3 rounded-xl border border-slate-200">
+                  <div className="flex-1">
+                    <input 
+                      type="file" 
+                      accept="image/png"
+                      onChange={(e) => setCustomIconFile(e.target.files?.[0] || null)}
+                      className="w-full text-sm text-slate-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-blue-600 file:text-white hover:file:bg-blue-700 cursor-pointer transition-colors"
+                    />
+                  </div>
+                  {customIconFile && (
+                    <div className="w-12 h-12 rounded-lg bg-white border border-slate-200 overflow-hidden shadow-sm flex-shrink-0 flex items-center justify-center">
+                      <img 
+                        src={URL.createObjectURL(customIconFile)} 
+                        alt="Preview" 
+                        className="w-full h-full object-contain"
+                      />
+                    </div>
+                  )}
+                </div>
                 {customIconFile && (
-                  <p className="text-[10px] text-[#1DB954] font-black uppercase mt-1">
-                    ✓ Custom icon attached: {customIconFile.name}
+                  <p className="text-xs text-[#1DB954] font-bold mt-2 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#1DB954] animate-pulse"></span>
+                    Custom PNG attached and ready to upload
                   </p>
                 )}
               </div>
