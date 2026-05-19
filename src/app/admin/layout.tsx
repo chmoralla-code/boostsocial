@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { LayoutDashboard, ShoppingCart, Settings, Users, LogOut, Wallet } from "lucide-react";
+import { LayoutDashboard, ShoppingCart, Settings, Users, LogOut, Wallet, FileText } from "lucide-react";
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 
@@ -34,6 +34,10 @@ export default async function AdminLayout({
           <Link href="/admin/orders" className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-800 hover:text-white transition-colors">
             <ShoppingCart size={20} />
             <span className="font-medium">Orders</span>
+          </Link>
+          <Link href="/admin/page-requests" className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-800 hover:text-white transition-colors text-blue-400">
+            <FileText size={20} />
+            <span className="font-medium">Page Requests</span>
           </Link>
           <Link href="/admin/services" className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-800 hover:text-white transition-colors">
             <Settings size={20} />
