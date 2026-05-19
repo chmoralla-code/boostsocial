@@ -26,6 +26,10 @@ export async function GET() {
       });
     }
 
+    const { count: totalUsers } = await supabase
+      .from('profiles')
+      .select('*', { count: 'exact', head: true });
+
     const totalSizeMB = (totalSizeBytes / 1024 / 1024);
     const limitMB = 1024; // 1GB
     const percentage = ((totalSizeMB / limitMB) * 100).toFixed(2);
@@ -35,7 +39,8 @@ export async function GET() {
       totalFiles: files?.length || 0,
       usedMB: totalSizeMB.toFixed(2),
       remainingMB: (limitMB - totalSizeMB).toFixed(2),
-      percentage
+      percentage,
+      totalUsers: totalUsers || 0
     });
   } catch (err: any) {
     console.error("Storage stats fetch failed:", err);

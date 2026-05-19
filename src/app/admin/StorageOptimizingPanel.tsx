@@ -94,9 +94,20 @@ export function StorageOptimizingPanel() {
               <span className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Database Size</span>
               <span className="text-xs font-bold text-blue-400">500 MB Limit</span>
             </div>
+            
             <div className="flex flex-col hidden sm:flex">
-              <span className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Auth Users</span>
-              <span className="text-xs font-bold text-purple-400">50,000 MAU</span>
+              <span className="text-[10px] font-black uppercase text-slate-500 tracking-widest flex items-center gap-1.5">
+                Auth Users
+                {fetchingStats && <Loader2 size={10} className="animate-spin text-purple-400" />}
+              </span>
+              {stats ? (
+                <div className="flex items-baseline gap-1.5">
+                  <span className="text-xs font-bold text-purple-400">{stats.totalUsers} Active</span>
+                  <span className="text-[9px] font-bold text-slate-500">/ 50,000 MAU</span>
+                </div>
+              ) : (
+                <span className="text-xs font-bold text-purple-400">50,000 MAU Limit</span>
+              )}
             </div>
           </div>
         </div>
