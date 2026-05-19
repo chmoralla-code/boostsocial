@@ -127,19 +127,9 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
     }
   }, [parsedDetails.min_quantity]);
 
-  // Anti-Spam Math Verification
-  const [num1, setNum1] = useState(0);
-  const [num2, setNum2] = useState(0);
-  const [captchaAnswer, setCaptchaAnswer] = useState("");
   const [customFieldValues, setCustomFieldValues] = useState<Record<string, string>>({});
 
   const supabase = createClient();
-
-  const generateCaptcha = () => {
-    setNum1(Math.floor(Math.random() * 8) + 2); // 2-9
-    setNum2(Math.floor(Math.random() * 8) + 2); // 2-9
-    setCaptchaAnswer("");
-  };
 
   const handleCopy = () => {
     navigator.clipboard.writeText(`BS-${orderId.slice(0, 8).toUpperCase()}`);
@@ -149,7 +139,6 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
 
   useEffect(() => {
     if (isOpen) {
-      generateCaptcha();
       setError("");
       setSuccess(false);
       
@@ -197,13 +186,6 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
 
     if (quantity < parsedDetails.min_quantity) {
       setError(`Minimum quantity is ${parsedDetails.min_quantity}.`);
-      return;
-    }
-
-    // Validate CAPTCHA
-    if (parseInt(captchaAnswer) !== num1 + num2) {
-      setError(`Verification failed: ${num1} + ${num2} equals ${num1 + num2}. Prove you are human!`);
-      generateCaptcha();
       return;
     }
 
@@ -282,7 +264,6 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
       }).catch(() => {});
     } catch (err: any) {
       setError(err.message || "Something went wrong.");
-      generateCaptcha();
     } finally {
       setIsSubmitting(false);
     }
@@ -846,26 +827,6 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                   </div>
                 )}
 
-              </div>
-
-              {/* Anti-Spam Human Verification Verification Check */}
-              <div className="pt-2 border-t border-slate-800/80">
-                <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5">
-                  🛡️ Human Verification
-                </label>
-                <div className="flex gap-3 items-center">
-                  <div className="bg-[#121212] px-4 py-2.5 rounded-xl border border-slate-800 text-sm font-black text-[#1877F2] tracking-wide whitespace-nowrap">
-                    {num1} + {num2} = ?
-                  </div>
-                  <input 
-                    type="number" 
-                    required
-                    value={captchaAnswer}
-                    onChange={(e) => setCaptchaAnswer(e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl bg-[#282828] border border-slate-700/60 focus:outline-none focus:ring-2 focus:ring-[#1877F2] text-white transition-all text-sm font-bold"
-                    placeholder="Prove you are human"
-                  />
-                </div>
               </div>
 
               {error && (
