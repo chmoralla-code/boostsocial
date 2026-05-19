@@ -147,9 +147,17 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
 
   if (!isOpen) return null;
 
-  const totalPrice = parsedDetails.min_quantity === 1 
+  const baseTotal = parsedDetails.min_quantity === 1 
     ? quantity * serviceBasePrice 
     : (quantity / 1000) * serviceBasePrice;
+
+  // Volume Discount Engine (Up to 20% off for large volumes and single high-value purchases)
+  const discountPercent = parsedDetails.min_quantity === 1
+    ? (quantity >= 5 ? 10 : quantity >= 3 ? 5 : 0)
+    : (quantity >= 10000 ? 20 : quantity >= 5000 ? 15 : quantity >= 3000 ? 10 : 0);
+
+  const totalPrice = baseTotal * (1 - discountPercent / 100);
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -338,13 +346,13 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
         
         <div className="p-6 sm:p-8 max-h-[85vh] overflow-y-auto">
           <h2 className="text-2xl font-black text-white mb-1.5 tracking-tight flex items-center gap-2">
-            Order <span className="text-[#1DB954]">{serviceTitle}</span>
+            Order <span className="text-[#1877F2]">{serviceTitle}</span>
           </h2>
           <p className="text-slate-400 text-sm mb-6">Process your amplification request securely.</p>
 
           {success ? (
             <div className="bg-[#121212] text-white p-5 rounded-xl border border-slate-800 text-center space-y-4 animate-in zoom-in duration-300 max-h-[72vh] overflow-y-auto">
-              <div className="w-10 h-10 bg-green-500/10 border border-green-500/20 text-[#1DB954] rounded-full flex items-center justify-center mx-auto">
+              <div className="w-10 h-10 bg-green-500/10 border border-green-500/20 text-[#1877F2] rounded-full flex items-center justify-center mx-auto">
                 <ShieldCheck size={24} />
               </div>
               <div>
@@ -355,9 +363,9 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
               <div className="space-y-3">
                 {/* Tracking ID (User Friendly) */}
                 <div className="space-y-1 text-left">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-[#1DB954] block mb-1">Your Tracking ID</span>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-[#1877F2] block mb-1">Your Tracking ID</span>
                   <div className="flex gap-2 items-center w-full">
-                    <div className="flex-grow bg-[#282828] border border-slate-700/80 p-2.5 rounded-xl font-mono text-xs sm:text-sm text-[#1DB954] font-black tracking-widest text-center select-all">
+                    <div className="flex-grow bg-[#282828] border border-slate-700/80 p-2.5 rounded-xl font-mono text-xs sm:text-sm text-[#1877F2] font-black tracking-widest text-center select-all">
                       BS-{orderId.slice(0, 8).toUpperCase()}
                     </div>
                     <button
@@ -366,7 +374,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                       className="bg-[#282828] hover:bg-[#333] border border-slate-700/80 p-2.5 rounded-xl text-slate-400 hover:text-white transition-all flex items-center justify-center flex-shrink-0"
                       title="Copy Tracking ID"
                     >
-                      {copied ? <Check size={16} className="text-[#1DB954]" /> : <Copy size={16} />}
+                      {copied ? <Check size={16} className="text-[#1877F2]" /> : <Copy size={16} />}
                     </button>
                   </div>
                 </div>
@@ -380,8 +388,8 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
 
               {/* 🎁 Trial & Payment Instructions (Or Wallet Success verification) */}
               {isWalletPayment ? (
-                <div className="text-left bg-[#1DB954]/10 border border-[#1DB954]/25 p-5 rounded-xl space-y-3.5">
-                  <h3 className="text-xs font-black uppercase tracking-widest text-[#1DB954] flex items-center gap-1.5">
+                <div className="text-left bg-[#1877F2]/10 border border-[#1877F2]/25 p-5 rounded-xl space-y-3.5">
+                  <h3 className="text-xs font-black uppercase tracking-widest text-[#1877F2] flex items-center gap-1.5">
                     🎉 Balance Payment Successful!
                   </h3>
                   <p className="text-xs text-slate-300 leading-relaxed font-semibold">
@@ -389,7 +397,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                   </p>
                   <div className="bg-[#121212] border border-slate-800/80 p-3.5 rounded-lg text-xs space-y-1 text-center">
                     <span className="text-[9px] text-slate-500 font-black uppercase tracking-widest block">Amplification Flow Status</span>
-                    <span className="text-[#1DB954] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 animate-pulse">
+                    <span className="text-[#1877F2] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 animate-pulse">
                       ⚡ ACTIVE & PROCESSING
                     </span>
                   </div>
@@ -397,8 +405,8 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                     No further actions or manual GCash receipt verification are required. Our system will deliver your complete boost package shortly!
                   </p>
                   {isPageService && (
-                    <div className="bg-[#1DB954]/20 border border-[#1DB954]/40 p-4 rounded-xl mt-3 text-left">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-[#1DB954] block mb-1">
+                    <div className="bg-[#1877F2]/20 border border-[#1877F2]/40 p-4 rounded-xl mt-3 text-left">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-[#1877F2] block mb-1">
                         ⏳ 24-Hour Delivery Notice
                       </span>
                       <p className="text-[10px] text-slate-200 leading-relaxed font-semibold">
@@ -411,12 +419,12 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
               ) : (
                 <>
                   <div className="text-left bg-[#181818] border border-slate-850 p-4 rounded-xl space-y-3">
-                    <h3 className="text-xs font-black uppercase tracking-widest text-[#1DB954]">💳 Payment Steps</h3>
+                    <h3 className="text-xs font-black uppercase tracking-widest text-[#1877F2]">💳 Payment Steps</h3>
                     
                     <div className="space-y-2.5 text-xs text-slate-300">
                       {parsedDetails.free_trial_amount > 0 && (
                         <div className="flex gap-2">
-                          <span className="bg-[#1DB954]/10 text-[#1DB954] font-bold w-4 h-4 rounded-full flex items-center justify-center text-[10px] flex-shrink-0 mt-0.5">1</span>
+                          <span className="bg-[#1877F2]/10 text-[#1877F2] font-bold w-4 h-4 rounded-full flex items-center justify-center text-[10px] flex-shrink-0 mt-0.5">1</span>
                           <p>
                             <strong>Get {parsedDetails.free_trial_amount} Free Trial:</strong> We will first deliver {parsedDetails.free_trial_amount} free followers, reactions, or views to your target link so you can verify our speed & authenticity!
                           </p>
@@ -424,14 +432,14 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                       )}
                       
                       <div className="flex gap-2">
-                        <span className="bg-[#1DB954]/10 text-[#1DB954] font-bold w-4 h-4 rounded-full flex items-center justify-center text-[10px] flex-shrink-0 mt-0.5">{parsedDetails.free_trial_amount > 0 ? "2" : "1"}</span>
+                        <span className="bg-[#1877F2]/10 text-[#1877F2] font-bold w-4 h-4 rounded-full flex items-center justify-center text-[10px] flex-shrink-0 mt-0.5">{parsedDetails.free_trial_amount > 0 ? "2" : "1"}</span>
                         <p>
-                          <strong>Pay via GCash:</strong> {parsedDetails.free_trial_amount > 0 ? `Once you see the free ${parsedDetails.free_trial_amount} delivered, scan` : "Scan"} the QR code below to pay the remaining balance: <strong className="text-[#1DB954]">₱{totalPrice.toFixed(0)}</strong>.
+                          <strong>Pay via GCash:</strong> {parsedDetails.free_trial_amount > 0 ? `Once you see the free ${parsedDetails.free_trial_amount} delivered, scan` : "Scan"} the QR code below to pay the remaining balance: <strong className="text-[#1877F2]">₱{totalPrice.toFixed(0)}</strong>.
                         </p>
                       </div>
 
                       <div className="flex gap-2">
-                        <span className="bg-[#1DB954]/10 text-[#1DB954] font-bold w-4 h-4 rounded-full flex items-center justify-center text-[10px] flex-shrink-0 mt-0.5">{parsedDetails.free_trial_amount > 0 ? "3" : "2"}</span>
+                        <span className="bg-[#1877F2]/10 text-[#1877F2] font-bold w-4 h-4 rounded-full flex items-center justify-center text-[10px] flex-shrink-0 mt-0.5">{parsedDetails.free_trial_amount > 0 ? "3" : "2"}</span>
                         <p>
                           <strong>Confirm Order:</strong> Send your **Tracking ID** and GCash payment screenshot to our **Support Chatbot** (bottom right) to instantly start your full delivery!
                         </p>
@@ -453,8 +461,8 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                   </div>
 
                   {isPageService && (
-                    <div className="bg-[#1DB954]/20 border border-[#1DB954]/40 p-4 rounded-xl mt-3 text-left">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-[#1DB954] block mb-1">
+                    <div className="bg-[#1877F2]/20 border border-[#1877F2]/40 p-4 rounded-xl mt-3 text-left">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-[#1877F2] block mb-1">
                         ⏳ 24-Hour Delivery Notice
                       </span>
                       <p className="text-[10px] text-slate-200 leading-relaxed font-semibold">
@@ -468,7 +476,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
 
               <button 
                 onClick={onClose}
-                className="w-full bg-[#1DB954] hover:bg-[#1ed760] text-black font-extrabold py-3 rounded-full transition-all duration-300 uppercase text-xs tracking-wider mt-2"
+                className="w-full bg-[#1877F2] hover:bg-[#4e8df5] text-black font-extrabold py-3 rounded-full transition-all duration-300 uppercase text-xs tracking-wider mt-2"
               >
                 Close & View Website
               </button>
@@ -477,20 +485,20 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
             <form onSubmit={handleSubmit} className="space-y-4">
               {isCheckingAuth ? (
                 <div className="flex justify-center items-center py-4 bg-[#1e1e1e]/50 border border-slate-800/80 rounded-xl h-[86px]">
-                  <Loader2 size={24} className="text-[#1DB954] animate-spin" />
+                  <Loader2 size={24} className="text-[#1877F2] animate-spin" />
                 </div>
               ) : user ? (
                 <div>
                   <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5 flex justify-between items-center">
                     <span>Email Address</span>
-                    <span className="text-[#1DB954] text-[10px] font-black uppercase tracking-wider">✓ Active Profile</span>
+                    <span className="text-[#1877F2] text-[10px] font-black uppercase tracking-wider">✓ Active Profile</span>
                   </label>
                   <input 
                     type="email" 
                     required
                     disabled
                     value={email}
-                    className="w-full px-4 py-3 rounded-xl bg-[#1e1e1e] border border-[#1DB954]/30 text-slate-400 cursor-not-allowed text-sm font-medium"
+                    className="w-full px-4 py-3 rounded-xl bg-[#1e1e1e] border border-[#1877F2]/30 text-slate-400 cursor-not-allowed text-sm font-medium"
                   />
                 </div>
               ) : (
@@ -501,18 +509,18 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl bg-[#282828] border border-slate-700/60 focus:outline-none focus:ring-2 focus:ring-[#1DB954] text-white transition-all text-sm font-medium"
+                    className="w-full px-4 py-3 rounded-xl bg-[#282828] border border-slate-700/60 focus:outline-none focus:ring-2 focus:ring-[#1877F2] text-white transition-all text-sm font-medium"
                     placeholder="you@example.com"
                   />
                   <p className="text-[10px] text-slate-400 mt-1.5 leading-relaxed text-left">
-                    💡 Want to track orders automatically? <a href="/login" className="text-[#1DB954] font-extrabold hover:underline">Sign In / Register</a> first!
+                    💡 Want to track orders automatically? <a href="/login" className="text-[#1877F2] font-extrabold hover:underline">Sign In / Register</a> first!
                   </p>
                 </div>
               )}
               
               {parsedDetails.custom_fields && parsedDetails.custom_fields.length > 0 ? (
                 <div className="space-y-4 bg-[#121212] border border-slate-800/80 p-4 rounded-xl">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-[#1DB954] block border-b border-slate-850 pb-2">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-[#1877F2] block border-b border-slate-850 pb-2">
                     📋 Custom Request Specifications
                   </span>
                   {parsedDetails.custom_fields.map((field: {id: string, label: string}) => (
@@ -523,7 +531,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                         required
                         value={customFieldValues[field.label] || ""}
                         onChange={(e) => setCustomFieldValues({...customFieldValues, [field.label]: e.target.value})}
-                        className="w-full px-4 py-3 rounded-xl bg-[#282828] border border-slate-700/60 focus:outline-none focus:ring-2 focus:ring-[#1DB954] text-white transition-all text-sm font-medium"
+                        className="w-full px-4 py-3 rounded-xl bg-[#282828] border border-slate-700/60 focus:outline-none focus:ring-2 focus:ring-[#1877F2] text-white transition-all text-sm font-medium"
                         placeholder={`Enter ${field.label.toLowerCase()}`}
                       />
                     </div>
@@ -549,13 +557,13 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                     required
                     value={url}
                     onChange={(e) => setUrl(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl bg-[#282828] border border-slate-700/60 focus:outline-none focus:ring-2 focus:ring-[#1DB954] text-white transition-all text-sm font-medium"
+                    className="w-full px-4 py-3 rounded-xl bg-[#282828] border border-slate-700/60 focus:outline-none focus:ring-2 focus:ring-[#1877F2] text-white transition-all text-sm font-medium"
                     placeholder="https://facebook.com/your-page"
                   />
                 </div>
               ) : (
                 <div className="space-y-4 bg-[#121212] border border-slate-800/80 p-4 rounded-xl">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-[#1DB954] block border-b border-slate-850 pb-2">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-[#1877F2] block border-b border-slate-850 pb-2">
                     📋 Pre-made Page Specifications
                   </span>
                   
@@ -566,7 +574,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                       required
                       value={desiredName}
                       onChange={(e) => setDesiredName(e.target.value)}
-                      className="w-full px-4 py-3 rounded-xl bg-[#282828] border border-slate-700/60 focus:outline-none focus:ring-2 focus:ring-[#1DB954] text-white transition-all text-xs font-semibold"
+                      className="w-full px-4 py-3 rounded-xl bg-[#282828] border border-slate-700/60 focus:outline-none focus:ring-2 focus:ring-[#1877F2] text-white transition-all text-xs font-semibold"
                       placeholder="e.g. Cyrhiel's Gaming Hub"
                     />
                   </div>
@@ -577,7 +585,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                       <select 
                         value={pageCategory}
                         onChange={(e) => setPageCategory(e.target.value)}
-                        className="w-full px-4 py-3 rounded-xl bg-[#282828] border border-slate-700/60 focus:outline-none focus:ring-2 focus:ring-[#1DB954] text-white transition-all text-xs font-semibold cursor-pointer"
+                        className="w-full px-4 py-3 rounded-xl bg-[#282828] border border-slate-700/60 focus:outline-none focus:ring-2 focus:ring-[#1877F2] text-white transition-all text-xs font-semibold cursor-pointer"
                       >
                         <option value="eCommerce / Store">eCommerce / Store</option>
                         <option value="Gaming / Creator">Gaming / Creator</option>
@@ -592,7 +600,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                       <select 
                         value={demographics}
                         onChange={(e) => setDemographics(e.target.value)}
-                        className="w-full px-4 py-3 rounded-xl bg-[#282828] border border-slate-700/60 focus:outline-none focus:ring-2 focus:ring-[#1DB954] text-white transition-all text-xs font-semibold cursor-pointer"
+                        className="w-full px-4 py-3 rounded-xl bg-[#282828] border border-slate-700/60 focus:outline-none focus:ring-2 focus:ring-[#1877F2] text-white transition-all text-xs font-semibold cursor-pointer"
                       >
                         <option value="Philippines (Local)">Philippines (Local)</option>
                         <option value="United States (US Tier)">United States (US Tier)</option>
@@ -611,7 +619,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                       required
                       value={fbProfile}
                       onChange={(e) => setFbProfile(e.target.value)}
-                      className="w-full px-4 py-3 rounded-xl bg-[#282828] border border-slate-700/60 focus:outline-none focus:ring-2 focus:ring-[#1DB954] text-white transition-all text-xs font-semibold"
+                      className="w-full px-4 py-3 rounded-xl bg-[#282828] border border-slate-700/60 focus:outline-none focus:ring-2 focus:ring-[#1877F2] text-white transition-all text-xs font-semibold"
                       placeholder="e.g. facebook.com/cyrhiel.moralla or Cyrhiel Moralla"
                     />
                   </div>
@@ -629,12 +637,12 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                         />
                         <label 
                           htmlFor="profile-pic-upload"
-                          className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-[#282828] border border-dashed border-slate-700 hover:border-[#1DB954] text-slate-300 hover:text-white cursor-pointer transition-all text-xs font-bold"
+                          className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-[#282828] border border-dashed border-slate-700 hover:border-[#1877F2] text-slate-300 hover:text-white cursor-pointer transition-all text-xs font-bold"
                         >
                           {profilePic ? "✓ Selected" : "📁 Choose Profile"}
                         </label>
                         {profilePic && (
-                          <span className="block text-[9px] text-[#1DB954] mt-1 truncate text-center font-bold">
+                          <span className="block text-[9px] text-[#1877F2] mt-1 truncate text-center font-bold">
                             {profilePic.name}
                           </span>
                         )}
@@ -653,12 +661,12 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                         />
                         <label 
                           htmlFor="cover-pic-upload"
-                          className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-[#282828] border border-dashed border-slate-700 hover:border-[#1DB954] text-slate-300 hover:text-white cursor-pointer transition-all text-xs font-bold"
+                          className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-[#282828] border border-dashed border-slate-700 hover:border-[#1877F2] text-slate-300 hover:text-white cursor-pointer transition-all text-xs font-bold"
                         >
                           {coverPic ? "✓ Selected" : "📁 Choose Cover"}
                         </label>
                         {coverPic && (
-                          <span className="block text-[9px] text-[#1DB954] mt-1 truncate text-center font-bold">
+                          <span className="block text-[9px] text-[#1877F2] mt-1 truncate text-center font-bold">
                             {coverPic.name}
                           </span>
                         )}
@@ -674,14 +682,14 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                       value={notes}
                       onChange={(e) => setNotes(e.target.value)}
                       rows={2}
-                      className="w-full px-4 py-3 rounded-xl bg-[#282828] border border-slate-700/60 focus:outline-none focus:ring-2 focus:ring-[#1DB954] text-white transition-all text-xs font-medium resize-none"
+                      className="w-full px-4 py-3 rounded-xl bg-[#282828] border border-slate-700/60 focus:outline-none focus:ring-2 focus:ring-[#1877F2] text-white transition-all text-xs font-medium resize-none"
                       placeholder="e.g. Include custom logo request, theme colors, etc."
                     />
                   </div>
 
                   {/* Dynamic Handoff Information Banner */}
-                  <div className="bg-[#1DB954]/10 border border-[#1DB954]/20 p-3.5 rounded-xl mt-1 text-left">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-[#1DB954] block mb-1">
+                  <div className="bg-[#1877F2]/10 border border-[#1877F2]/20 p-3.5 rounded-xl mt-1 text-left">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-[#1877F2] block mb-1">
                       ⏳ Delivery & Transfer Protocol
                     </span>
                     <p className="text-[10px] text-slate-300 leading-relaxed font-semibold">
@@ -703,13 +711,52 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                   step={parsedDetails.min_quantity === 1 ? "1" : "100"}
                   value={quantity}
                   onChange={(e) => setQuantity(parseInt(e.target.value) || 0)}
-                  className="w-full px-4 py-3 rounded-xl bg-[#282828] border border-slate-700/60 focus:outline-none focus:ring-2 focus:ring-[#1DB954] text-white transition-all text-sm font-bold"
+                  className="w-full px-4 py-3 rounded-xl bg-[#282828] border border-slate-700/60 focus:outline-none focus:ring-2 focus:ring-[#1877F2] text-white transition-all text-sm font-bold"
                   placeholder={String(parsedDetails.min_quantity)}
                 />
                 <div className="flex justify-between items-center mt-2 bg-[#121212] px-3.5 py-2.5 rounded-lg border border-slate-800">
-                  <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Estimated Total:</span>
-                  <span className="text-lg font-black text-white">₱{totalPrice.toFixed(0)}</span>
+                  <div className="flex flex-col text-left">
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Estimated Total:</span>
+                    {discountPercent > 0 && (
+                      <span className="text-[10px] text-[#1877F2] font-black uppercase tracking-wider mt-0.5 animate-pulse">
+                        🔥 {discountPercent}% Volume Discount Applied!
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-right">
+                    {discountPercent > 0 && (
+                      <span className="text-[11px] text-slate-500 font-mono line-through block leading-tight">
+                        ₱{baseTotal.toFixed(0)}
+                      </span>
+                    )}
+                    <span className="text-lg font-black text-white block">₱{totalPrice.toFixed(0)}</span>
+                  </div>
                 </div>
+
+                {/* GCash Quick QR for high-value services (Facebook Page & Gemini Pro) */}
+                {(isPageService || serviceTitle.toLowerCase().includes("gemini")) && (
+                  <div className="bg-[#121212] border border-slate-800/80 p-4 rounded-xl space-y-3 mt-3 animate-in fade-in duration-200">
+                    <div className="flex justify-between items-center border-b border-slate-850 pb-2">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-[#1877F2] flex items-center gap-1.5">
+                        📱 Instant GCash Checkout QR
+                      </span>
+                      <span className="text-[9px] text-slate-500 font-bold tracking-wider">Account: HE***Y S.</span>
+                    </div>
+                    <p className="text-[10px] text-slate-300 leading-relaxed font-semibold text-left">
+                      Pay <strong className="text-white">₱{totalPrice.toFixed(0)} PHP</strong> directly using the GCash QR code below. Once your order is placed, send your Tracking ID and payment receipt in our support chatbot for instant verification and activation!
+                    </p>
+                    <div className="text-center">
+                      <div className="bg-white p-1.5 rounded-xl inline-block shadow-md max-w-[130px] mx-auto overflow-hidden border border-slate-700/20">
+                        <img 
+                          src="/gcash-qr.png" 
+                          alt="GCash QR Code" 
+                          className="w-full h-auto rounded-lg object-contain mx-auto"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
               </div>
 
               {/* Anti-Spam Human Verification Verification Check */}
@@ -718,7 +765,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                   🛡️ Human Verification
                 </label>
                 <div className="flex gap-3 items-center">
-                  <div className="bg-[#121212] px-4 py-2.5 rounded-xl border border-slate-800 text-sm font-black text-[#1DB954] tracking-wide whitespace-nowrap">
+                  <div className="bg-[#121212] px-4 py-2.5 rounded-xl border border-slate-800 text-sm font-black text-[#1877F2] tracking-wide whitespace-nowrap">
                     {num1} + {num2} = ?
                   </div>
                   <input 
@@ -726,7 +773,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                     required
                     value={captchaAnswer}
                     onChange={(e) => setCaptchaAnswer(e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl bg-[#282828] border border-slate-700/60 focus:outline-none focus:ring-2 focus:ring-[#1DB954] text-white transition-all text-sm font-bold"
+                    className="w-full px-4 py-2.5 rounded-xl bg-[#282828] border border-slate-700/60 focus:outline-none focus:ring-2 focus:ring-[#1877F2] text-white transition-all text-sm font-bold"
                     placeholder="Prove you are human"
                   />
                 </div>
@@ -744,16 +791,16 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                     type="button" 
                     onClick={handleWalletCheckout}
                     disabled={isSubmitting}
-                    className="w-full bg-[#1DB954]/20 hover:bg-[#1DB954]/30 border border-[#1DB954]/50 disabled:opacity-50 text-[#1DB954] font-extrabold py-3.5 rounded-full transition-all duration-300 flex justify-center items-center gap-2 tracking-wider uppercase text-xs"
+                    className="w-full bg-[#1877F2]/20 hover:bg-[#1877F2]/30 border border-[#1877F2]/50 disabled:opacity-50 text-[#1877F2] font-extrabold py-3.5 rounded-full transition-all duration-300 flex justify-center items-center gap-2 tracking-wider uppercase text-xs"
                   >
-                    {isSubmitting ? <Loader2 className="animate-spin text-[#1DB954]" size={18} /> : `Pay with Wallet (₱${totalPrice.toFixed(0)})`}
+                    {isSubmitting ? <Loader2 className="animate-spin text-[#1877F2]" size={18} /> : `Pay with Wallet (₱${totalPrice.toFixed(0)})`}
                   </button>
                 )}
                 
                 <button 
                   type="submit" 
                   disabled={isSubmitting}
-                  className="w-full bg-[#1DB954] hover:bg-[#1ed760] disabled:bg-slate-700 text-black font-extrabold py-3.5 rounded-full transition-all duration-300 flex justify-center items-center gap-2 tracking-wider uppercase text-xs shadow-[0_0_15px_rgba(29,185,84,0.3)]"
+                  className="w-full bg-[#1877F2] hover:bg-[#4e8df5] disabled:bg-slate-700 text-white font-extrabold py-3.5 rounded-full transition-all duration-300 flex justify-center items-center gap-2 tracking-wider uppercase text-xs shadow-[0_0_15px_rgba(24,119,242,0.35)]"
                 >
                   {isSubmitting ? <Loader2 className="animate-spin text-black" size={18} /> : (user && profile && Number(profile.balance) >= totalPrice ? 'Pay via GCash Instead' : 'Place Order')}
                 </button>

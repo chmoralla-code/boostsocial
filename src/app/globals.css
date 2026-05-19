@@ -45,9 +45,33 @@ body {
   letter-spacing: -0.04em;
 }
 
+.fb-shimmer-text {
+  background: linear-gradient(
+    270deg,
+    #ffffff 0%,
+    #1877F2 30%,
+    #4e8df5 50%,
+    #ffffff 70%,
+    #1877F2 100%
+  );
+  background-size: 400% 400%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: textShimmer 5s ease infinite;
+  text-shadow: 0 0 40px rgba(24, 119, 242, 0.35);
+  font-weight: 900;
+  letter-spacing: -0.04em;
+}
+
 /* 🪐 Glowing neon radial backdrop blobs */
 .spotify-glow-blob {
   background: radial-gradient(circle, rgba(29, 185, 84, 0.12) 0%, rgba(18, 18, 18, 0) 70%);
+  filter: blur(50px);
+  pointer-events: none;
+}
+
+.fb-glow-blob {
+  background: radial-gradient(circle, rgba(24, 119, 242, 0.15) 0%, rgba(18, 18, 18, 0) 70%);
   filter: blur(50px);
   pointer-events: none;
 }

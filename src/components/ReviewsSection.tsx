@@ -106,11 +106,11 @@ export function ReviewsSection() {
     <section className="w-full max-w-5xl mx-auto px-4 mt-20 mb-24 relative z-10">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6 mb-12">
         <div className="text-left">
-          <span className="bg-[#1DB954]/10 text-[#1DB954] border border-[#1DB954]/20 font-black text-[10px] tracking-widest uppercase px-3 py-1 rounded-full inline-flex items-center gap-1.5 mb-3">
+          <span className="bg-[#1877F2]/10 text-[#1877F2] border border-[#1877F2]/20 font-black text-[10px] tracking-widest uppercase px-3 py-1 rounded-full inline-flex items-center gap-1.5 mb-3">
             <Star size={10} fill="currentColor" /> Reviews Grid
           </span>
           <h2 className="text-3xl md:text-4xl font-black text-white tracking-tight">
-            Client <span className="text-[#1DB954]">Success Stories</span>
+            Client <span className="text-[#1877F2]">Success Stories</span>
           </h2>
           <p className="text-sm text-slate-400 mt-2 font-medium">
             Real feedback from creators, influencers, and business pages
@@ -121,7 +121,7 @@ export function ReviewsSection() {
           onClick={() => setShowForm(!showForm)}
           className="bg-[#282828] hover:bg-[#333] border border-slate-800/80 text-white font-extrabold py-3 px-6 rounded-full transition-all text-xs uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer self-start sm:self-center"
         >
-          <MessageSquarePlus size={14} className="text-[#1DB954]" /> Write A Review
+          <MessageSquarePlus size={14} className="text-[#1877F2]" /> Write A Review
         </button>
       </div>
 
@@ -130,7 +130,7 @@ export function ReviewsSection() {
         <div className="bg-[#181818] border border-slate-800/80 rounded-2xl p-6 mb-8 max-w-xl mx-auto text-left relative animate-in slide-in-from-top-4 duration-300">
           {submitted ? (
             <div className="flex flex-col items-center justify-center py-8 text-center space-y-2">
-              <div className="text-[#1DB954] animate-bounce">
+              <div className="text-[#1877F2] animate-bounce">
                 <CheckCircle size={36} />
               </div>
               <h4 className="text-base font-black text-white">Review Submitted!</h4>
@@ -139,7 +139,7 @@ export function ReviewsSection() {
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
               <h4 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2 mb-2">
-                <PenTool size={14} className="text-[#1DB954]" /> Share Your Experience
+                <PenTool size={14} className="text-[#1877F2]" /> Share Your Experience
               </h4>
               
               <div>
@@ -150,7 +150,7 @@ export function ReviewsSection() {
                   placeholder="e.g. Maria Clara"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-[#121212] border border-slate-800 rounded-xl text-white focus:outline-none focus:ring-1 focus:ring-[#1DB954] text-xs font-semibold placeholder-slate-600"
+                  className="w-full px-4 py-2.5 bg-[#121212] border border-slate-800 rounded-xl text-white focus:outline-none focus:ring-1 focus:ring-[#1877F2] text-xs font-semibold placeholder-slate-600"
                 />
               </div>
 
@@ -182,7 +182,7 @@ export function ReviewsSection() {
                   placeholder="Tell others how fast and reliable our boosting was..."
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-[#121212] border border-slate-800 rounded-xl text-white focus:outline-none focus:ring-1 focus:ring-[#1DB954] text-xs font-medium placeholder-slate-600 resize-none"
+                  className="w-full px-4 py-2.5 bg-[#121212] border border-slate-800 rounded-xl text-white focus:outline-none focus:ring-1 focus:ring-[#1877F2] text-xs font-medium placeholder-slate-600 resize-none"
                 />
               </div>
 
@@ -196,7 +196,7 @@ export function ReviewsSection() {
                 </button>
                 <button
                   type="submit"
-                  className="bg-[#1DB954] hover:bg-[#1ed760] text-black font-black py-2.5 px-6 rounded-full shadow-lg transition-all text-xs uppercase tracking-wider"
+                  className="bg-[#1877F2] hover:bg-[#4e8df5] text-white font-black py-2.5 px-6 rounded-full shadow-lg transition-all text-xs uppercase tracking-wider"
                 >
                   Submit Review
                 </button>
@@ -220,8 +220,8 @@ export function ReviewsSection() {
                   <Star 
                     key={s} 
                     size={14} 
-                    fill={s <= rev.rating ? "#1DB954" : "none"} 
-                    className={s <= rev.rating ? "text-[#1DB954]" : "text-slate-800"} 
+                    fill={s <= rev.rating ? "#1877F2" : "none"} 
+                    className={s <= rev.rating ? "text-[#1877F2]" : "text-slate-800"} 
                   />
                 ))}
               </div>

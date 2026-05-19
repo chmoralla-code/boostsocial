@@ -41,11 +41,11 @@ export function FaqSection() {
   return (
     <section className="w-full max-w-4xl mx-auto px-4 mt-20 mb-20 relative z-10">
       <div className="text-center mb-12">
-        <span className="bg-[#1DB954]/10 text-[#1DB954] border border-[#1DB954]/20 font-black text-[10px] tracking-widest uppercase px-3 py-1 rounded-full inline-flex items-center gap-1.5 mb-3">
+        <span className="bg-[#1877F2]/10 text-[#1877F2] border border-[#1877F2]/20 font-black text-[10px] tracking-widest uppercase px-3 py-1 rounded-full inline-flex items-center gap-1.5 mb-3">
           <HelpCircle size={10} /> FAQ Portal
         </span>
         <h2 className="text-3xl md:text-4xl font-black text-center text-white tracking-tight">
-          Got <span className="text-[#1DB954]">Questions</span>?
+          Got <span className="text-[#1877F2]">Questions</span>?
         </h2>
         <p className="text-sm text-slate-400 mt-2 font-medium">
           Everything you need to know about our services and security
@@ -67,7 +67,7 @@ export function FaqSection() {
                 <span className="text-sm sm:text-base pr-4">{faq.question}</span>
                 <ChevronDown 
                   size={18} 
-                  className={`text-[#1DB954] flex-shrink-0 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}
+                  className={`text-[#1877F2] flex-shrink-0 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}
                 />
               </button>
               

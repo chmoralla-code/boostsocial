@@ -156,21 +156,21 @@ export function LiveOrderTicker() {
       } flex items-start gap-3.5 group`}
     >
       {/* Icon Wrapper with glowing circle */}
-      <div className="p-3 bg-[#1DB954]/10 rounded-xl text-[#1DB954] flex-shrink-0 relative">
-        <span className="absolute inset-0 bg-[#1DB954]/5 rounded-xl animate-ping opacity-60"></span>
+      <div className="p-3 bg-[#1877F2]/10 rounded-xl text-[#1877F2] flex-shrink-0 relative">
+        <span className="absolute inset-0 bg-[#1877F2]/5 rounded-xl animate-ping opacity-60"></span>
         <Rocket size={18} className="relative z-10 animate-bounce" />
       </div>
 
       {/* Content details */}
       <div className="flex-1 text-left">
         <div className="flex items-center gap-1.5 mb-1">
-          <span className="bg-[#1DB954]/15 text-[#1DB954] border border-[#1DB954]/10 text-[9px] font-black uppercase px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+          <span className="bg-[#1877F2]/15 text-[#1877F2] border border-[#1877F2]/10 text-[9px] font-black uppercase px-2 py-0.5 rounded-full inline-flex items-center gap-1">
             <TrendingUp size={8} /> LIVE BOOST
           </span>
           <span className="text-[10px] text-slate-500 font-semibold">{notification.timestamp}</span>
         </div>
         <p className="text-xs font-bold text-white leading-relaxed">
-          Someone in <span className="text-[#1DB954] font-extrabold">{notification.location}</span>
+          Someone in <span className="text-[#1877F2] font-extrabold">{notification.location}</span>
         </p>
         <p className="text-[11px] text-slate-400 mt-0.5 leading-relaxed">
           ordered <span className="text-white font-extrabold">{notification.quantity.toLocaleString()}</span> units of{" "}

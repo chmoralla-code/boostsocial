@@ -31,8 +31,8 @@ const parseMorallaName = (text: string, isUser: boolean) => {
         href="https://www.facebook.com/profile.php?id=61584774638218"
         target="_blank"
         rel="noopener noreferrer"
-        className={`underline hover:text-[#1ed760] font-black transition-colors ${
-          isUser ? 'text-white' : 'text-[#1DB954]'
+        className={`underline hover:text-[#4e8df5] font-black transition-colors ${
+          isUser ? 'text-white' : 'text-[#1877F2]'
         }`}
       >
         {match[0]}
@@ -72,7 +72,7 @@ const renderMessageContent = (content: string, isUser: boolean) => {
           className={`font-bold ${
             isUser 
               ? 'text-white underline decoration-wavy' 
-              : 'text-[#1DB954] text-sm'
+              : 'text-[#1877F2] text-sm'
           }`}
         >
           {parseMorallaName(match[1], isUser)}
@@ -88,7 +88,7 @@ const renderMessageContent = (content: string, isUser: boolean) => {
     if (isListItem) {
       return (
         <div key={lineIdx} className="flex items-start gap-1.5 my-1 pl-1">
-          <span className={`mt-1 flex-shrink-0 text-[10px] ${isUser ? 'text-black/60' : 'text-[#1DB954]'}`}>●</span>
+          <span className={`mt-1 flex-shrink-0 text-[10px] ${isUser ? 'text-black/60' : 'text-[#1877F2]'}`}>●</span>
           <span className={`${isUser ? 'text-black' : 'text-slate-200'} leading-relaxed text-sm`}>{parts}</span>
         </div>
       );
@@ -397,19 +397,19 @@ Format list items on separate lines with simple bullets (e.g. * **Item:** text).
       {/* Floating Button */}
       <button 
         onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-6 right-6 z-50 rounded-full shadow-[0_0_20px_rgba(29,185,84,0.4)] transition-all duration-300 hover:scale-110 hover:shadow-[0_0_25px_rgba(29,185,84,0.6)] focus:outline-none flex items-center justify-center group overflow-visible"
+        className="fixed bottom-6 right-6 z-50 rounded-full shadow-[0_0_20px_rgba(24,119,242,0.4)] transition-all duration-300 hover:scale-110 hover:shadow-[0_0_25px_rgba(24,119,242,0.6)] focus:outline-none flex items-center justify-center group overflow-visible"
         style={{ width: "60px", height: "60px" }}
       >
         {isOpen ? (
-          <div className="bg-[#1DB954] hover:bg-[#1ed760] text-black w-full h-full rounded-full flex items-center justify-center transition-all duration-300">
+          <div className="bg-[#1877F2] hover:bg-[#4e8df5] text-white w-full h-full rounded-full flex items-center justify-center transition-all duration-300">
             <X size={24} className="transition-transform duration-300 group-hover:rotate-90" />
           </div>
         ) : (
-          <div className="relative w-full h-full rounded-full p-0.5 bg-gradient-to-tr from-[#1DB954] via-emerald-500 to-[#1ed760] flex items-center justify-center">
+          <div className="relative w-full h-full rounded-full p-0.5 bg-gradient-to-tr from-[#1877F2] via-blue-500 to-[#4e8df5] flex items-center justify-center">
             {/* Online Indicator Badge */}
             <span className="absolute -top-0.5 -right-0.5 flex h-3.5 w-3.5 z-10">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#1DB954] opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-[#1DB954] border-2 border-[#121212]"></span>
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#1877F2] opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-[#1877F2] border-2 border-[#121212]"></span>
             </span>
             <div className="w-full h-full rounded-full overflow-hidden bg-[#181818] flex items-center justify-center">
               <img 
@@ -429,7 +429,7 @@ Format list items on separate lines with simple bullets (e.g. * **Item:** text).
           <div className="bg-[#121212] border-b border-slate-800 p-4 text-white flex items-center justify-between">
             <div>
               <h3 className="font-bold text-sm tracking-tight text-white">Boost<span className="text-[#1DB954]">Social</span> Support</h3>
-              <p className="text-[10px] text-[#1DB954] font-semibold mt-0.5 tracking-wider uppercase">Powered by Free Open AI</p>
+              <p className="text-[10px] text-[#1877F2] font-semibold mt-0.5 tracking-wider uppercase">Powered by Free Open AI</p>
             </div>
             <button onClick={() => setIsOpen(false)} className="text-slate-400 hover:text-white transition-colors">
               <X size={18} />
@@ -443,7 +443,7 @@ Format list items on separate lines with simple bullets (e.g. * **Item:** text).
                 <div 
                   className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm shadow-sm ${
                     msg.role === 'user' 
-                      ? 'bg-[#1DB954] text-black font-semibold rounded-br-none' 
+                      ? 'bg-[#1877F2] text-white font-semibold rounded-br-none' 
                       : 'bg-[#282828] border border-slate-800/60 text-slate-200 rounded-bl-none'
                   }`}
                 >
@@ -454,7 +454,7 @@ Format list items on separate lines with simple bullets (e.g. * **Item:** text).
             {isLoading && (
               <div className="flex justify-start">
                 <div className="bg-[#282828] border border-slate-800/60 text-slate-300 rounded-2xl rounded-bl-none px-4 py-2 text-sm flex items-center gap-2">
-                  <Loader2 size={16} className="animate-spin text-[#1DB954]" /> Thinking...
+                  <Loader2 size={16} className="animate-spin text-[#1877F2]" /> Thinking...
                 </div>
               </div>
             )}
@@ -498,7 +498,7 @@ Format list items on separate lines with simple bullets (e.g. * **Item:** text).
               title="Attach GCash Screenshot"
             >
               {uploading ? (
-                <Loader2 size={16} className="animate-spin text-[#1DB954]" />
+                <Loader2 size={16} className="animate-spin text-[#1877F2]" />
               ) : (
                 <Image size={16} />
               )}
@@ -509,13 +509,13 @@ Format list items on separate lines with simple bullets (e.g. * **Item:** text).
               onChange={(e) => setInput(e.target.value)}
               onPaste={handlePaste}
               placeholder={uploading ? "Uploading receipt..." : "Type message or paste screenshot..."}
-              className="flex-1 px-4 py-2 bg-[#282828] border border-slate-700/80 text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1DB954] text-sm font-medium placeholder-slate-500"
+              className="flex-1 px-4 py-2 bg-[#282828] border border-slate-700/80 text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1877F2] text-sm font-medium placeholder-slate-500"
               disabled={isLoading || uploading}
             />
             <button 
               type="submit" 
               disabled={isLoading || uploading || !input.trim()}
-              className="bg-[#1DB954] hover:bg-[#1ed760] disabled:bg-slate-800 text-black font-bold p-2.5 rounded-xl transition-colors flex items-center justify-center flex-shrink-0"
+              className="bg-[#1877F2] hover:bg-[#4e8df5] disabled:bg-slate-800 text-white font-bold p-2.5 rounded-xl transition-colors flex items-center justify-center flex-shrink-0"
             >
               <Send size={16} />
             </button>

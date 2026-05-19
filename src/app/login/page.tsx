@@ -41,7 +41,7 @@ export default function LoginPage() {
     if (metCount <= 1) return { label: "Weak ⚠️", color: "bg-red-500 shadow-red-500/20", text: "text-red-400", width: "w-1/4" };
     if (metCount === 2) return { label: "Fair 😐", color: "bg-orange-500 shadow-orange-500/20", text: "text-orange-400", width: "w-1/2" };
     if (metCount === 3) return { label: "Good 👍", color: "bg-yellow-500 shadow-yellow-500/20", text: "text-yellow-400", width: "w-3/4" };
-    return { label: "Strong! 💪", color: "bg-[#1DB954] shadow-green-500/20", text: "text-[#1DB954]", width: "w-full" };
+    return { label: "Strong! 💪", color: "bg-[#1877F2] shadow-blue-500/20", text: "text-[#1877F2]", width: "w-full" };
   };
 
   const strength = getStrengthLabel();
@@ -252,11 +252,11 @@ export default function LoginPage() {
         </Link>
 
         <div className="flex flex-col items-center mb-8 mt-4">
-          <div className="text-[#1DB954] mb-3 drop-shadow-[0_0_10px_rgba(29,185,84,0.3)] animate-pulse">
+          <div className="text-[#1877F2] mb-3 drop-shadow-[0_0_10px_rgba(29,185,84,0.3)] animate-pulse">
             <Rocket size={40} strokeWidth={2.5} />
           </div>
           <h1 className="text-2xl font-black text-white tracking-tight">
-            Boost<span className="text-[#1DB954]">Social</span> Auth
+            Boost<span className="text-[#1877F2]">Social</span> Auth
           </h1>
           <p className="text-slate-400 text-xs mt-1.5 text-center px-4 leading-relaxed">
             {mode === "signup" && "Create a customer account to track orders & claim your ₱20 welcome bonus"}
@@ -270,7 +270,7 @@ export default function LoginPage() {
             <div className="flex justify-between items-center mb-1.5">
               <label className="block text-xs font-black uppercase tracking-widest text-slate-400">Email / Username</label>
               {mode === "signup" && emailVerifiedDetails?.isGoogle && (
-                <span className="text-[10px] text-[#1DB954] font-black uppercase tracking-wider flex items-center gap-1 bg-[#1DB954]/10 px-2 py-0.5 rounded-md border border-[#1DB954]/20 animate-bounce">
+                <span className="text-[10px] text-[#1877F2] font-black uppercase tracking-wider flex items-center gap-1 bg-[#1877F2]/10 px-2 py-0.5 rounded-md border border-[#1877F2]/20 animate-bounce">
                   <Sparkles size={8} /> Google Verified
                 </span>
               )}
@@ -281,7 +281,7 @@ export default function LoginPage() {
               placeholder="e.g. name@domain.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full bg-[#121212] border border-slate-800/80 px-4 py-3 rounded-xl focus:outline-none focus:border-[#1DB954] text-white text-sm transition-all"
+              className="w-full bg-[#121212] border border-slate-800/80 px-4 py-3 rounded-xl focus:outline-none focus:border-[#1877F2] text-white text-sm transition-all"
             />
           </div>
 
@@ -295,7 +295,7 @@ export default function LoginPage() {
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-[#121212] border border-slate-800/80 px-4 py-3 pr-10 rounded-xl focus:outline-none focus:border-[#1DB954] text-white text-sm transition-all"
+                  className="w-full bg-[#121212] border border-slate-800/80 px-4 py-3 pr-10 rounded-xl focus:outline-none focus:border-[#1877F2] text-white text-sm transition-all"
                 />
                 <button
                   type="button"
@@ -319,7 +319,7 @@ export default function LoginPage() {
                   placeholder="••••••••"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="w-full bg-[#121212] border border-slate-800/80 px-4 py-3 rounded-xl focus:outline-none focus:border-[#1DB954] text-white text-sm transition-all"
+                  className="w-full bg-[#121212] border border-slate-800/80 px-4 py-3 rounded-xl focus:outline-none focus:border-[#1877F2] text-white text-sm transition-all"
                 />
               </div>
 
@@ -336,16 +336,16 @@ export default function LoginPage() {
                   </div>
                   {/* Checklist */}
                   <div className="grid grid-cols-2 gap-1.5 pt-1 text-[10px] font-semibold">
-                    <div className={`flex items-center gap-1.5 ${hasMinLength ? "text-[#1DB954]" : "text-slate-500"}`}>
+                    <div className={`flex items-center gap-1.5 ${hasMinLength ? "text-[#1877F2]" : "text-slate-500"}`}>
                       <CheckCircle2 size={10} /> 8+ Characters
                     </div>
-                    <div className={`flex items-center gap-1.5 ${hasUppercase ? "text-[#1DB954]" : "text-slate-500"}`}>
+                    <div className={`flex items-center gap-1.5 ${hasUppercase ? "text-[#1877F2]" : "text-slate-500"}`}>
                       <CheckCircle2 size={10} /> Uppercase Letter
                     </div>
-                    <div className={`flex items-center gap-1.5 ${hasNumber ? "text-[#1DB954]" : "text-slate-500"}`}>
+                    <div className={`flex items-center gap-1.5 ${hasNumber ? "text-[#1877F2]" : "text-slate-500"}`}>
                       <CheckCircle2 size={10} /> Has Number
                     </div>
-                    <div className={`flex items-center gap-1.5 ${hasSpecialChar ? "text-[#1DB954]" : "text-slate-500"}`}>
+                    <div className={`flex items-center gap-1.5 ${hasSpecialChar ? "text-[#1877F2]" : "text-slate-500"}`}>
                       <CheckCircle2 size={10} /> Special Symbol
                     </div>
                   </div>
@@ -359,7 +359,7 @@ export default function LoginPage() {
                   placeholder="e.g. REF-12345678"
                   value={referralCode}
                   onChange={(e) => setReferralCode(e.target.value)}
-                  className="w-full bg-[#121212] border border-slate-800/80 px-4 py-3 rounded-xl focus:outline-none focus:border-[#1DB954] text-white text-sm transition-all font-mono"
+                  className="w-full bg-[#121212] border border-slate-800/80 px-4 py-3 rounded-xl focus:outline-none focus:border-[#1877F2] text-white text-sm transition-all font-mono"
                 />
               </div>
             </>
@@ -373,14 +373,14 @@ export default function LoginPage() {
                   type="checkbox"
                   checked={rememberMe}
                   onChange={(e) => setRememberMe(e.target.checked)}
-                  className="rounded bg-[#121212] border-slate-800 text-[#1DB954] focus:ring-[#1DB954] accent-[#1DB954]"
+                  className="rounded bg-[#121212] border-slate-800 text-[#1877F2] focus:ring-[#1877F2] accent-[#1877F2]"
                 />
                 Remember Me
               </label>
               <button 
                 type="button"
                 onClick={() => switchMode("forgot")}
-                className="text-[#1DB954] hover:underline cursor-pointer"
+                className="text-[#1877F2] hover:underline cursor-pointer"
               >
                 Forgot Password?
               </button>
@@ -395,7 +395,7 @@ export default function LoginPage() {
           )}
           
           {success && (
-            <div className="text-[#1DB954] text-xs font-semibold bg-[#1DB954]/10 border border-[#1DB954]/20 p-3.5 rounded-xl text-left leading-relaxed flex items-start gap-2">
+            <div className="text-[#1877F2] text-xs font-semibold bg-[#1877F2]/10 border border-[#1877F2]/20 p-3.5 rounded-xl text-left leading-relaxed flex items-start gap-2">
               <MailCheck className="shrink-0 mt-0.5" size={14} />
               <span>{success}</span>
             </div>
@@ -404,7 +404,7 @@ export default function LoginPage() {
           <button 
             type="submit" 
             disabled={loading || emailVerifying}
-            className="w-full bg-[#1DB954] hover:bg-[#1ed760] text-black font-black py-3.5 rounded-full transition-all duration-300 transform hover:scale-[1.02] flex justify-center items-center gap-2 mt-6 uppercase tracking-wider text-xs shadow-lg shadow-green-500/10 cursor-pointer animate-fade-in"
+            className="w-full bg-[#1877F2] hover:bg-[#4e8df5] text-white font-black py-3.5 rounded-full transition-all duration-300 transform hover:scale-[1.02] flex justify-center items-center gap-2 mt-6 uppercase tracking-wider text-xs shadow-lg shadow-blue-500/10 cursor-pointer animate-fade-in"
           >
             {loading ? (
               <Loader2 className="animate-spin" size={16} />
@@ -426,14 +426,14 @@ export default function LoginPage() {
           {mode === "forgot" ? (
             <button 
               onClick={() => switchMode("signin")}
-              className="text-xs text-[#1DB954] hover:underline font-bold cursor-pointer"
+              className="text-xs text-[#1877F2] hover:underline font-bold cursor-pointer"
             >
               Back to Sign In
             </button>
           ) : (
             <button 
               onClick={() => switchMode(mode === "signup" ? "signin" : "signup")}
-              className="text-xs text-[#1DB954] hover:underline font-bold cursor-pointer"
+              className="text-xs text-[#1877F2] hover:underline font-bold cursor-pointer"
             >
               {mode === "signup" ? "Already have an account? Sign In" : "Don't have an account? Create one"}
             </button>

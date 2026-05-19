@@ -72,7 +72,7 @@ export function StatCounters() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
         {/* Card 1 */}
         <div className="bg-[#181818]/40 border border-slate-800/80 rounded-2xl p-6 text-center hover:bg-[#222]/30 transition-all duration-300 group flex items-center gap-5 sm:flex-col sm:justify-center">
-          <div className="p-4 rounded-full bg-[#1DB954]/10 text-[#1DB954] shadow-md group-hover:scale-105 transition-transform duration-300">
+          <div className="p-4 rounded-full bg-[#1877F2]/10 text-[#1877F2] shadow-md group-hover:scale-105 transition-transform duration-300">
             <CheckCircle2 size={24} />
           </div>
           <div className="text-left sm:text-center space-y-1">
@@ -85,7 +85,7 @@ export function StatCounters() {
 
         {/* Card 2 */}
         <div className="bg-[#181818]/40 border border-slate-800/80 rounded-2xl p-6 text-center hover:bg-[#222]/30 transition-all duration-300 group flex items-center gap-5 sm:flex-col sm:justify-center">
-          <div className="p-4 rounded-full bg-[#1DB954]/10 text-[#1DB954] shadow-md group-hover:scale-105 transition-transform duration-300">
+          <div className="p-4 rounded-full bg-[#1877F2]/10 text-[#1877F2] shadow-md group-hover:scale-105 transition-transform duration-300">
             <TrendingUp size={24} />
           </div>
           <div className="text-left sm:text-center space-y-1">
@@ -98,7 +98,7 @@ export function StatCounters() {
 
         {/* Card 3 */}
         <div className="bg-[#181818]/40 border border-slate-800/80 rounded-2xl p-6 text-center hover:bg-[#222]/30 transition-all duration-300 group flex items-center gap-5 sm:flex-col sm:justify-center">
-          <div className="p-4 rounded-full bg-[#1DB954]/10 text-[#1DB954] shadow-md group-hover:scale-105 transition-transform duration-300">
+          <div className="p-4 rounded-full bg-[#1877F2]/10 text-[#1877F2] shadow-md group-hover:scale-105 transition-transform duration-300">
             <Users size={24} />
           </div>
           <div className="text-left sm:text-center space-y-1">

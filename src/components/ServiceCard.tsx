@@ -84,7 +84,7 @@ export function ServiceCard({ id, title, description, startingPrice, iconType, o
       </div>
       
       <h3 className="uppercase text-xs font-black tracking-widest text-slate-500 mb-2">{title}</h3>
-      <h4 className="text-xl font-bold text-white mb-3 group-hover:text-[#1DB954] transition-colors">{parsed.subtitle}</h4>
+      <h4 className="text-xl font-bold text-white mb-3 group-hover:text-[#1877F2] transition-colors">{parsed.subtitle}</h4>
       
       <p className="text-slate-400 text-sm leading-relaxed mb-8 flex-grow whitespace-pre-line">
         {parsed.description}
@@ -98,13 +98,13 @@ export function ServiceCard({ id, title, description, startingPrice, iconType, o
               <span className="block text-slate-500 text-[10px] font-bold uppercase tracking-wider mb-1">
                 Pricing Info
               </span>
-              <span className="text-xs font-black text-[#1DB954] uppercase tracking-widest leading-relaxed block max-w-[240px]">
+              <span className="text-xs font-black text-[#1877F2] uppercase tracking-widest leading-relaxed block max-w-[240px]">
                 PRICING IS DECLARED ON THE WEBSITE
               </span>
             </>
           ) : (
             <>
-              <span className="block text-slate-500 text-[10px] font-bold uppercase tracking-wider mb-1">
+              <span className="block text-slate-550 text-[10px] font-bold uppercase tracking-wider mb-1">
                 {parsed.min_quantity === 1 ? "Starts (per 1 PCS)" : "Starts (per 1,000)"}
               </span>
               <span className="text-3xl font-black text-white">₱{Number(startingPrice).toFixed(0)}</span>
@@ -116,7 +116,7 @@ export function ServiceCard({ id, title, description, startingPrice, iconType, o
       {parsed.redirect_url ? (
         <button 
           onClick={() => onOrder(id, title, startingPrice)}
-          className="w-full bg-transparent hover:bg-[#1DB954]/10 text-[#1DB954] font-extrabold py-3.5 rounded-full transition-all duration-300 uppercase text-xs tracking-wider transform group-hover:scale-[1.02] border-2 border-[#1DB954]/60 hover:border-[#1DB954] flex items-center justify-center gap-2"
+          className="w-full bg-transparent hover:bg-[#1877F2]/10 text-[#1877F2] font-extrabold py-3.5 rounded-full transition-all duration-300 uppercase text-xs tracking-wider transform group-hover:scale-[1.02] border-2 border-[#1877F2]/60 hover:border-[#1877F2] flex items-center justify-center gap-2 cursor-pointer"
         >
           <ExternalLink size={14} />
           {parsed.button_text || "Visit Site"}
@@ -124,7 +124,7 @@ export function ServiceCard({ id, title, description, startingPrice, iconType, o
       ) : (
         <button 
           onClick={() => onOrder(id, title, startingPrice)}
-          className="w-full bg-[#1DB954] hover:bg-[#1ed760] text-black font-extrabold py-3.5 rounded-full transition-all duration-300 uppercase text-xs tracking-wider transform group-hover:scale-[1.02] shadow-lg shadow-green-500/5"
+          className="w-full bg-[#1877F2] hover:bg-[#4e8df5] text-white font-extrabold py-3.5 rounded-full transition-all duration-300 uppercase text-xs tracking-wider transform group-hover:scale-[1.02] shadow-lg shadow-blue-500/5 cursor-pointer"
         >
           {parsed.button_text}
         </button>

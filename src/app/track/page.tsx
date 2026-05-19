@@ -195,18 +195,18 @@ export default function TrackPage() {
       <Header />
 
       <main className="flex-grow flex flex-col items-center pt-24 pb-20 relative overflow-hidden bg-[#121212] min-h-screen">
-        {/* Spotify Neon glow backdrop */}
+        {/* Facebook Blue glow backdrop */}
         <div className="absolute top-0 left-0 w-full h-[600px] overflow-hidden -z-10 pointer-events-none">
-          <div className="absolute top-[-20%] left-[20%] w-[500px] h-[500px] rounded-full spotify-glow-blob"></div>
-          <div className="absolute top-[30%] right-[-10%] w-[500px] h-[500px] rounded-full spotify-glow-blob"></div>
+          <div className="absolute top-[-20%] left-[20%] w-[500px] h-[500px] rounded-full fb-glow-blob"></div>
+          <div className="absolute top-[30%] right-[-10%] w-[500px] h-[500px] rounded-full fb-glow-blob"></div>
         </div>
 
         <div className="w-full max-w-2xl mx-auto px-4 z-10 text-center">
-          <span className="bg-[#1DB954]/10 text-[#1DB954] border border-[#1DB954]/20 font-black text-[10px] tracking-widest uppercase px-3 py-1 rounded-full inline-flex items-center gap-1.5 mb-3">
+          <span className="bg-[#1877F2]/10 text-[#1877F2] border border-[#1877F2]/20 font-black text-[10px] tracking-widest uppercase px-3 py-1 rounded-full inline-flex items-center gap-1.5 mb-3">
             <ShieldCheck size={10} /> SMM Status Terminal
           </span>
           <h1 className="text-3xl sm:text-5xl font-black text-white tracking-tight mb-3">
-            Track Your <span className="text-[#1DB954]">Boost Order</span>
+            Track Your <span className="text-[#1877F2]">Boost Order</span>
           </h1>
           <p className="text-xs sm:text-sm text-slate-400 max-w-md mx-auto mb-10 font-semibold">
             Enter your unique Tracking ID received at checkout to inspect real-time progress.
@@ -234,7 +234,7 @@ export default function TrackPage() {
             <button
               type="submit"
               disabled={loading || !trackingInput.trim()}
-              className="bg-[#1DB954] hover:bg-[#1ed760] disabled:bg-slate-800 text-black font-black px-6 py-3 rounded-xl transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer text-xs uppercase tracking-wider flex-shrink-0"
+              className="bg-[#1877F2] hover:bg-[#4e8df5] disabled:bg-slate-800 text-white font-black px-6 py-3 rounded-xl transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer text-xs uppercase tracking-wider flex-shrink-0"
             >
               {loading ? <Loader2 size={16} className="animate-spin" /> : "Track"}
             </button>
@@ -243,7 +243,7 @@ export default function TrackPage() {
           {/* Loading */}
           {loading && (
             <div className="flex flex-col items-center justify-center py-16 gap-3">
-              <Loader2 className="animate-spin text-[#1DB954]" size={32} />
+              <Loader2 className="animate-spin text-[#1877F2]" size={32} />
               <span className="text-xs text-slate-400 font-bold uppercase tracking-wider">Accessing ledger...</span>
             </div>
           )}
@@ -264,9 +264,9 @@ export default function TrackPage() {
             <div className="mt-8 space-y-6 text-left animate-in slide-in-from-bottom-4 duration-300">
               {/* Dynamic Page Delivery & Transfer Active Warning Notice */}
               {(order.services?.title?.toLowerCase()?.includes("page") || order.target_url?.toLowerCase()?.includes("page wants")) && (
-                <div className="bg-[#1DB954]/10 border border-[#1DB954]/25 p-5 rounded-3xl text-left space-y-2.5 shadow-xl relative overflow-hidden">
-                  <div className="absolute top-0 right-0 w-24 h-24 bg-[#1DB954]/5 rounded-full blur-xl pointer-events-none"></div>
-                  <span className="text-xs font-black uppercase tracking-widest text-[#1DB954] flex items-center gap-1.5">
+                <div className="bg-[#1877F2]/10 border border-[#1877F2]/25 p-5 rounded-3xl text-left space-y-2.5 shadow-xl relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-[#1877F2]/5 rounded-full blur-xl pointer-events-none"></div>
+                  <span className="text-xs font-black uppercase tracking-widest text-[#1877F2] flex items-center gap-1.5">
                     ⏳ Page Creation & Handoff Active
                   </span>
                   <p className="text-xs text-slate-350 leading-relaxed font-semibold">
@@ -281,7 +281,7 @@ export default function TrackPage() {
                 <div className="flex justify-between items-start gap-4 pb-5 border-b border-slate-800/60">
                   <div className="space-y-1.5">
                     <div className="flex items-center gap-2">
-                      <span className="font-mono text-base font-black text-[#1DB954] tracking-widest">
+                      <span className="font-mono text-base font-black text-[#1877F2] tracking-widest">
                         BS-{order.id.slice(0, 8).toUpperCase()}
                       </span>
                       <button 
@@ -289,7 +289,7 @@ export default function TrackPage() {
                         className="text-slate-500 hover:text-white p-1 hover:bg-[#282828] rounded transition-all cursor-pointer"
                         title="Copy tracking ID"
                       >
-                        {copied ? <Check size={13} className="text-[#1DB954]" /> : <Copy size={13} />}
+                        {copied ? <Check size={13} className="text-[#1877F2]" /> : <Copy size={13} />}
                       </button>
                     </div>
                     <p className="text-[10px] text-slate-500 font-bold uppercase">
@@ -300,7 +300,7 @@ export default function TrackPage() {
                   <span className={`text-[10px] font-black uppercase tracking-wider px-3.5 py-1 rounded-full ${
                     order.status === 'Pending' ? 'bg-[#ff9800]/10 text-[#ff9800] border border-[#ff9800]/20' :
                     order.status === 'Processing' ? 'bg-[#2196f3]/10 text-[#2196f3] border border-[#2196f3]/20' :
-                    order.status === 'Completed' ? 'bg-[#1DB954]/10 text-[#1DB954] border border-[#1DB954]/20' :
+                    order.status === 'Completed' ? 'bg-[#1877F2]/10 text-[#1877F2] border border-[#1877F2]/20' :
                     'bg-red-500/10 text-red-500 border border-red-500/20'
                   }`}>
                     {order.status}
@@ -324,7 +324,7 @@ export default function TrackPage() {
                   </div>
                   <div>
                     <span className="text-[9px] text-slate-500 font-black uppercase tracking-wider block mb-0.5">Total Paid</span>
-                    <span className="text-[#1DB954] font-black">₱{Number(order.amount).toFixed(0)} PHP</span>
+                    <span className="text-[#1877F2] font-black">₱{Number(order.amount).toFixed(0)} PHP</span>
                   </div>
                   <div>
                     <span className="text-[9px] text-slate-500 font-black uppercase tracking-wider block mb-0.5">Customer contact</span>
@@ -345,7 +345,7 @@ export default function TrackPage() {
                               <div key={idx} className="flex flex-col sm:flex-row justify-between sm:items-center py-1 border-b border-slate-850/50 last:border-b-0 gap-1">
                                 <span className="text-[10px] uppercase font-bold text-slate-500">{label.trim()}</span>
                                 {isUrl ? (
-                                  <a href={value.trim()} target="_blank" rel="noopener noreferrer" className="text-[#1DB954] hover:underline font-semibold font-mono truncate max-w-[280px]">
+                                  <a href={value.trim()} target="_blank" rel="noopener noreferrer" className="text-[#1877F2] hover:underline font-semibold font-mono truncate max-w-[280px]">
                                     View Attached Image 🔗
                                   </a>
                                 ) : (
@@ -374,7 +374,7 @@ export default function TrackPage() {
                   <div className="space-y-6 pl-4 relative before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-[2px] before:bg-slate-800/80">
                     {/* Placed */}
                     <div className="flex items-start gap-4 relative">
-                      <div className="w-6 h-6 rounded-full bg-[#1DB954] flex items-center justify-center text-black flex-shrink-0 z-10 shadow-lg shadow-green-500/20">
+                      <div className="w-6 h-6 rounded-full bg-[#1877F2] flex items-center justify-center text-white flex-shrink-0 z-10 shadow-lg shadow-blue-500/20">
                         <CheckCircle2 size={13} fill="currentColor" />
                       </div>
                       <div className="space-y-0.5 text-xs">
@@ -386,7 +386,7 @@ export default function TrackPage() {
                     {/* Payment verification */}
                     <div className="flex items-start gap-4 relative">
                       {getStepStatus("payment", order.status) === "completed" ? (
-                        <div className="w-6 h-6 rounded-full bg-[#1DB954] flex items-center justify-center text-black flex-shrink-0 z-10 shadow-lg shadow-green-500/20">
+                        <div className="w-6 h-6 rounded-full bg-[#1877F2] flex items-center justify-center text-white flex-shrink-0 z-10 shadow-lg shadow-blue-500/20">
                           <CheckCircle2 size={13} fill="currentColor" />
                         </div>
                       ) : getStepStatus("payment", order.status) === "current" ? (
@@ -414,7 +414,7 @@ export default function TrackPage() {
                     {/* Processing */}
                     <div className="flex items-start gap-4 relative">
                       {getStepStatus("processing", order.status) === "completed" ? (
-                        <div className="w-6 h-6 rounded-full bg-[#1DB954] flex items-center justify-center text-black flex-shrink-0 z-10">
+                        <div className="w-6 h-6 rounded-full bg-[#1877F2] flex items-center justify-center text-white flex-shrink-0 z-10 shadow-lg shadow-blue-500/20">
                           <CheckCircle2 size={13} fill="currentColor" />
                         </div>
                       ) : getStepStatus("processing", order.status) === "current" ? (
@@ -448,7 +448,7 @@ export default function TrackPage() {
                     {/* Completed */}
                     <div className="flex items-start gap-4 relative">
                       {getStepStatus("completed", order.status) === "completed" ? (
-                        <div className="w-6 h-6 rounded-full bg-[#1DB954] flex items-center justify-center text-black flex-shrink-0 z-10">
+                        <div className="w-6 h-6 rounded-full bg-[#1877F2] flex items-center justify-center text-white flex-shrink-0 z-10 shadow-lg shadow-blue-500/20">
                           <CheckCircle2 size={13} fill="currentColor" />
                         </div>
                       ) : (
@@ -479,7 +479,7 @@ export default function TrackPage() {
               {order.status === "Pending" && (
                 <div className="bg-[#181818]/60 border border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-2xl relative">
                   <h4 className="text-xs font-black uppercase tracking-wider text-slate-400 mb-4 flex items-center gap-2">
-                    <UploadCloud size={16} className="text-[#1DB954]" /> Upload GCash Receipt Screenshot
+                    <UploadCloud size={16} className="text-[#1877F2]" /> Upload GCash Receipt Screenshot
                   </h4>
                   <p className="text-xs text-slate-450 font-semibold mb-6 leading-relaxed">
                     If you did not upload your GCash payment receipt screenshot at checkout, you can upload it here to link it directly to your order and initiate processing immediately!
@@ -487,7 +487,7 @@ export default function TrackPage() {
 
                   {uploadSuccess ? (
                     <div className="flex flex-col items-center justify-center py-6 bg-[#121212]/50 border border-slate-850 p-6 rounded-2xl gap-2 text-center">
-                      <div className="text-[#1DB954] animate-bounce">
+                      <div className="text-[#1877F2] animate-bounce">
                         <CheckCircle2 size={36} />
                       </div>
                       <h5 className="text-sm font-black text-white">Receipt Linked Successfully!</h5>
@@ -504,7 +504,7 @@ export default function TrackPage() {
                           onChange={handleFileChange}
                           className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                         />
-                        <Image size={32} className="text-[#1DB954] group-hover:scale-110 transition-transform mb-2" />
+                        <Image size={32} className="text-[#1877F2] group-hover:scale-110 transition-transform mb-2" />
                         <span className="text-xs font-black text-white">
                           {selectedFile ? selectedFile.name : "Choose Payment Screenshot"}
                         </span>
@@ -517,7 +517,7 @@ export default function TrackPage() {
                         <button
                           type="submit"
                           disabled={uploading}
-                          className="w-full bg-[#1DB954] hover:bg-[#1ed760] disabled:bg-slate-850 text-black font-black py-3 rounded-xl shadow-lg transition-all text-xs uppercase tracking-wider flex items-center justify-center gap-1.5"
+                          className="w-full bg-[#1877F2] hover:bg-[#4e8df5] disabled:bg-slate-850 text-white font-black py-3 rounded-xl shadow-lg transition-all text-xs uppercase tracking-wider flex items-center justify-center gap-1.5"
                         >
                           {uploading ? (
                             <>

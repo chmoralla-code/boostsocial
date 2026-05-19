@@ -86,7 +86,7 @@ export function Header() {
             <>
               <button 
                 onClick={() => setShowTopUpModal(true)}
-                className="flex items-center gap-1.5 bg-[#1DB954]/10 hover:bg-[#1DB954]/20 border border-[#1DB954]/30 text-[#1DB954] font-extrabold py-2 px-3 rounded-full transition-all text-xs uppercase tracking-wider cursor-pointer"
+                className="flex items-center gap-1.5 bg-[#1877F2]/10 hover:bg-[#1877F2]/20 border border-[#1877F2]/30 text-[#1877F2] font-extrabold py-2 px-3 rounded-full transition-all text-xs uppercase tracking-wider cursor-pointer"
               >
                 <Wallet size={14} /> 
                 ₱{profile?.balance ? Number(profile.balance).toFixed(0) : "0"}
@@ -94,14 +94,14 @@ export function Header() {
 
               <button 
                 onClick={() => setShowReferralsModal(true)}
-                className="flex items-center gap-2 bg-[#282828] hover:bg-[#333] border border-slate-800/80 text-[#1DB954] font-extrabold py-2 px-4 rounded-full transition-all text-xs uppercase tracking-wider cursor-pointer hidden sm:flex"
+                className="flex items-center gap-2 bg-[#282828] hover:bg-[#333] border border-slate-800/80 text-[#1877F2] font-extrabold py-2 px-4 rounded-full transition-all text-xs uppercase tracking-wider cursor-pointer hidden sm:flex"
               >
                 <Gift size={14} /> Invite & Earn
               </button>
 
               <button 
                 onClick={() => setShowOrdersModal(true)}
-                className="flex items-center gap-2 bg-[#282828] hover:bg-[#333] border border-slate-800/80 text-[#1DB954] font-extrabold py-2 px-4 rounded-full transition-all text-xs uppercase tracking-wider cursor-pointer hidden sm:flex"
+                className="flex items-center gap-2 bg-[#282828] hover:bg-[#333] border border-slate-800/80 text-[#1877F2] font-extrabold py-2 px-4 rounded-full transition-all text-xs uppercase tracking-wider cursor-pointer hidden sm:flex"
               >
                 <ClipboardList size={14} /> My Orders
               </button>
@@ -121,7 +121,7 @@ export function Header() {
           ) : (
             <Link 
               href="/login"
-              className="bg-[#1DB954] hover:bg-[#1ed760] text-black font-extrabold py-2.5 px-6 rounded-full transition-all duration-300 transform hover:scale-[1.03] shadow-md shadow-green-500/10 text-xs uppercase tracking-wider"
+              className="bg-[#1877F2] hover:bg-[#4e8df5] text-white font-extrabold py-2.5 px-6 rounded-full transition-all duration-300 transform hover:scale-[1.03] shadow-md shadow-blue-500/10 text-xs uppercase tracking-wider"
             >
               Sign In
             </Link>
@@ -142,7 +142,7 @@ export function Header() {
             
             <div className="p-6 border-b border-slate-800/60">
               <h2 className="text-xl font-black text-white tracking-tight flex items-center gap-2">
-                📋 Your <span className="text-[#1DB954]">Order History</span>
+                📋 Your <span className="text-[#1877F2]">Order History</span>
               </h2>
               <p className="text-slate-400 text-xs mt-1">Real-time status tracking for your accounts</p>
             </div>
@@ -150,7 +150,7 @@ export function Header() {
             <div className="p-6 overflow-y-auto flex-grow space-y-4">
               {loadingOrders ? (
                 <div className="flex flex-col items-center justify-center py-12 gap-2">
-                  <Loader2 className="animate-spin text-[#1DB954]" size={28} />
+                  <Loader2 className="animate-spin text-[#1877F2]" size={28} />
                   <span className="text-xs text-slate-400 font-bold uppercase tracking-wider">Retrieving history...</span>
                 </div>
               ) : orders.length === 0 ? (
@@ -168,7 +168,7 @@ export function Header() {
                       <div key={order.id} className="bg-[#121212] border border-slate-800/80 p-4 rounded-xl flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                         <div className="space-y-1.5 text-left">
                           <div className="flex items-center gap-2">
-                            <span className="font-mono text-xs font-black text-[#1DB954] tracking-widest">{displayId}</span>
+                            <span className="font-mono text-xs font-black text-[#1877F2] tracking-widest">{displayId}</span>
                             <span className="text-[10px] text-slate-500 font-bold uppercase">
                               {format(new Date(order.created_at), 'MMM d, yyyy')}
                             </span>
@@ -178,7 +178,7 @@ export function Header() {
                             <span className="text-slate-500 font-normal">•</span>
                             <span className="text-slate-300">{order.quantity.toLocaleString()} units</span>
                             <span className="text-slate-500 font-normal">•</span>
-                            <span className="text-[#1DB954]">₱{Number(order.amount).toFixed(0)}</span>
+                            <span className="text-[#1877F2]">₱{Number(order.amount).toFixed(0)}</span>
                           </div>
                           <div className="text-[10px] text-slate-400 truncate max-w-xs sm:max-w-md font-mono select-all">
                             🔗 {order.target_url}
@@ -189,7 +189,7 @@ export function Header() {
                           <span className={`text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full ${
                             order.status === 'Pending' ? 'bg-[#ff9800]/10 text-[#ff9800] border border-[#ff9800]/20' :
                             order.status === 'Processing' ? 'bg-[#2196f3]/10 text-[#2196f3] border border-[#2196f3]/20' :
-                            order.status === 'Completed' ? 'bg-[#1DB954]/10 text-[#1DB954] border border-[#1DB954]/20' :
+                            order.status === 'Completed' ? 'bg-[#1877F2]/10 text-[#1877F2] border border-[#1877F2]/20' :
                             'bg-red-500/10 text-red-500 border border-red-500/20'
                           }`}>
                             {order.status}

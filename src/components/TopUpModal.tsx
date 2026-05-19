@@ -66,7 +66,7 @@ export function TopUpModal({ isOpen, onClose, user, onTopUpSuccess }: { isOpen: 
         {/* Header */}
         <div className="flex justify-between items-center p-6 border-b border-slate-800/60 bg-[#181818]">
           <h2 className="text-xl font-black text-white tracking-tight flex items-center gap-2">
-            <Wallet className="text-[#1DB954]" size={24} /> Top Up Wallet
+            <Wallet className="text-[#1877F2]" size={24} /> Top Up Wallet
           </h2>
           <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors bg-slate-800/50 hover:bg-slate-700/50 p-1.5 rounded-full">
             <X size={20} />
@@ -75,11 +75,11 @@ export function TopUpModal({ isOpen, onClose, user, onTopUpSuccess }: { isOpen: 
 
         <div className="p-6 space-y-6">
           {success ? (
-            <div className="bg-[#1DB954]/10 border border-[#1DB954]/20 p-6 rounded-xl text-center space-y-3">
-              <div className="w-16 h-16 bg-[#1DB954]/20 text-[#1DB954] rounded-full flex items-center justify-center mx-auto mb-4">
+            <div className="bg-[#1877F2]/10 border border-[#1877F2]/20 p-6 rounded-xl text-center space-y-3">
+              <div className="w-16 h-16 bg-[#1877F2]/20 text-[#1877F2] rounded-full flex items-center justify-center mx-auto mb-4">
                 <Wallet size={32} />
               </div>
-              <h3 className="text-lg font-bold text-[#1DB954]">Top-Up Submitted!</h3>
+              <h3 className="text-lg font-bold text-[#1877F2]">Top-Up Submitted!</h3>
               <p className="text-sm text-slate-300 font-medium leading-relaxed">
                 Your GCash receipt has been securely uploaded. An admin will verify the payment and credit ₱{Number(amount).toFixed(0)} to your wallet shortly.
               </p>
@@ -101,7 +101,7 @@ export function TopUpModal({ isOpen, onClose, user, onTopUpSuccess }: { isOpen: 
                     type="number" 
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
-                    className="w-full bg-[#282828] text-white border border-slate-700 rounded-xl py-3 pl-8 pr-4 focus:outline-none focus:border-[#1DB954] font-semibold transition-colors"
+                    className="w-full bg-[#282828] text-white border border-slate-700 rounded-xl py-3 pl-8 pr-4 focus:outline-none focus:border-[#1877F2] font-semibold transition-colors"
                     placeholder="0.00"
                   />
                 </div>
@@ -121,11 +121,11 @@ export function TopUpModal({ isOpen, onClose, user, onTopUpSuccess }: { isOpen: 
               {/* File Upload */}
               <div className="space-y-2">
                 <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Upload GCash Receipt</label>
-                <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-slate-700 border-dashed rounded-xl cursor-pointer hover:bg-[#282828] hover:border-[#1DB954] transition-all group">
+                <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-slate-700 border-dashed rounded-xl cursor-pointer hover:bg-[#282828] hover:border-[#1877F2] transition-all group">
                   <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                    <Upload className="w-6 h-6 mb-2 text-slate-400 group-hover:text-[#1DB954] transition-colors" />
+                    <Upload className="w-6 h-6 mb-2 text-slate-400 group-hover:text-[#1877F2] transition-colors" />
                     <p className="text-xs text-slate-400 font-medium group-hover:text-slate-300">
-                      {file ? <span className="text-[#1DB954] font-bold">{file.name}</span> : "Click to select screenshot"}
+                      {file ? <span className="text-[#1877F2] font-bold">{file.name}</span> : "Click to select screenshot"}
                     </p>
                   </div>
                   <input type="file" className="hidden" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} />
@@ -135,7 +135,7 @@ export function TopUpModal({ isOpen, onClose, user, onTopUpSuccess }: { isOpen: 
               <button
                 onClick={handleUpload}
                 disabled={isUploading}
-                className="w-full bg-[#1DB954] hover:bg-[#1ed760] text-black font-extrabold py-3.5 rounded-xl transition-all shadow-[0_0_15px_rgba(29,185,84,0.3)] disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2"
+                className="w-full bg-[#1877F2] hover:bg-[#4e8df5] text-white font-extrabold py-3.5 rounded-xl transition-all shadow-[0_0_15px_rgba(24,119,242,0.3)] disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2"
               >
                 {isUploading ? (
                   <><Loader2 className="animate-spin" size={18} /> Submitting...</>

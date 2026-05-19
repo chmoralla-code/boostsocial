@@ -34,7 +34,7 @@ export default function ResetPasswordPage() {
     if (metCount <= 1) return { label: "Weak ⚠️", color: "bg-red-500 shadow-red-500/20", text: "text-red-400", width: "w-1/4" };
     if (metCount === 2) return { label: "Fair 😐", color: "bg-orange-500 shadow-orange-500/20", text: "text-orange-400", width: "w-1/2" };
     if (metCount === 3) return { label: "Good 👍", color: "bg-yellow-500 shadow-yellow-500/20", text: "text-yellow-400", width: "w-3/4" };
-    return { label: "Strong! 💪", color: "bg-[#1DB954] shadow-green-500/20", text: "text-[#1DB954]", width: "w-full" };
+    return { label: "Strong! 💪", color: "bg-[#1877F2] shadow-blue-500/20", text: "text-[#1877F2]", width: "w-full" };
   };
 
   const strength = getStrengthLabel();
@@ -104,7 +104,7 @@ export default function ResetPasswordPage() {
   if (verifyingSession) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-[#121212] text-white">
-        <Loader2 className="animate-spin text-[#1DB954] mb-3" size={40} />
+        <Loader2 className="animate-spin text-[#1877F2] mb-3" size={40} />
         <p className="text-slate-400 text-sm font-semibold tracking-wider uppercase animate-pulse">
           Authorizing Recovery Session...
         </p>
@@ -130,7 +130,7 @@ export default function ResetPasswordPage() {
           <div className="mt-8">
             <Link
               href="/login"
-              className="inline-block bg-[#1DB954] hover:bg-[#1ed760] text-black font-black py-3 px-8 rounded-full transition-all duration-300 transform hover:scale-[1.03] uppercase tracking-wider text-xs shadow-lg shadow-green-500/10"
+              className="inline-block bg-[#1877F2] hover:bg-[#4e8df5] text-black font-black py-3 px-8 rounded-full transition-all duration-300 transform hover:scale-[1.03] uppercase tracking-wider text-xs shadow-lg shadow-blue-500/10"
             >
               Back to Login
             </Link>
@@ -149,19 +149,19 @@ export default function ResetPasswordPage() {
       <div className="bg-[#181818] border border-slate-800/80 p-8 rounded-2xl w-full max-w-md shadow-2xl relative">
         {success ? (
           <div className="flex flex-col items-center text-center py-6">
-            <div className="text-[#1DB954] mb-4 bg-green-500/10 p-3 rounded-full border border-green-500/20 animate-bounce">
+            <div className="text-[#1877F2] mb-4 bg-green-500/10 p-3 rounded-full border border-green-500/20 animate-bounce">
               <CheckCircle2 size={48} strokeWidth={2.5} />
             </div>
             <h1 className="text-2xl font-black text-white tracking-tight">Password Reset Complete!</h1>
             <p className="text-slate-400 text-xs mt-2 max-w-xs mx-auto leading-relaxed">
               Your password has been securely updated. You will be redirected to your dashboard workspace in:
             </p>
-            <div className="text-4xl font-black text-[#1DB954] my-6 bg-[#121212] border border-slate-800 w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg">
+            <div className="text-4xl font-black text-[#1877F2] my-6 bg-[#121212] border border-slate-800 w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg">
               {countdown}
             </div>
             <button
               onClick={() => router.push(isAdmin ? "/admin" : "/")}
-              className="w-full bg-[#1DB954] hover:bg-[#1ed760] text-black font-black py-3 rounded-full transition-all duration-300 uppercase tracking-wider text-xs shadow-lg cursor-pointer"
+              className="w-full bg-[#1877F2] hover:bg-[#4e8df5] text-black font-black py-3 rounded-full transition-all duration-300 uppercase tracking-wider text-xs shadow-lg cursor-pointer"
             >
               Continue to Workspace Now
             </button>
@@ -169,7 +169,7 @@ export default function ResetPasswordPage() {
         ) : (
           <>
             <div className="flex flex-col items-center mb-6">
-              <div className="text-[#1DB954] mb-3 bg-[#1DB954]/10 p-3 rounded-full border border-[#1DB954]/20">
+              <div className="text-[#1877F2] mb-3 bg-[#1877F2]/10 p-3 rounded-full border border-[#1877F2]/20">
                 <KeyRound size={32} strokeWidth={2.5} />
               </div>
               <h1 className="text-xl font-black text-white tracking-tight">Reset Password</h1>
@@ -188,7 +188,7 @@ export default function ResetPasswordPage() {
                     placeholder="••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full bg-[#121212] border border-slate-800/80 px-4 py-3 pr-10 rounded-xl focus:outline-none focus:border-[#1DB954] text-white text-sm transition-all"
+                    className="w-full bg-[#121212] border border-slate-800/80 px-4 py-3 pr-10 rounded-xl focus:outline-none focus:border-[#1877F2] text-white text-sm transition-all"
                   />
                   <button
                     type="button"
@@ -209,7 +209,7 @@ export default function ResetPasswordPage() {
                   placeholder="••••••••"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="w-full bg-[#121212] border border-slate-800/80 px-4 py-3 rounded-xl focus:outline-none focus:border-[#1DB954] text-white text-sm transition-all"
+                  className="w-full bg-[#121212] border border-slate-800/80 px-4 py-3 rounded-xl focus:outline-none focus:border-[#1877F2] text-white text-sm transition-all"
                 />
               </div>
 
@@ -226,16 +226,16 @@ export default function ResetPasswordPage() {
                   </div>
                   {/* Checklist */}
                   <div className="grid grid-cols-2 gap-1.5 pt-1 text-[10px] font-semibold">
-                    <div className={`flex items-center gap-1.5 ${hasMinLength ? "text-[#1DB954]" : "text-slate-500"}`}>
+                    <div className={`flex items-center gap-1.5 ${hasMinLength ? "text-[#1877F2]" : "text-slate-500"}`}>
                       <CheckCircle2 size={10} /> 8+ Characters
                     </div>
-                    <div className={`flex items-center gap-1.5 ${hasUppercase ? "text-[#1DB954]" : "text-slate-500"}`}>
+                    <div className={`flex items-center gap-1.5 ${hasUppercase ? "text-[#1877F2]" : "text-slate-500"}`}>
                       <CheckCircle2 size={10} /> Uppercase Letter
                     </div>
-                    <div className={`flex items-center gap-1.5 ${hasNumber ? "text-[#1DB954]" : "text-slate-500"}`}>
+                    <div className={`flex items-center gap-1.5 ${hasNumber ? "text-[#1877F2]" : "text-slate-500"}`}>
                       <CheckCircle2 size={10} /> Has Number
                     </div>
-                    <div className={`flex items-center gap-1.5 ${hasSpecialChar ? "text-[#1DB954]" : "text-slate-500"}`}>
+                    <div className={`flex items-center gap-1.5 ${hasSpecialChar ? "text-[#1877F2]" : "text-slate-500"}`}>
                       <CheckCircle2 size={10} /> Special Symbol
                     </div>
                   </div>
@@ -252,7 +252,7 @@ export default function ResetPasswordPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-[#1DB954] hover:bg-[#1ed760] text-black font-black py-3.5 rounded-full transition-all duration-300 transform hover:scale-[1.02] flex justify-center items-center gap-2 mt-6 uppercase tracking-wider text-xs shadow-lg shadow-green-500/10 cursor-pointer"
+                className="w-full bg-[#1877F2] hover:bg-[#4e8df5] text-black font-black py-3.5 rounded-full transition-all duration-300 transform hover:scale-[1.02] flex justify-center items-center gap-2 mt-6 uppercase tracking-wider text-xs shadow-lg shadow-blue-500/10 cursor-pointer"
               >
                 {loading ? <Loader2 className="animate-spin" size={16} /> : "Update Password"}
               </button>
