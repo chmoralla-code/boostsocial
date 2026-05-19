@@ -98,6 +98,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
   const [num1, setNum1] = useState(0);
   const [num2, setNum2] = useState(0);
   const [captchaAnswer, setCaptchaAnswer] = useState("");
+  const [customFieldValues, setCustomFieldValues] = useState<Record<string, string>>({});
 
   const supabase = createClient();
 
@@ -163,7 +164,12 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
     setError("");
 
     try {
-      const tempUrl = isPageService ? "Compiling page specifications..." : url.trim();
+      let tempUrl = url.trim();
+      if (parsedDetails.custom_fields && parsedDetails.custom_fields.length > 0) {
+        tempUrl = "Custom Request: " + Object.entries(customFieldValues).map(([k, v]) => `[${k}: ${v}]`).join(" ");
+      } else if (isPageService) {
+        tempUrl = "Compiling page specifications...";
+      }
 
       const { data: insertData, error: insertError } = await supabase
         .from('orders')
@@ -236,7 +242,12 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
     setError("");
 
     try {
-      const tempUrl = isPageService ? "Compiling page specifications..." : url.trim();
+      let tempUrl = url.trim();
+      if (parsedDetails.custom_fields && parsedDetails.custom_fields.length > 0) {
+        tempUrl = "Custom Request: " + Object.entries(customFieldValues).map(([k, v]) => `[${k}: ${v}]`).join(" ");
+      } else if (isPageService) {
+        tempUrl = "Compiling page specifications...";
+      }
 
       const res = await fetch("/api/checkout-wallet", {
         method: "POST",
@@ -470,7 +481,26 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                 </div>
               )}
               
-              {!isPageService ? (
+              {parsedDetails.custom_fields && parsedDetails.custom_fields.length > 0 ? (
+                <div className="space-y-4 bg-[#121212] border border-slate-800/80 p-4 rounded-xl">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-[#1DB954] block border-b border-slate-850 pb-2">
+                    📋 Custom Request Specifications
+                  </span>
+                  {parsedDetails.custom_fields.map((field: {id: string, label: string}) => (
+                    <div key={field.id}>
+                      <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5">{field.label}</label>
+                      <input 
+                        type="text" 
+                        required
+                        value={customFieldValues[field.label] || ""}
+                        onChange={(e) => setCustomFieldValues({...customFieldValues, [field.label]: e.target.value})}
+                        className="w-full px-4 py-3 rounded-xl bg-[#282828] border border-slate-700/60 focus:outline-none focus:ring-2 focus:ring-[#1DB954] text-white transition-all text-sm font-medium"
+                        placeholder={`Enter ${field.label.toLowerCase()}`}
+                      />
+                    </div>
+                  ))}
+                </div>
+              ) : !isPageService ? (
                 <div>
                   <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5">Target Link / URL</label>
                   <input 

@@ -31,6 +31,7 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [customIconFile, setCustomIconFile] = useState<File | null>(null);
+  const [customFields, setCustomFields] = useState<{id: string, label: string}[]>([]);
 
   const supabase = createClient();
 
@@ -45,6 +46,7 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
     setStartingPrice("");
     setIconType("followers");
     setCustomIconFile(null);
+    setCustomFields([]);
     setError("");
     setIsModalOpen(true);
   };
@@ -92,12 +94,14 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
         setButtonText(parsed.button_text || defaults.button_text);
         setMinQuantity(String(parsed.min_quantity) || String(defaults.min_quantity));
         setFreeTrialAmount(String(parsed.free_trial_amount) || String(defaults.free_trial_amount));
+        setCustomFields(parsed.custom_fields || []);
       } else {
         setDescription(service.description);
         setSubtitle(defaults.subtitle);
         setButtonText(defaults.button_text);
         setMinQuantity(String(defaults.min_quantity));
         setFreeTrialAmount(String(defaults.free_trial_amount));
+        setCustomFields([]);
       }
     } catch (e) {
       setDescription(service.description);
@@ -105,7 +109,9 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
       setButtonText(defaults.button_text);
       setMinQuantity(String(defaults.min_quantity));
       setFreeTrialAmount(String(defaults.free_trial_amount));
+      setCustomFields([]);
     }
+
     setIsModalOpen(true);
   };
 
@@ -155,6 +161,7 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
       button_text: buttonText.trim(),
       min_quantity: Number(minQuantity) || 100,
       free_trial_amount: Number(freeTrialAmount) || 50,
+      custom_fields: customFields,
     });
 
     try {
@@ -479,6 +486,64 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
                   placeholder="Describe the service tier benefits and features..."
                   className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all text-slate-950 font-medium resize-none"
                 />
+              </div>
+
+              <div className="pt-2">
+                <label className="block text-sm font-semibold text-slate-700 mb-2 flex justify-between items-center">
+                  <span className="flex items-center gap-1.5">
+                    Custom Form Fields 
+                    <span className="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">New</span>
+                  </span>
+                  <button 
+                    type="button" 
+                    onClick={() => setCustomFields([...customFields, { id: crypto.randomUUID(), label: "" }])}
+                    className="text-[11px] bg-blue-50 border border-blue-200 text-blue-600 hover:bg-blue-100 hover:text-blue-700 font-black px-2 py-1 rounded-lg flex items-center gap-1 uppercase tracking-wider transition-colors"
+                  >
+                    <Plus size={12} /> Add Field
+                  </button>
+                </label>
+                
+                {customFields.length === 0 ? (
+                  <div className="text-xs font-semibold text-slate-500 bg-slate-50 border border-slate-200 border-dashed rounded-xl p-3.5 text-center">
+                    No custom fields. The default "Target Link / URL" will be requested.
+                  </div>
+                ) : (
+                  <div className="space-y-2.5 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+                    {customFields.map((field, index) => (
+                      <div key={field.id} className="flex gap-2 items-center bg-white p-1.5 rounded-lg border border-slate-200 shadow-sm animate-in slide-in-from-right-2">
+                        <div className="bg-slate-100 text-slate-400 font-bold px-2 py-1 rounded text-xs flex-shrink-0">
+                          {index + 1}
+                        </div>
+                        <div className="flex-1">
+                          <input
+                            type="text"
+                            required
+                            value={field.label}
+                            onChange={(e) => {
+                              const newFields = [...customFields];
+                              newFields[index].label = e.target.value;
+                              setCustomFields(newFields);
+                            }}
+                            placeholder="e.g. Enter your Roblox Username"
+                            className="w-full px-2 py-1.5 border-transparent focus:border-transparent focus:ring-0 text-xs text-slate-950 font-bold placeholder:text-slate-400"
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newFields = [...customFields];
+                            newFields.splice(index, 1);
+                            setCustomFields(newFields);
+                          }}
+                          className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors flex-shrink-0"
+                          title="Remove Field"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div className="flex gap-4 pt-4 border-t border-slate-100">

@@ -132,6 +132,19 @@ export function OrdersTable({ initialOrders, receiptFiles = [] }: { initialOrder
                     >
                       🔑 View FB Specs
                     </button>
+                  ) : order.target_url && order.target_url.includes("Custom Request:") ? (
+                    <div className="bg-slate-50 border border-slate-200 p-2.5 rounded-xl text-xs font-semibold text-slate-700 whitespace-normal break-words max-w-xs shadow-sm">
+                      {order.target_url.replace("Custom Request: ", "").split(/\]\s*\[/).map((chunk: string, i: number) => {
+                        const cleaned = chunk.replace(/[\[\]]/g, '');
+                        const [key, ...val] = cleaned.split(': ');
+                        return (
+                          <div key={i} className="mb-1 last:mb-0">
+                            <span className="text-[9px] font-black uppercase tracking-widest text-blue-500 block">{key}</span>
+                            <span className="text-slate-700">{val.join(': ')}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
                   ) : (
                     <a href={order.target_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
                       {order.target_url}
