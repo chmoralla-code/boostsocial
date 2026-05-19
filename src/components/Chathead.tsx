@@ -327,21 +327,30 @@ Format list items on separate lines with simple bullets (e.g. * **Item:** text).
         { role: 'user', content: userMsg }
       ];
 
-      const res = await fetch('https://text.pollinations.ai/openai', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          messages: apiMessages,
-          model: 'openai'
-        })
-      });
-
-      if (!res.ok) {
-        throw new Error(`API returned ${res.status}`);
+      let responseText = "";
+      if (typeof window !== "undefined" && window.puter) {
+        try {
+          const response = await window.puter.ai.chat(apiMessages, { model: 'meta-llama/llama-3.3-70b-instruct:free' });
+          responseText = response?.message?.content ?? response?.toString() ?? "";
+        } catch (puterErr) {
+          console.error("Puter AI error, attempting fallback...", puterErr);
+        }
       }
 
-      const data = await res.json();
-      const responseText = data.choices?.[0]?.message?.content || "Sorry, I couldn't generate a response.";
+      if (!responseText) {
+        // Safe, smart local fallback context based on user keywords
+        const text = userMsg.toLowerCase();
+        if (text.includes("price") || text.includes("cost") || text.includes("magkano") || text.includes("pricing") || text.includes("package")) {
+          responseText = `Our live prices start at just:\n- **Followers:** ₱9.99 per 1,000\n- **Reactions:** ₱4.99 per 1,000\n- **Views:** ₱12.99 per 1,000\n\nYou can view and select packages on the home screen! 🚀`;
+        } else if (text.includes("payment") || text.includes("gcash") || text.includes("bayad")) {
+          responseText = `We accept GCash! You can pay by scanning the QR code at checkout and uploading your receipt screenshot directly in this chat. 🙏`;
+        } else if (text.includes("who") || text.includes("owner") || text.includes("create") || text.includes("develop") || text.includes("make")) {
+          responseText = `BoostSocial was fully created and developed by **Cyrhiel Moralla**! 💻✨`;
+        } else {
+          responseText = `Thank you for your message! Please check out our packages on the main page, or enter your Order ID (e.g. BS-D5D1D849) to track your order status instantly! ⚡`;
+        }
+      }
+
       setMessages(prev => [...prev, { role: 'assistant', content: responseText }]);
 
     } catch (err: any) {
