@@ -49,8 +49,23 @@ export function StorageOptimizingPanel() {
             <h3 className="text-base font-bold text-white tracking-tight">Supabase Storage Optimizer</h3>
           </div>
           <p className="text-xs text-slate-400 max-w-md font-semibold leading-relaxed">
-            Free Supabase accounts have a strict 1GB storage bucket limit. Clean up outdated payment screenshots and page custom branding attachments for finalized transactions over 3 days old.
+            Clean up outdated payment screenshots and page custom branding attachments for finalized transactions over 3 days old to preserve storage.
           </p>
+          
+          <div className="flex gap-4 mt-3 pt-3 border-t border-slate-800">
+            <div className="flex flex-col">
+              <span className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Bucket Storage</span>
+              <span className="text-xs font-bold text-[#1DB954]">1 GB Limit</span>
+            </div>
+            <div className="flex flex-col">
+              <span className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Database Size</span>
+              <span className="text-xs font-bold text-blue-400">500 MB Limit</span>
+            </div>
+            <div className="flex flex-col hidden sm:flex">
+              <span className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Auth Users</span>
+              <span className="text-xs font-bold text-purple-400">50,000 MAU</span>
+            </div>
+          </div>
         </div>
 
         <button
