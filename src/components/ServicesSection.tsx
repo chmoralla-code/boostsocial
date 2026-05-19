@@ -32,7 +32,7 @@ export function ServicesSection({ services }: ServicesSectionProps) {
     setSelectedServiceId(id);
     setSelectedServiceTitle(title);
     setSelectedServicePrice(price);
-    setPresetQty(1000); // Standard default
+    setPresetQty(title.toLowerCase().includes("page") ? 1 : 1000);
     setIsModalOpen(true);
   };
 
