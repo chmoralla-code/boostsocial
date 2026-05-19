@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { format } from "date-fns";
-import { Trash2 } from "lucide-react";
+import { toZonedTime } from "date-fns-tz";
+import { Trash2, Clock } from "lucide-react";
 
 export function OrdersTable({ initialOrders, receiptFiles = [] }: { initialOrders: any[], receiptFiles?: string[] }) {
   const [orders, setOrders] = useState(initialOrders);
@@ -23,6 +24,15 @@ export function OrdersTable({ initialOrders, receiptFiles = [] }: { initialOrder
     return { name, category, region, admin, profile, cover, notes };
   };
 
+  const formatPHTime = (dateStr: string) => {
+    const date = new Date(dateStr);
+    const ph = toZonedTime(date, 'Asia/Manila');
+    return {
+      date: format(ph, 'MMM d, yyyy'),
+      time: format(ph, 'h:mm a'),
+    };
+  };
+
   const updateStatus = async (id: string, newStatus: string) => {
     const { error } = await supabase
       .from('orders')
@@ -38,6 +48,12 @@ export function OrdersTable({ initialOrders, receiptFiles = [] }: { initialOrder
         return prev;
       });
     }
+  };
+
+  const deleteOrder = async (id: string) => {
+    if (!confirm("Delete this order? This cannot be undone.")) return;
+    const { error } = await supabase.from('orders').delete().eq('id', id);
+    if (!error) setOrders(orders.filter(o => o.id !== id));
   };
 
   const handleDeleteAllOrders = async () => {
@@ -85,37 +101,60 @@ export function OrdersTable({ initialOrders, receiptFiles = [] }: { initialOrder
       <div className="overflow-x-auto">
         <table className="w-full text-left border-collapse">
           <thead>
-            <tr className="bg-slate-50 border-b border-slate-200">
-              <th className="py-4 px-6 font-semibold text-slate-700 text-sm">Date</th>
-              <th className="py-4 px-6 font-semibold text-slate-700 text-sm">Tracking ID</th>
-              <th className="py-4 px-6 font-semibold text-slate-700 text-sm">Customer</th>
-              <th className="py-4 px-6 font-semibold text-slate-700 text-sm">Service</th>
-              <th className="py-4 px-6 font-semibold text-slate-700 text-sm">Quantity</th>
-              <th className="py-4 px-6 font-semibold text-slate-700 text-sm">Target URL</th>
-              <th className="py-4 px-6 font-semibold text-slate-700 text-sm">Amount</th>
-              <th className="py-4 px-6 font-semibold text-slate-700 text-sm">Receipt</th>
-              <th className="py-4 px-6 font-semibold text-slate-700 text-sm">Status</th>
+          <tr className="bg-slate-50 border-b-2 border-slate-200">
+              <th className="py-3.5 px-5 font-bold text-slate-600 text-[11px] uppercase tracking-widest whitespace-nowrap">
+                <span className="flex items-center gap-1.5"><Clock size={12} /> Date & Time (PHT)</span>
+              </th>
+              <th className="py-3.5 px-5 font-bold text-slate-600 text-[11px] uppercase tracking-widest">Tracking ID</th>
+              <th className="py-3.5 px-5 font-bold text-slate-600 text-[11px] uppercase tracking-widest">Customer</th>
+              <th className="py-3.5 px-5 font-bold text-slate-600 text-[11px] uppercase tracking-widest">Service</th>
+              <th className="py-3.5 px-5 font-bold text-slate-600 text-[11px] uppercase tracking-widest">Qty</th>
+              <th className="py-3.5 px-5 font-bold text-slate-600 text-[11px] uppercase tracking-widest">Details</th>
+              <th className="py-3.5 px-5 font-bold text-slate-600 text-[11px] uppercase tracking-widest">Amount</th>
+              <th className="py-3.5 px-5 font-bold text-slate-600 text-[11px] uppercase tracking-widest">Receipt</th>
+              <th className="py-3.5 px-5 font-bold text-slate-600 text-[11px] uppercase tracking-widest">Status</th>
+              <th className="py-3.5 px-5 font-bold text-slate-600 text-[11px] uppercase tracking-widest">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {orders.map((order) => (
-              <tr key={order.id} className="hover:bg-slate-50/50 transition-colors">
-                <td className="py-4 px-6 text-sm text-slate-600 whitespace-nowrap">
-                  {format(new Date(order.created_at), 'MMM d, yyyy')}
+            {orders.map((order) => {
+              const phTime = formatPHTime(order.created_at);
+              return (
+              <tr key={order.id} className="hover:bg-blue-50/30 transition-colors border-b border-slate-100 last:border-0">
+                {/* Date + Time PHT */}
+                <td className="py-3.5 px-5 whitespace-nowrap">
+                  <div className="text-xs font-bold text-slate-800">{phTime.date}</div>
+                  <div className="text-[10px] text-slate-400 font-semibold flex items-center gap-1 mt-0.5">
+                    <Clock size={9} />{phTime.time} PHT
+                  </div>
                 </td>
-                <td className="py-4 px-6 text-sm font-bold text-slate-800 font-mono tracking-widest whitespace-nowrap">
-                  BS-{order.id.slice(0, 8).toUpperCase()}
+
+                {/* Tracking ID */}
+                <td className="py-3.5 px-5">
+                  <span className="font-mono text-xs font-black text-slate-800 tracking-widest bg-slate-100 px-2 py-1 rounded-lg">
+                    BS-{order.id.slice(0, 8).toUpperCase()}
+                  </span>
                 </td>
-                <td className="py-4 px-6 text-sm font-medium text-slate-900">
+
+                {/* Customer */}
+                <td className="py-3.5 px-5 text-xs font-medium text-slate-700 max-w-[160px] truncate">
                   {order.customer_email}
                 </td>
-                <td className="py-4 px-6 text-sm text-slate-600">
-                  {order.services?.title}
+
+                {/* Service */}
+                <td className="py-3.5 px-5">
+                  <span className="text-[10px] font-black uppercase tracking-widest bg-[#1DB954]/10 text-[#1DB954] border border-[#1DB954]/20 px-2.5 py-1 rounded-full">
+                    {order.services?.title}
+                  </span>
                 </td>
-                <td className="py-4 px-6 text-sm text-slate-600 font-medium">
+
+                {/* Quantity */}
+                <td className="py-3.5 px-5 text-sm font-bold text-slate-700 text-center">
                   {order.quantity || 1000}
                 </td>
-                <td className="py-4 px-6 text-sm text-slate-600 max-w-xs truncate">
+
+                {/* Details / Target URL */}
+                <td className="py-3.5 px-5 text-sm text-slate-600 max-w-xs">
                   {order.target_url && order.target_url.includes("Page Wants:") ? (
                     <button
                       onClick={() => {
@@ -146,26 +185,30 @@ export function OrdersTable({ initialOrders, receiptFiles = [] }: { initialOrder
                       })}
                     </div>
                   ) : (
-                    <a href={order.target_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                    <a href={order.target_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-xs truncate block max-w-[160px]">
                       {order.target_url}
                     </a>
                   )}
                 </td>
-                <td className="py-4 px-6 text-sm font-medium text-slate-900">
-                  <div>₱{Number(order.amount).toFixed(2)}</div>
+
+                {/* Amount */}
+                <td className="py-3.5 px-5">
+                  <div className="text-sm font-black text-slate-900">₱{Number(order.amount).toFixed(2)}</div>
                   <div className="mt-1">
                     {order.payment_method === 'Wallet' ? (
-                      <span className="bg-emerald-50 text-emerald-700 font-extrabold px-1.5 py-0.5 rounded-lg text-[9px] border border-emerald-200 uppercase tracking-wider inline-block">
-                        Wallet
+                      <span className="bg-emerald-50 text-emerald-700 font-extrabold px-2 py-0.5 rounded-full text-[9px] border border-emerald-200 uppercase tracking-wider">
+                        💳 Wallet
                       </span>
                     ) : (
-                      <span className="bg-blue-50 text-blue-700 font-extrabold px-1.5 py-0.5 rounded-lg text-[9px] border border-blue-200 uppercase tracking-wider inline-block">
-                        GCash
+                      <span className="bg-blue-50 text-blue-700 font-extrabold px-2 py-0.5 rounded-full text-[9px] border border-blue-200 uppercase tracking-wider">
+                        📱 GCash
                       </span>
                     )}
                   </div>
                 </td>
-                <td className="py-4 px-6 text-sm">
+
+                {/* Receipt */}
+                <td className="py-3.5 px-5 text-sm">
                   {(() => {
                     const matchingFile = receiptFiles.find((f: string) => f.startsWith(order.id));
                     if (matchingFile) {
@@ -173,36 +216,48 @@ export function OrdersTable({ initialOrders, receiptFiles = [] }: { initialOrder
                       return (
                         <button 
                           onClick={() => setPreviewImageUrl(receiptUrl)}
-                          className="inline-flex items-center gap-1.5 bg-green-50 hover:bg-green-100 border border-green-200 text-green-700 font-bold px-3 py-1 rounded-xl text-xs transition-colors shadow-sm"
+                          className="inline-flex items-center gap-1.5 bg-green-50 hover:bg-green-100 border border-green-200 text-green-700 font-bold px-3 py-1.5 rounded-xl text-xs transition-colors shadow-sm"
                         >
                           <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
                           View Receipt
                         </button>
                       );
                     }
-                    return (
-                      <span className="text-xs text-slate-400 italic font-medium">No receipt</span>
-                    );
+                    return <span className="text-xs text-slate-400 italic font-medium">No receipt</span>;
                   })()}
                 </td>
-                <td className="py-4 px-6 text-sm">
+
+                {/* Status */}
+                <td className="py-3.5 px-5">
                   <select 
                     value={order.status}
                     onChange={(e) => updateStatus(order.id, e.target.value)}
-                    className={`text-xs font-semibold rounded-full px-3 py-1 border-0 focus:ring-2 focus:ring-blue-600 focus:outline-none cursor-pointer
+                    className={`text-[10px] font-black rounded-full px-3 py-1.5 border-0 focus:ring-2 focus:ring-blue-500 focus:outline-none cursor-pointer uppercase tracking-wider
                       ${order.status === 'Pending' ? 'bg-orange-100 text-orange-700' : 
                         order.status === 'Processing' ? 'bg-blue-100 text-blue-700' : 
                         order.status === 'Completed' ? 'bg-green-100 text-green-700' : 
                         'bg-red-100 text-red-700'}`}
                   >
-                    <option value="Pending">Pending</option>
-                    <option value="Processing">Processing</option>
-                    <option value="Completed">Completed</option>
-                    <option value="Cancelled">Cancelled</option>
+                    <option value="Pending">⏳ Pending</option>
+                    <option value="Processing">⚡ Processing</option>
+                    <option value="Completed">✅ Completed</option>
+                    <option value="Cancelled">❌ Cancelled</option>
                   </select>
                 </td>
+
+                {/* Actions */}
+                <td className="py-3.5 px-5">
+                  <button
+                    onClick={() => deleteOrder(order.id)}
+                    title="Delete this order"
+                    className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </td>
               </tr>
-            ))}
+            );
+            })}
             {orders.length === 0 && (
               <tr>
                 <td colSpan={9} className="py-8 text-center text-slate-500">No orders found.</td>
