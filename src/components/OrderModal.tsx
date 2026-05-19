@@ -72,6 +72,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
     const defaults = {
       min_quantity: isPageService ? 1 : 100,
       free_trial_amount: isPageService ? 0 : 50,
+      custom_fields: [] as {id: string, label: string}[]
     };
 
     if (service && service.description) {
@@ -81,6 +82,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
           return {
             min_quantity: isPageService ? 1 : (Number(p.min_quantity) || defaults.min_quantity),
             free_trial_amount: isPageService ? 0 : (Number(p.free_trial_amount) || defaults.free_trial_amount),
+            custom_fields: p.custom_fields || []
           };
         }
       } catch (e) {}
