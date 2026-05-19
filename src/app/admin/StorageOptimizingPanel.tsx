@@ -1,12 +1,33 @@
 "use client";
 
-import { useState } from "react";
-import { ShieldAlert, CheckCircle, Database, RotateCw } from "lucide-react";
+import { useState, useEffect } from "react";
+import { ShieldAlert, CheckCircle, Database, RotateCw, Loader2 } from "lucide-react";
 
 export function StorageOptimizingPanel() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  
+  const [stats, setStats] = useState<any>(null);
+  const [fetchingStats, setFetchingStats] = useState(true);
+
+  useEffect(() => {
+    fetchStats();
+  }, []);
+
+  const fetchStats = async () => {
+    try {
+      const res = await fetch("/api/admin/storage-stats");
+      const data = await res.json();
+      if (data.success) {
+        setStats(data);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setFetchingStats(false);
+    }
+  };
 
   const handleOptimize = async () => {
     setLoading(true);
@@ -26,6 +47,7 @@ export function StorageOptimizingPanel() {
 
       if (data.count > 0) {
         setMessage(`🎉 Success: ${data.message}`);
+        fetchStats(); // refresh stats to show newly freed space
       } else {
         setMessage("✅ Storage is already optimized! No old files needed purging.");
       }
@@ -54,9 +76,20 @@ export function StorageOptimizingPanel() {
           
           <div className="flex gap-4 mt-3 pt-3 border-t border-slate-800">
             <div className="flex flex-col">
-              <span className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Bucket Storage</span>
-              <span className="text-xs font-bold text-[#1DB954]">1 GB Limit</span>
+              <span className="text-[10px] font-black uppercase text-slate-500 tracking-widest flex items-center gap-1.5">
+                Bucket Storage
+                {fetchingStats && <Loader2 size={10} className="animate-spin text-[#1DB954]" />}
+              </span>
+              {stats ? (
+                <div className="flex items-baseline gap-1.5">
+                  <span className="text-xs font-bold text-[#1DB954]">{stats.remainingMB} MB Free</span>
+                  <span className="text-[9px] font-bold text-slate-500">/ 1 GB</span>
+                </div>
+              ) : (
+                <span className="text-xs font-bold text-[#1DB954]">1 GB Limit</span>
+              )}
             </div>
+            
             <div className="flex flex-col">
               <span className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Database Size</span>
               <span className="text-xs font-bold text-blue-400">500 MB Limit</span>
