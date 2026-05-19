@@ -90,17 +90,28 @@ export function ServiceCard({ id, title, description, startingPrice, iconType, o
         {parsed.description}
       </p>
       
-      {/* Price section — hidden for redirect-only services */}
-      {!parsed.redirect_url && (
-        <div className="flex justify-between items-end w-full mb-6 pt-4 border-t border-slate-800/60">
-          <div>
-            <span className="block text-slate-500 text-[10px] font-bold uppercase tracking-wider mb-1">
-              {parsed.min_quantity === 1 ? "Starts (per 1 PCS)" : "Starts (per 1,000)"}
-            </span>
-            <span className="text-3xl font-black text-white">₱{Number(startingPrice).toFixed(0)}</span>
-          </div>
+      {/* Price section */}
+      <div className="flex justify-between items-end w-full mb-6 pt-4 border-t border-slate-800/60">
+        <div>
+          {parsed.redirect_url ? (
+            <>
+              <span className="block text-slate-500 text-[10px] font-bold uppercase tracking-wider mb-1">
+                Pricing Info
+              </span>
+              <span className="text-xs font-black text-[#1DB954] uppercase tracking-widest leading-relaxed block max-w-[240px]">
+                PRICING IS DECLARED ON THE WEBSITE
+              </span>
+            </>
+          ) : (
+            <>
+              <span className="block text-slate-500 text-[10px] font-bold uppercase tracking-wider mb-1">
+                {parsed.min_quantity === 1 ? "Starts (per 1 PCS)" : "Starts (per 1,000)"}
+              </span>
+              <span className="text-3xl font-black text-white">₱{Number(startingPrice).toFixed(0)}</span>
+            </>
+          )}
         </div>
-      )}
+      </div>
       
       {parsed.redirect_url ? (
         <button 
