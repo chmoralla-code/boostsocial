@@ -344,7 +344,18 @@ Format list items on separate lines with simple bullets (e.g. * **Item:** text).
           console.warn(`Server AI route returned status ${res.status}`);
         }
       } catch (fetchErr) {
-        console.error("Failed to query server AI route, attempting fallback...", fetchErr);
+        console.error("Failed to query server AI route, attempting Puter fallback...", fetchErr);
+      }
+
+      // Puter AI Claude 3.5 Client-side Fallback
+      if (!responseText && typeof window !== "undefined" && window.puter) {
+        try {
+          console.log("Attempting Puter AI Claude 3.5 fallback...");
+          const response = await window.puter.ai.chat(apiMessages, { model: 'claude-3.5-sonnet' });
+          responseText = response?.message?.content ?? response?.toString() ?? "";
+        } catch (puterErr) {
+          console.error("Puter Claude 3.5 fallback failed:", puterErr);
+        }
       }
 
       if (!responseText) {
