@@ -501,6 +501,18 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                       />
                     </div>
                   ))}
+
+                  {serviceTitle.toLowerCase().includes("pro") && (
+                    <div className="bg-blue-500/10 border border-blue-500/20 p-3.5 rounded-xl mt-4 text-left animate-in slide-in-from-bottom-2">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-blue-400 block mb-1">
+                        📨 Email Invitation Protocol
+                      </span>
+                      <p className="text-[10px] text-slate-300 leading-relaxed font-semibold">
+                        After your payment is confirmed, you will receive an **invitation link** at the email address provided above. 
+                        Simply click the link to join and instantly activate your Gemini Pro subscription!
+                      </p>
+                    </div>
+                  )}
                 </div>
               ) : !isPageService ? (
                 <div>
