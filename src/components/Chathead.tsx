@@ -328,13 +328,23 @@ Format list items on separate lines with simple bullets (e.g. * **Item:** text).
       ];
 
       let responseText = "";
-      if (typeof window !== "undefined" && window.puter) {
-        try {
-          const response = await window.puter.ai.chat(apiMessages, { model: 'meta-llama/llama-3.3-70b-instruct:free' });
-          responseText = response?.message?.content ?? response?.toString() ?? "";
-        } catch (puterErr) {
-          console.error("Puter AI error, attempting fallback...", puterErr);
+      try {
+        const res = await fetch('/api/chat', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ messages: apiMessages })
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          responseText = data.content || "";
+        } else {
+          console.warn(`Server AI route returned status ${res.status}`);
         }
+      } catch (fetchErr) {
+        console.error("Failed to query server AI route, attempting fallback...", fetchErr);
       }
 
       if (!responseText) {
