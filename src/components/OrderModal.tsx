@@ -333,7 +333,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
           <X size={20} />
         </button>
         
-        <div className="p-8">
+        <div className="p-6 sm:p-8 max-h-[85vh] overflow-y-auto">
           <h2 className="text-2xl font-black text-white mb-1.5 tracking-tight flex items-center gap-2">
             Order <span className="text-[#1DB954]">{serviceTitle}</span>
           </h2>
