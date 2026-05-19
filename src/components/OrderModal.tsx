@@ -33,6 +33,12 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
   const [profile, setProfile] = useState<any>(null);
   const [isWalletPayment, setIsWalletPayment] = useState(false);
 
+  // Pre-made Page Specifications States
+  const [desiredName, setDesiredName] = useState("");
+  const [pageCategory, setPageCategory] = useState("Business / Brand");
+  const [demographics, setDemographics] = useState("Philippines (Local)");
+  const [notes, setNotes] = useState("");
+
   const isPageService = serviceTitle.toLowerCase().includes("page");
 
   // Dynamic min quantity and free trial amount based on JSON description pack
@@ -130,6 +136,10 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
     setIsSubmitting(true);
     setError("");
 
+    const finalUrl = isPageService 
+      ? `Page Wants: [Name: ${desiredName.trim() || 'Any'}] [Category: ${pageCategory}] [Region: ${demographics}]${notes.trim() ? ` [Notes: ${notes.trim()}]` : ""}`
+      : url.trim();
+
     try {
       const { data: insertData, error: insertError } = await supabase
         .from('orders')
@@ -137,7 +147,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
           {
             service_id: serviceId,
             customer_email: email.trim(),
-            target_url: url.trim(),
+            target_url: finalUrl,
             amount: totalPrice,
             status: 'Pending',
             quantity: quantity
@@ -179,6 +189,10 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
     setIsSubmitting(true);
     setError("");
 
+    const finalUrl = isPageService 
+      ? `Page Wants: [Name: ${desiredName.trim() || 'Any'}] [Category: ${pageCategory}] [Region: ${demographics}]${notes.trim() ? ` [Notes: ${notes.trim()}]` : ""}`
+      : url.trim();
+
     try {
       const res = await fetch("/api/checkout-wallet", {
         method: "POST",
@@ -187,7 +201,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
           userId: user.id,
           serviceId,
           email: user.email,
-          url: url.trim(),
+          url: finalUrl,
           quantity,
           totalPrice
         })
@@ -367,17 +381,80 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                 </div>
               )}
               
-              <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5">Target Link / URL</label>
-                <input 
-                  type="url" 
-                  required
-                  value={url}
-                  onChange={(e) => setUrl(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl bg-[#282828] border border-slate-700/60 focus:outline-none focus:ring-2 focus:ring-[#1DB954] text-white transition-all text-sm font-medium"
-                  placeholder="https://facebook.com/your-page"
-                />
-              </div>
+              {!isPageService ? (
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5">Target Link / URL</label>
+                  <input 
+                    type="url" 
+                    required
+                    value={url}
+                    onChange={(e) => setUrl(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl bg-[#282828] border border-slate-700/60 focus:outline-none focus:ring-2 focus:ring-[#1DB954] text-white transition-all text-sm font-medium"
+                    placeholder="https://facebook.com/your-page"
+                  />
+                </div>
+              ) : (
+                <div className="space-y-4 bg-[#121212] border border-slate-800/80 p-4 rounded-xl">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-[#1DB954] block border-b border-slate-850 pb-2">
+                    📋 Pre-made Page Specifications
+                  </span>
+                  
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wide mb-1.5">Desired Page Name</label>
+                    <input 
+                      type="text" 
+                      required
+                      value={desiredName}
+                      onChange={(e) => setDesiredName(e.target.value)}
+                      className="w-full px-4 py-3 rounded-xl bg-[#282828] border border-slate-700/60 focus:outline-none focus:ring-2 focus:ring-[#1DB954] text-white transition-all text-xs font-semibold"
+                      placeholder="e.g. Cyrhiel's Gaming Hub"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wide mb-1.5">Niche/Category</label>
+                      <select 
+                        value={pageCategory}
+                        onChange={(e) => setPageCategory(e.target.value)}
+                        className="w-full px-4 py-3 rounded-xl bg-[#282828] border border-slate-700/60 focus:outline-none focus:ring-2 focus:ring-[#1DB954] text-white transition-all text-xs font-semibold cursor-pointer"
+                      >
+                        <option value="eCommerce / Store">eCommerce / Store</option>
+                        <option value="Gaming / Creator">Gaming / Creator</option>
+                        <option value="Business / Brand">Business / Brand</option>
+                        <option value="Entertainment / Media">Entertainment / Media</option>
+                        <option value="Personal Blog / Community">Personal Blog / Community</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wide mb-1.5">Demographics</label>
+                      <select 
+                        value={demographics}
+                        onChange={(e) => setDemographics(e.target.value)}
+                        className="w-full px-4 py-3 rounded-xl bg-[#282828] border border-slate-700/60 focus:outline-none focus:ring-2 focus:ring-[#1DB954] text-white transition-all text-xs font-semibold cursor-pointer"
+                      >
+                        <option value="Philippines (Local)">Philippines (Local)</option>
+                        <option value="United States (US Tier)">United States (US Tier)</option>
+                        <option value="Global (Mixed)">Global (Mixed)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wide mb-1.5">
+                      Additional Requirements / Notes
+                    </label>
+                    <textarea 
+                      value={notes}
+                      onChange={(e) => setNotes(e.target.value)}
+                      rows={2}
+                      className="w-full px-4 py-3 rounded-xl bg-[#282828] border border-slate-700/60 focus:outline-none focus:ring-2 focus:ring-[#1DB954] text-white transition-all text-xs font-medium resize-none"
+                      placeholder="e.g. Include custom logo request, theme colors, etc."
+                    />
+                  </div>
+                </div>
+              )}
 
               <div>
                 <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5">
