@@ -37,6 +37,9 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
   const [desiredName, setDesiredName] = useState("");
   const [pageCategory, setPageCategory] = useState("Business / Brand");
   const [demographics, setDemographics] = useState("Philippines (Local)");
+  const [fbProfile, setFbProfile] = useState("");
+  const [profilePic, setProfilePic] = useState<File | null>(null);
+  const [coverPic, setCoverPic] = useState<File | null>(null);
   const [notes, setNotes] = useState("");
 
   const isPageService = serviceTitle.toLowerCase().includes("page");
@@ -136,18 +139,16 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
     setIsSubmitting(true);
     setError("");
 
-    const finalUrl = isPageService 
-      ? `Page Wants: [Name: ${desiredName.trim() || 'Any'}] [Category: ${pageCategory}] [Region: ${demographics}]${notes.trim() ? ` [Notes: ${notes.trim()}]` : ""}`
-      : url.trim();
-
     try {
+      const tempUrl = isPageService ? "Compiling page specifications..." : url.trim();
+
       const { data: insertData, error: insertError } = await supabase
         .from('orders')
         .insert([
           {
             service_id: serviceId,
             customer_email: email.trim(),
-            target_url: finalUrl,
+            target_url: tempUrl,
             amount: totalPrice,
             status: 'Pending',
             quantity: quantity
@@ -157,6 +158,55 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
         .single();
 
       if (insertError) throw insertError;
+
+      // Upload Profile/Cover pictures if page service
+      let profileUrl = "N/A";
+      let coverUrl = "N/A";
+
+      if (isPageService) {
+        if (profilePic) {
+          const formData = new FormData();
+          formData.append("file", profilePic);
+          formData.append("orderId", insertData.id);
+          formData.append("assetType", "profile");
+          try {
+            const uploadRes = await fetch("/api/upload-page-asset", {
+              method: "POST",
+              body: formData
+            });
+            const uploadData = await uploadRes.json();
+            if (uploadData.success) profileUrl = uploadData.url;
+          } catch (e) {
+            console.error("Profile picture upload failed:", e);
+          }
+        }
+
+        if (coverPic) {
+          const formData = new FormData();
+          formData.append("file", coverPic);
+          formData.append("orderId", insertData.id);
+          formData.append("assetType", "cover");
+          try {
+            const uploadRes = await fetch("/api/upload-page-asset", {
+              method: "POST",
+              body: formData
+            });
+            const uploadData = await uploadRes.json();
+            if (uploadData.success) coverUrl = uploadData.url;
+          } catch (e) {
+            console.error("Cover picture upload failed:", e);
+          }
+        }
+
+        // Compile final target_url
+        const finalUrl = `Page Wants: [Name: ${desiredName.trim() || 'Any'}] [Category: ${pageCategory}] [Region: ${demographics}] [FB Admin: ${fbProfile.trim() || 'Any'}] [Profile Pic: ${profileUrl}] [Cover Pic: ${coverUrl}]${notes.trim() ? ` [Notes: ${notes.trim()}]` : ""}`;
+
+        // Update with fully detailed spec string
+        await supabase
+          .from('orders')
+          .update({ target_url: finalUrl })
+          .eq('id', insertData.id);
+      }
 
       setOrderId(insertData.id);
       setIsWalletPayment(false);
@@ -189,11 +239,9 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
     setIsSubmitting(true);
     setError("");
 
-    const finalUrl = isPageService 
-      ? `Page Wants: [Name: ${desiredName.trim() || 'Any'}] [Category: ${pageCategory}] [Region: ${demographics}]${notes.trim() ? ` [Notes: ${notes.trim()}]` : ""}`
-      : url.trim();
-
     try {
+      const tempUrl = isPageService ? "Compiling page specifications..." : url.trim();
+
       const res = await fetch("/api/checkout-wallet", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -201,7 +249,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
           userId: user.id,
           serviceId,
           email: user.email,
-          url: finalUrl,
+          url: tempUrl,
           quantity,
           totalPrice
         })
@@ -210,6 +258,55 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
       const data = await res.json();
       if (!res.ok) {
         throw new Error(data.error || "Wallet checkout failed");
+      }
+
+      // Upload Profile/Cover pictures if page service
+      let profileUrl = "N/A";
+      let coverUrl = "N/A";
+
+      if (isPageService) {
+        if (profilePic) {
+          const formData = new FormData();
+          formData.append("file", profilePic);
+          formData.append("orderId", data.orderId);
+          formData.append("assetType", "profile");
+          try {
+            const uploadRes = await fetch("/api/upload-page-asset", {
+              method: "POST",
+              body: formData
+            });
+            const uploadData = await uploadRes.json();
+            if (uploadData.success) profileUrl = uploadData.url;
+          } catch (e) {
+            console.error("Profile picture upload failed:", e);
+          }
+        }
+
+        if (coverPic) {
+          const formData = new FormData();
+          formData.append("file", coverPic);
+          formData.append("orderId", data.orderId);
+          formData.append("assetType", "cover");
+          try {
+            const uploadRes = await fetch("/api/upload-page-asset", {
+              method: "POST",
+              body: formData
+            });
+            const uploadData = await uploadRes.json();
+            if (uploadData.success) coverUrl = uploadData.url;
+          } catch (e) {
+            console.error("Cover picture upload failed:", e);
+          }
+        }
+
+        // Compile final target_url
+        const finalUrl = `Page Wants: [Name: ${desiredName.trim() || 'Any'}] [Category: ${pageCategory}] [Region: ${demographics}] [FB Admin: ${fbProfile.trim() || 'Any'}] [Profile Pic: ${profileUrl}] [Cover Pic: ${coverUrl}]${notes.trim() ? ` [Notes: ${notes.trim()}]` : ""}`;
+
+        // Update with fully detailed spec string
+        await supabase
+          .from('orders')
+          .update({ target_url: finalUrl })
+          .eq('id', data.orderId);
       }
 
       setOrderId(data.orderId);
@@ -296,6 +393,17 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                   <p className="text-[9px] text-slate-450 leading-relaxed font-bold">
                     No further actions or manual GCash receipt verification are required. Our system will deliver your complete boost package shortly!
                   </p>
+                  {isPageService && (
+                    <div className="bg-[#1DB954]/20 border border-[#1DB954]/40 p-4 rounded-xl mt-3 text-left">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-[#1DB954] block mb-1">
+                        ⏳ 24-Hour Delivery Notice
+                      </span>
+                      <p className="text-[10px] text-slate-200 leading-relaxed font-semibold">
+                        Your custom Facebook Page will be fully created, boosted with 10k followers, and transferred to you **within 24 hours**. 
+                        You will receive an email containing the Facebook page link and a direct message from **Cyrhiel Moralla (Admin)** as soon as the page is ready. You can track your progress live below!
+                      </p>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <>
@@ -338,6 +446,18 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                     </div>
                     <p className="text-[10px] text-slate-400 italic">Transfer fees may apply • Account Name: HE***Y S.</p>
                   </div>
+
+                  {isPageService && (
+                    <div className="bg-[#1DB954]/20 border border-[#1DB954]/40 p-4 rounded-xl mt-3 text-left">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-[#1DB954] block mb-1">
+                        ⏳ 24-Hour Delivery Notice
+                      </span>
+                      <p className="text-[10px] text-slate-200 leading-relaxed font-semibold">
+                        Your custom Facebook Page will be fully created, boosted with 10k followers, and transferred to you **within 24 hours**. 
+                        You will receive an email containing the Facebook page link and a direct message from **Cyrhiel Moralla (Admin)** as soon as the page is ready. You can track your progress live below!
+                      </p>
+                    </div>
+                  )}
                 </>
               )}
 
@@ -442,6 +562,71 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                   </div>
 
                   <div>
+                    <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wide mb-1.5 flex justify-between items-center">
+                      <span>Personal FB Link or Name</span>
+                      <span className="text-slate-500 text-[9px] font-bold lowercase tracking-wider">Required for Admin Migration</span>
+                    </label>
+                    <input 
+                      type="text" 
+                      required
+                      value={fbProfile}
+                      onChange={(e) => setFbProfile(e.target.value)}
+                      className="w-full px-4 py-3 rounded-xl bg-[#282828] border border-slate-700/60 focus:outline-none focus:ring-2 focus:ring-[#1DB954] text-white transition-all text-xs font-semibold"
+                      placeholder="e.g. facebook.com/cyrhiel.moralla or Cyrhiel Moralla"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wide mb-1.5">Profile Picture</label>
+                      <div className="relative">
+                        <input 
+                          type="file" 
+                          accept="image/*"
+                          onChange={(e) => setProfilePic(e.target.files?.[0] || null)}
+                          className="hidden"
+                          id="profile-pic-upload"
+                        />
+                        <label 
+                          htmlFor="profile-pic-upload"
+                          className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-[#282828] border border-dashed border-slate-700 hover:border-[#1DB954] text-slate-300 hover:text-white cursor-pointer transition-all text-xs font-bold"
+                        >
+                          {profilePic ? "✓ Selected" : "📁 Choose Profile"}
+                        </label>
+                        {profilePic && (
+                          <span className="block text-[9px] text-[#1DB954] mt-1 truncate text-center font-bold">
+                            {profilePic.name}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wide mb-1.5">Cover Photo</label>
+                      <div className="relative">
+                        <input 
+                          type="file" 
+                          accept="image/*"
+                          onChange={(e) => setCoverPic(e.target.files?.[0] || null)}
+                          className="hidden"
+                          id="cover-pic-upload"
+                        />
+                        <label 
+                          htmlFor="cover-pic-upload"
+                          className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-[#282828] border border-dashed border-slate-700 hover:border-[#1DB954] text-slate-300 hover:text-white cursor-pointer transition-all text-xs font-bold"
+                        >
+                          {coverPic ? "✓ Selected" : "📁 Choose Cover"}
+                        </label>
+                        {coverPic && (
+                          <span className="block text-[9px] text-[#1DB954] mt-1 truncate text-center font-bold">
+                            {coverPic.name}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
                     <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wide mb-1.5">
                       Additional Requirements / Notes
                     </label>
@@ -452,6 +637,17 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                       className="w-full px-4 py-3 rounded-xl bg-[#282828] border border-slate-700/60 focus:outline-none focus:ring-2 focus:ring-[#1DB954] text-white transition-all text-xs font-medium resize-none"
                       placeholder="e.g. Include custom logo request, theme colors, etc."
                     />
+                  </div>
+
+                  {/* Dynamic Handoff Information Banner */}
+                  <div className="bg-[#1DB954]/10 border border-[#1DB954]/20 p-3.5 rounded-xl mt-1 text-left">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-[#1DB954] block mb-1">
+                      ⏳ Delivery & Transfer Protocol
+                    </span>
+                    <p className="text-[10px] text-slate-300 leading-relaxed font-semibold">
+                      Your custom Facebook Page will be fully created, boosted with 10k followers, and transferred securely to you **within 24 hours**. 
+                      You will receive an email invitation containing the Facebook link and direct message from **Cyrhiel Moralla (Admin)** as soon as the page is ready. You can track your progress live anytime!
+                    </p>
                   </div>
                 </div>
               )}

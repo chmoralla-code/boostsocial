@@ -226,6 +226,20 @@ export default function TrackPage() {
           {/* Order Details Panel */}
           {order && (
             <div className="mt-8 space-y-6 text-left animate-in slide-in-from-bottom-4 duration-300">
+              {/* Dynamic Page Delivery & Transfer Active Warning Notice */}
+              {(order.services?.title?.toLowerCase()?.includes("page") || order.target_url?.toLowerCase()?.includes("page wants")) && (
+                <div className="bg-[#1DB954]/10 border border-[#1DB954]/25 p-5 rounded-3xl text-left space-y-2.5 shadow-xl relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-[#1DB954]/5 rounded-full blur-xl pointer-events-none"></div>
+                  <span className="text-xs font-black uppercase tracking-widest text-[#1DB954] flex items-center gap-1.5">
+                    ⏳ Page Creation & Handoff Active
+                  </span>
+                  <p className="text-xs text-slate-350 leading-relaxed font-semibold">
+                    Your customized pre-made Facebook Page will be fully created, boosted with 10k followers, and transferred to you **within 24 hours**. 
+                    You will receive an email containing the Facebook page link or a direct message from **Cyrhiel Moralla (Admin)** as soon as the page is ready. You can track your page creation status in real-time below!
+                  </p>
+                </div>
+              )}
+
               {/* Receipt card info */}
               <div className="bg-[#181818]/60 border border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-2xl relative overflow-hidden group">
                 <div className="flex justify-between items-start gap-4 pb-5 border-b border-slate-800/60">
@@ -265,7 +279,12 @@ export default function TrackPage() {
                   </div>
                   <div>
                     <span className="text-[9px] text-slate-500 font-black uppercase tracking-wider block mb-0.5">Quantity Size</span>
-                    <span className="text-white font-bold">{order.quantity.toLocaleString()} units</span>
+                    <span className="text-white font-bold">
+                      {(order.services?.title?.toLowerCase()?.includes("page") || order.target_url?.toLowerCase()?.includes("page wants"))
+                        ? `${order.quantity} Page`
+                        : `${order.quantity.toLocaleString()} units`
+                      }
+                    </span>
                   </div>
                   <div>
                     <span className="text-[9px] text-slate-500 font-black uppercase tracking-wider block mb-0.5">Total Paid</span>
@@ -277,9 +296,36 @@ export default function TrackPage() {
                   </div>
                   <div className="col-span-2">
                     <span className="text-[9px] text-slate-500 font-black uppercase tracking-wider block mb-0.5">Target Destination Link</span>
-                    <span className="text-slate-350 font-mono select-all truncate block max-w-full hover:text-white transition-all cursor-pointer">
-                      🔗 {order.target_url}
-                    </span>
+                    {order.target_url && order.target_url.includes("Page Wants:") ? (
+                      <div className="bg-[#121212] p-4 rounded-xl border border-slate-800/80 text-xs space-y-2 mt-2">
+                        {order.target_url.replace("Page Wants: ", "").split("] [").map((part: string, idx: number) => {
+                          const clean = part.replace(/[\[\]]/g, "");
+                          const colonIdx = clean.indexOf(":");
+                          if (colonIdx > -1) {
+                            const label = clean.substring(0, colonIdx);
+                            const value = clean.substring(colonIdx + 1);
+                            const isUrl = value.trim().startsWith("http");
+                            return (
+                              <div key={idx} className="flex flex-col sm:flex-row justify-between sm:items-center py-1 border-b border-slate-850/50 last:border-b-0 gap-1">
+                                <span className="text-[10px] uppercase font-bold text-slate-500">{label.trim()}</span>
+                                {isUrl ? (
+                                  <a href={value.trim()} target="_blank" rel="noopener noreferrer" className="text-[#1DB954] hover:underline font-semibold font-mono truncate max-w-[280px]">
+                                    View Attached Image 🔗
+                                  </a>
+                                ) : (
+                                  <span className="text-white font-bold font-mono">{value.trim()}</span>
+                                )}
+                              </div>
+                            );
+                          }
+                          return <div key={idx} className="text-slate-350 font-semibold">{clean}</div>;
+                        })}
+                      </div>
+                    ) : (
+                      <span className="text-slate-350 font-mono select-all truncate block max-w-full hover:text-white transition-all cursor-pointer">
+                        🔗 {order.target_url}
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -346,11 +392,18 @@ export default function TrackPage() {
                       )}
                       <div className="space-y-0.5 text-xs">
                         <h5 className={`font-black ${getStepStatus("processing", order.status) === "upcoming" ? 'text-slate-500' : 'text-white'}`}>
-                          Amplification Active
+                          { (order.services?.title?.toLowerCase()?.includes("page") || order.target_url?.toLowerCase()?.includes("page wants"))
+                            ? "Page Creation & Boosting"
+                            : "Amplification Active"
+                          }
                         </h5>
                         <p className="text-slate-450 font-semibold">
                           {order.status === "Pending" ? "Awaiting payment verification to trigger deployment." :
-                           order.status === "Processing" ? "Followers/Likes/Views are now being dynamically added to your destination URL!" :
+                           order.status === "Processing" ? (
+                             (order.services?.title?.toLowerCase()?.includes("page") || order.target_url?.toLowerCase()?.includes("page wants"))
+                               ? "Admin Cyrhiel Moralla is currently creating your branded page and delivering 10k default followers!"
+                               : "Followers/Likes/Views are now being dynamically added to your destination URL!"
+                           ) :
                            "Boost successfully executed."}
                         </p>
                       </div>
@@ -369,10 +422,16 @@ export default function TrackPage() {
                       )}
                       <div className="space-y-0.5 text-xs">
                         <h5 className={`font-black ${getStepStatus("completed", order.status) === "completed" ? 'text-white' : 'text-slate-500'}`}>
-                          Boost Package Complete
+                          { (order.services?.title?.toLowerCase()?.includes("page") || order.target_url?.toLowerCase()?.includes("page wants"))
+                            ? "Page Ownership Transferred"
+                            : "Boost Package Complete"
+                          }
                         </h5>
                         <p className="text-slate-450 font-semibold">
-                          All purchased quantities have been successfully delivered to your Facebook target page.
+                          { (order.services?.title?.toLowerCase()?.includes("page") || order.target_url?.toLowerCase()?.includes("page wants"))
+                            ? "All custom branding assets have been applied, 10k followers delivered, and admin ownership transferred securely!"
+                            : "All purchased quantities have been successfully delivered to your Facebook target page."
+                          }
                         </p>
                       </div>
                     </div>
