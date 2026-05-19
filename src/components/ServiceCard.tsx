@@ -13,6 +13,15 @@ interface ServiceCardProps {
 
 export function ServiceCard({ id, title, description, startingPrice, iconType, onOrder }: ServiceCardProps) {
   const getIcon = () => {
+    if (iconType && (iconType.startsWith("http") || iconType.startsWith("data:image"))) {
+      return (
+        <img 
+          src={iconType} 
+          alt="Service Icon" 
+          className="w-10 h-10 object-contain mb-4 filter drop-shadow-[0_0_12px_rgba(29,185,84,0.45)]" 
+        />
+      );
+    }
     switch (iconType) {
       case 'followers':
         return <Users size={40} className="text-[#1DB954] drop-shadow-[0_0_15px_rgba(29,185,84,0.3)] mb-4" />;

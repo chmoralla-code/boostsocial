@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { X, Loader2, ShieldCheck, Copy, Check } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
+import { compressImage } from "@/utils/imageCompressor";
 
 interface OrderModalProps {
   isOpen: boolean;
@@ -32,6 +33,28 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
   const [isWalletPayment, setIsWalletPayment] = useState(false);
+
+  const compressAndUploadAsset = async (file: File, orderId: string, assetType: string): Promise<string> => {
+    try {
+      const compressed = await compressImage(file);
+      const formData = new FormData();
+      formData.append("file", compressed);
+      formData.append("orderId", orderId);
+      formData.append("assetType", assetType);
+      
+      const uploadRes = await fetch("/api/upload-page-asset", {
+        method: "POST",
+        body: formData
+      });
+      const uploadData = await uploadRes.json();
+      if (uploadData.success) {
+        return uploadData.url;
+      }
+    } catch (e) {
+      console.error(`Upload of ${assetType} failed:`, e);
+    }
+    return "N/A";
+  };
 
   // Pre-made Page Specifications States
   const [desiredName, setDesiredName] = useState("");
@@ -165,37 +188,10 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
 
       if (isPageService) {
         if (profilePic) {
-          const formData = new FormData();
-          formData.append("file", profilePic);
-          formData.append("orderId", insertData.id);
-          formData.append("assetType", "profile");
-          try {
-            const uploadRes = await fetch("/api/upload-page-asset", {
-              method: "POST",
-              body: formData
-            });
-            const uploadData = await uploadRes.json();
-            if (uploadData.success) profileUrl = uploadData.url;
-          } catch (e) {
-            console.error("Profile picture upload failed:", e);
-          }
+          profileUrl = await compressAndUploadAsset(profilePic, insertData.id, "profile");
         }
-
         if (coverPic) {
-          const formData = new FormData();
-          formData.append("file", coverPic);
-          formData.append("orderId", insertData.id);
-          formData.append("assetType", "cover");
-          try {
-            const uploadRes = await fetch("/api/upload-page-asset", {
-              method: "POST",
-              body: formData
-            });
-            const uploadData = await uploadRes.json();
-            if (uploadData.success) coverUrl = uploadData.url;
-          } catch (e) {
-            console.error("Cover picture upload failed:", e);
-          }
+          coverUrl = await compressAndUploadAsset(coverPic, insertData.id, "cover");
         }
 
         // Compile final target_url
@@ -266,37 +262,10 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
 
       if (isPageService) {
         if (profilePic) {
-          const formData = new FormData();
-          formData.append("file", profilePic);
-          formData.append("orderId", data.orderId);
-          formData.append("assetType", "profile");
-          try {
-            const uploadRes = await fetch("/api/upload-page-asset", {
-              method: "POST",
-              body: formData
-            });
-            const uploadData = await uploadRes.json();
-            if (uploadData.success) profileUrl = uploadData.url;
-          } catch (e) {
-            console.error("Profile picture upload failed:", e);
-          }
+          profileUrl = await compressAndUploadAsset(profilePic, data.orderId, "profile");
         }
-
         if (coverPic) {
-          const formData = new FormData();
-          formData.append("file", coverPic);
-          formData.append("orderId", data.orderId);
-          formData.append("assetType", "cover");
-          try {
-            const uploadRes = await fetch("/api/upload-page-asset", {
-              method: "POST",
-              body: formData
-            });
-            const uploadData = await uploadRes.json();
-            if (uploadData.success) coverUrl = uploadData.url;
-          } catch (e) {
-            console.error("Cover picture upload failed:", e);
-          }
+          coverUrl = await compressAndUploadAsset(coverPic, data.orderId, "cover");
         }
 
         // Compile final target_url

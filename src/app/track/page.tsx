@@ -6,6 +6,7 @@ import { Footer } from "@/components/Footer";
 import { Search, Loader2, ShieldCheck, CheckCircle2, AlertCircle, Copy, Check, UploadCloud, Image, ArrowRight } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { format } from "date-fns";
+import { compressImage } from "@/utils/imageCompressor";
 
 export default function TrackPage() {
   const [trackingInput, setTrackingInput] = useState("");
@@ -107,8 +108,9 @@ export default function TrackPage() {
     setUploadSuccess(false);
 
     try {
+      const compressed = await compressImage(selectedFile);
       const formData = new FormData();
-      formData.append("file", selectedFile);
+      formData.append("file", compressed);
       formData.append("orderId", order.id);
 
       const res = await fetch("/api/upload-receipt", {

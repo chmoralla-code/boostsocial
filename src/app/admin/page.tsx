@@ -1,5 +1,6 @@
 import { createClient } from "@/utils/supabase/server";
 import { DollarSign, ShoppingCart, Activity } from "lucide-react";
+import { StorageOptimizingPanel } from "./StorageOptimizingPanel";
 
 export default async function AdminOverview() {
   const supabase = await createClient();
@@ -53,6 +54,9 @@ export default async function AdminOverview() {
           Use the sidebar navigation to manage orders, update your service pricing, and view customer details.
         </p>
       </div>
+
+      {/* Storage preservation widget */}
+      <StorageOptimizingPanel />
     </div>
   );
 }

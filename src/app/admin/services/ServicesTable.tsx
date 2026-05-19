@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { Edit2, Trash2, Plus, X, Users, ThumbsUp, Play } from "lucide-react";
+import { compressImage } from "@/utils/imageCompressor";
 
 interface Service {
   id: string;
@@ -29,6 +30,7 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
   const [freeTrialAmount, setFreeTrialAmount] = useState("50");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [customIconFile, setCustomIconFile] = useState<File | null>(null);
 
   const supabase = createClient();
 
@@ -42,6 +44,7 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
     setFreeTrialAmount("50");
     setStartingPrice("");
     setIconType("followers");
+    setCustomIconFile(null);
     setError("");
     setIsModalOpen(true);
   };
@@ -51,6 +54,7 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
     setTitle(service.title);
     setStartingPrice(String(service.starting_price));
     setIconType(service.icon_type);
+    setCustomIconFile(null);
     setError("");
 
     const defaults = {
@@ -117,6 +121,34 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
       return;
     }
 
+    let finalIconType = iconType;
+
+    if (customIconFile) {
+      try {
+        // Compress client-side to ensure small footprint (max 200px dimension since it's an icon!)
+        const compressedIcon = await compressImage(customIconFile, 200, 0.8);
+        const iconFormData = new FormData();
+        iconFormData.append("file", compressedIcon);
+        if (editingService?.id) {
+          iconFormData.append("serviceId", editingService.id);
+        }
+        
+        const uploadRes = await fetch("/api/admin/upload-service-icon", {
+          method: "POST",
+          body: iconFormData
+        });
+        const uploadData = await uploadRes.json();
+        if (!uploadRes.ok) {
+          throw new Error(uploadData.error || "Icon upload failed");
+        }
+        finalIconType = uploadData.url;
+      } catch (e: any) {
+        setError("Failed uploading custom icon: " + e.message);
+        setLoading(false);
+        return;
+      }
+    }
+
     const packedDescription = JSON.stringify({
       description: description.trim(),
       subtitle: subtitle.trim(),
@@ -134,7 +166,7 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
           title,
           description: packedDescription,
           starting_price: priceNum,
-          icon_type: iconType,
+          icon_type: finalIconType,
         }),
       });
 
@@ -177,13 +209,22 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
   };
 
   const getIconComponent = (type: string) => {
+    if (type && (type.startsWith("http") || type.startsWith("data:image"))) {
+      return (
+        <img 
+          src={type} 
+          alt="Custom Icon" 
+          className="w-5 h-5 object-contain"
+        />
+      );
+    }
     switch (type) {
       case "followers":
         return <Users size={20} className="text-blue-600" />;
       case "reactions":
         return <ThumbsUp size={20} className="text-red-500" />;
       case "views":
-        return <Play size={20} className="text-blue-800" />;
+        return <Play size={20} className="text-[#1DB954]" />;
       default:
         return <Users size={20} className="text-slate-600" />;
     }
@@ -320,14 +361,38 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
                   Icon Type
                 </label>
                 <select
-                  value={iconType}
-                  onChange={(e) => setIconType(e.target.value)}
+                  value={iconType.startsWith("http") ? "custom" : iconType}
+                  onChange={(e) => {
+                    if (e.target.value !== "custom") {
+                      setIconType(e.target.value);
+                    }
+                  }}
                   className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all text-slate-950 font-medium cursor-pointer"
                 >
                   <option value="followers">Followers (Users Icon)</option>
                   <option value="reactions">Reactions (Thumbs Up Icon)</option>
                   <option value="views">Views (Play Button Icon)</option>
+                  {iconType.startsWith("http") && (
+                    <option value="custom">Custom PNG Upload (Current)</option>
+                  )}
                 </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+                  Upload Custom PNG Icon (Overrides Selection)
+                </label>
+                <input 
+                  type="file" 
+                  accept="image/png"
+                  onChange={(e) => setCustomIconFile(e.target.files?.[0] || null)}
+                  className="w-full text-xs text-slate-550 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-black file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
+                />
+                {customIconFile && (
+                  <p className="text-[10px] text-[#1DB954] font-black uppercase mt-1">
+                    ✓ Custom icon attached: {customIconFile.name}
+                  </p>
+                )}
               </div>
 
               <div>

@@ -8,8 +8,20 @@ import { Trash2 } from "lucide-react";
 export function OrdersTable({ initialOrders, receiptFiles = [] }: { initialOrders: any[], receiptFiles?: string[] }) {
   const [orders, setOrders] = useState(initialOrders);
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
+  const [selectedPageSpecs, setSelectedPageSpecs] = useState<any | null>(null);
   const [isDeletingAll, setIsDeletingAll] = useState(false);
   const supabase = createClient();
+
+  const parsePageSpecs = (text: string) => {
+    const name = text.match(/\[Name:\s*([^\]]+)\]/)?.[1] || "N/A";
+    const category = text.match(/\[Category:\s*([^\]]+)\]/)?.[1] || "N/A";
+    const region = text.match(/\[Region:\s*([^\]]+)\]/)?.[1] || "N/A";
+    const admin = text.match(/\[FB Admin:\s*([^\]]+)\]/)?.[1] || "N/A";
+    const profile = text.match(/\[Profile Pic:\s*([^\]]+)\]/)?.[1] || "N/A";
+    const cover = text.match(/\[Cover Pic:\s*([^\]]+)\]/)?.[1] || "N/A";
+    const notes = text.match(/\[Notes:\s*([^\]]+)\]/)?.[1] || "N/A";
+    return { name, category, region, admin, profile, cover, notes };
+  };
 
   const updateStatus = async (id: string, newStatus: string) => {
     const { error } = await supabase
@@ -19,6 +31,12 @@ export function OrdersTable({ initialOrders, receiptFiles = [] }: { initialOrder
 
     if (!error) {
       setOrders(orders.map(o => o.id === id ? { ...o, status: newStatus } : o));
+      setSelectedPageSpecs((prev: any) => {
+        if (prev && prev.orderId === id) {
+          return { ...prev, status: newStatus };
+        }
+        return prev;
+      });
     }
   };
 
@@ -98,9 +116,27 @@ export function OrdersTable({ initialOrders, receiptFiles = [] }: { initialOrder
                   {order.quantity || 1000}
                 </td>
                 <td className="py-4 px-6 text-sm text-slate-600 max-w-xs truncate">
-                  <a href={order.target_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
-                    {order.target_url}
-                  </a>
+                  {order.target_url && order.target_url.includes("Page Wants:") ? (
+                    <button
+                      onClick={() => {
+                        const specs = parsePageSpecs(order.target_url);
+                        setSelectedPageSpecs({
+                          ...specs,
+                          orderId: order.id,
+                          status: order.status,
+                          amount: order.amount,
+                          email: order.customer_email
+                        });
+                      }}
+                      className="inline-flex items-center gap-1.5 bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700 font-extrabold px-3 py-1.5 rounded-xl text-xs transition-colors shadow-sm uppercase tracking-wide cursor-pointer"
+                    >
+                      🔑 View FB Specs
+                    </button>
+                  ) : (
+                    <a href={order.target_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                      {order.target_url}
+                    </a>
+                  )}
                 </td>
                 <td className="py-4 px-6 text-sm font-medium text-slate-900">
                   <div>₱{Number(order.amount).toFixed(2)}</div>
@@ -191,6 +227,150 @@ export function OrdersTable({ initialOrders, receiptFiles = [] }: { initialOrder
                 alt="GCash Proof of Payment" 
                 className="max-w-full max-h-[68vh] object-contain"
               />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Facebook Page Specs Details Modal */}
+      {selectedPageSpecs && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[#090909]/80 backdrop-blur-sm p-4 animate-in fade-in duration-200"
+        >
+          <div 
+            className="relative max-w-2xl w-full bg-white rounded-3xl overflow-hidden shadow-2xl p-6 sm:p-8 flex flex-col animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto"
+          >
+            <div className="flex justify-between items-center mb-6 pb-3 border-b border-slate-100">
+              <div>
+                <span className="bg-[#1DB954]/10 text-[#1DB954] font-black text-[9px] uppercase tracking-widest px-2.5 py-1 rounded-md border border-[#1DB954]/20">
+                  🔑 Facebook Page Specs Wants
+                </span>
+                <h3 className="text-lg font-bold text-slate-900 mt-1.5">
+                  Order BS-{selectedPageSpecs.orderId.slice(0, 8).toUpperCase()}
+                </h3>
+              </div>
+              <button 
+                onClick={() => setSelectedPageSpecs(null)}
+                className="text-slate-400 hover:text-slate-600 transition-colors bg-slate-150 hover:bg-slate-200 px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="space-y-6">
+              {/* Specs Table */}
+              <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100 space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <span className="block text-[10px] font-black uppercase tracking-wider text-slate-400">Desired Page Name</span>
+                    <span className="text-sm font-bold text-slate-900">{selectedPageSpecs.name}</span>
+                  </div>
+                  <div>
+                    <span className="block text-[10px] font-black uppercase tracking-wider text-slate-400">Category Selection</span>
+                    <span className="text-sm font-bold text-slate-900">{selectedPageSpecs.category}</span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-3 border-t border-slate-200/50">
+                  <div>
+                    <span className="block text-[10px] font-black uppercase tracking-wider text-slate-400">Demographics / Region</span>
+                    <span className="text-sm font-bold text-slate-900">{selectedPageSpecs.region}</span>
+                  </div>
+                  <div>
+                    <span className="block text-[10px] font-black uppercase tracking-wider text-slate-400">FB Link for Admin Migration</span>
+                    <a 
+                      href={selectedPageSpecs.admin.startsWith("http") ? selectedPageSpecs.admin : `https://${selectedPageSpecs.admin}`} 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="text-blue-600 hover:underline text-xs font-mono font-bold break-all block mt-0.5"
+                    >
+                      {selectedPageSpecs.admin}
+                    </a>
+                  </div>
+                </div>
+
+                {selectedPageSpecs.notes && selectedPageSpecs.notes !== "N/A" && (
+                  <div className="pt-3 border-t border-slate-200/50">
+                    <span className="block text-[10px] font-black uppercase tracking-wider text-slate-400">Admin Notes / Custom Wants</span>
+                    <p className="text-xs text-slate-700 font-semibold leading-relaxed whitespace-pre-wrap mt-1">
+                      {selectedPageSpecs.notes}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Graphic Assets previews */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="border border-slate-200/60 rounded-2xl p-4 flex flex-col items-center bg-slate-50">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-3">Profile Picture Preview</span>
+                  {selectedPageSpecs.profile && selectedPageSpecs.profile !== "N/A" && !selectedPageSpecs.profile.includes("Optimized") ? (
+                    <div className="w-24 h-24 rounded-full overflow-hidden border-2 border-white shadow-md relative group">
+                      <img 
+                        src={selectedPageSpecs.profile} 
+                        alt="Profile Pic" 
+                        className="w-full h-full object-cover cursor-pointer hover:scale-105 transition-transform"
+                        onClick={() => setPreviewImageUrl(selectedPageSpecs.profile)}
+                      />
+                    </div>
+                  ) : (
+                    <span className="text-xs text-slate-400 italic py-6">
+                      {selectedPageSpecs.profile?.includes("Optimized") ? "Optimized / Deleted (Preserved)" : "No Profile Picture Attached"}
+                    </span>
+                  )}
+                </div>
+
+                <div className="border border-slate-200/60 rounded-2xl p-4 flex flex-col items-center bg-slate-50">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-3">Cover Photo Preview</span>
+                  {selectedPageSpecs.cover && selectedPageSpecs.cover !== "N/A" && !selectedPageSpecs.cover.includes("Optimized") ? (
+                    <div className="w-full h-24 rounded-xl overflow-hidden border border-white shadow-md relative group">
+                      <img 
+                        src={selectedPageSpecs.cover} 
+                        alt="Cover Photo" 
+                        className="w-full h-full object-cover cursor-pointer hover:scale-105 transition-transform"
+                        onClick={() => setPreviewImageUrl(selectedPageSpecs.cover)}
+                      />
+                    </div>
+                  ) : (
+                    <span className="text-xs text-slate-400 italic py-6">
+                      {selectedPageSpecs.cover?.includes("Optimized") ? "Optimized / Deleted (Preserved)" : "No Cover Photo Attached"}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Quick Status Control panel */}
+              <div className="bg-[#181818] rounded-2xl p-5 text-white flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div>
+                  <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Order Processing Controls</span>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-sm font-extrabold">Current Status:</span>
+                    <span className={`text-[10px] font-black px-2.5 py-1 rounded-md uppercase tracking-wider
+                      ${selectedPageSpecs.status === 'Pending' ? 'bg-orange-500/20 text-orange-400 border border-orange-500/35' : 
+                        selectedPageSpecs.status === 'Processing' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/35' : 
+                        selectedPageSpecs.status === 'Completed' ? 'bg-green-500/20 text-green-400 border border-green-500/35' : 
+                        'bg-red-500/20 text-red-400 border border-red-500/35'}`}
+                    >
+                      {selectedPageSpecs.status}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-1.5 justify-center sm:justify-end">
+                  {['Pending', 'Processing', 'Completed', 'Cancelled'].map((st) => (
+                    <button
+                      key={st}
+                      onClick={() => updateStatus(selectedPageSpecs.orderId, st)}
+                      disabled={selectedPageSpecs.status === st}
+                      className={`px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed
+                        ${selectedPageSpecs.status === st 
+                          ? 'bg-slate-800 text-slate-500 border border-slate-700' 
+                          : 'bg-[#1DB954] hover:bg-[#1ed760] text-black font-extrabold shadow-md hover:scale-[1.02]'}`}
+                    >
+                      {st}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         </div>
