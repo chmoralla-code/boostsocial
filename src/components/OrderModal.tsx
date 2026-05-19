@@ -97,6 +97,29 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
 
   const isPageService = serviceTitle.toLowerCase().includes("page");
   const isReactionService = serviceTitle.toLowerCase().includes("reaction");
+  const isFollowersService = serviceTitle.toLowerCase().includes("followers");
+  const isViewsService = serviceTitle.toLowerCase().includes("views");
+  const isGeminiService = serviceTitle.toLowerCase().includes("gemini");
+
+  // Determine the active unit label & single unit term
+  let unitLabel = "Units";
+  let unitSingle = "unit";
+  if (isFollowersService) {
+    unitLabel = "Followers";
+    unitSingle = "follower";
+  } else if (isReactionService) {
+    unitLabel = "Reactions";
+    unitSingle = "reaction";
+  } else if (isViewsService) {
+    unitLabel = "Views";
+    unitSingle = "view";
+  } else if (isPageService) {
+    unitLabel = "Pages";
+    unitSingle = "page";
+  } else if (isGeminiService) {
+    unitLabel = "Accounts";
+    unitSingle = "account";
+  }
 
   // Dynamic min quantity and free trial amount based on JSON description pack
   const parsedDetails = (() => {
@@ -121,11 +144,16 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
     return defaults;
   })();
 
+  // Safe min quantity floor for per-1,000 services
+  const minQty = (isPageService || isGeminiService)
+    ? 1
+    : Math.max(parsedDetails.min_quantity || 100, 100);
+
   useEffect(() => {
-    if (parsedDetails.min_quantity > 0 && quantity < parsedDetails.min_quantity) {
-      setQuantity(parsedDetails.min_quantity);
+    if (minQty > 0 && quantity < minQty) {
+      setQuantity(minQty);
     }
-  }, [parsedDetails.min_quantity]);
+  }, [minQty]);
 
   const [customFieldValues, setCustomFieldValues] = useState<Record<string, string>>({});
 
@@ -168,14 +196,16 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
 
   if (!isOpen) return null;
 
-  const baseTotal = parsedDetails.min_quantity === 1 
-    ? quantity * serviceBasePrice 
-    : (quantity / 1000) * serviceBasePrice;
+  const effectiveQuantity = Math.max(quantity, minQty);
+
+  const baseTotal = minQty === 1 
+    ? effectiveQuantity * serviceBasePrice 
+    : (effectiveQuantity / 1000) * serviceBasePrice;
 
   // Volume Discount Engine (Up to 20% off for large volumes and single high-value purchases)
-  const discountPercent = parsedDetails.min_quantity === 1
-    ? (quantity >= 5 ? 10 : quantity >= 3 ? 5 : 0)
-    : (quantity >= 10000 ? 20 : quantity >= 5000 ? 15 : quantity >= 3000 ? 10 : 0);
+  const discountPercent = minQty === 1
+    ? (effectiveQuantity >= 5 ? 10 : effectiveQuantity >= 3 ? 5 : 0)
+    : (effectiveQuantity >= 10000 ? 20 : effectiveQuantity >= 5000 ? 15 : effectiveQuantity >= 3000 ? 10 : 0);
 
   const totalPrice = baseTotal * (1 - discountPercent / 100);
 
@@ -184,8 +214,8 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
     e.preventDefault();
     if (!serviceId) return;
 
-    if (quantity < parsedDetails.min_quantity) {
-      setError(`Minimum quantity is ${parsedDetails.min_quantity}.`);
+    if (quantity < minQty) {
+      setError(`Minimum quantity is ${minQty}.`);
       return;
     }
 
@@ -273,8 +303,8 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
     e.preventDefault();
     if (!serviceId || !user) return;
 
-    if (quantity < parsedDetails.min_quantity) {
-      setError(`Minimum quantity is ${parsedDetails.min_quantity}.`);
+    if (quantity < minQty) {
+      setError(`Minimum quantity is ${minQty}.`);
       return;
     }
 
@@ -770,21 +800,58 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                 </div>
               )}
 
-              <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5">
-                  {parsedDetails.min_quantity === 1 ? "Number of Items" : "Quantity (per 1,000)"}
-                </label>
-                <input 
-                  type="number" 
-                  required
-                  min={parsedDetails.min_quantity}
-                  step={parsedDetails.min_quantity === 1 ? "1" : "100"}
-                  value={quantity}
-                  onChange={(e) => setQuantity(parseInt(e.target.value) || 0)}
-                  className="w-full px-4 py-3 rounded-xl bg-[#282828] border border-slate-700/60 focus:outline-none focus:ring-2 focus:ring-[#1877F2] text-white transition-all text-sm font-bold"
-                  placeholder={String(parsedDetails.min_quantity)}
-                />
-                <div className="flex justify-between items-center mt-2 bg-[#121212] px-3.5 py-2.5 rounded-lg border border-slate-800">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest">
+                    Quantity
+                  </label>
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-[#1877F2]/10 text-[#1877F2] border border-[#1877F2]/20 shadow-[0_0_8px_rgba(24,119,242,0.15)] animate-pulse">
+                    ⚡ {unitLabel}
+                  </span>
+                </div>
+                
+                <div className="relative rounded-xl shadow-sm">
+                  <input 
+                    type="number" 
+                    required
+                    min={minQty}
+                    step={minQty === 1 ? "1" : "100"}
+                    value={quantity || ""}
+                    onChange={(e) => setQuantity(parseInt(e.target.value) || 0)}
+                    onBlur={() => {
+                      if (quantity < minQty) {
+                        setQuantity(minQty);
+                      }
+                    }}
+                    className={`w-full px-4 py-3 rounded-xl bg-[#282828] text-white transition-all text-sm font-bold border ${
+                      quantity < minQty 
+                        ? "border-red-500/50 focus:ring-2 focus:ring-red-500 focus:outline-none" 
+                        : "border-slate-700/60 focus:border-[#1877F2] focus:ring-2 focus:ring-[#1877F2] focus:outline-none"
+                    }`}
+                    placeholder={String(minQty)}
+                  />
+                </div>
+
+                {quantity < minQty ? (
+                  <div className="bg-red-500/10 border border-red-500/25 p-3 rounded-xl flex items-start gap-2 animate-in slide-in-from-top-2 duration-300">
+                    <span className="text-sm mt-0.5">⚠️</span>
+                    <p className="text-[10px] text-red-400 leading-relaxed font-bold text-left">
+                      Below Minimum Limit: The minimum order size for this service is <strong className="text-white">{minQty.toLocaleString()}</strong> {unitLabel.toLowerCase()}. Please enter at least {minQty.toLocaleString()} units to proceed.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="bg-[#1877F2]/5 border border-[#1877F2]/10 p-3 rounded-xl flex items-start gap-2 animate-in fade-in duration-300">
+                    <span className="text-sm mt-0.5">💡</span>
+                    <p className="text-[10px] text-slate-400 leading-relaxed font-semibold text-left">
+                      1 unit = 1 {unitSingle}. To order 1,000 {unitLabel.toLowerCase()}, simply type <strong className="text-[#1877F2]">1000</strong>. 
+                      <span className="block mt-1 text-[9px] text-[#1877F2] font-black uppercase tracking-wider">
+                        🎯 Minimum Requirement: {minQty.toLocaleString()} {unitLabel.toLowerCase()}
+                      </span>
+                    </p>
+                  </div>
+                )}
+
+                <div className="flex justify-between items-center mt-3 bg-[#121212] px-3.5 py-2.5 rounded-lg border border-slate-800">
                   <div className="flex flex-col text-left">
                     <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Estimated Total:</span>
                     {discountPercent > 0 && (
