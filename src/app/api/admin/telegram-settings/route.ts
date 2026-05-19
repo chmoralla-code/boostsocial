@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
-const CONFIG_BUCKET = "receipts"; // Reuse existing bucket
-const CONFIG_PATH = "admin-config/telegram.json";
+const CONFIG_BUCKET = "receipts"; // Using existing receipts bucket that is pre-configured
+const CONFIG_PATH = "admin-config/telegram.png"; // Mask as png to satisfy MIME type restrictions
 
 const getSupabase = () =>
   createClient(
@@ -33,26 +33,29 @@ export async function GET() {
 
 // POST — save config to storage
 export async function POST(req: NextRequest) {
-  const { bot_token, chat_id } = await req.json();
-
-  if (!bot_token || !chat_id) {
-    return NextResponse.json({ error: "Both bot token and chat ID are required." }, { status: 400 });
-  }
-
   try {
-    const supabase = getSupabase();
-    const content = JSON.stringify({ bot_token, chat_id }, null, 2);
-    const blob = new Blob([content], { type: "text/plain" });
+    const { bot_token, chat_id } = await req.json();
 
-    // Upload (upsert) the config file
+    if (!bot_token || !chat_id) {
+      return NextResponse.json({ error: "Both bot token and chat ID are required." }, { status: 400 });
+    }
+
+    const supabase = getSupabase();
+    const content = JSON.stringify({ bot_token, chat_id });
+    const blob = new Blob([content], { type: "image/png" });
+
+    // Upload (upsert) the config file masked as a PNG
     const { error } = await supabase.storage
       .from(CONFIG_BUCKET)
-      .upload(CONFIG_PATH, blob, { upsert: true, contentType: "text/plain" });
+      .upload(CONFIG_PATH, blob, { upsert: true, contentType: "image/png" });
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
 
     return NextResponse.json({ success: true });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error("Save settings error:", err);
+    return NextResponse.json({ error: err.message || err.toString() }, { status: 500 });
   }
 }

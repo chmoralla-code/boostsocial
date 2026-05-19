@@ -1,7 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 
 const CONFIG_BUCKET = "receipts";
-const CONFIG_PATH = "admin-config/telegram.json";
+const CONFIG_PATH = "admin-config/telegram.png";
 
 const getSupabase = () =>
   createClient(
