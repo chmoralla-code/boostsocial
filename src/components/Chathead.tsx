@@ -240,13 +240,7 @@ export function Chathead() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!input.trim() || isLoading) return;
-
-    const userMsg = input.trim();
-    setInput("");
-    setMessages(prev => [...prev, { role: 'user', content: userMsg }]);
+  const sendMessage = async (userMsg: string) => {
     setIsLoading(true);
 
     try {
@@ -382,6 +376,22 @@ Format list items on separate lines with simple bullets (e.g. * **Item:** text).
     }
   };
 
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!input.trim() || isLoading) return;
+
+    const userMsg = input.trim();
+    setInput("");
+    setMessages(prev => [...prev, { role: 'user', content: userMsg }]);
+    await sendMessage(userMsg);
+  };
+
+  const handleQuickAction = async (text: string) => {
+    if (isLoading) return;
+    setMessages(prev => [...prev, { role: 'user', content: text }]);
+    await sendMessage(text);
+  };
+
   return (
     <>
       {/* Floating Button */}
@@ -452,6 +462,26 @@ Format list items on separate lines with simple bullets (e.g. * **Item:** text).
           </div>
 
           {/* Input Area */}
+          {/* Quick Action Chips */}
+          <div className="px-3 py-2 bg-[#121212] border-t border-slate-800/50 flex gap-2 overflow-x-auto select-none no-scrollbar">
+            <button
+              type="button"
+              onClick={() => handleQuickAction("track my order")}
+              disabled={isLoading || uploading}
+              className="text-[11px] font-semibold bg-[#282828] hover:bg-[#333] border border-slate-800 text-slate-300 hover:text-white px-3 py-1.5 rounded-full transition-all duration-200 cursor-pointer flex items-center gap-1 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
+            >
+              🔍 Track My Order
+            </button>
+            <button
+              type="button"
+              onClick={() => handleQuickAction("order status")}
+              disabled={isLoading || uploading}
+              className="text-[11px] font-semibold bg-[#282828] hover:bg-[#333] border border-slate-800 text-slate-300 hover:text-white px-3 py-1.5 rounded-full transition-all duration-200 cursor-pointer flex items-center gap-1 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
+            >
+              ⚡ Order Status
+            </button>
+          </div>
+
           <form onSubmit={handleSubmit} className="p-3 bg-[#181818] border-t border-slate-800 flex gap-2 items-center">
             <input 
               type="file"
