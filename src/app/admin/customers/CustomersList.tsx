@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { format } from "date-fns";
-import { Search, ArrowUpDown, Mail, ShoppingBag, DollarSign, Calendar, Landmark, Trash2 } from "lucide-react";
+import { Search, ArrowUpDown, Mail, ShoppingBag, DollarSign, Calendar, Landmark, Trash2, Users } from "lucide-react";
 
 interface Customer {
   id?: string;
@@ -20,7 +20,19 @@ interface Customer {
   };
 }
 
-export function CustomersList({ initialCustomers }: { initialCustomers: Customer[] }) {
+export function CustomersList({ 
+  initialCustomers, 
+  metrics 
+}: { 
+  initialCustomers: Customer[]; 
+  metrics: {
+    totalCustomers: number;
+    registeredCount: number;
+    guestCount: number;
+    totalSpent: number;
+    totalCapital: number;
+  };
+}) {
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState<"spent" | "orders" | "active" | "balance">("spent");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
@@ -97,26 +109,87 @@ export function CustomersList({ initialCustomers }: { initialCustomers: Customer
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 text-slate-300">
+      {/* Telemetry Cards Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-[#181818] border border-slate-800/80 p-5 rounded-2xl relative overflow-hidden group shadow-lg">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-[#1DB954]/5 rounded-full pointer-events-none -mr-8 -mt-8 group-hover:bg-[#1DB954]/10 transition-colors duration-300"></div>
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-extrabold uppercase tracking-widest text-slate-400">Total Customers</span>
+            <div className="bg-[#1DB954]/10 text-[#1DB954] border border-[#1DB954]/25 p-2 rounded-xl">
+              <Users size={16} />
+            </div>
+          </div>
+          <div className="mt-4">
+            <h3 className="text-2xl font-black text-white tracking-tight">{metrics.totalCustomers}</h3>
+            <p className="text-[10px] text-slate-500 font-bold mt-1 uppercase tracking-wider">Across lifetime directory</p>
+          </div>
+        </div>
+
+        <div className="bg-[#181818] border border-slate-800/80 p-5 rounded-2xl relative overflow-hidden group shadow-lg">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/5 rounded-full pointer-events-none -mr-8 -mt-8 group-hover:bg-blue-500/10 transition-colors duration-300"></div>
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-extrabold uppercase tracking-widest text-slate-400">Accounts vs Guests</span>
+            <div className="bg-blue-500/10 text-blue-400 border border-blue-500/25 p-2 rounded-xl">
+              <Mail size={16} />
+            </div>
+          </div>
+          <div className="mt-4">
+            <h3 className="text-2xl font-black text-white tracking-tight">
+              {metrics.registeredCount} <span className="text-slate-550 text-sm font-bold">/</span> {metrics.guestCount}
+            </h3>
+            <p className="text-[10px] text-slate-500 font-bold mt-1 uppercase tracking-wider">Registered vs Guest shoppers</p>
+          </div>
+        </div>
+
+        <div className="bg-[#181818] border border-slate-800/80 p-5 rounded-2xl relative overflow-hidden group shadow-lg">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-[#1DB954]/5 rounded-full pointer-events-none -mr-8 -mt-8 group-hover:bg-[#1DB954]/10 transition-colors duration-300"></div>
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-extrabold uppercase tracking-widest text-slate-400">Lifetime Revenue</span>
+            <div className="bg-[#1DB954]/10 text-[#1DB954] border border-[#1DB954]/25 p-2 rounded-xl">
+              <DollarSign size={16} />
+            </div>
+          </div>
+          <div className="mt-4">
+            <h3 className="text-2xl font-black text-[#1DB954] tracking-tight">₱{metrics.totalSpent.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</h3>
+            <p className="text-[10px] text-slate-500 font-bold mt-1 uppercase tracking-wider">Cumulative spent amount</p>
+          </div>
+        </div>
+
+        <div className="bg-[#181818] border border-slate-800/80 p-5 rounded-2xl relative overflow-hidden group shadow-lg">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-purple-500/5 rounded-full pointer-events-none -mr-8 -mt-8 group-hover:bg-purple-500/10 transition-colors duration-300"></div>
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-extrabold uppercase tracking-widest text-slate-400">Wallet Capital</span>
+            <div className="bg-purple-500/10 text-purple-400 border border-purple-500/25 p-2 rounded-xl">
+              <Landmark size={16} />
+            </div>
+          </div>
+          <div className="mt-4">
+            <h3 className="text-2xl font-black text-purple-400 tracking-tight">₱{metrics.totalCapital.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</h3>
+            <p className="text-[10px] text-slate-500 font-bold mt-1 uppercase tracking-wider">Total user balance liabilities</p>
+          </div>
+        </div>
+      </div>
+
       {/* Controls Grid */}
-      <div className="flex flex-col md:flex-row gap-4 justify-between items-center bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+      <div className="flex flex-col md:flex-row gap-4 justify-between items-center bg-[#181818] p-4 rounded-2xl border border-slate-800/80 shadow-md">
         {/* Search & Bulk Actions */}
         <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto items-center">
           <div className="relative w-full sm:w-72">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
             <input
               type="text"
-              placeholder="Search customers..."
+              placeholder="Search customers by email..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all text-slate-900 font-medium"
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#121212] border border-slate-850/60 focus:outline-none focus:border-[#1DB954]/55 focus:ring-1 focus:ring-[#1DB954]/25 transition-all text-slate-200 font-medium placeholder-slate-500"
             />
           </div>
           {initialCustomers.length > 0 && (
             <button
               onClick={handleDeleteAllAccounts}
               disabled={isDeletingAll}
-              className="w-full sm:w-auto px-4 py-2.5 bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 disabled:opacity-50 text-xs font-extrabold uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-1.5 flex-shrink-0 shadow-sm"
+              className="w-full sm:w-auto px-4 py-2.5 bg-red-500/10 hover:bg-red-500/20 border border-red-500/25 text-red-400 disabled:opacity-50 text-[10px] font-extrabold uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-1.5 flex-shrink-0 shadow-sm"
             >
               <Trash2 size={14} />
               {isDeletingAll ? "Deleting..." : "Delete All Accounts"}
@@ -125,113 +198,113 @@ export function CustomersList({ initialCustomers }: { initialCustomers: Customer
         </div>
 
         {/* Sort Controls */}
-        <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto">
-          <span className="text-sm font-semibold text-slate-500 whitespace-nowrap">Sort by:</span>
+        <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto justify-end py-1">
+          <span className="text-xs font-extrabold uppercase tracking-wider text-slate-500 whitespace-nowrap">Sort by:</span>
           <button
             onClick={() => toggleSort("spent")}
             className={`px-3 py-1.5 rounded-lg text-xs font-bold border flex items-center gap-1.5 transition-all
               ${sortBy === "spent" 
-                ? "bg-blue-50 border-blue-200 text-blue-700" 
-                : "border-slate-200 text-slate-600 hover:bg-slate-50"}`}
+                ? "bg-[#1DB954]/10 border-[#1DB954]/30 text-[#1DB954]" 
+                : "border-slate-800 bg-[#121212] text-slate-400 hover:text-slate-200 hover:bg-slate-850"}`}
           >
-            <DollarSign size={14} /> Revenue
-            <ArrowUpDown size={12} />
+            <DollarSign size={13} /> Spent
+            <ArrowUpDown size={11} />
           </button>
           <button
             onClick={() => toggleSort("balance")}
             className={`px-3 py-1.5 rounded-lg text-xs font-bold border flex items-center gap-1.5 transition-all
               ${sortBy === "balance" 
-                ? "bg-blue-50 border-blue-200 text-blue-700" 
-                : "border-slate-200 text-slate-600 hover:bg-slate-50"}`}
+                ? "bg-purple-500/10 border-purple-500/30 text-purple-400" 
+                : "border-slate-800 bg-[#121212] text-slate-400 hover:text-slate-200 hover:bg-slate-850"}`}
           >
-            <Landmark size={14} /> Wallet Balance
-            <ArrowUpDown size={12} />
+            <Landmark size={13} /> Balance
+            <ArrowUpDown size={11} />
           </button>
           <button
             onClick={() => toggleSort("orders")}
             className={`px-3 py-1.5 rounded-lg text-xs font-bold border flex items-center gap-1.5 transition-all
               ${sortBy === "orders" 
-                ? "bg-blue-50 border-blue-200 text-blue-700" 
-                : "border-slate-200 text-slate-600 hover:bg-slate-50"}`}
+                ? "bg-blue-500/10 border-blue-500/30 text-blue-400" 
+                : "border-slate-800 bg-[#121212] text-slate-400 hover:text-slate-200 hover:bg-slate-850"}`}
           >
-            <ShoppingBag size={14} /> Orders count
-            <ArrowUpDown size={12} />
+            <ShoppingBag size={13} /> Orders
+            <ArrowUpDown size={11} />
           </button>
           <button
             onClick={() => toggleSort("active")}
             className={`px-3 py-1.5 rounded-lg text-xs font-bold border flex items-center gap-1.5 transition-all
               ${sortBy === "active" 
-                ? "bg-blue-50 border-blue-200 text-blue-700" 
-                : "border-slate-200 text-slate-600 hover:bg-slate-50"}`}
+                ? "bg-amber-500/10 border-amber-500/30 text-amber-400" 
+                : "border-slate-800 bg-[#121212] text-slate-400 hover:text-slate-200 hover:bg-slate-850"}`}
           >
-            <Calendar size={14} /> Recency
-            <ArrowUpDown size={12} />
+            <Calendar size={13} /> Active
+            <ArrowUpDown size={11} />
           </button>
         </div>
       </div>
 
       {/* Main Table Card */}
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+      <div className="bg-[#181818] rounded-2xl shadow-lg border border-slate-800/80 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-slate-50 border-b border-slate-200">
-                <th className="py-4 px-6 font-semibold text-slate-700 text-sm">Customer Email</th>
-                <th className="py-4 px-6 font-semibold text-slate-700 text-sm">Wallet Balance</th>
-                <th className="py-4 px-6 font-semibold text-slate-700 text-sm text-center">Orders Count</th>
-                <th className="py-4 px-6 font-semibold text-slate-700 text-sm">Total Revenue</th>
-                <th className="py-4 px-6 font-semibold text-slate-700 text-sm">Last Active</th>
-                <th className="py-4 px-6 font-semibold text-slate-700 text-sm">Status Summary</th>
-                <th className="py-4 px-6 font-semibold text-slate-700 text-sm text-right">Actions</th>
+              <tr className="bg-[#1c1c1c] border-b border-slate-850/60">
+                <th className="py-4 px-6 font-extrabold text-slate-400 text-xs uppercase tracking-wider">Customer Email</th>
+                <th className="py-4 px-6 font-extrabold text-slate-400 text-xs uppercase tracking-wider">Wallet Balance</th>
+                <th className="py-4 px-6 font-extrabold text-slate-400 text-xs uppercase tracking-wider text-center">Orders Count</th>
+                <th className="py-4 px-6 font-extrabold text-slate-400 text-xs uppercase tracking-wider">Total Revenue</th>
+                <th className="py-4 px-6 font-extrabold text-slate-400 text-xs uppercase tracking-wider">Last Active</th>
+                <th className="py-4 px-6 font-extrabold text-slate-400 text-xs uppercase tracking-wider">Status Summary</th>
+                <th className="py-4 px-6 font-extrabold text-slate-400 text-xs uppercase tracking-wider text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-slate-850/50">
               {sortedCustomers.map((customer) => (
-                <tr key={customer.email} className="hover:bg-slate-50/50 transition-colors">
-                  <td className="py-4 px-6 text-sm font-semibold text-slate-900 whitespace-nowrap">
+                <tr key={customer.email} className="hover:bg-slate-800/20 transition-colors">
+                  <td className="py-4 px-6 text-sm font-semibold text-slate-200 whitespace-nowrap">
                     <div className="flex items-center gap-2.5">
-                      <div className="bg-blue-50 p-2 rounded-lg text-blue-600">
+                      <div className="bg-slate-800 p-2 rounded-lg text-slate-400 border border-slate-700/30">
                         <Mail size={16} />
                       </div>
-                      {customer.email}
+                      <span className="tracking-tight">{customer.email}</span>
                     </div>
                   </td>
-                  <td className="py-4 px-6 text-sm font-bold text-slate-900 whitespace-nowrap">
+                  <td className="py-4 px-6 text-sm font-bold whitespace-nowrap">
                     {customer.hasProfile ? (
-                      <span className="text-slate-900">₱{customer.balance.toFixed(2)}</span>
+                      <span className="text-white bg-purple-500/10 border border-purple-500/20 px-2.5 py-1 rounded-lg">₱{customer.balance.toFixed(2)}</span>
                     ) : (
-                      <span className="text-slate-400 italic text-xs">No Account</span>
+                      <span className="text-slate-500 italic text-xs px-2.5 py-1 bg-slate-800/20 border border-slate-800/50 rounded-lg">Guest shopper</span>
                     )}
                   </td>
-                  <td className="py-4 px-6 text-sm text-slate-600 text-center font-bold">
+                  <td className="py-4 px-6 text-sm text-slate-300 text-center font-extrabold">
                     {customer.totalOrders}
                   </td>
-                  <td className="py-4 px-6 text-sm font-bold text-green-600">
+                  <td className="py-4 px-6 text-sm font-extrabold text-[#1DB954]">
                     ₱{customer.totalSpent.toFixed(2)}
                   </td>
-                  <td className="py-4 px-6 text-sm text-slate-500 whitespace-nowrap">
+                  <td className="py-4 px-6 text-xs text-slate-400 whitespace-nowrap">
                     {format(new Date(customer.lastActive), 'MMM d, yyyy h:mm a')}
                   </td>
                   <td className="py-4 px-6 text-sm">
                     <div className="flex items-center gap-2 flex-wrap">
                       {customer.statuses.pending > 0 && (
-                        <span className="bg-orange-50 text-orange-700 text-xs font-bold px-2 py-0.5 rounded-full border border-orange-100">
+                        <span className="bg-orange-500/10 text-orange-400 text-[10px] font-extrabold px-2 py-0.5 rounded-full border border-orange-500/20 uppercase tracking-wide">
                           {customer.statuses.pending} Pending
                         </span>
                       )}
                       {customer.statuses.processing > 0 && (
-                        <span className="bg-blue-50 text-blue-700 text-xs font-bold px-2 py-0.5 rounded-full border border-blue-100">
-                          {customer.statuses.processing} Processing
+                        <span className="bg-blue-500/10 text-blue-400 text-[10px] font-extrabold px-2 py-0.5 rounded-full border border-blue-500/20 uppercase tracking-wide">
+                          {customer.statuses.processing} Proc
                         </span>
                       )}
                       {customer.statuses.completed > 0 && (
-                        <span className="bg-green-50 text-green-700 text-xs font-bold px-2 py-0.5 rounded-full border border-green-100">
-                          {customer.statuses.completed} Completed
+                        <span className="bg-[#1DB954]/10 text-[#1DB954] text-[10px] font-extrabold px-2 py-0.5 rounded-full border border-[#1DB954]/20 uppercase tracking-wide">
+                          {customer.statuses.completed} Done
                         </span>
                       )}
                       {customer.statuses.cancelled > 0 && (
-                        <span className="bg-red-50 text-red-700 text-xs font-bold px-2 py-0.5 rounded-full border border-red-100">
-                          {customer.statuses.cancelled} Cancelled
+                        <span className="bg-red-500/10 text-red-400 text-[10px] font-extrabold px-2 py-0.5 rounded-full border border-red-500/20 uppercase tracking-wide">
+                          {customer.statuses.cancelled} Cancel
                         </span>
                       )}
                     </div>
@@ -243,7 +316,7 @@ export function CustomersList({ initialCustomers }: { initialCustomers: Customer
                           setEditingCustomer(customer);
                           setNewBalanceValue(customer.balance.toString());
                         }}
-                        className="px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg text-xs font-bold transition-colors"
+                        className="px-3 py-1.5 bg-[#1DB954]/10 border border-[#1DB954]/20 text-[#1DB954] hover:bg-[#1DB954]/20 rounded-lg text-xs font-bold transition-colors shadow-sm"
                       >
                         Edit Balance
                       </button>
@@ -269,7 +342,7 @@ export function CustomersList({ initialCustomers }: { initialCustomers: Customer
                           }
                         }
                       }}
-                      className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors inline-flex text-xs font-bold"
+                      className="px-2 py-1.5 text-red-400 hover:bg-red-500/10 border border-red-500/10 hover:border-red-500/20 rounded-lg transition-all text-xs font-extrabold uppercase tracking-wider"
                       title="Delete Customer"
                     >
                       Delete
@@ -279,7 +352,7 @@ export function CustomersList({ initialCustomers }: { initialCustomers: Customer
               ))}
               {sortedCustomers.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="py-8 text-center text-slate-500">
+                  <td colSpan={7} className="py-12 text-center text-slate-500 text-sm font-semibold">
                     No customers found matching search criteria.
                   </td>
                 </tr>
@@ -291,13 +364,13 @@ export function CustomersList({ initialCustomers }: { initialCustomers: Customer
 
       {/* Edit Balance Modal */}
       {editingCustomer && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#090909]/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-md shadow-2xl p-6 relative transform transition-all animate-in zoom-in-95 duration-200">
-            <h3 className="text-xl font-bold text-slate-900 mb-2 flex items-center gap-2">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#090909]/80 backdrop-blur-md p-4 animate-in fade-in duration-200">
+          <div className="bg-[#181818] border border-slate-800/80 rounded-2xl w-full max-w-md shadow-2xl p-6 relative transform transition-all animate-in zoom-in-95 duration-200 text-slate-350">
+            <h3 className="text-xl font-black text-white mb-2 flex items-center gap-2">
               Edit Wallet Balance
             </h3>
-            <p className="text-sm text-slate-500 mb-6">
-              Update the balance for <strong className="text-slate-800">{editingCustomer.email}</strong>.
+            <p className="text-xs text-slate-400 mb-6">
+              Update the balance for <strong className="text-slate-200">{editingCustomer.email}</strong>.
             </p>
 
             <form onSubmit={async (e) => {
@@ -327,7 +400,7 @@ export function CustomersList({ initialCustomers }: { initialCustomers: Customer
               }
             }} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5">
+                <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-1.5">
                   Wallet Balance (₱)
                 </label>
                 <input
@@ -337,7 +410,7 @@ export function CustomersList({ initialCustomers }: { initialCustomers: Customer
                   required
                   value={newBalanceValue}
                   onChange={(e) => setNewBalanceValue(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-600 text-slate-900 font-bold transition-all text-sm"
+                  className="w-full px-4 py-3 rounded-xl bg-[#121212] border border-slate-850/60 focus:outline-none focus:border-[#1DB954]/55 focus:ring-1 focus:ring-[#1DB954]/25 text-white font-black transition-all text-sm"
                   placeholder="0.00"
                 />
               </div>
@@ -347,14 +420,14 @@ export function CustomersList({ initialCustomers }: { initialCustomers: Customer
                   type="button"
                   onClick={() => setEditingCustomer(null)}
                   disabled={isUpdatingBalance}
-                  className="px-4 py-2 border border-slate-200 hover:bg-slate-50 rounded-xl text-slate-600 font-bold text-sm transition-colors"
+                  className="px-4 py-2 bg-transparent hover:bg-slate-800/40 border border-slate-800 rounded-xl text-slate-400 hover:text-white font-extrabold text-xs uppercase tracking-wider transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isUpdatingBalance}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold rounded-xl text-sm transition-colors flex items-center gap-1.5"
+                  className="px-4 py-2 bg-[#1DB954] hover:bg-[#1ed760] disabled:opacity-50 text-black font-extrabold rounded-xl text-xs uppercase tracking-wider transition-colors flex items-center gap-1.5"
                 >
                   {isUpdatingBalance ? "Saving..." : "Save Changes"}
                 </button>

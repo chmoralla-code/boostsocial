@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { createClient } from "@/utils/supabase/client";
-import { Edit2, Trash2, Plus, X, Users, ThumbsUp, Play } from "lucide-react";
+import { Edit2, Trash2, Plus, X, Users, ThumbsUp, Play, Search, DollarSign, Settings, Layers, Image as ImageIcon } from "lucide-react";
 import { compressImage } from "@/utils/imageCompressor";
 
 interface Service {
@@ -16,6 +16,7 @@ interface Service {
 
 export function ServicesTable({ initialServices }: { initialServices: Service[] }) {
   const [services, setServices] = useState<Service[]>(initialServices);
+  const [searchTerm, setSearchTerm] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
   
@@ -227,227 +228,316 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
     }
     switch (type) {
       case "followers":
-        return <Users size={20} className="text-blue-600" />;
+        return <Users size={18} className="text-blue-400" />;
       case "reactions":
-        return <ThumbsUp size={20} className="text-red-500" />;
+        return <ThumbsUp size={18} className="text-red-400" />;
       case "views":
-        return <Play size={20} className="text-[#1DB954]" />;
+        return <Play size={18} className="text-[#1DB954]" />;
       default:
-        return <Users size={20} className="text-slate-600" />;
+        return <Users size={18} className="text-slate-400" />;
     }
   };
 
+  // Dynamically calculate aggregate metadata values
+  const totalTiers = services.length;
+  const highestPriceService = services.length > 0 
+    ? [...services].sort((a, b) => b.starting_price - a.starting_price)[0]
+    : null;
+  const categoryCounts = services.reduce((acc, s) => {
+    const key = s.icon_type.startsWith("http") ? "custom" : s.icon_type;
+    acc[key] = (acc[key] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+  const dominantCategory = Object.entries(categoryCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || "None";
+
+  // Filter lists based on Search input
+  const filteredServices = services.filter(s =>
+    s.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    s.description.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-      <div className="p-6 border-b border-slate-200 flex justify-between items-center bg-slate-50/50">
-        <h2 className="text-lg font-bold text-slate-800">Services Catalog</h2>
+    <div className="space-y-6 text-slate-300">
+      {/* Dynamic Telemetry Aggregates */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="bg-[#181818] border border-slate-800/80 p-5 rounded-2xl relative overflow-hidden group shadow-lg">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-[#1DB954]/5 rounded-full pointer-events-none -mr-8 -mt-8 group-hover:bg-[#1DB954]/10 transition-colors duration-300"></div>
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-extrabold uppercase tracking-widest text-slate-400">Total Services Tiers</span>
+            <div className="bg-[#1DB954]/10 text-[#1DB954] border border-[#1DB954]/25 p-2 rounded-xl">
+              <Layers size={16} />
+            </div>
+          </div>
+          <div className="mt-4">
+            <h3 className="text-2xl font-black text-white tracking-tight">{totalTiers}</h3>
+            <p className="text-[10px] text-slate-500 font-bold mt-1 uppercase tracking-wider">Configured catalog tiers</p>
+          </div>
+        </div>
+
+        <div className="bg-[#181818] border border-slate-800/80 p-5 rounded-2xl relative overflow-hidden group shadow-lg">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/5 rounded-full pointer-events-none -mr-8 -mt-8 group-hover:bg-blue-500/10 transition-colors duration-300"></div>
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-extrabold uppercase tracking-widest text-slate-400">Highest Pricing Tier</span>
+            <div className="bg-blue-500/10 text-blue-400 border border-blue-500/25 p-2 rounded-xl">
+              <DollarSign size={16} />
+            </div>
+          </div>
+          <div className="mt-4">
+            <h3 className="text-2xl font-black text-blue-400 tracking-tight">
+              {highestPriceService ? `₱${Number(highestPriceService.starting_price).toFixed(2)}` : "₱0.00"}
+            </h3>
+            <p className="text-[10px] text-slate-500 font-bold mt-1 uppercase tracking-wider truncate">
+              {highestPriceService ? highestPriceService.title : "No services configured"}
+            </p>
+          </div>
+        </div>
+
+        <div className="bg-[#181818] border border-slate-800/80 p-5 rounded-2xl relative overflow-hidden group shadow-lg">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-purple-500/5 rounded-full pointer-events-none -mr-8 -mt-8 group-hover:bg-purple-500/10 transition-colors duration-300"></div>
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-extrabold uppercase tracking-widest text-slate-400">Popular Focus</span>
+            <div className="bg-purple-500/10 text-purple-400 border border-purple-500/25 p-2 rounded-xl">
+              <Settings size={16} />
+            </div>
+          </div>
+          <div className="mt-4">
+            <h3 className="text-2xl font-black text-purple-400 tracking-tight capitalize">{dominantCategory}</h3>
+            <p className="text-[10px] text-slate-500 font-bold mt-1 uppercase tracking-wider">Most frequent service type</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Control Actions & Search Bar */}
+      <div className="flex flex-col sm:flex-row gap-4 justify-between items-center bg-[#181818] p-4 rounded-2xl border border-slate-800/80 shadow-md">
+        <div className="relative w-full sm:w-80">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
+          <input
+            type="text"
+            placeholder="Search service catalog..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#121212] border border-slate-850/60 focus:outline-none focus:border-[#1DB954]/55 focus:ring-1 focus:ring-[#1DB954]/25 transition-all text-slate-200 font-medium placeholder-slate-500"
+          />
+        </div>
         <button
           onClick={openAddModal}
-          className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2.5 rounded-xl transition-colors flex items-center gap-2 text-sm"
+          className="w-full sm:w-auto bg-[#1DB954] hover:bg-[#1ed760] text-black font-extrabold px-5 py-2.5 rounded-xl transition-all flex items-center justify-center gap-2 text-xs uppercase tracking-wider shadow-md"
         >
-          <Plus size={16} /> Add New Service
+          <Plus size={16} strokeWidth={3} /> Add New Service
         </button>
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="bg-slate-50 border-b border-slate-200">
-              <th className="py-4 px-6 font-semibold text-slate-700 text-sm">Icon</th>
-              <th className="py-4 px-6 font-semibold text-slate-700 text-sm">Title</th>
-              <th className="py-4 px-6 font-semibold text-slate-700 text-sm">Description</th>
-              <th className="py-4 px-6 font-semibold text-slate-700 text-sm">Starting Price</th>
-              <th className="py-4 px-6 font-semibold text-slate-700 text-sm">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {services.map((service) => (
-              <tr key={service.id} className="hover:bg-slate-50/50 transition-colors">
-                <td className="py-4 px-6 text-sm text-slate-600 whitespace-nowrap">
-                  <div className="bg-slate-100 p-2.5 rounded-lg inline-flex">
-                    {getIconComponent(service.icon_type)}
-                  </div>
-                </td>
-                <td className="py-4 px-6 text-sm font-bold text-slate-900">
-                  {service.title}
-                </td>
-                <td className="py-4 px-6 text-sm text-slate-600 max-w-sm truncate">
-                  {(() => {
-                    try {
-                      if (service.description && service.description.trim().startsWith("{")) {
-                        return JSON.parse(service.description).description || service.description;
-                      }
-                    } catch (e) {}
-                    return service.description;
-                  })()}
-                </td>
-                <td className="py-4 px-6 text-sm font-semibold text-slate-900">
-                  ₱{Number(service.starting_price).toFixed(2)}
-                </td>
-                <td className="py-4 px-6 text-sm flex items-center gap-3">
-                  <button
-                    onClick={() => openEditModal(service)}
-                    className="p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
-                    title="Edit Service"
-                  >
-                    <Edit2 size={16} />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(service.id)}
-                    className="p-2 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
-                    title="Delete Service"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </td>
+      {/* Services Table Content */}
+      <div className="bg-[#181818] rounded-2xl shadow-lg border border-slate-800/80 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-[#1c1c1c] border-b border-slate-850/60">
+                <th className="py-4 px-6 font-extrabold text-slate-400 text-xs uppercase tracking-wider w-20">Icon</th>
+                <th className="py-4 px-6 font-extrabold text-slate-400 text-xs uppercase tracking-wider">Service Title</th>
+                <th className="py-4 px-6 font-extrabold text-slate-400 text-xs uppercase tracking-wider">Config Description</th>
+                <th className="py-4 px-6 font-extrabold text-slate-400 text-xs uppercase tracking-wider w-44">Starting Price</th>
+                <th className="py-4 px-6 font-extrabold text-slate-400 text-xs uppercase tracking-wider text-right w-32">Actions</th>
               </tr>
-            ))}
-            {services.length === 0 && (
-              <tr>
-                <td colSpan={5} className="py-8 text-center text-slate-500">No services configured yet.</td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-slate-850/50">
+              {filteredServices.map((service) => (
+                <tr key={service.id} className="hover:bg-slate-800/20 transition-colors">
+                  <td className="py-4 px-6 text-sm text-slate-400 whitespace-nowrap">
+                    <div className="bg-slate-800 p-2.5 rounded-xl border border-slate-700/35 inline-flex shadow-sm">
+                      {getIconComponent(service.icon_type)}
+                    </div>
+                  </td>
+                  <td className="py-4 px-6 text-sm font-bold text-white tracking-tight">
+                    {service.title}
+                  </td>
+                  <td className="py-4 px-6 text-xs text-slate-400 max-w-md truncate">
+                    {(() => {
+                      try {
+                        if (service.description && service.description.trim().startsWith("{")) {
+                          return JSON.parse(service.description).description || service.description;
+                        }
+                      } catch (e) {}
+                      return service.description;
+                    })()}
+                  </td>
+                  <td className="py-4 px-6 text-sm font-extrabold text-[#1DB954] whitespace-nowrap">
+                    ₱{Number(service.starting_price).toFixed(2)} <span className="text-[10px] text-slate-500 font-bold uppercase">/ 1K units</span>
+                  </td>
+                  <td className="py-4 px-6 text-sm text-right whitespace-nowrap space-x-2">
+                    <button
+                      onClick={() => openEditModal(service)}
+                      className="px-2.5 py-1.5 bg-[#1DB954]/10 border border-[#1DB954]/15 hover:border-[#1DB954]/30 hover:bg-[#1DB954]/25 text-[#1DB954] rounded-lg transition-all text-xs font-bold inline-flex items-center gap-1.5"
+                      title="Edit Service"
+                    >
+                      <Edit2 size={13} /> Edit
+                    </button>
+                    <button
+                      onClick={() => handleDelete(service.id)}
+                      className="px-2.5 py-1.5 bg-red-500/10 border border-red-500/15 hover:border-red-500/30 hover:bg-red-500/20 text-red-400 rounded-lg transition-all text-xs font-bold inline-flex items-center gap-1.5"
+                      title="Delete Service"
+                    >
+                      <Trash2 size={13} /> Delete
+                    </button>
+                  </td>
+                </tr>
+              ))}
+              {filteredServices.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="py-12 text-center text-slate-500 text-sm font-semibold">
+                    No services configured inside catalog.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
-      {/* Add / Edit Modal */}
+      {/* Add / Edit Glassmorphic Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-filter backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-slate-100 overflow-hidden transform transition-all animate-in fade-in zoom-in-95 duration-200">
-            <div className="px-6 py-4 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
-              <h3 className="text-lg font-bold text-slate-900">
-                {editingService ? "Edit Service" : "Add New Service"}
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#090909]/80 backdrop-blur-md p-4 animate-in fade-in duration-200">
+          <div className="bg-[#181818] border border-slate-800/80 rounded-2xl w-full max-w-lg shadow-2xl p-6 relative transform transition-all animate-in zoom-in-95 duration-200 text-slate-350 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center pb-4 border-b border-slate-850/60 mb-6">
+              <h3 className="text-lg font-black text-white">
+                {editingService ? "Edit Service Tier" : "Add New Service Tier"}
               </h3>
               <button
                 onClick={() => setIsModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 hover:bg-slate-200/50 p-1.5 rounded-lg transition-all"
+                className="text-slate-500 hover:text-white hover:bg-slate-800 p-1.5 rounded-lg transition-all"
               >
                 <X size={18} />
               </button>
             </div>
 
-            <form onSubmit={handleSave} className="p-6 space-y-4">
+            <form onSubmit={handleSave} className="space-y-4">
               {error && (
-                <div className="bg-red-50 text-red-700 px-4 py-3 rounded-xl text-sm font-medium border border-red-100">
+                <div className="bg-red-500/10 text-red-400 px-4 py-3 rounded-xl text-xs font-bold border border-red-500/20 uppercase tracking-wide">
                   {error}
                 </div>
               )}
 
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1.5">
-                  Service Title
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="e.g. Premium Followers"
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all text-slate-950 font-medium"
-                />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-1.5">
+                    Service Title
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    placeholder="e.g. Premium Followers"
+                    className="w-full px-4 py-2.5 rounded-xl bg-[#121212] border border-slate-850/60 focus:outline-none focus:border-[#1DB954]/55 focus:ring-1 focus:ring-[#1DB954]/25 text-white font-bold transition-all text-sm"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-1.5">
+                    Starting Price (₱ per 1,000)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    required
+                    value={startingPrice}
+                    onChange={(e) => setStartingPrice(e.target.value)}
+                    placeholder="e.g. 9.99"
+                    className="w-full px-4 py-2.5 rounded-xl bg-[#121212] border border-slate-850/60 focus:outline-none focus:border-[#1DB954]/55 focus:ring-1 focus:ring-[#1DB954]/25 text-[#1DB954] font-black transition-all text-sm"
+                  />
+                </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1.5">
-                  Starting Price (₱ per 1,000)
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  required
-                  value={startingPrice}
-                  onChange={(e) => setStartingPrice(e.target.value)}
-                  placeholder="e.g. 9.99"
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all text-slate-950 font-medium"
-                />
-              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-1.5">
+                    Icon Selection
+                  </label>
+                  <select
+                    value={iconType.startsWith("http") ? "custom" : iconType}
+                    onChange={(e) => {
+                      if (e.target.value !== "custom") {
+                        setIconType(e.target.value);
+                      }
+                    }}
+                    className="w-full px-4 py-2.5 rounded-xl bg-[#121212] border border-slate-850/60 focus:outline-none focus:border-[#1DB954]/55 focus:ring-1 focus:ring-[#1DB954]/25 text-white font-bold cursor-pointer text-sm"
+                  >
+                    <option value="followers">Followers (Users Icon)</option>
+                    <option value="reactions">Reactions (Thumbs Up Icon)</option>
+                    <option value="views">Views (Play Button Icon)</option>
+                    {iconType.startsWith("http") && (
+                      <option value="custom">Custom PNG Upload (Current)</option>
+                    )}
+                  </select>
+                </div>
 
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1.5">
-                  Icon Type
-                </label>
-                <select
-                  value={iconType.startsWith("http") ? "custom" : iconType}
-                  onChange={(e) => {
-                    if (e.target.value !== "custom") {
-                      setIconType(e.target.value);
-                    }
-                  }}
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all text-slate-950 font-medium cursor-pointer"
-                >
-                  <option value="followers">Followers (Users Icon)</option>
-                  <option value="reactions">Reactions (Thumbs Up Icon)</option>
-                  <option value="views">Views (Play Button Icon)</option>
-                  {iconType.startsWith("http") && (
-                    <option value="custom">Custom PNG Upload (Current)</option>
-                  )}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1.5 flex items-center gap-2">
-                  <span>Upload Custom PNG Icon</span>
-                  <span className="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Overrides Selection</span>
-                </label>
-                <div className="flex items-center gap-4 bg-slate-50 p-3 rounded-xl border border-slate-200">
-                  <div className="flex-1">
-                    <input 
-                      type="file" 
-                      accept="image/png"
-                      onChange={(e) => setCustomIconFile(e.target.files?.[0] || null)}
-                      className="w-full text-sm text-slate-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-blue-600 file:text-white hover:file:bg-blue-700 cursor-pointer transition-colors"
-                    />
-                  </div>
-                  {customIconFile && (
-                    <div className="w-12 h-12 rounded-lg bg-white border border-slate-200 overflow-hidden shadow-sm flex-shrink-0 flex items-center justify-center">
-                      <img 
-                        src={URL.createObjectURL(customIconFile)} 
-                        alt="Preview" 
-                        className="w-full h-full object-contain"
+                <div>
+                  <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-1.5 flex items-center gap-2">
+                    <span>Upload PNG Icon</span>
+                    <span className="text-[8px] bg-blue-500/20 text-blue-400 border border-blue-500/20 px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wider">Overrides</span>
+                  </label>
+                  <div className="flex items-center gap-3 bg-[#121212] px-3 py-2 rounded-xl border border-slate-850/60">
+                    <div className="flex-1 overflow-hidden">
+                      <input 
+                        type="file" 
+                        accept="image/png"
+                        onChange={(e) => setCustomIconFile(e.target.files?.[0] || null)}
+                        className="w-full text-xs text-slate-400 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[10px] file:font-black file:uppercase file:tracking-wider file:bg-[#1DB954]/10 file:text-[#1DB954] hover:file:bg-[#1DB954]/25 file:cursor-pointer cursor-pointer transition-colors"
                       />
                     </div>
-                  )}
+                    {customIconFile && (
+                      <div className="w-9 h-9 rounded-lg bg-slate-800 border border-slate-700 overflow-hidden shadow-sm flex-shrink-0 flex items-center justify-center">
+                        <img 
+                          src={URL.createObjectURL(customIconFile)} 
+                          alt="Preview" 
+                          className="w-full h-full object-contain"
+                        />
+                      </div>
+                    )}
+                  </div>
                 </div>
-                {customIconFile && (
-                  <p className="text-xs text-[#1DB954] font-bold mt-2 flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#1DB954] animate-pulse"></span>
-                    Custom PNG attached and ready to upload
-                  </p>
-                )}
               </div>
 
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1.5">
-                  Feature Subtitle (e.g. Build Your Audience)
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={subtitle}
-                  onChange={(e) => setSubtitle(e.target.value)}
-                  placeholder="e.g. Build Your Audience"
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all text-slate-950 font-medium"
-                />
-              </div>
+              {customIconFile && (
+                <p className="text-[10px] text-[#1DB954] font-black uppercase tracking-wider flex items-center gap-1.5 mt-1 bg-[#1DB954]/5 px-3 py-1.5 rounded-lg border border-[#1DB954]/15">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#1DB954] animate-pulse"></span>
+                  Custom PNG attached & optimized via client-side PNG compressor
+                </p>
+              )}
 
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1.5">
-                  Button Text (e.g. Boost Followers)
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={buttonText}
-                  onChange={(e) => setButtonText(e.target.value)}
-                  placeholder="e.g. Boost Followers"
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all text-slate-950 font-medium"
-                />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-1.5">
+                    Feature Subtitle
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={subtitle}
+                    onChange={(e) => setSubtitle(e.target.value)}
+                    placeholder="e.g. Build Your Audience"
+                    className="w-full px-4 py-2.5 rounded-xl bg-[#121212] border border-slate-850/60 focus:outline-none focus:border-[#1DB954]/55 focus:ring-1 focus:ring-[#1DB954]/25 text-white font-bold transition-all text-sm"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-1.5">
+                    Button Action Text
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={buttonText}
+                    onChange={(e) => setButtonText(e.target.value)}
+                    placeholder="e.g. Boost Followers"
+                    className="w-full px-4 py-2.5 rounded-xl bg-[#121212] border border-slate-850/60 focus:outline-none focus:border-[#1DB954]/55 focus:ring-1 focus:ring-[#1DB954]/25 text-white font-bold transition-all text-sm"
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+                  <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-1.5">
                     Min Quantity
                   </label>
                   <input
@@ -456,11 +546,11 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
                     value={minQuantity}
                     onChange={(e) => setMinQuantity(e.target.value)}
                     placeholder="e.g. 100"
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all text-slate-950 font-medium"
+                    className="w-full px-4 py-2.5 rounded-xl bg-[#121212] border border-slate-850/60 focus:outline-none focus:border-[#1DB954]/55 focus:ring-1 focus:ring-[#1DB954]/25 text-white font-bold transition-all text-sm"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+                  <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-1.5">
                     Free Trial Amount
                   </label>
                   <input
@@ -469,49 +559,49 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
                     value={freeTrialAmount}
                     onChange={(e) => setFreeTrialAmount(e.target.value)}
                     placeholder="e.g. 50"
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all text-slate-950 font-medium"
+                    className="w-full px-4 py-2.5 rounded-xl bg-[#121212] border border-slate-850/60 focus:outline-none focus:border-[#1DB954]/55 focus:ring-1 focus:ring-[#1DB954]/25 text-white font-bold transition-all text-sm"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1.5">
-                  Description
+                <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-1.5">
+                  Detailed Catalog Description
                 </label>
                 <textarea
                   required
-                  rows={3}
+                  rows={2}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="Describe the service tier benefits and features..."
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all text-slate-950 font-medium resize-none"
+                  className="w-full px-4 py-2.5 rounded-xl bg-[#121212] border border-slate-850/60 focus:outline-none focus:border-[#1DB954]/55 focus:ring-1 focus:ring-[#1DB954]/25 text-white font-medium resize-none text-sm"
                 />
               </div>
 
               <div className="pt-2">
-                <label className="block text-sm font-semibold text-slate-700 mb-2 flex justify-between items-center">
+                <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-2 flex justify-between items-center">
                   <span className="flex items-center gap-1.5">
                     Custom Form Fields 
-                    <span className="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">New</span>
+                    <span className="text-[8px] bg-[#1DB954]/10 border border-[#1DB954]/20 text-[#1DB954] px-1.5 py-0.5 rounded-full font-extrabold uppercase tracking-widest">Interactive Form</span>
                   </span>
                   <button 
                     type="button" 
                     onClick={() => setCustomFields([...customFields, { id: crypto.randomUUID(), label: "" }])}
-                    className="text-[11px] bg-blue-50 border border-blue-200 text-blue-600 hover:bg-blue-100 hover:text-blue-700 font-black px-2 py-1 rounded-lg flex items-center gap-1 uppercase tracking-wider transition-colors"
+                    className="text-[9px] bg-blue-500/10 border border-blue-500/25 text-blue-400 hover:bg-blue-500/20 font-black px-2 py-1 rounded-lg flex items-center gap-1 uppercase tracking-wider transition-colors"
                   >
-                    <Plus size={12} /> Add Field
+                    <Plus size={10} strokeWidth={2.5} /> Add Form Input
                   </button>
                 </label>
                 
                 {customFields.length === 0 ? (
-                  <div className="text-xs font-semibold text-slate-500 bg-slate-50 border border-slate-200 border-dashed rounded-xl p-3.5 text-center">
+                  <div className="text-[10px] font-extrabold text-slate-500 bg-[#121212] border border-slate-800 border-dashed rounded-xl p-3.5 text-center uppercase tracking-wider">
                     No custom fields. The default "Target Link / URL" will be requested.
                   </div>
                 ) : (
-                  <div className="space-y-2.5 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+                  <div className="space-y-2 bg-[#121212] p-2.5 rounded-xl border border-slate-850/60 max-h-[140px] overflow-y-auto">
                     {customFields.map((field, index) => (
-                      <div key={field.id} className="flex gap-2 items-center bg-white p-1.5 rounded-lg border border-slate-200 shadow-sm animate-in slide-in-from-right-2">
-                        <div className="bg-slate-100 text-slate-400 font-bold px-2 py-1 rounded text-xs flex-shrink-0">
+                      <div key={field.id} className="flex gap-2 items-center bg-[#181818] p-1.5 rounded-lg border border-slate-800/80 shadow-sm animate-in slide-in-from-right-2">
+                        <div className="bg-slate-800 text-slate-400 font-extrabold px-2 py-1 rounded text-[10px] flex-shrink-0">
                           {index + 1}
                         </div>
                         <div className="flex-1">
@@ -525,7 +615,7 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
                               setCustomFields(newFields);
                             }}
                             placeholder="e.g. Enter your Roblox Username"
-                            className="w-full px-2 py-1.5 border-transparent focus:border-transparent focus:ring-0 text-xs text-slate-950 font-bold placeholder:text-slate-400"
+                            className="w-full px-2 py-1 bg-transparent border-none focus:outline-none focus:ring-0 text-xs text-white font-bold placeholder:text-slate-655 font-medium"
                           />
                         </div>
                         <button
@@ -535,10 +625,10 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
                             newFields.splice(index, 1);
                             setCustomFields(newFields);
                           }}
-                          className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors flex-shrink-0"
+                          className="p-1.5 text-red-400 hover:text-red-500 hover:bg-red-500/10 rounded-md transition-colors flex-shrink-0"
                           title="Remove Field"
                         >
-                          <Trash2 size={14} />
+                          <Trash2 size={13} />
                         </button>
                       </div>
                     ))}
@@ -546,18 +636,18 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
                 )}
               </div>
 
-              <div className="flex gap-4 pt-4 border-t border-slate-100">
+              <div className="flex gap-4 pt-4 border-t border-slate-850/60">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold py-2.5 rounded-xl transition-all"
+                  className="flex-1 bg-transparent hover:bg-slate-800/40 border border-slate-800 text-slate-400 hover:text-white font-extrabold text-xs uppercase tracking-wider py-2.5 rounded-xl transition-all"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={loading}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-semibold py-2.5 rounded-xl transition-all flex items-center justify-center"
+                  className="flex-1 bg-[#1DB954] hover:bg-[#1ed760] disabled:bg-slate-800 text-black font-extrabold py-2.5 rounded-xl transition-all flex items-center justify-center text-xs uppercase tracking-wider"
                 >
                   {loading ? "Saving..." : "Save Service"}
                 </button>

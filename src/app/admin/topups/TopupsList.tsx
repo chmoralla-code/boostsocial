@@ -2,11 +2,15 @@
 
 import { useState } from "react";
 import { format } from "date-fns";
-import { Check, X, Eye, ExternalLink } from "lucide-react";
+import { Check, X, Eye, ExternalLink, Search, Filter, Wallet, Calendar, Mail, DollarSign } from "lucide-react";
 
 export function TopupsList({ initialTopups }: { initialTopups: any[] }) {
   const [topups, setTopups] = useState(initialTopups);
   const [processingId, setProcessingId] = useState<string | null>(null);
+  
+  // Search & Filter State
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "approved" | "rejected">("all");
 
   const handleAction = async (id: string, action: 'approve' | 'reject') => {
     if (!confirm(`Are you sure you want to ${action} this top-up?`)) return;
@@ -33,83 +37,140 @@ export function TopupsList({ initialTopups }: { initialTopups: any[] }) {
     }
   };
 
+  // Live filter logic
+  const filteredTopups = topups.filter((topup) => {
+    const matchesEmail = topup.email.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = statusFilter === "all" ? true : topup.status === statusFilter;
+    return matchesEmail && matchesStatus;
+  });
+
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="bg-slate-50 border-b border-slate-200">
-              <th className="py-4 px-6 font-semibold text-slate-700 text-sm">Date</th>
-              <th className="py-4 px-6 font-semibold text-slate-700 text-sm">Customer Email</th>
-              <th className="py-4 px-6 font-semibold text-slate-700 text-sm">Amount</th>
-              <th className="py-4 px-6 font-semibold text-slate-700 text-sm">Receipt</th>
-              <th className="py-4 px-6 font-semibold text-slate-700 text-sm">Status</th>
-              <th className="py-4 px-6 font-semibold text-slate-700 text-sm text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {topups.map((topup) => (
-              <tr key={topup.id} className="hover:bg-slate-50/50 transition-colors">
-                <td className="py-4 px-6 text-sm text-slate-500 whitespace-nowrap">
-                  {format(new Date(topup.created_at), 'MMM d, yyyy h:mm a')}
-                </td>
-                <td className="py-4 px-6 text-sm font-semibold text-slate-900">
-                  {topup.email}
-                </td>
-                <td className="py-4 px-6 text-sm font-bold text-green-600">
-                  ₱{Number(topup.amount).toFixed(2)}
-                </td>
-                <td className="py-4 px-6 text-sm">
-                  {topup.receipt_url ? (
-                    <a href={topup.receipt_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-blue-600 hover:text-blue-700 font-semibold bg-blue-50 px-2.5 py-1 rounded-md inline-flex">
-                      <ExternalLink size={14} /> View
-                    </a>
-                  ) : (
-                    <span className="text-slate-400 italic">No receipt</span>
-                  )}
-                </td>
-                <td className="py-4 px-6 text-sm">
-                  <span className={`px-2.5 py-1 rounded-full text-xs font-bold border ${
-                    topup.status === 'pending' ? 'bg-orange-50 text-orange-700 border-orange-200' :
-                    topup.status === 'approved' ? 'bg-green-50 text-green-700 border-green-200' :
-                    'bg-red-50 text-red-700 border-red-200'
-                  }`}>
-                    {topup.status.toUpperCase()}
-                  </span>
-                </td>
-                <td className="py-4 px-6 text-sm text-right">
-                  {topup.status === 'pending' && (
-                    <div className="flex items-center justify-end gap-2">
-                      <button
-                        onClick={() => handleAction(topup.id, 'approve')}
-                        disabled={processingId === topup.id}
-                        className="p-1.5 bg-green-50 text-green-600 hover:bg-green-100 rounded-lg transition-colors border border-green-200"
-                        title="Approve & Add Balance"
-                      >
-                        <Check size={18} />
-                      </button>
-                      <button
-                        onClick={() => handleAction(topup.id, 'reject')}
-                        disabled={processingId === topup.id}
-                        className="p-1.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-colors border border-red-200"
-                        title="Reject Top-up"
-                      >
-                        <X size={18} />
-                      </button>
+    <div className="space-y-6 text-slate-300">
+      {/* Search Engine & Filters Toolbar */}
+      <div className="flex flex-col sm:flex-row gap-4 justify-between items-center bg-[#181818] p-4 rounded-2xl border border-slate-800/80 shadow-md">
+        <div className="relative w-full sm:w-80">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
+          <input
+            type="text"
+            placeholder="Search by customer email..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#121212] border border-slate-850/60 focus:outline-none focus:border-[#1DB954]/55 focus:ring-1 focus:ring-[#1DB954]/25 transition-all text-slate-200 font-medium placeholder-slate-500"
+          />
+        </div>
+        
+        <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end">
+          <Filter size={15} className="text-slate-500 flex-shrink-0" />
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as any)}
+            className="w-full sm:w-44 px-4 py-2.5 rounded-xl bg-[#121212] border border-slate-850/60 focus:outline-none focus:border-[#1DB954]/55 focus:ring-1 focus:ring-[#1DB954]/25 text-white font-extrabold cursor-pointer text-xs uppercase tracking-wider"
+          >
+            <option value="all">All Statuses</option>
+            <option value="pending">⏳ Pending</option>
+            <option value="approved">✅ Approved</option>
+            <option value="rejected">❌ Rejected</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Topups Audit Table */}
+      <div className="bg-[#181818] rounded-2xl shadow-lg border border-slate-800/80 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-[#1c1c1c] border-b border-slate-850/60">
+                <th className="py-4 px-6 font-extrabold text-slate-400 text-xs uppercase tracking-wider w-52">Date Submitted</th>
+                <th className="py-4 px-6 font-extrabold text-slate-400 text-xs uppercase tracking-wider">Customer Email</th>
+                <th className="py-4 px-6 font-extrabold text-slate-400 text-xs uppercase tracking-wider w-44">Deposit Amount</th>
+                <th className="py-4 px-6 font-extrabold text-slate-400 text-xs uppercase tracking-wider w-48">Receipt Proof</th>
+                <th className="py-4 px-6 font-extrabold text-slate-400 text-xs uppercase tracking-wider w-40">Top-Up Status</th>
+                <th className="py-4 px-6 font-extrabold text-slate-400 text-xs uppercase tracking-wider text-right w-36">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-850/50">
+              {filteredTopups.map((topup) => (
+                <tr key={topup.id} className="hover:bg-slate-800/20 transition-colors">
+                  <td className="py-4 px-6 text-xs text-slate-450 whitespace-nowrap">
+                    <div className="flex items-center gap-2">
+                      <Calendar size={14} className="text-slate-550" />
+                      <span>{format(new Date(topup.created_at), 'MMM d, yyyy h:mm a')}</span>
                     </div>
-                  )}
-                </td>
-              </tr>
-            ))}
-            {topups.length === 0 && (
-              <tr>
-                <td colSpan={6} className="py-8 text-center text-slate-500 font-medium">
-                  No top-up requests found.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+                  </td>
+                  <td className="py-4 px-6 text-sm font-bold text-white tracking-tight">
+                    <div className="flex items-center gap-2.5">
+                      <div className="bg-slate-800 p-1.5 rounded-lg text-slate-400 border border-slate-700/30 flex-shrink-0">
+                        <Mail size={14} />
+                      </div>
+                      <span className="truncate max-w-[200px]" title={topup.email}>{topup.email}</span>
+                    </div>
+                  </td>
+                  <td className="py-4 px-6 text-sm font-extrabold text-[#1DB954] whitespace-nowrap">
+                    ₱{Number(topup.amount).toFixed(2)}
+                  </td>
+                  <td className="py-4 px-6 text-sm whitespace-nowrap">
+                    {topup.receipt_url ? (
+                      <a 
+                        href={topup.receipt_url} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="flex items-center gap-1.5 text-[#1DB954] hover:text-[#1ed760] font-extrabold bg-[#1DB954]/10 border border-[#1DB954]/20 hover:bg-[#1DB954]/25 px-2.5 py-1 rounded-lg text-xs uppercase tracking-wider transition-all relative inline-flex shadow-sm"
+                      >
+                        <span className="relative flex h-2 w-2">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#1DB954] opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-[#1DB954]"></span>
+                        </span>
+                        <ExternalLink size={12} strokeWidth={2.5} /> View Receipt
+                      </a>
+                    ) : (
+                      <span className="text-slate-500 italic text-xs px-2.5 py-1 bg-slate-800/20 border border-slate-800/50 rounded-lg">No receipt</span>
+                    )}
+                  </td>
+                  <td className="py-4 px-6 text-sm whitespace-nowrap">
+                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold border uppercase tracking-wider ${
+                      topup.status === 'pending' ? 'bg-orange-500/10 text-orange-400 border-orange-500/20' :
+                      topup.status === 'approved' ? 'bg-[#1DB954]/10 text-[#1DB954] border-[#1DB954]/20' :
+                      'bg-red-500/10 text-red-400 border-red-500/20'
+                    }`}>
+                      {topup.status}
+                    </span>
+                  </td>
+                  <td className="py-4 px-6 text-sm text-right whitespace-nowrap">
+                    {topup.status === 'pending' ? (
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => handleAction(topup.id, 'approve')}
+                          disabled={processingId === topup.id}
+                          className="p-2 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/25 border border-emerald-500/20 hover:border-emerald-500/40 rounded-xl transition-all shadow-md cursor-pointer disabled:opacity-50"
+                          title="Approve & Add Balance"
+                        >
+                          <Check size={16} strokeWidth={3} />
+                        </button>
+                        <button
+                          onClick={() => handleAction(topup.id, 'reject')}
+                          disabled={processingId === topup.id}
+                          className="p-2 bg-red-500/10 text-red-400 hover:bg-red-500/25 border border-red-500/20 hover:border-red-500/40 rounded-xl transition-all shadow-md cursor-pointer disabled:opacity-50"
+                          title="Reject Top-up"
+                        >
+                          <X size={16} strokeWidth={3} />
+                        </button>
+                      </div>
+                    ) : (
+                      <span className="text-[10px] text-slate-550 font-bold uppercase tracking-wider">Processed</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+              {filteredTopups.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="py-12 text-center text-slate-500 text-sm font-semibold">
+                    No top-up requests found matching criteria.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

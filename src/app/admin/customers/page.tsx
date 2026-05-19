@@ -97,10 +97,27 @@ export default async function CustomersPage() {
 
   const customersList = Array.from(customersMap.values());
 
+  const metrics = {
+    totalCustomers: customersList.length,
+    registeredCount: customersList.filter(c => c.hasProfile).length,
+    guestCount: customersList.filter(c => !c.hasProfile).length,
+    totalSpent: customersList.reduce((acc, c) => acc + c.totalSpent, 0),
+    totalCapital: customersList.reduce((acc, c) => acc + c.balance, 0),
+  };
+
   return (
-    <div>
-      <h1 className="text-3xl font-bold text-slate-900 mb-8">Customer Management</h1>
-      <CustomersList initialCustomers={customersList} />
+    <div className="space-y-8 animate-in fade-in duration-300 text-slate-300">
+      <div className="flex justify-between items-start md:items-center gap-4 border-b border-slate-850/60 pb-6">
+        <div>
+          <h1 className="text-3xl font-black text-white tracking-tight flex items-center gap-3">
+            Customer Directory
+          </h1>
+          <p className="text-xs text-slate-400 font-semibold mt-1">
+            Analyze customer lifetime value, manage wallet balances, and audit purchase history.
+          </p>
+        </div>
+      </div>
+      <CustomersList initialCustomers={customersList} metrics={metrics} />
     </div>
   );
 }
