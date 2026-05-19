@@ -27,10 +27,22 @@ export function PriceCalculator({ services, onOrder }: PriceCalculatorProps) {
     }
   }, [services]);
 
-  const isPageService = selectedService?.title.toLowerCase().includes("page");
+  const parsedDetails = (() => {
+    if (selectedService && selectedService.description) {
+      try {
+        if (selectedService.description.trim().startsWith("{")) {
+          return JSON.parse(selectedService.description);
+        }
+      } catch (e) {}
+    }
+    return { min_quantity: 100 };
+  })();
+
+  const minQty = Number(parsedDetails.min_quantity) || 100;
+  const isSingleItem = minQty === 1;
 
   const targetPrice = selectedService
-    ? (isPageService 
+    ? (isSingleItem 
         ? quantity * selectedService.starting_price 
         : (quantity * selectedService.starting_price) / 1000)
     : 0;
@@ -63,16 +75,7 @@ export function PriceCalculator({ services, onOrder }: PriceCalculatorProps) {
 
   if (services.length === 0 || !selectedService) return null;
 
-  // Unpack advanced catalog min quantity if configured
-  let minQty = 100;
-  try {
-    const parsed = JSON.parse(selectedService.description);
-    if (parsed && typeof parsed === "object" && parsed.min_qty) {
-      minQty = Number(parsed.min_qty);
-    }
-  } catch (e) {
-    // Standard catalog row is not JSON
-  }
+  // Handled minQty above
 
   const handleSliderChange = (val: number) => {
     // Align with dynamic min quantity constraints
@@ -122,11 +125,16 @@ export function PriceCalculator({ services, onOrder }: PriceCalculatorProps) {
                       key={srv.id}
                       onClick={() => {
                         setSelectedService(srv);
-                        if (isSrvPage) {
-                          setQuantity(1);
-                        } else {
-                          setQuantity(1000);
-                        }
+                        
+                        // Parse next service min quantity
+                        let nextMinQty = 100;
+                        try {
+                          if (srv.description && srv.description.trim().startsWith("{")) {
+                            nextMinQty = Number(JSON.parse(srv.description).min_quantity) || 100;
+                          }
+                        } catch (e) {}
+                        
+                        setQuantity(nextMinQty === 1 ? 1 : 1000);
                       }}
                       className={`py-3 px-2 text-[11px] sm:text-xs font-black rounded-xl border transition-all duration-300 ${
                         isSelected
@@ -148,27 +156,27 @@ export function PriceCalculator({ services, onOrder }: PriceCalculatorProps) {
                   2. Select Quantity
                 </label>
                 <span className="text-sm font-black text-white font-mono bg-[#121212] px-3 py-1 rounded-lg border border-slate-800">
-                  {quantity.toLocaleString()} {isPageService ? (quantity === 1 ? "page" : "pages") : "units"}
+                  {quantity.toLocaleString()} {isSingleItem ? (quantity === 1 ? "item" : "items") : "units"}
                 </span>
               </div>
               <input
                 type="range"
-                min={isPageService ? 1 : minQty}
-                max={isPageService ? 10 : 10000}
-                step={isPageService ? 1 : (quantity < 1000 ? 50 : 100)}
+                min={minQty}
+                max={isSingleItem ? 10 : 10000}
+                step={isSingleItem ? 1 : (quantity < 1000 ? 50 : 100)}
                 value={quantity}
                 onChange={(e) => handleSliderChange(Number(e.target.value))}
                 className="w-full h-2 bg-[#121212] rounded-lg appearance-none cursor-pointer accent-[#1DB954]"
                 style={{
-                  background: isPageService 
+                  background: isSingleItem 
                     ? `linear-gradient(to right, #1DB954 0%, #1DB954 ${((quantity - 1) / (10 - 1)) * 100}%, #121212 ${((quantity - 1) / (10 - 1)) * 100}%, #121212 100%)`
                     : `linear-gradient(to right, #1DB954 0%, #1DB954 ${((quantity - minQty) / (10000 - minQty)) * 100}%, #121212 ${((quantity - minQty) / (10000 - minQty)) * 100}%, #121212 100%)`
                 }}
               />
               <div className="flex justify-between items-center mt-2.5 text-[10px] text-slate-500 font-bold uppercase">
-                <span>Min: {isPageService ? "1 page" : minQty.toLocaleString()}</span>
-                <span>Mid: {isPageService ? "5 pages" : "5,000"}</span>
-                <span>Max: {isPageService ? "10 pages" : "10,000"}</span>
+                <span>Min: {isSingleItem ? "1 item" : minQty.toLocaleString()}</span>
+                <span>Mid: {isSingleItem ? "5 items" : "5,000"}</span>
+                <span>Max: {isSingleItem ? "10 items" : "10,000"}</span>
               </div>
             </div>
           </div>

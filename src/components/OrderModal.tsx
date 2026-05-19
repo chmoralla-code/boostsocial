@@ -33,6 +33,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
   const [isWalletPayment, setIsWalletPayment] = useState(false);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
   const compressAndUploadAsset = async (file: File, orderId: string, assetType: string): Promise<string> => {
     try {
@@ -128,13 +129,17 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
         setQuantity(isPageService ? 1 : 1000);
       }
       
+      setIsCheckingAuth(true);
       supabase.auth.getUser().then(({ data }) => {
         if (data.user) {
           setUser(data.user);
           setEmail(data.user.email || "");
           supabase.from('profiles').select('*').eq('id', data.user.id).single().then(({ data: pData }) => {
             if (pData) setProfile(pData);
+            setIsCheckingAuth(false);
           });
+        } else {
+          setIsCheckingAuth(false);
         }
       });
     }
@@ -390,25 +395,27 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
               ) : (
                 <>
                   <div className="text-left bg-[#181818] border border-slate-850 p-4 rounded-xl space-y-3">
-                    <h3 className="text-xs font-black uppercase tracking-widest text-[#1DB954]">💳 Trial & GCash Payment Steps</h3>
+                    <h3 className="text-xs font-black uppercase tracking-widest text-[#1DB954]">💳 Payment Steps</h3>
                     
                     <div className="space-y-2.5 text-xs text-slate-300">
-                      <div className="flex gap-2">
-                        <span className="bg-[#1DB954]/10 text-[#1DB954] font-bold w-4 h-4 rounded-full flex items-center justify-center text-[10px] flex-shrink-0 mt-0.5">1</span>
-                        <p>
-                          <strong>Get {parsedDetails.free_trial_amount} Free Trial:</strong> We will first deliver {parsedDetails.free_trial_amount} free followers, reactions, or views to your target link so you can verify our speed & authenticity!
-                        </p>
-                      </div>
+                      {parsedDetails.free_trial_amount > 0 && (
+                        <div className="flex gap-2">
+                          <span className="bg-[#1DB954]/10 text-[#1DB954] font-bold w-4 h-4 rounded-full flex items-center justify-center text-[10px] flex-shrink-0 mt-0.5">1</span>
+                          <p>
+                            <strong>Get {parsedDetails.free_trial_amount} Free Trial:</strong> We will first deliver {parsedDetails.free_trial_amount} free followers, reactions, or views to your target link so you can verify our speed & authenticity!
+                          </p>
+                        </div>
+                      )}
                       
                       <div className="flex gap-2">
-                        <span className="bg-[#1DB954]/10 text-[#1DB954] font-bold w-4 h-4 rounded-full flex items-center justify-center text-[10px] flex-shrink-0 mt-0.5">2</span>
+                        <span className="bg-[#1DB954]/10 text-[#1DB954] font-bold w-4 h-4 rounded-full flex items-center justify-center text-[10px] flex-shrink-0 mt-0.5">{parsedDetails.free_trial_amount > 0 ? "2" : "1"}</span>
                         <p>
-                          <strong>Pay via GCash:</strong> Once you see the free {parsedDetails.free_trial_amount} delivered, scan the QR code below to pay the remaining balance: <strong className="text-[#1DB954]">₱{totalPrice.toFixed(0)}</strong>.
+                          <strong>Pay via GCash:</strong> {parsedDetails.free_trial_amount > 0 ? `Once you see the free ${parsedDetails.free_trial_amount} delivered, scan` : "Scan"} the QR code below to pay the remaining balance: <strong className="text-[#1DB954]">₱{totalPrice.toFixed(0)}</strong>.
                         </p>
                       </div>
 
                       <div className="flex gap-2">
-                        <span className="bg-[#1DB954]/10 text-[#1DB954] font-bold w-4 h-4 rounded-full flex items-center justify-center text-[10px] flex-shrink-0 mt-0.5">3</span>
+                        <span className="bg-[#1DB954]/10 text-[#1DB954] font-bold w-4 h-4 rounded-full flex items-center justify-center text-[10px] flex-shrink-0 mt-0.5">{parsedDetails.free_trial_amount > 0 ? "3" : "2"}</span>
                         <p>
                           <strong>Confirm Order:</strong> Send your **Tracking ID** and GCash payment screenshot to our **Support Chatbot** (bottom right) to instantly start your full delivery!
                         </p>
@@ -452,7 +459,11 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
-              {user ? (
+              {isCheckingAuth ? (
+                <div className="flex justify-center items-center py-4 bg-[#1e1e1e]/50 border border-slate-800/80 rounded-xl h-[86px]">
+                  <Loader2 size={24} className="text-[#1DB954] animate-spin" />
+                </div>
+              ) : user ? (
                 <div>
                   <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5 flex justify-between items-center">
                     <span>Email Address</span>

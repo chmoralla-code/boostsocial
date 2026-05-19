@@ -6,7 +6,7 @@ async function updateService() {
   const supabase = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } });
 
   try {
-    const { data: services } = await supabase.from('services').select('*').eq('title', 'PRO');
+    const { data: services } = await supabase.from('services').select('*').eq('title', 'GEMINI PRO');
     if (!services || services.length === 0) return;
     
     const service = services[0];
@@ -26,7 +26,7 @@ async function updateService() {
     }).eq('id', service.id);
     
     if (error) throw error;
-    console.log("PRO Service updated with Custom Field!");
+    console.log("GEMINI PRO Service updated with Custom Field!");
   } catch (err) {
     console.error(err);
   }

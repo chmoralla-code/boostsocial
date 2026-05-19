@@ -76,7 +76,7 @@ export function Header() {
         
         <nav className="hidden md:flex gap-8 font-bold text-slate-400 text-sm">
           <Link href="#services" className="hover:text-white transition-colors">Services</Link>
-          <a href="https://fboosting.vercel.app" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">Status Tracker</a>
+          <Link href="/track" className="hover:text-white transition-colors">Status Tracker</Link>
         </nav>
 
         <div className="flex items-center gap-4">
