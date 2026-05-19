@@ -28,7 +28,18 @@ export function ServicesSection({ services }: ServicesSectionProps) {
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [presetQty, setPresetQty] = useState<number>(1000);
 
-  const handleOrder = (id: string, title: string, price: number) => {
+  const handleOrder = (id: string, title: string, price: number, description?: string) => {
+    // Check if this service has a redirect URL
+    try {
+      if (description && description.trim().startsWith("{")) {
+        const parsed = JSON.parse(description);
+        if (parsed.redirect_url) {
+          window.open(parsed.redirect_url, "_blank", "noopener,noreferrer");
+          return;
+        }
+      }
+    } catch (e) {}
+
     setSelectedServiceId(id);
     setSelectedServiceTitle(title);
     setSelectedServicePrice(price);
@@ -72,7 +83,7 @@ export function ServicesSection({ services }: ServicesSectionProps) {
               iconType={service.icon_type}
               onOrder={(id, title, price) => {
                 setSelectedService(service);
-                handleOrder(id, title, price);
+                handleOrder(id, title, price, service.description);
               }}
             />
           ))}
