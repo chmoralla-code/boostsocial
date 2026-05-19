@@ -1,6 +1,7 @@
 import { createClient } from "@/utils/supabase/server";
 import { DollarSign, ShoppingCart, Activity } from "lucide-react";
 import { StorageOptimizingPanel } from "./StorageOptimizingPanel";
+import { TelegramSettingsPanel } from "./TelegramSettingsPanel";
 
 export default async function AdminOverview() {
   const supabase = await createClient();
@@ -57,6 +58,9 @@ export default async function AdminOverview() {
 
       {/* Storage preservation widget */}
       <StorageOptimizingPanel />
+
+      {/* Telegram Notification Settings */}
+      <TelegramSettingsPanel />
     </div>
   );
 }

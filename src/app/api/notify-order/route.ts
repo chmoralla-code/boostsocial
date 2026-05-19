@@ -1,0 +1,12 @@
+import { NextRequest, NextResponse } from "next/server";
+import { sendOrderNotification } from "@/lib/telegram";
+
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json();
+    await sendOrderNotification(body);
+    return NextResponse.json({ success: true });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}

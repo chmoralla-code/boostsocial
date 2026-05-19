@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { sendOrderNotification } from "@/lib/telegram";
 
 export async function POST(req: NextRequest) {
   try {
-    const { userId, serviceId, email, url, quantity, totalPrice } = await req.json();
+    const { userId, serviceId, email, url, quantity, totalPrice, serviceTitle } = await req.json();
 
     if (!userId || !serviceId || !email || !url || !quantity || !totalPrice) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -54,7 +55,7 @@ export async function POST(req: NextRequest) {
           customer_email: email.trim(),
           target_url: url.trim(),
           amount: cost,
-          status: 'Processing', // Instant processing for wallet payments
+          status: 'Processing',
           payment_method: 'Wallet',
           quantity: quantity
         }
@@ -63,6 +64,17 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (insertError) throw insertError;
+
+    // 4. Fire Telegram notification (non-blocking)
+    sendOrderNotification({
+      trackingId: `BS-${order.id.slice(0, 8).toUpperCase()}`,
+      service: serviceTitle || serviceId,
+      email: email.trim(),
+      quantity,
+      amount: cost,
+      paymentMethod: "💳 Wallet",
+      details: url.trim(),
+    });
 
     return NextResponse.json({ success: true, orderId: order.id, newBalance });
 

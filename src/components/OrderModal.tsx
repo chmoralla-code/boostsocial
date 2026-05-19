@@ -223,6 +223,21 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
       if (typeof window !== "undefined") {
         localStorage.setItem("last_order_id", insertData.id);
       }
+
+      // Fire Telegram notification (non-blocking)
+      fetch("/api/notify-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          trackingId: `BS-${insertData.id.slice(0, 8).toUpperCase()}`,
+          service: serviceTitle,
+          email: email.trim(),
+          quantity,
+          amount: totalPrice,
+          paymentMethod: "📱 GCash",
+          details: tempUrl,
+        }),
+      }).catch(() => {});
     } catch (err: any) {
       setError(err.message || "Something went wrong.");
       generateCaptcha();
@@ -262,6 +277,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
         body: JSON.stringify({
           userId: user.id,
           serviceId,
+          serviceTitle,
           email: user.email,
           url: tempUrl,
           quantity,
