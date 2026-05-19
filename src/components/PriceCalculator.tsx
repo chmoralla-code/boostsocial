@@ -27,8 +27,12 @@ export function PriceCalculator({ services, onOrder }: PriceCalculatorProps) {
     }
   }, [services]);
 
+  const isPageService = selectedService?.title.toLowerCase().includes("page");
+
   const targetPrice = selectedService
-    ? (quantity * selectedService.starting_price) / 1000
+    ? (isPageService 
+        ? quantity * selectedService.starting_price 
+        : (quantity * selectedService.starting_price) / 1000)
     : 0;
 
   // Smooth ticking price counter animation
@@ -105,25 +109,24 @@ export function PriceCalculator({ services, onOrder }: PriceCalculatorProps) {
           {/* Controls Panel */}
           <div className="space-y-6">
             {/* Service selector buttons */}
-            <div>
+             <div>
               <label className="block text-xs font-black uppercase tracking-wider text-slate-400 mb-3 text-left">
                 1. Select Service Type
               </label>
               <div className="grid grid-cols-3 gap-2.5">
                 {services.map((srv) => {
                   const isSelected = selectedService.id === srv.id;
+                  const isSrvPage = srv.title.toLowerCase().includes("page");
                   return (
                     <button
                       key={srv.id}
                       onClick={() => {
                         setSelectedService(srv);
-                        // Reset quantity if it violates new min quantity limits
-                        try {
-                          const parsed = JSON.parse(srv.description);
-                          if (parsed && parsed.min_qty && quantity < Number(parsed.min_qty)) {
-                            setQuantity(Number(parsed.min_qty));
-                          }
-                        } catch (e) {}
+                        if (isSrvPage) {
+                          setQuantity(1);
+                        } else {
+                          setQuantity(1000);
+                        }
                       }}
                       className={`py-3 px-2 text-[11px] sm:text-xs font-black rounded-xl border transition-all duration-300 ${
                         isSelected
@@ -145,25 +148,27 @@ export function PriceCalculator({ services, onOrder }: PriceCalculatorProps) {
                   2. Select Quantity
                 </label>
                 <span className="text-sm font-black text-white font-mono bg-[#121212] px-3 py-1 rounded-lg border border-slate-800">
-                  {quantity.toLocaleString()} units
+                  {quantity.toLocaleString()} {isPageService ? (quantity === 1 ? "page" : "pages") : "units"}
                 </span>
               </div>
               <input
                 type="range"
-                min={minQty}
-                max="10000"
-                step={quantity < 1000 ? "50" : "100"}
+                min={isPageService ? 1 : minQty}
+                max={isPageService ? 10 : 10000}
+                step={isPageService ? 1 : (quantity < 1000 ? 50 : 100)}
                 value={quantity}
                 onChange={(e) => handleSliderChange(Number(e.target.value))}
                 className="w-full h-2 bg-[#121212] rounded-lg appearance-none cursor-pointer accent-[#1DB954]"
                 style={{
-                  background: `linear-gradient(to right, #1DB954 0%, #1DB954 ${((quantity - minQty) / (10000 - minQty)) * 100}%, #121212 ${((quantity - minQty) / (10000 - minQty)) * 100}%, #121212 100%)`
+                  background: isPageService 
+                    ? `linear-gradient(to right, #1DB954 0%, #1DB954 ${((quantity - 1) / (10 - 1)) * 100}%, #121212 ${((quantity - 1) / (10 - 1)) * 100}%, #121212 100%)`
+                    : `linear-gradient(to right, #1DB954 0%, #1DB954 ${((quantity - minQty) / (10000 - minQty)) * 100}%, #121212 ${((quantity - minQty) / (10000 - minQty)) * 100}%, #121212 100%)`
                 }}
               />
               <div className="flex justify-between items-center mt-2.5 text-[10px] text-slate-500 font-bold uppercase">
-                <span>Min: {minQty.toLocaleString()}</span>
-                <span>Mid: 5,000</span>
-                <span>Max: 10,000</span>
+                <span>Min: {isPageService ? "1 page" : minQty.toLocaleString()}</span>
+                <span>Mid: {isPageService ? "5 pages" : "5,000"}</span>
+                <span>Max: {isPageService ? "10 pages" : "10,000"}</span>
               </div>
             </div>
           </div>
@@ -179,7 +184,10 @@ export function PriceCalculator({ services, onOrder }: PriceCalculatorProps) {
                 <span className="text-xs text-slate-400 font-bold">PHP</span>
               </div>
               <p className="text-[10px] text-slate-500 font-semibold italic">
-                *Computed rate: ₱{(selectedService.starting_price).toFixed(0)} per 1,000 units
+                {isPageService
+                  ? `*Computed rate: ₱${selectedService.starting_price.toFixed(0)} per page`
+                  : `*Computed rate: ₱${selectedService.starting_price.toFixed(0)} per 1,000 units`
+                }
               </p>
             </div>
 
@@ -198,7 +206,7 @@ export function PriceCalculator({ services, onOrder }: PriceCalculatorProps) {
               onClick={handleBoostClick}
               className="w-full bg-[#1DB954] hover:bg-[#1ed760] text-black font-black py-4 rounded-xl shadow-lg transition-all duration-300 transform hover:scale-[1.02] tracking-wider uppercase text-xs flex items-center justify-center gap-2"
             >
-              🚀 Boost {quantity.toLocaleString()} Now
+              🚀 Boost {quantity.toLocaleString()} {isPageService ? (quantity === 1 ? "Page" : "Pages") : "Now"}
             </button>
           </div>
         </div>

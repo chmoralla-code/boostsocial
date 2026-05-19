@@ -33,11 +33,13 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
   const [profile, setProfile] = useState<any>(null);
   const [isWalletPayment, setIsWalletPayment] = useState(false);
 
+  const isPageService = serviceTitle.toLowerCase().includes("page");
+
   // Dynamic min quantity and free trial amount based on JSON description pack
   const parsedDetails = (() => {
     const defaults = {
-      min_quantity: 100,
-      free_trial_amount: 50,
+      min_quantity: isPageService ? 1 : 100,
+      free_trial_amount: isPageService ? 0 : 50,
     };
 
     if (service && service.description) {
@@ -45,8 +47,8 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
         if (service.description.trim().startsWith("{")) {
           const p = JSON.parse(service.description);
           return {
-            min_quantity: Number(p.min_quantity) || defaults.min_quantity,
-            free_trial_amount: Number(p.free_trial_amount) || defaults.free_trial_amount,
+            min_quantity: isPageService ? 1 : (Number(p.min_quantity) || defaults.min_quantity),
+            free_trial_amount: isPageService ? 0 : (Number(p.free_trial_amount) || defaults.free_trial_amount),
           };
         }
       } catch (e) {}
@@ -87,6 +89,8 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
       
       if (presetQuantity) {
         setQuantity(presetQuantity);
+      } else {
+        setQuantity(isPageService ? 1 : 1000);
       }
       
       supabase.auth.getUser().then(({ data }) => {
@@ -99,11 +103,13 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
         }
       });
     }
-  }, [isOpen, presetQuantity]);
+  }, [isOpen, presetQuantity, isPageService]);
 
   if (!isOpen) return null;
 
-  const totalPrice = (quantity / 1000) * serviceBasePrice;
+  const totalPrice = isPageService 
+    ? quantity * serviceBasePrice 
+    : (quantity / 1000) * serviceBasePrice;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -374,12 +380,14 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5">Quantity (per 1,000)</label>
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5">
+                  {isPageService ? "Number of Pages" : "Quantity (per 1,000)"}
+                </label>
                 <input 
                   type="number" 
                   required
                   min={parsedDetails.min_quantity}
-                  step="100"
+                  step={isPageService ? "1" : "100"}
                   value={quantity}
                   onChange={(e) => setQuantity(parseInt(e.target.value) || 0)}
                   className="w-full px-4 py-3 rounded-xl bg-[#282828] border border-slate-700/60 focus:outline-none focus:ring-2 focus:ring-[#1DB954] text-white transition-all text-sm font-bold"
