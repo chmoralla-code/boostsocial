@@ -1,11 +1,29 @@
 import { createClient } from "@supabase/supabase-js";
 
+const CONFIG_BUCKET = "receipts";
+const CONFIG_PATH = "admin-config/telegram.json";
+
 const getSupabase = () =>
   createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     { auth: { persistSession: false } }
   );
+
+async function getTelegramConfig(): Promise<{ bot_token: string; chat_id: string } | null> {
+  try {
+    const supabase = getSupabase();
+    const { data, error } = await supabase.storage
+      .from(CONFIG_BUCKET)
+      .download(CONFIG_PATH);
+
+    if (error || !data) return null;
+    const text = await data.text();
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+}
 
 export async function sendOrderNotification(order: {
   trackingId: string;
@@ -17,15 +35,8 @@ export async function sendOrderNotification(order: {
   details?: string;
 }) {
   try {
-    const supabase = getSupabase();
-    const { data } = await supabase
-      .from("settings")
-      .select("value")
-      .eq("key", "telegram_config")
-      .single();
-
-    const config = data?.value;
-    if (!config?.bot_token || !config?.chat_id) return; // Not configured, skip silently
+    const config = await getTelegramConfig();
+    if (!config?.bot_token || !config?.chat_id) return;
 
     const phTime = new Date().toLocaleString("en-PH", { timeZone: "Asia/Manila" });
 
@@ -40,7 +51,7 @@ export async function sendOrderNotification(order: {
       `🔢 *Quantity:* ${escape(order.quantity)}\n` +
       `💰 *Amount:* ₱${escape(order.amount.toFixed(2))}\n` +
       `💳 *Payment:* ${escape(order.paymentMethod)}\n` +
-      (order.details ? `📝 *Details:* ${escape(order.details)}\n` : "") +
+      (order.details ? `📝 *Details:* ${escape(order.details.slice(0, 100))}\n` : "") +
       `🕐 *Time:* ${escape(phTime)} PHT`;
 
     await fetch(`https://api.telegram.org/bot${config.bot_token}/sendMessage`, {
@@ -53,7 +64,6 @@ export async function sendOrderNotification(order: {
       }),
     });
   } catch (err) {
-    // Never crash the order flow due to notification failure
     console.error("Telegram notification failed:", err);
   }
 }
