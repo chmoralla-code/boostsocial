@@ -34,6 +34,40 @@ export default function TrackPage() {
     }
   }, []);
 
+  // Subscribe to real-time status updates for the tracked order
+  useEffect(() => {
+    if (!order?.id) return;
+
+    const channel = supabase
+      .channel(`order-status-${order.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "orders",
+          filter: `id=eq.${order.id}`,
+        },
+        (payload) => {
+          console.log("Real-time order update received:", payload.new);
+          setOrder((prevOrder: any) => {
+            if (!prevOrder) return null;
+            return {
+              ...prevOrder,
+              ...payload.new,
+              services: prevOrder.services // retain joined services relation metadata
+            };
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [order?.id]);
+
+
   const handleCopy = (idStr: string) => {
     const displayId = `BS-${idStr.slice(0, 8).toUpperCase()}`;
     navigator.clipboard.writeText(displayId);
