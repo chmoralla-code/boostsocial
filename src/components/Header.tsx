@@ -87,7 +87,7 @@ export function Header() {
                 className="flex items-center gap-1.5 bg-[#1DB954]/10 hover:bg-[#1DB954]/20 border border-[#1DB954]/30 text-[#1DB954] font-extrabold py-2 px-3 rounded-full transition-all text-xs uppercase tracking-wider cursor-pointer"
               >
                 <Wallet size={14} /> 
-                ₱{profile?.balance ? Number(profile.balance).toFixed(2) : "0.00"}
+                ₱{profile?.balance ? Number(profile.balance).toFixed(0) : "0"}
               </button>
 
               <button 
@@ -169,7 +169,7 @@ export function Header() {
                             <span className="text-slate-500 font-normal">•</span>
                             <span className="text-slate-300">{order.quantity.toLocaleString()} units</span>
                             <span className="text-slate-500 font-normal">•</span>
-                            <span className="text-[#1DB954]">₱{Number(order.amount).toFixed(2)}</span>
+                            <span className="text-[#1DB954]">₱{Number(order.amount).toFixed(0)}</span>
                           </div>
                           <div className="text-[10px] text-slate-400 truncate max-w-xs sm:max-w-md font-mono select-all">
                             🔗 {order.target_url}

@@ -80,7 +80,7 @@ export function ServiceCard({ id, title, description, startingPrice, iconType, o
       <div className="flex justify-between items-end w-full mb-6 pt-4 border-t border-slate-800/60">
         <div>
           <span className="block text-slate-500 text-[10px] font-bold uppercase tracking-wider mb-1">Starts (per 1,000)</span>
-          <span className="text-3xl font-black text-white">₱{Number(startingPrice).toFixed(2)}</span>
+          <span className="text-3xl font-black text-white">₱{Number(startingPrice).toFixed(0)}</span>
         </div>
       </div>
       

@@ -265,7 +265,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                     🎉 Balance Payment Successful!
                   </h3>
                   <p className="text-xs text-slate-300 leading-relaxed font-semibold">
-                    We deducted <strong className="text-white">₱{totalPrice.toFixed(2)} PHP</strong> directly from your account wallet balance. Your boost has been automatically approved and is already set to **Processing**!
+                    We deducted <strong className="text-white">₱{totalPrice.toFixed(0)} PHP</strong> directly from your account wallet balance. Your boost has been automatically approved and is already set to **Processing**!
                   </p>
                   <div className="bg-[#121212] border border-slate-800/80 p-3.5 rounded-lg text-xs space-y-1 text-center">
                     <span className="text-[9px] text-slate-500 font-black uppercase tracking-widest block">Amplification Flow Status</span>
@@ -293,7 +293,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                       <div className="flex gap-2">
                         <span className="bg-[#1DB954]/10 text-[#1DB954] font-bold w-4 h-4 rounded-full flex items-center justify-center text-[10px] flex-shrink-0 mt-0.5">2</span>
                         <p>
-                          <strong>Pay via GCash:</strong> Once you see the free {parsedDetails.free_trial_amount} delivered, scan the QR code below to pay the remaining balance: <strong className="text-[#1DB954]">₱{totalPrice.toFixed(2)}</strong>.
+                          <strong>Pay via GCash:</strong> Once you see the free {parsedDetails.free_trial_amount} delivered, scan the QR code below to pay the remaining balance: <strong className="text-[#1DB954]">₱{totalPrice.toFixed(0)}</strong>.
                         </p>
                       </div>
 
@@ -387,7 +387,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                 />
                 <div className="flex justify-between items-center mt-2 bg-[#121212] px-3.5 py-2.5 rounded-lg border border-slate-800">
                   <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Estimated Total:</span>
-                  <span className="text-lg font-black text-white">₱{totalPrice.toFixed(2)}</span>
+                  <span className="text-lg font-black text-white">₱{totalPrice.toFixed(0)}</span>
                 </div>
               </div>
 
@@ -425,7 +425,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                     disabled={isSubmitting}
                     className="w-full bg-[#1DB954]/20 hover:bg-[#1DB954]/30 border border-[#1DB954]/50 disabled:opacity-50 text-[#1DB954] font-extrabold py-3.5 rounded-full transition-all duration-300 flex justify-center items-center gap-2 tracking-wider uppercase text-xs"
                   >
-                    {isSubmitting ? <Loader2 className="animate-spin text-[#1DB954]" size={18} /> : `Pay with Wallet (₱${totalPrice.toFixed(2)})`}
+                    {isSubmitting ? <Loader2 className="animate-spin text-[#1DB954]" size={18} /> : `Pay with Wallet (₱${totalPrice.toFixed(0)})`}
                   </button>
                 )}
                 

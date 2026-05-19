@@ -267,7 +267,7 @@ export function Chathead() {
         if (data && !error) {
           const displayId = `BS-${data.id.slice(0, 8).toUpperCase()}`;
           // INSTANTLY reply directly without AI delay!
-          const reply = `🔍 **Order Status Details:**\n\n* **Tracking ID:** ${displayId}\n* **Service:** ${data.services?.title}\n* **Quantity:** ${data.quantity.toLocaleString()} items\n* **Target URL:** ${data.target_url}\n* **Amount:** ₱${Number(data.amount).toFixed(2)}\n* **Status:** **${data.status}**\n\n${
+          const reply = `🔍 **Order Status Details:**\n\n* **Tracking ID:** ${displayId}\n* **Service:** ${data.services?.title}\n* **Quantity:** ${data.quantity.toLocaleString()} items\n* **Target URL:** ${data.target_url}\n* **Amount:** ₱${Number(data.amount).toFixed(0)}\n* **Status:** **${data.status}**\n\n${
             data.status === 'Pending' 
               ? 'Your order is currently **Pending** verification. Once your GCash payment screenshot is uploaded (click 📷 or paste it here!), our team will verify and start full delivery shortly! 🚀' 
               : data.status === 'Processing' 
@@ -300,9 +300,9 @@ export function Chathead() {
                 if (parsed.free_trial_amount) freeTrialStr = ` (Free Trial: ${parsed.free_trial_amount} units available!)`;
               }
             } catch (e) {}
-            return `- **${srv.title}:** ₱${Number(srv.starting_price).toFixed(2)} per 1,000 units.${minQtyStr}${freeTrialStr}`;
+            return `- **${srv.title}:** ₱${Number(srv.starting_price).toFixed(0)} per 1,000 units.${minQtyStr}${freeTrialStr}`;
           }).join('\n')
-        : `- Facebook Followers: ₱9.99 per 1,000 followers.\n- Post Reactions (Likes, Hearts, etc.): ₱4.99 per 1,000 reactions.\n- Video Views (for Reels, Stories, etc.): ₱12.99 per 1,000 views.`;
+        : `- Facebook Followers: ₱10 per 1,000 followers.\n- Post Reactions (Likes, Hearts, etc.): ₱5 per 1,000 reactions.\n- Video Views (for Reels, Stories, etc.): ₱13 per 1,000 views.`;
 
       const systemContext = `You are a helpful, extremely concise customer support AI for BoostSocial, a platform that boosts Facebook followers, reactions, and views. Keep responses brief (1-3 sentences max). You can perfectly understand and reply in English, Tagalog, and Taglish/Bisaya!
 
@@ -356,7 +356,7 @@ Format list items on separate lines with simple bullets (e.g. * **Item:** text).
         // Safe, smart local fallback context based on user keywords
         const text = userMsg.toLowerCase();
         if (text.includes("price") || text.includes("cost") || text.includes("magkano") || text.includes("pricing") || text.includes("package")) {
-          responseText = `Our live prices start at just:\n- **Followers:** ₱9.99 per 1,000\n- **Reactions:** ₱4.99 per 1,000\n- **Views:** ₱12.99 per 1,000\n\nYou can view and select packages on the home screen! 🚀`;
+          responseText = `Our live prices start at just:\n- **Followers:** ₱10 per 1,000\n- **Reactions:** ₱5 per 1,000\n- **Views:** ₱13 per 1,000\n\nYou can view and select packages on the home screen! 🚀`;
         } else if (text.includes("payment") || text.includes("gcash") || text.includes("bayad")) {
           responseText = `We accept GCash! You can pay by scanning the QR code at checkout and uploading your receipt screenshot directly in this chat. 🙏`;
         } else if (text.includes("who") || text.includes("owner") || text.includes("create") || text.includes("develop") || text.includes("make")) {

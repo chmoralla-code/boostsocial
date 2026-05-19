@@ -81,7 +81,7 @@ export function TopUpModal({ isOpen, onClose, user, onTopUpSuccess }: { isOpen: 
               </div>
               <h3 className="text-lg font-bold text-[#1DB954]">Top-Up Submitted!</h3>
               <p className="text-sm text-slate-300 font-medium leading-relaxed">
-                Your GCash receipt has been securely uploaded. An admin will verify the payment and credit ₱{Number(amount).toFixed(2)} to your wallet shortly.
+                Your GCash receipt has been securely uploaded. An admin will verify the payment and credit ₱{Number(amount).toFixed(0)} to your wallet shortly.
               </p>
             </div>
           ) : (

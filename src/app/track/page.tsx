@@ -269,7 +269,7 @@ export default function TrackPage() {
                   </div>
                   <div>
                     <span className="text-[9px] text-slate-500 font-black uppercase tracking-wider block mb-0.5">Total Paid</span>
-                    <span className="text-[#1DB954] font-black">₱{Number(order.amount).toFixed(2)} PHP</span>
+                    <span className="text-[#1DB954] font-black">₱{Number(order.amount).toFixed(0)} PHP</span>
                   </div>
                   <div>
                     <span className="text-[9px] text-slate-500 font-black uppercase tracking-wider block mb-0.5">Customer contact</span>

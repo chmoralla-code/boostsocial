@@ -174,12 +174,12 @@ export function PriceCalculator({ services, onOrder }: PriceCalculatorProps) {
               <span className="text-[10px] text-slate-500 font-black uppercase tracking-wider">Estimated Price</span>
               <div className="flex items-baseline gap-1.5">
                 <span className="text-4xl sm:text-5xl font-black text-white font-mono tracking-tight text-[#1DB954]">
-                  ₱{animatedPrice.toFixed(2)}
+                  ₱{animatedPrice.toFixed(0)}
                 </span>
                 <span className="text-xs text-slate-400 font-bold">PHP</span>
               </div>
               <p className="text-[10px] text-slate-500 font-semibold italic">
-                *Computed rate: ₱{(selectedService.starting_price).toFixed(2)} per 1,000 units
+                *Computed rate: ₱{(selectedService.starting_price).toFixed(0)} per 1,000 units
               </p>
             </div>
 
