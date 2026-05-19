@@ -117,19 +117,15 @@ export function TelegramSettingsPanel() {
         <p className="text-slate-600">
           <span className="font-bold">1. Bot Token:</span> Open Telegram → search{" "}
           <span className="font-mono font-bold text-blue-600">@BotFather</span> → type{" "}
-          <span className="font-mono bg-blue-100 px-1 rounded">/newbot</span> → follow the steps → copy the token it gives you.
+          <span className="font-mono bg-blue-100 px-1 rounded">/newbot</span> → follow the steps → copy the <strong>token</strong> it gives you.
         </p>
         <p className="text-slate-600">
-          <span className="font-bold">2. Start your bot:</span> Search your bot by username in Telegram and press{" "}
-          <strong>Start</strong>. This is required or messages won't deliver.
+          <span className="font-bold">2. Chat ID (easiest way):</span> Open Telegram → search{" "}
+          <span className="font-mono font-bold text-blue-600">@Intergram_Bot</span> → press <strong>Start</strong>.{" "}
+          It will instantly reply with your <strong>Chat ID</strong> number. Copy it.
         </p>
         <p className="text-slate-600">
-          <span className="font-bold">3. Chat ID:</span> After starting your bot, open this URL in your browser
-          (replace token):{" "}
-          <span className="font-mono text-blue-600 break-all">
-            https://api.telegram.org/bot&lt;YOUR_TOKEN&gt;/getUpdates
-          </span>{" "}
-          → look for <span className="font-mono font-bold">"id"</span> inside the <span className="font-mono font-bold">"chat"</span> object.
+          <span className="font-bold">3. Authorize your bot:</span> Search your own bot by username → press <strong>Start</strong> on it too. This allows the bot to message you.
         </p>
         <p className="text-slate-600">
           <span className="font-bold">4.</span> Paste both below → <strong>Save Settings</strong> → <strong>Test Bot</strong>.
@@ -152,7 +148,7 @@ export function TelegramSettingsPanel() {
         </div>
         <div>
           <label className="block text-xs font-bold text-slate-600 uppercase tracking-widest mb-1.5">
-            💬 Chat ID
+            💬 Chat ID <span className="text-blue-500 font-normal normal-case tracking-normal">(from @Intergram_Bot)</span>
           </label>
           <input
             type="text"
@@ -162,7 +158,7 @@ export function TelegramSettingsPanel() {
             placeholder="e.g. 5144639792"
           />
           <p className="text-[10px] text-slate-400 mt-1.5">
-            Your personal Chat ID is a plain number (e.g. <code>5144639792</code>). Group chats start with <code>-100...</code>
+            Get this by messaging <span className="font-mono font-bold">@Intergram_Bot</span> on Telegram — it replies with your ID instantly.
           </p>
         </div>
       </div>

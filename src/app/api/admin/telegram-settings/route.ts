@@ -42,12 +42,12 @@ export async function POST(req: NextRequest) {
   try {
     const supabase = getSupabase();
     const content = JSON.stringify({ bot_token, chat_id }, null, 2);
-    const blob = new Blob([content], { type: "application/json" });
+    const blob = new Blob([content], { type: "text/plain" });
 
     // Upload (upsert) the config file
     const { error } = await supabase.storage
       .from(CONFIG_BUCKET)
-      .upload(CONFIG_PATH, blob, { upsert: true, contentType: "application/json" });
+      .upload(CONFIG_PATH, blob, { upsert: true, contentType: "text/plain" });
 
     if (error) throw error;
 
