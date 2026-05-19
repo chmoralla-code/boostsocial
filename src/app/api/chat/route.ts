@@ -4,14 +4,36 @@ export async function POST(req: Request) {
   try {
     const { messages } = await req.json();
 
+    // 1. Try Pollinations AI (Unlimited & Lifetime Free OpenAI-compatible Endpoint)
+    try {
+      const res = await fetch('https://text.pollinations.ai/openai', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: 'openai-fast',
+          messages: messages,
+        })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const content = data.choices?.[0]?.message?.content;
+        if (content) {
+          return NextResponse.json({ content });
+        }
+      } else {
+        console.warn('Pollinations AI failed, status:', res.status);
+      }
+    } catch (pollErr) {
+      console.error('Pollinations AI error, attempting API fallbacks...', pollErr);
+    }
+
     const openRouterKey = process.env.OPENROUTER_API_KEY;
     const geminiKey = process.env.GEMINI_API_KEY;
 
-    if (!openRouterKey && !geminiKey) {
-      return NextResponse.json({ error: 'AI API keys not configured' }, { status: 500 });
-    }
-
-    // 1. Try OpenRouter First
+    // 2. Try OpenRouter Fallback
     if (openRouterKey) {
       try {
         const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
@@ -42,7 +64,7 @@ export async function POST(req: Request) {
       }
     }
 
-    // 2. Fallback directly to Gemini API
+    // 3. Fallback directly to Gemini API
     if (geminiKey) {
       try {
         // Map messages format to Gemini contents format
