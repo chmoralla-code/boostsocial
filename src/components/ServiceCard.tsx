@@ -108,12 +108,12 @@ export function ServiceCard({ id, title, description, startingPrice, iconType, o
                 {parsed.min_quantity === 1 
                   ? "Starts (per 1 PCS)" 
                   : title.toLowerCase().includes("follower")
-                    ? `For as low as ${parsed.min_quantity} followers`
+                    ? `For as low as ${parsed.min_quantity} quantity followers`
                     : title.toLowerCase().includes("reaction") || title.toLowerCase().includes("react")
-                      ? `For as low as ${parsed.min_quantity} reactions`
+                      ? `For as low as ${parsed.min_quantity} quantity reactions`
                       : title.toLowerCase().includes("view")
-                        ? `For as low as ${parsed.min_quantity} views`
-                        : `For as low as ${parsed.min_quantity} units`
+                        ? `For as low as ${parsed.min_quantity} quantity views`
+                        : `For as low as ${parsed.min_quantity} quantity units`
                 }
               </span>
               <span className="text-3xl font-black text-white">
