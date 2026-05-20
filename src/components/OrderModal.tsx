@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Loader2, ShieldCheck, Copy, Check } from "lucide-react";
+import { X, Loader2, ShieldCheck, Copy, Check, Download, Laptop, HelpCircle } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { compressImage } from "@/utils/imageCompressor";
 
@@ -101,7 +101,11 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
   const isViewsService = serviceTitle.toLowerCase().includes("views");
   const isGeminiService = serviceTitle.toLowerCase().includes("gemini");
   const isEapService = serviceTitle.toLowerCase().includes("eap") || serviceTitle.toLowerCase().includes("tplink");
-  const isSoftwareService = serviceTitle.toLowerCase().includes("software") || serviceTitle.toLowerCase().includes("architectural");
+  const isSoftwareService = 
+    serviceTitle.toLowerCase().includes("software") || 
+    serviceTitle.toLowerCase().includes("architectural") ||
+    serviceTitle.toLowerCase().includes("license") ||
+    serviceId === "03185a81-49f3-4255-868e-9e9ec3189497";
 
   // Determine the active unit label & single unit term
   let unitLabel = "Units";
@@ -206,14 +210,18 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
 
   const effectiveQuantity = Math.max(quantity, minQty);
 
-  const baseTotal = minQty === 1 
-    ? effectiveQuantity * serviceBasePrice 
-    : (effectiveQuantity / 1000) * serviceBasePrice;
+  const baseTotal = isEapService
+    ? effectiveQuantity * 350
+    : (minQty === 1 
+      ? effectiveQuantity * serviceBasePrice 
+      : (effectiveQuantity / 1000) * serviceBasePrice);
 
   // Volume Discount Engine (Up to 20% off for large volumes and single high-value purchases)
-  const discountPercent = minQty === 1
-    ? (effectiveQuantity >= 5 ? 10 : effectiveQuantity >= 3 ? 5 : 0)
-    : (effectiveQuantity >= 10000 ? 20 : effectiveQuantity >= 5000 ? 15 : effectiveQuantity >= 3000 ? 10 : 0);
+  const discountPercent = isEapService 
+    ? 0 
+    : (minQty === 1
+      ? (effectiveQuantity >= 5 ? 10 : effectiveQuantity >= 3 ? 5 : 0)
+      : (effectiveQuantity >= 10000 ? 20 : effectiveQuantity >= 5000 ? 15 : effectiveQuantity >= 3000 ? 10 : 0));
 
   const totalPrice = baseTotal * (1 - discountPercent / 100);
 
@@ -448,90 +456,194 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
 
               {/* 🎁 Trial & Payment Instructions (Or Wallet Success verification) */}
               {isWalletPayment ? (
-                <div className="text-left bg-[#1877F2]/10 border border-[#1877F2]/25 p-5 rounded-xl space-y-3.5">
-                  <h3 className="text-xs font-black uppercase tracking-widest text-[#1877F2] flex items-center gap-1.5">
-                    🎉 Balance Payment Successful!
-                  </h3>
-                  <p className="text-xs text-slate-300 leading-relaxed font-semibold">
-                    We deducted <strong className="text-white">₱{totalPrice.toFixed(0)} PHP</strong> directly from your account wallet balance. Your boost has been automatically approved and is already set to **Processing**!
-                  </p>
-                  <div className="bg-[#121212] border border-slate-800/80 p-3.5 rounded-lg text-xs space-y-1 text-center">
-                    <span className="text-[9px] text-slate-500 font-black uppercase tracking-widest block">Amplification Flow Status</span>
-                    <span className="text-[#1877F2] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 animate-pulse">
-                      ⚡ ACTIVE & PROCESSING
-                    </span>
-                  </div>
-                  <p className="text-[9px] text-slate-450 leading-relaxed font-bold">
-                    No further actions or manual GCash receipt verification are required. Our system will deliver your complete boost package shortly!
-                  </p>
-                  {isPageService && (
+                isSoftwareService ? (
+                  <div className="text-left bg-[#1877F2]/10 border border-[#1877F2]/25 p-5 rounded-xl space-y-3.5">
+                    <h3 className="text-xs font-black uppercase tracking-widest text-[#1877F2] flex items-center gap-1.5">
+                      🎉 Balance Payment Successful!
+                    </h3>
+                    <p className="text-xs text-slate-300 leading-relaxed font-semibold">
+                      We deducted <strong className="text-white">₱{totalPrice.toFixed(0)} PHP</strong> directly from your account wallet balance. Your order is registered!
+                    </p>
+                    <div className="bg-[#121212] border border-slate-800/80 p-3.5 rounded-lg text-xs space-y-1 text-center">
+                      <span className="text-[9px] text-slate-500 font-black uppercase tracking-widest block">Remote Setup Protocol</span>
+                      <span className="text-green-400 font-black uppercase tracking-wider flex items-center justify-center gap-1.5 animate-pulse">
+                        ⚡ PREPPED FOR INSTALLATION
+                      </span>
+                    </div>
+                    
+                    <div className="space-y-3 text-xs text-slate-350 bg-[#121212]/80 border border-slate-850 p-4 rounded-xl">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-[#1877F2] block mb-1 font-extrabold">
+                        📋 Next Steps
+                      </span>
+                      <div className="flex gap-2">
+                        <span className="bg-[#1877F2]/10 text-[#1877F2] font-bold w-4 h-4 rounded-full flex items-center justify-center text-[10px] flex-shrink-0 mt-0.5">1</span>
+                        <p>
+                          <strong>Keep PC & UltraViewer Running:</strong> Make sure you have downloaded and opened UltraViewer on your PC.
+                        </p>
+                      </div>
+                      <div className="flex gap-2">
+                        <span className="bg-[#1877F2]/10 text-[#1877F2] font-bold w-4 h-4 rounded-full flex items-center justify-center text-[10px] flex-shrink-0 mt-0.5">2</span>
+                        <p>
+                          <strong>Wait for Facebook Chat:</strong> Our admin, <strong className="text-[#1877F2]">Cyrhiel Moralla</strong>, will message you directly on the Facebook account you provided during checkout.
+                        </p>
+                      </div>
+                    </div>
+
                     <div className="bg-[#1877F2]/20 border border-[#1877F2]/40 p-4 rounded-xl mt-3 text-left">
                       <span className="text-[10px] font-black uppercase tracking-widest text-[#1877F2] block mb-1">
-                        ⏳ 24-Hour Delivery Notice
+                        ⏳ Remote Setup Notice
                       </span>
                       <p className="text-[10px] text-slate-200 leading-relaxed font-semibold">
-                        Your custom Facebook Page will be fully created, boosted with 10k followers, and transferred to you **within 24 hours**. 
-                        You will receive an email containing the Facebook page link and a direct message from **Cyrhiel Moralla (Admin)** as soon as the page is ready. You can track your progress live below!
+                        Please keep your PC awake. The remote installation takes approximately 10 to 15 minutes. Secure setup is performed entirely in real-time.
                       </p>
                     </div>
-                  )}
-                </div>
+                  </div>
+                ) : (
+                  <div className="text-left bg-[#1877F2]/10 border border-[#1877F2]/25 p-5 rounded-xl space-y-3.5">
+                    <h3 className="text-xs font-black uppercase tracking-widest text-[#1877F2] flex items-center gap-1.5">
+                      🎉 Balance Payment Successful!
+                    </h3>
+                    <p className="text-xs text-slate-300 leading-relaxed font-semibold">
+                      We deducted <strong className="text-white">₱{totalPrice.toFixed(0)} PHP</strong> directly from your account wallet balance. Your boost has been automatically approved and is already set to **Processing**!
+                    </p>
+                    <div className="bg-[#121212] border border-slate-800/80 p-3.5 rounded-lg text-xs space-y-1 text-center">
+                      <span className="text-[9px] text-slate-500 font-black uppercase tracking-widest block">Amplification Flow Status</span>
+                      <span className="text-[#1877F2] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 animate-pulse">
+                        ⚡ ACTIVE & PROCESSING
+                      </span>
+                    </div>
+                    <p className="text-[9px] text-slate-450 leading-relaxed font-bold">
+                      No further actions or manual GCash receipt verification are required. Our system will deliver your complete boost package shortly!
+                    </p>
+                    {isPageService && (
+                      <div className="bg-[#1877F2]/20 border border-[#1877F2]/40 p-4 rounded-xl mt-3 text-left">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-[#1877F2] block mb-1">
+                          ⏳ 24-Hour Delivery Notice
+                        </span>
+                        <p className="text-[10px] text-slate-200 leading-relaxed font-semibold">
+                          Your custom Facebook Page will be fully created, boosted with 10k followers, and transferred to you **within 24 hours**. 
+                          You will receive an email containing the Facebook page link and a direct message from **Cyrhiel Moralla (Admin)** as soon as the page is ready. You can track your progress live below!
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )
               ) : (
-                <>
-                  <div className="text-left bg-[#181818] border border-slate-850 p-4 rounded-xl space-y-3">
-                    <h3 className="text-xs font-black uppercase tracking-widest text-[#1877F2]">💳 Payment Steps</h3>
-                    
-                    <div className="space-y-2.5 text-xs text-slate-300">
-                      {parsedDetails.free_trial_amount > 0 && (
+                isSoftwareService ? (
+                  <>
+                    <div className="text-left bg-[#181818] border border-slate-850 p-4 rounded-xl space-y-3.5">
+                      <h3 className="text-xs font-black uppercase tracking-widest text-[#1877F2]">💳 Payment & Setup Steps</h3>
+                      
+                      <div className="space-y-3 text-xs text-slate-300">
                         <div className="flex gap-2">
                           <span className="bg-[#1877F2]/10 text-[#1877F2] font-bold w-4 h-4 rounded-full flex items-center justify-center text-[10px] flex-shrink-0 mt-0.5">1</span>
                           <p>
-                            <strong>Get {parsedDetails.free_trial_amount} Free Trial:</strong> We will first deliver {parsedDetails.free_trial_amount} free followers, reactions, or views to your target link so you can verify our speed & authenticity!
+                            <strong>Pay via GCash:</strong> Scan the Instapay QR code below and pay: <strong className="text-[#1877F2]">₱{totalPrice.toFixed(0)}</strong>.
                           </p>
                         </div>
-                      )}
-                      
-                      <div className="flex gap-2">
-                        <span className="bg-[#1877F2]/10 text-[#1877F2] font-bold w-4 h-4 rounded-full flex items-center justify-center text-[10px] flex-shrink-0 mt-0.5">{parsedDetails.free_trial_amount > 0 ? "2" : "1"}</span>
-                        <p>
-                          <strong>Pay via GCash:</strong> {parsedDetails.free_trial_amount > 0 ? `Once you see the free ${parsedDetails.free_trial_amount} delivered, scan` : "Scan"} the QR code below to pay the remaining balance: <strong className="text-[#1877F2]">₱{totalPrice.toFixed(0)}</strong>.
-                        </p>
-                      </div>
 
-                      <div className="flex gap-2">
-                        <span className="bg-[#1877F2]/10 text-[#1877F2] font-bold w-4 h-4 rounded-full flex items-center justify-center text-[10px] flex-shrink-0 mt-0.5">{parsedDetails.free_trial_amount > 0 ? "3" : "2"}</span>
-                        <p>
-                          <strong>Confirm Order:</strong> Send your **Tracking ID** and GCash payment screenshot to our **Support Chatbot** (bottom right) to instantly start your full delivery!
-                        </p>
+                        <div className="flex gap-2">
+                          <span className="bg-[#1877F2]/10 text-[#1877F2] font-bold w-4 h-4 rounded-full flex items-center justify-center text-[10px] flex-shrink-0 mt-0.5">2</span>
+                          <p>
+                            <strong>Confirm Receipt:</strong> Send your **Tracking ID** and payment screenshot to our **Support Chatbot** (bottom right) for instant verification.
+                          </p>
+                        </div>
+
+                        <div className="flex gap-2">
+                          <span className="bg-[#1877F2]/10 text-[#1877F2] font-bold w-4 h-4 rounded-full flex items-center justify-center text-[10px] flex-shrink-0 mt-0.5">3</span>
+                          <p>
+                            <strong>Launch UltraViewer:</strong> Download and keep UltraViewer active on your PC.
+                          </p>
+                        </div>
+
+                        <div className="flex gap-2">
+                          <span className="bg-[#1877F2]/10 text-[#1877F2] font-bold w-4 h-4 rounded-full flex items-center justify-center text-[10px] flex-shrink-0 mt-0.5">4</span>
+                          <p>
+                            <strong>Admin Chat Handshake:</strong> Wait for <strong className="text-[#1877F2]">Cyrhiel Moralla (Admin)</strong> to contact you directly on the Facebook link you provided to securely install your software!
+                          </p>
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  {/* 📷 GCash QR Code Image */}
-                  <div className="space-y-2 pt-2 border-t border-slate-800/80">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 block">GCash InstaPay QR Code</span>
-                    <div className="bg-white p-2 rounded-xl inline-block shadow-md max-w-[200px] mx-auto overflow-hidden border border-slate-700/20">
-                      <img 
-                        src="/gcash-qr.png" 
-                        alt="GCash QR Code" 
-                        className="w-full h-auto rounded-lg object-contain mx-auto"
-                      />
+                    {/* 📷 GCash QR Code Image */}
+                    <div className="space-y-2 pt-2 border-t border-slate-800/80">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 block">GCash InstaPay QR Code</span>
+                      <div className="bg-white p-2 rounded-xl inline-block shadow-md max-w-[200px] mx-auto overflow-hidden border border-slate-700/20">
+                        <img 
+                          src="/gcash-qr.png" 
+                          alt="GCash QR Code" 
+                          className="w-full h-auto rounded-lg object-contain mx-auto"
+                        />
+                      </div>
+                      <p className="text-[10px] text-slate-400 italic">Transfer fees may apply • Account Name: HE***Y S.</p>
                     </div>
-                    <p className="text-[10px] text-slate-400 italic">Transfer fees may apply • Account Name: HE***Y S.</p>
-                  </div>
 
-                  {isPageService && (
                     <div className="bg-[#1877F2]/20 border border-[#1877F2]/40 p-4 rounded-xl mt-3 text-left">
                       <span className="text-[10px] font-black uppercase tracking-widest text-[#1877F2] block mb-1">
-                        ⏳ 24-Hour Delivery Notice
+                        ⏳ Remote Setup Notice
                       </span>
                       <p className="text-[10px] text-slate-200 leading-relaxed font-semibold">
-                        Your custom Facebook Page will be fully created, boosted with 10k followers, and transferred to you **within 24 hours**. 
-                        You will receive an email containing the Facebook page link and a direct message from **Cyrhiel Moralla (Admin)** as soon as the page is ready. You can track your progress live below!
+                        Please ensure UltraViewer remains open on your computer. Installation takes about 10-15 minutes once connection is established by the admin.
                       </p>
                     </div>
-                  )}
-                </>
+                  </>
+                ) : (
+                  <>
+                    <div className="text-left bg-[#181818] border border-slate-850 p-4 rounded-xl space-y-3">
+                      <h3 className="text-xs font-black uppercase tracking-widest text-[#1877F2]">💳 Payment Steps</h3>
+                      
+                      <div className="space-y-2.5 text-xs text-slate-300">
+                        {parsedDetails.free_trial_amount > 0 && (
+                          <div className="flex gap-2">
+                            <span className="bg-[#1877F2]/10 text-[#1877F2] font-bold w-4 h-4 rounded-full flex items-center justify-center text-[10px] flex-shrink-0 mt-0.5">1</span>
+                            <p>
+                              <strong>Get {parsedDetails.free_trial_amount} Free Trial:</strong> We will first deliver {parsedDetails.free_trial_amount} free followers, reactions, or views to your target link so you can verify our speed & authenticity!
+                            </p>
+                          </div>
+                        )}
+                        
+                        <div className="flex gap-2">
+                          <span className="bg-[#1877F2]/10 text-[#1877F2] font-bold w-4 h-4 rounded-full flex items-center justify-center text-[10px] flex-shrink-0 mt-0.5">{parsedDetails.free_trial_amount > 0 ? "2" : "1"}</span>
+                          <p>
+                            <strong>Pay via GCash:</strong> {parsedDetails.free_trial_amount > 0 ? `Once you see the free ${parsedDetails.free_trial_amount} delivered, scan` : "Scan"} the QR code below to pay the remaining balance: <strong className="text-[#1877F2]">₱{totalPrice.toFixed(0)}</strong>.
+                          </p>
+                        </div>
+
+                        <div className="flex gap-2">
+                          <span className="bg-[#1877F2]/10 text-[#1877F2] font-bold w-4 h-4 rounded-full flex items-center justify-center text-[10px] flex-shrink-0 mt-0.5">{parsedDetails.free_trial_amount > 0 ? "3" : "2"}</span>
+                          <p>
+                            <strong>Confirm Order:</strong> Send your **Tracking ID** and GCash payment screenshot to our **Support Chatbot** (bottom right) to instantly start your full delivery!
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 📷 GCash QR Code Image */}
+                    <div className="space-y-2 pt-2 border-t border-slate-800/80">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 block">GCash InstaPay QR Code</span>
+                      <div className="bg-white p-2 rounded-xl inline-block shadow-md max-w-[200px] mx-auto overflow-hidden border border-slate-700/20">
+                        <img 
+                          src="/gcash-qr.png" 
+                          alt="GCash QR Code" 
+                          className="w-full h-auto rounded-lg object-contain mx-auto"
+                        />
+                      </div>
+                      <p className="text-[10px] text-slate-400 italic">Transfer fees may apply • Account Name: HE***Y S.</p>
+                    </div>
+
+                    {isPageService && (
+                      <div className="bg-[#1877F2]/20 border border-[#1877F2]/40 p-4 rounded-xl mt-3 text-left">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-[#1877F2] block mb-1">
+                          ⏳ 24-Hour Delivery Notice
+                        </span>
+                        <p className="text-[10px] text-slate-200 leading-relaxed font-semibold">
+                          Your custom Facebook Page will be fully created, boosted with 10k followers, and transferred to you **within 24 hours**. 
+                          You will receive an email containing the Facebook page link and a direct message from **Cyrhiel Moralla (Admin)** as soon as the page is ready. You can track your progress live below!
+                        </p>
+                      </div>
+                    )}
+                  </>
+                )
               )}
 
               <button 
@@ -580,36 +692,149 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
               
               {parsedDetails.custom_fields && parsedDetails.custom_fields.length > 0 ? (
                 <div className="space-y-4 bg-[#121212] border border-slate-800/80 p-4 rounded-xl">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-[#1877F2] block border-b border-slate-850 pb-2">
-                    📋 Custom Request Specifications
-                  </span>
-                  {parsedDetails.custom_fields.map((field: {id: string, label: string, type?: string, options?: string[]}) => (
-                    <div key={field.id}>
-                      <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5">{field.label}</label>
-                      {field.type === 'select' && field.options ? (
-                        <select
-                          required
-                          value={customFieldValues[field.label] || ""}
-                          onChange={(e) => setCustomFieldValues({...customFieldValues, [field.label]: e.target.value})}
-                          className="w-full px-4 py-3 rounded-xl bg-[#282828] border border-slate-700/60 focus:outline-none focus:ring-2 focus:ring-[#1877F2] text-white transition-all text-sm font-medium cursor-pointer"
-                        >
-                          <option value="">-- Select {field.label} --</option>
-                          {field.options.map((opt) => (
-                            <option key={opt} value={opt}>{opt}</option>
-                          ))}
-                        </select>
-                      ) : (
-                        <input 
-                          type={field.label.toLowerCase().includes("password") || field.id.toLowerCase().includes("password") ? "password" : "text"}
-                          required={!(field.id.toLowerCase().includes("blank") || field.id.toLowerCase().includes("custom") || field.label.toLowerCase().includes("blank"))}
-                          value={customFieldValues[field.label] || ""}
-                          onChange={(e) => setCustomFieldValues({...customFieldValues, [field.label]: e.target.value})}
-                          className="w-full px-4 py-3 rounded-xl bg-[#282828] border border-slate-700/60 focus:outline-none focus:ring-2 focus:ring-[#1877F2] text-white transition-all text-sm font-medium"
-                          placeholder={field.label.toLowerCase().includes("facebook") ? "e.g. https://facebook.com/username" : `Enter ${field.label.toLowerCase()}`}
-                        />
-                      )}
+                  {isEapService ? (
+                    <>
+                      <span className="text-[10px] font-black uppercase tracking-widest text-[#1877F2] block border-b border-slate-850 pb-2">
+                        📋 EAP Adaptation Specifications ({quantity} {quantity === 1 ? 'item' : 'items'})
+                      </span>
+                      {Array.from({ length: quantity }).map((_, index) => {
+                        const itemNum = index + 1;
+                        return (
+                          <div key={index} className="space-y-4 bg-[#181818] border border-slate-800/80 p-4 rounded-xl mt-3 shadow-md animate-in fade-in duration-200">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-[#1877F2] block border-b border-slate-850/50 pb-1.5 font-extrabold">
+                              ⚙️ EAP TP-Link Device #{itemNum}
+                            </span>
+                            {parsedDetails.custom_fields.map((field: {id: string, label: string, type?: string, options?: string[]}) => {
+                              const uniqueKey = `Device #${itemNum} - ${field.label}`;
+                              return (
+                                <div key={field.id}>
+                                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">
+                                    {field.label}
+                                  </label>
+                                  <input 
+                                    type={field.label.toLowerCase().includes("password") || field.id.toLowerCase().includes("password") ? "password" : "text"}
+                                    required
+                                    value={customFieldValues[uniqueKey] || ""}
+                                    onChange={(e) => setCustomFieldValues({...customFieldValues, [uniqueKey]: e.target.value})}
+                                    className="w-full px-4 py-3 rounded-xl bg-[#282828] border border-slate-700/60 focus:outline-none focus:ring-2 focus:ring-[#1877F2] text-white transition-all text-xs font-semibold"
+                                    placeholder={`Enter ${field.label.toLowerCase()} for device #${itemNum}`}
+                                  />
+                                </div>
+                              );
+                            })}
+                          </div>
+                        );
+                      })}
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-[10px] font-black uppercase tracking-widest text-[#1877F2] block border-b border-slate-850 pb-2">
+                        📋 Custom Request Specifications
+                      </span>
+                      {parsedDetails.custom_fields.map((field: {id: string, label: string, type?: string, options?: string[]}) => (
+                        <div key={field.id}>
+                          <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5">{field.label}</label>
+                          {field.type === 'select' && field.options ? (
+                            <select
+                              required
+                              value={customFieldValues[field.label] || ""}
+                              onChange={(e) => setCustomFieldValues({...customFieldValues, [field.label]: e.target.value})}
+                              className="w-full px-4 py-3 rounded-xl bg-[#282828] border border-slate-700/60 focus:outline-none focus:ring-2 focus:ring-[#1877F2] text-white transition-all text-sm font-medium cursor-pointer"
+                            >
+                              <option value="">-- Select {field.label} --</option>
+                              {field.options.map((opt) => (
+                                <option key={opt} value={opt}>{opt}</option>
+                              ))}
+                            </select>
+                          ) : (
+                            <input 
+                              type={field.label.toLowerCase().includes("password") || field.id.toLowerCase().includes("password") ? "password" : "text"}
+                              required={!(field.id.toLowerCase().includes("blank") || field.id.toLowerCase().includes("custom") || field.label.toLowerCase().includes("blank"))}
+                              value={customFieldValues[field.label] || ""}
+                              onChange={(e) => setCustomFieldValues({...customFieldValues, [field.label]: e.target.value})}
+                              className="w-full px-4 py-3 rounded-xl bg-[#282828] border border-slate-700/60 focus:outline-none focus:ring-2 focus:ring-[#1877F2] text-white transition-all text-sm font-medium"
+                              placeholder={field.label.toLowerCase().includes("facebook") ? "e.g. https://facebook.com/username" : `Enter ${field.label.toLowerCase()}`}
+                            />
+                          )}
+                        </div>
+                      ))}
+                    </>
+                  )}
+
+                  {isSoftwareService && (
+                    <div className="bg-[#1e1e1e] border border-slate-800 p-4 rounded-xl space-y-4 mt-4 text-left shadow-lg">
+                      <div className="flex items-center gap-2 border-b border-slate-800 pb-2">
+                        <Laptop size={18} className="text-[#1877F2] shrink-0" />
+                        <span className="text-xs font-bold text-white uppercase tracking-wider">
+                          🖥️ Remote Installation Setup
+                        </span>
+                      </div>
+
+                      <p className="text-[11px] text-slate-350 leading-relaxed font-semibold">
+                        This software requires secure remote installation. Please download and install **UltraViewer** on your computer if you do not have it yet.
+                      </p>
+
+                      <a
+                        href="https://ultraviewer.net/en/download.html"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center justify-center gap-2 w-full py-2.5 px-4 rounded-xl bg-[#1877F2]/10 hover:bg-[#1877F2]/25 border border-[#1877F2]/30 hover:border-[#1877F2]/50 text-[#1877F2] font-black text-xs uppercase tracking-wider transition-all duration-300 shadow-[0_0_12px_rgba(24,119,242,0.1)] active:scale-95 text-center"
+                      >
+                        <Download size={14} />
+                        Download UltraViewer
+                      </a>
+
+                      <div className="bg-[#121212] p-3 rounded-lg border border-slate-850 space-y-3">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                            ⚡ Instant Handshake (Optional)
+                          </span>
+                        </div>
+                        <p className="text-[9px] text-slate-500 leading-normal">
+                          If UltraViewer is already running, you can enter your details below so the admin can connect and set it up immediately without waiting!
+                        </p>
+
+                        <div className="grid grid-cols-2 gap-3 pt-1">
+                          <div>
+                            <label className="block text-[9px] font-black text-slate-450 uppercase tracking-widest mb-1">
+                              Partner ID
+                            </label>
+                            <input
+                              type="text"
+                              value={customFieldValues["UltraViewer Partner ID"] || ""}
+                              onChange={(e) => setCustomFieldValues({
+                                ...customFieldValues,
+                                "UltraViewer Partner ID": e.target.value
+                              })}
+                              className="w-full px-3 py-2 rounded-lg bg-[#282828] border border-slate-750 focus:outline-none focus:ring-1 focus:ring-[#1877F2] text-white text-xs font-semibold"
+                              placeholder="e.g. 12 345 678"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[9px] font-black text-slate-450 uppercase tracking-widest mb-1">
+                              Password
+                            </label>
+                            <input
+                              type="text"
+                              value={customFieldValues["UltraViewer Password"] || ""}
+                              onChange={(e) => setCustomFieldValues({
+                                ...customFieldValues,
+                                "UltraViewer Password": e.target.value
+                              })}
+                              className="w-full px-3 py-2 rounded-lg bg-[#282828] border border-slate-750 focus:outline-none focus:ring-1 focus:ring-[#1877F2] text-white text-xs font-semibold"
+                              placeholder="e.g. 1234"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="bg-[#1877F2]/5 border border-[#1877F2]/10 p-3 rounded-lg">
+                        <p className="text-[10px] text-slate-400 leading-relaxed font-bold">
+                          💡 <strong className="text-white">Note:</strong> After placing your order, please wait for our admin (<strong className="text-[#1877F2]">Cyrhiel Moralla</strong>) to chat you on the Facebook link you provided above. Keep UltraViewer active on your PC.
+                        </p>
+                      </div>
                     </div>
-                  ))}
+                  )}
 
                   {serviceTitle.toLowerCase().includes("pro") && (
                     <div className="bg-blue-500/10 border border-blue-500/20 p-3.5 rounded-xl mt-4 text-left animate-in slide-in-from-bottom-2">
@@ -907,7 +1132,15 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                       <span className="text-[9px] text-slate-500 font-bold tracking-wider">Account: HE***Y S.</span>
                     </div>
                     <p className="text-[10px] text-slate-300 leading-relaxed font-semibold text-left">
-                      Pay <strong className="text-white">₱{totalPrice.toFixed(0)} PHP</strong> directly using the GCash QR code below. Once your order is placed, send your Tracking ID and payment receipt in our support chatbot for instant verification and activation!
+                      {isSoftwareService ? (
+                        <>
+                          Pay <strong className="text-white">₱{totalPrice.toFixed(0)} PHP</strong> directly using the GCash QR code below. Once your order is placed, send your Tracking ID to our support chatbot, download **UltraViewer**, and wait for remote setup!
+                        </>
+                      ) : (
+                        <>
+                          Pay <strong className="text-white">₱{totalPrice.toFixed(0)} PHP</strong> directly using the GCash QR code below. Once your order is placed, send your Tracking ID and payment receipt in our support chatbot for instant verification and activation!
+                        </>
+                      )}
                     </p>
                     <div className="text-center">
                       <div className="bg-white p-1.5 rounded-xl inline-block shadow-md max-w-[130px] mx-auto overflow-hidden border border-slate-700/20">
