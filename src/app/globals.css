@@ -90,3 +90,115 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: #3e3e3e;
 }
+
+/* 🌞 Light Mode Overrides for Admin Panel */
+.light-mode {
+  background-color: #f8fafc !important;
+  color: #334155 !important;
+  --color-background: #f8fafc !important;
+  --color-foreground: #0f172a !important;
+}
+
+.light-mode aside {
+  background-color: #ffffff !important;
+  border-right-color: #e2e8f0 !important;
+  color: #64748b !important;
+}
+
+.light-mode aside a {
+  color: #475569 !important;
+}
+
+.light-mode aside a:hover {
+  background-color: #f1f5f9 !important;
+  color: #0f172a !important;
+}
+
+.light-mode aside .text-white {
+  color: #0f172a !important;
+}
+
+.light-mode main {
+  background-color: #f8fafc !important;
+  color: #334155 !important;
+}
+
+.light-mode .bg-\[\#181818\],
+.light-mode .bg-slate-800 {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+}
+
+.light-mode .border-slate-800\/80,
+.light-mode .border-slate-850\/80,
+.light-mode .border-slate-850\/60,
+.light-mode .border-slate-850\/50,
+.light-mode .divide-slate-850\/50 {
+  border-color: #e2e8f0 !important;
+  divide-color: #e2e8f0 !important;
+}
+
+.light-mode .text-white {
+  color: #0f172a !important;
+}
+
+.light-mode .text-slate-300,
+.light-mode .text-slate-350 {
+  color: #334155 !important;
+}
+
+.light-mode .text-slate-400 {
+  color: #475569 !important;
+}
+
+.light-mode .text-slate-500 {
+  color: #64748b !important;
+}
+
+.light-mode input,
+.light-mode textarea,
+.light-mode select {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+.light-mode input::placeholder,
+.light-mode textarea::placeholder {
+  color: #94a3b8 !important;
+}
+
+.light-mode input:focus,
+.light-mode textarea:focus,
+.light-mode select:focus {
+  border-color: #1DB954 !important;
+  outline: none !important;
+}
+
+.light-mode .bg-\[\#121212\] {
+  background-color: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+}
+
+.light-mode thead tr {
+  background-color: #f8fafc !important;
+  border-bottom-color: #e2e8f0 !important;
+}
+
+.light-mode tbody tr {
+  border-bottom-color: #f1f5f9 !important;
+}
+
+.light-mode tbody tr:hover {
+  background-color: #f8fafc !important;
+}
+
+.light-mode .fixed.inset-0.z-50 {
+  background-color: rgba(15, 23, 42, 0.4) !important;
+}
+
+.light-mode .fixed.inset-0.z-50 > div {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+}
+

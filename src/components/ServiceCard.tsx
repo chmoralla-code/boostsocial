@@ -71,10 +71,11 @@ export function ServiceCard({ id, title, description, startingPrice, iconType, o
           button_text: p.button_text || defaults.button_text,
           min_quantity: Number(p.min_quantity) || 1000,
           redirect_url: p.redirect_url || null,
+          custom_caption: p.custom_caption || null,
         };
       }
     } catch (e) {}
-    return { ...defaults, min_quantity: 1000, redirect_url: null };
+    return { ...defaults, min_quantity: 1000, redirect_url: null, custom_caption: null };
   })();
 
   return (
@@ -105,15 +106,17 @@ export function ServiceCard({ id, title, description, startingPrice, iconType, o
           ) : (
             <>
               <span className="block text-slate-550 text-[10px] font-bold uppercase tracking-wider mb-1">
-                {parsed.min_quantity === 1 
-                  ? "Starts (per 1 PCS)" 
-                  : title.toLowerCase().includes("follower")
-                    ? `For as low as ${parsed.min_quantity} quantity followers`
-                    : title.toLowerCase().includes("reaction") || title.toLowerCase().includes("react")
-                      ? `For as low as ${parsed.min_quantity} quantity reactions`
-                      : title.toLowerCase().includes("view")
-                        ? `For as low as ${parsed.min_quantity} quantity views`
-                        : `For as low as ${parsed.min_quantity} quantity units`
+                {parsed.custom_caption 
+                  ? parsed.custom_caption.replace("{min_quantity}", String(parsed.min_quantity))
+                  : parsed.min_quantity === 1 
+                    ? "Starts (per 1 PCS)" 
+                    : title.toLowerCase().includes("follower")
+                      ? `For as low as ${parsed.min_quantity} quantity followers`
+                      : title.toLowerCase().includes("reaction") || title.toLowerCase().includes("react")
+                        ? `For as low as ${parsed.min_quantity} quantity reactions`
+                        : title.toLowerCase().includes("view")
+                          ? `For as low as ${parsed.min_quantity} quantity views`
+                          : `For as low as ${parsed.min_quantity} quantity units`
                 }
               </span>
               <span className="text-3xl font-black text-white">

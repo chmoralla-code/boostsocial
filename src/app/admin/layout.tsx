@@ -2,6 +2,7 @@ import Link from "next/link";
 import { LayoutDashboard, ShoppingCart, Settings, Users, LogOut, Wallet, FileText, ChevronRight } from "lucide-react";
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
+import { ThemeToggle } from "./ThemeToggle";
 
 export default async function AdminLayout({
   children,
@@ -95,7 +96,8 @@ export default async function AdminLayout({
           </Link>
         </nav>
 
-        <div className="p-4 border-t border-slate-850/60">
+        <div className="p-4 border-t border-slate-850/60 space-y-1">
+          <ThemeToggle />
           <form action="/auth/signout" method="post">
             <button className="flex items-center gap-3 px-4 py-3 w-full rounded-xl hover:bg-red-950/20 text-slate-400 hover:text-red-400 transition-all duration-300 text-left cursor-pointer group">
               <LogOut size={18} className="text-slate-500 group-hover:text-red-400 transition-colors" />

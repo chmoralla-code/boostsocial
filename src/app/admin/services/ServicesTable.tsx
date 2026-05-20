@@ -29,6 +29,7 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
   const [buttonText, setButtonText] = useState("");
   const [minQuantity, setMinQuantity] = useState("100");
   const [freeTrialAmount, setFreeTrialAmount] = useState("50");
+  const [customCaption, setCustomCaption] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [customIconFile, setCustomIconFile] = useState<File | null>(null);
@@ -44,6 +45,7 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
     setButtonText("");
     setMinQuantity("100");
     setFreeTrialAmount("50");
+    setCustomCaption("");
     setStartingPrice("");
     setIconType("followers");
     setCustomIconFile(null);
@@ -66,6 +68,7 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
       button_text: "",
       min_quantity: 100,
       free_trial_amount: 50,
+      custom_caption: "",
     };
 
     switch (service.icon_type) {
@@ -95,6 +98,7 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
         setButtonText(parsed.button_text || defaults.button_text);
         setMinQuantity(String(parsed.min_quantity) || String(defaults.min_quantity));
         setFreeTrialAmount(String(parsed.free_trial_amount) || String(defaults.free_trial_amount));
+        setCustomCaption(parsed.custom_caption || "");
         setCustomFields(parsed.custom_fields || []);
       } else {
         setDescription(service.description);
@@ -102,6 +106,7 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
         setButtonText(defaults.button_text);
         setMinQuantity(String(defaults.min_quantity));
         setFreeTrialAmount(String(defaults.free_trial_amount));
+        setCustomCaption("");
         setCustomFields([]);
       }
     } catch (e) {
@@ -110,6 +115,7 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
       setButtonText(defaults.button_text);
       setMinQuantity(String(defaults.min_quantity));
       setFreeTrialAmount(String(defaults.free_trial_amount));
+      setCustomCaption("");
       setCustomFields([]);
     }
 
@@ -162,6 +168,7 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
       button_text: buttonText.trim(),
       min_quantity: Number(minQuantity) || 100,
       free_trial_amount: Number(freeTrialAmount) || 50,
+      custom_caption: customCaption.trim(),
       custom_fields: customFields,
     });
 
@@ -562,6 +569,20 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
                     className="w-full px-4 py-2.5 rounded-xl bg-[#121212] border border-slate-850/60 focus:outline-none focus:border-[#1DB954]/55 focus:ring-1 focus:ring-[#1DB954]/25 text-white font-bold transition-all text-sm"
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-1.5 flex justify-between">
+                  <span>Custom Price Caption</span>
+                  <span className="text-[8px] text-slate-500 font-normal normal-case">Use {"{min_quantity}"} to insert minimum quantity</span>
+                </label>
+                <input
+                  type="text"
+                  value={customCaption}
+                  onChange={(e) => setCustomCaption(e.target.value)}
+                  placeholder="e.g. For as low as {min_quantity} quantity followers (Leave blank for default)"
+                  className="w-full px-4 py-2.5 rounded-xl bg-[#121212] border border-slate-850/60 focus:outline-none focus:border-[#1DB954]/55 focus:ring-1 focus:ring-[#1DB954]/25 text-white font-medium transition-all text-sm"
+                />
               </div>
 
               <div>
