@@ -15,26 +15,40 @@ export default async function Home() {
     <>
       <Header />
       
-      <main className="flex-grow flex flex-col items-center pt-16 relative overflow-hidden bg-[#121212] min-h-screen">
+      <main className="flex-grow flex flex-col items-center pt-24 relative overflow-hidden bg-[#0a0a0a] min-h-screen">
+        {/* Futuristic Technical Grid Backdrop */}
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.012)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.012)_1px,transparent_1px)] bg-[size:44px_44px] pointer-events-none -z-10"></div>
+        
         {/* Spotify Neon Glow Backdrops */}
-        <div className="absolute top-0 left-0 w-full h-[600px] overflow-hidden -z-10 pointer-events-none">
-          <div className="absolute top-[-20%] left-[10%] w-[500px] h-[500px] rounded-full fb-glow-blob"></div>
-          <div className="absolute top-[20%] right-[-10%] w-[600px] h-[600px] rounded-full spotify-glow-blob"></div>
-          <div className="absolute top-[40%] left-[-20%] w-[500px] h-[500px] rounded-full spotify-glow-blob"></div>
+        <div className="absolute top-0 left-0 w-full h-[700px] overflow-hidden -z-10 pointer-events-none">
+          <div className="absolute top-[-25%] left-[8%] w-[600px] h-[600px] rounded-full fb-glow-blob opacity-80"></div>
+          <div className="absolute top-[15%] right-[-12%] w-[700px] h-[700px] rounded-full spotify-glow-blob opacity-80"></div>
+          <div className="absolute top-[35%] left-[-15%] w-[600px] h-[600px] rounded-full spotify-glow-blob opacity-80"></div>
         </div>
 
-        <div className="text-center px-4 max-w-4xl mx-auto z-10">
-          <h1 className="text-5xl md:text-7xl font-black leading-tight mb-8 tracking-tighter uppercase">
+        <div className="text-center px-4 max-w-4xl mx-auto z-10 flex flex-col items-center">
+          {/* Animated Tech Badge */}
+          <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-white/[0.03] border border-white/[0.08] text-[10px] sm:text-xs font-black tracking-widest text-[#1DB954] mb-8 uppercase shadow-xl shadow-emerald-500/5 backdrop-blur-md">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#1ed760] opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-[#1DB954]"></span>
+            </span>
+            ⚡ Next-Gen Amplification Engine
+          </div>
+
+          <h1 className="text-4xl sm:text-5xl md:text-7xl font-black leading-none mb-6 tracking-tighter uppercase">
             MAS BARATO PA SA <br className="hidden md:inline" />
             <span className="fb-shimmer-text">FACEBOOK</span> <span className="spotify-shimmer-text">BOOSTING</span> SERVICES !
           </h1>
-          <p className="text-lg md:text-xl text-slate-400 mb-10 max-w-3xl mx-auto font-semibold leading-relaxed">
-            Don't worry about transparency—we deliver 50 free trial followers, <br className="hidden sm:inline" />
+          
+          <p className="text-sm sm:text-base md:text-lg text-slate-400 mb-12 max-w-2xl mx-auto font-bold leading-relaxed">
+            Don't worry about transparency—we deliver <span className="text-white">50 free trial</span> followers, <br className="hidden sm:inline" />
             reactions, or views so you can test our service before paying fully!
           </p>
+          
           <a 
             href="#services" 
-            className="inline-block bg-[#1877F2] hover:bg-[#4e8df5] text-white font-black py-4 px-10 rounded-full shadow-lg shadow-blue-600/20 transition-all duration-300 transform hover:scale-[1.05] tracking-wider uppercase text-xs"
+            className="inline-block bg-[#1877F2] hover:bg-[#4e8df5] text-white font-black py-4.5 px-12 rounded-full shadow-[0_0_30px_rgba(24,119,242,0.35)] hover:shadow-[0_0_45px_rgba(24,119,242,0.55)] transition-all duration-300 transform hover:scale-[1.04] tracking-widest uppercase text-xs border border-blue-400/20 cursor-pointer"
           >
             Explore Services
           </a>

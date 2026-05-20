@@ -508,7 +508,7 @@ export function AntigravityCursor() {
   return (
     <canvas
       ref={canvasRef}
-      className="pointer-events-none fixed inset-0 z-[9999] overflow-hidden"
+      className="pointer-events-none fixed inset-0 z-[2] overflow-hidden"
       style={{ mixBlendMode: "screen" }}
     />
   );

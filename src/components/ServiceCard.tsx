@@ -78,8 +78,21 @@ export function ServiceCard({ id, title, description, startingPrice, iconType, o
     return { ...defaults, min_quantity: 1000, redirect_url: null, custom_caption: null };
   })();
 
+  const getGlowClass = () => {
+    switch (iconType) {
+      case "followers":
+        return "hover:shadow-[0_0_35px_rgba(29,185,84,0.15)] hover:border-[#1DB954]/30";
+      case "reactions":
+        return "hover:shadow-[0_0_35px_rgba(24,119,242,0.18)] hover:border-[#1877F2]/30";
+      case "views":
+        return "hover:shadow-[0_0_35px_rgba(29,185,84,0.15)] hover:border-[#1ed760]/30";
+      default:
+        return "hover:shadow-[0_0_35px_rgba(99,102,241,0.15)] hover:border-indigo-500/30";
+    }
+  };
+
   return (
-    <div className="bg-[#181818] hover:bg-[#282828] rounded-2xl p-8 flex flex-col items-start text-left w-full border border-slate-800/40 hover:border-slate-700/60 shadow-xl transition-all duration-300 transform hover:-translate-y-1.5 group">
+    <div className={`bg-[#121212]/50 hover:bg-[#161616]/90 backdrop-blur-md rounded-3xl p-8 flex flex-col items-start text-left w-full border border-white/[0.04] shadow-[0_12px_40px_rgba(0,0,0,0.4)] transition-all duration-500 transform hover:-translate-y-2 group ${getGlowClass()}`}>
       <div className="h-16 flex items-center justify-center">
         {getIcon()}
       </div>
