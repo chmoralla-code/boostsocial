@@ -63,6 +63,34 @@ body {
   letter-spacing: -0.04em;
 }
 
+/* ✨ Premium Staggered Page Load Animations (Deblur, Scale, Slide-in) */
+@keyframes fadeInUp {
+  0% {
+    opacity: 0;
+    transform: translateY(30px) scale(0.97);
+    filter: blur(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+.animate-fade-in-up-1 {
+  animation: fadeInUp 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-fade-in-up-2 {
+  animation: fadeInUp 1.2s cubic-bezier(0.16, 1, 0.3, 1) 0.15s forwards;
+  opacity: 0;
+}
+
+.animate-fade-in-up-3 {
+  animation: fadeInUp 1.2s cubic-bezier(0.16, 1, 0.3, 1) 0.3s forwards;
+  opacity: 0;
+}
+
 /* 🪐 Glowing neon radial backdrop blobs with slow organic floating motion */
 @keyframes floatBlob1 {
   0% {

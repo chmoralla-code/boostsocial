@@ -87,9 +87,17 @@ export function AntigravityCursor() {
       "rgba(14, 165, 233, "   // Cyan Sparkle
     ];
 
-    const symbols = ["👍", "👥", "▶", "⚡", "💙", "🔥"];
+    const fbReactions = [
+      { char: "👍", color: "rgba(24, 119, 242, " },   // Like (Blue)
+      { char: "❤️", color: "rgba(243, 62, 88, " },   // Love (Red)
+      { char: "🥰", color: "rgba(247, 177, 37, " },   // Care (Yellow/Orange)
+      { char: "😆", color: "rgba(247, 177, 37, " },   // Haha (Yellow)
+      { char: "😮", color: "rgba(247, 177, 37, " },   // Wow (Yellow)
+      { char: "😢", color: "rgba(90, 160, 235, " },   // Sad (Soft Blue-Grey)
+      { char: "😡", color: "rgba(233, 113, 15, " }    // Angry (Orange/Red)
+    ];
 
-    // Track mouse click to spawn shockwaves
+    // Track mouse click to spawn shockwaves and particle bursts
     const handleMouseDown = (e: MouseEvent) => {
       const colorBase = colors[Math.floor(Math.random() * colors.length)];
       shockwaves.push({
@@ -119,6 +127,35 @@ export function AntigravityCursor() {
           type: "dust"
         });
       }
+
+      // Spawn 3 dynamic Facebook reaction bubbles flying outward on clicks
+      for (let i = 0; i < 3; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Math.random() * 4 + 2.5;
+        const reaction = fbReactions[Math.floor(Math.random() * fbReactions.length)];
+        const size = Math.random() * 12 + 14;
+        particles.push({
+          x: e.clientX,
+          y: e.clientY,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed - 1.0,
+          size,
+          color: reaction.color,
+          alpha: 0.9,
+          decay: Math.random() * 0.006 + 0.003, // decays slightly faster than standard floaters
+          glow: Math.random() * 20 + 10,
+          type: "bubble",
+          symbol: reaction.char,
+          rotation: (Math.random() - 0.5) * 0.2, // subtle tilt
+          rotSpeed: (Math.random() - 0.5) * 0.004, // very slow rotate to keep readable
+          wobble: Math.random() * Math.PI * 2,
+          wobbleSpeed: Math.random() * 0.06 + 0.03,
+          wobbleAmount: Math.random() * 0.15 + 0.05,
+          sineOffset: Math.random() * Math.PI * 2,
+          sineSpeed: Math.random() * 0.015 + 0.005,
+          sineAmp: Math.random() * 0.3 + 0.1
+        });
+      }
     };
 
     window.addEventListener("mousemove", handleMouseMove);
@@ -144,13 +181,12 @@ export function AntigravityCursor() {
 
     // Spawn larger floating interactive bubbles at the bottom
     const spawnFloatingBubble = () => {
-      if (particles.filter(p => p.type === "bubble").length >= 15) return;
+      if (particles.filter(p => p.type === "bubble").length >= 18) return;
 
       const size = Math.random() * 28 + 14;
       const x = Math.random() * canvas.width;
       const y = canvas.height + size + 10;
-      const colorBase = colors[Math.floor(Math.random() * colors.length)];
-      const hasSymbol = Math.random() < 0.65;
+      const reaction = fbReactions[Math.floor(Math.random() * fbReactions.length)];
 
       particles.push({
         x,
@@ -158,14 +194,14 @@ export function AntigravityCursor() {
         vx: (Math.random() - 0.5) * 0.8,
         vy: -(Math.random() * 1.2 + 0.6), // float UPWARDS
         size,
-        color: colorBase,
+        color: reaction.color,
         alpha: 0.85,
         decay: Math.random() * 0.002 + 0.001,
         glow: Math.random() * 25 + 15,
         type: "bubble",
-        symbol: hasSymbol ? symbols[Math.floor(Math.random() * symbols.length)] : undefined,
-        rotation: Math.random() * Math.PI * 2,
-        rotSpeed: (Math.random() - 0.5) * 0.025,
+        symbol: reaction.char,
+        rotation: (Math.random() - 0.5) * 0.2, // slight starting tilt
+        rotSpeed: (Math.random() - 0.5) * 0.003, // slow down rotation so emojis are readable
         // Wobble physics
         wobble: Math.random() * Math.PI * 2,
         wobbleSpeed: Math.random() * 0.04 + 0.02,

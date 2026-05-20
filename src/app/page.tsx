@@ -28,7 +28,7 @@ export default async function Home() {
 
         <div className="text-center px-4 max-w-4xl mx-auto z-10 flex flex-col items-center">
           {/* Animated Tech Badge */}
-          <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-white/[0.03] border border-white/[0.08] text-[10px] sm:text-xs font-black tracking-widest text-[#1DB954] mb-8 uppercase shadow-xl shadow-emerald-500/5 backdrop-blur-md">
+          <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-white/[0.03] border border-white/[0.08] text-[10px] sm:text-xs font-black tracking-widest text-[#1DB954] mb-8 uppercase shadow-xl shadow-emerald-500/5 backdrop-blur-md animate-fade-in-up-1">
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#1ed760] opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-[#1DB954]"></span>
@@ -36,19 +36,19 @@ export default async function Home() {
             ⚡ Next-Gen Amplification Engine
           </div>
 
-          <h1 className="text-4xl sm:text-5xl md:text-7xl font-black leading-none mb-6 tracking-tighter uppercase">
+          <h1 className="text-4xl sm:text-5xl md:text-7xl font-black leading-none mb-6 tracking-tighter uppercase animate-fade-in-up-2">
             MAS BARATO PA SA <br className="hidden md:inline" />
             <span className="fb-shimmer-text">FACEBOOK</span> <span className="spotify-shimmer-text">BOOSTING</span> SERVICES !
           </h1>
           
-          <p className="text-sm sm:text-base md:text-lg text-slate-400 mb-12 max-w-2xl mx-auto font-bold leading-relaxed">
+          <p className="text-sm sm:text-base md:text-lg text-slate-400 mb-12 max-w-2xl mx-auto font-bold leading-relaxed animate-fade-in-up-3">
             Don't worry about transparency—we deliver <span className="text-white">50 free trial</span> followers, <br className="hidden sm:inline" />
             reactions, or views so you can test our service before paying fully!
           </p>
           
           <a 
             href="#services" 
-            className="inline-block bg-[#1877F2] hover:bg-[#4e8df5] text-white font-black py-4.5 px-12 rounded-full shadow-[0_0_30px_rgba(24,119,242,0.35)] hover:shadow-[0_0_45px_rgba(24,119,242,0.55)] transition-all duration-300 transform hover:scale-[1.04] tracking-widest uppercase text-xs border border-blue-400/20 cursor-pointer"
+            className="inline-block bg-[#1877F2] hover:bg-[#4e8df5] text-white font-black py-4.5 px-12 rounded-full shadow-[0_0_30px_rgba(24,119,242,0.35)] hover:shadow-[0_0_45px_rgba(24,119,242,0.55)] transition-all duration-300 transform hover:scale-[1.04] tracking-widest uppercase text-xs border border-blue-400/20 cursor-pointer animate-fade-in-up-3"
           >
             Explore Services
           </a>
