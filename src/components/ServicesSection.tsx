@@ -47,7 +47,15 @@ export function ServicesSection({ services }: ServicesSectionProps) {
     setSelectedServiceId(id);
     setSelectedServiceTitle(title);
     setSelectedServicePrice(price);
-    setPresetQty(title.toLowerCase().includes("page") ? 1 : 1000);
+    const isSingleQty = 
+      title.toLowerCase().includes("page") || 
+      title.toLowerCase().includes("gemini") || 
+      title.toLowerCase().includes("eap") || 
+      title.toLowerCase().includes("tplink") || 
+      title.toLowerCase().includes("software") || 
+      title.toLowerCase().includes("architectural") ||
+      title.toLowerCase().includes("license");
+    setPresetQty(isSingleQty ? 1 : 1000);
     setIsModalOpen(true);
   };
 

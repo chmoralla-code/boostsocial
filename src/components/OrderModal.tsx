@@ -209,14 +209,17 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
     if (isOpen) {
       setError("");
       setSuccess(false);
+      setCustomFieldValues({});
       
       setSelectedReactions(["Like"]);
-      setEapDeviceCount(presetQuantity && isEapService ? presetQuantity : 1);
+      setEapDeviceCount(1);
       
-      if (presetQuantity) {
+      if (isEapService || isSoftwareService || isPageService) {
+        setQuantity(1);
+      } else if (presetQuantity) {
         setQuantity(presetQuantity);
       } else {
-        setQuantity((isPageService || isEapService || isSoftwareService) ? 1 : 1000);
+        setQuantity(1000);
       }
       
       setIsCheckingAuth(true);
