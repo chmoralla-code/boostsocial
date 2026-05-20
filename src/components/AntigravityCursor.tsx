@@ -40,9 +40,11 @@ export function AntigravityCursor() {
 
   useEffect(() => {
     const isMobile = 
-      "ontouchstart" in window || 
-      navigator.maxTouchPoints > 0 || 
-      (window.matchMedia && window.matchMedia("(max-width: 768px)").matches);
+      typeof window !== "undefined" && (
+        "ontouchstart" in window || 
+        navigator.maxTouchPoints > 0 || 
+        (window.matchMedia && window.matchMedia("(max-width: 768px)").matches)
+      );
 
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -60,17 +62,19 @@ export function AntigravityCursor() {
 
     // Track mouse coordinates
     const handleMouseMove = (e: MouseEvent) => {
+      if (isMobile) return; // Completely disable cursor interactions on mobile!
       mouseRef.current.targetX = e.clientX;
       mouseRef.current.targetY = e.clientY;
       mouseRef.current.active = true;
 
-      // Spawn dust trail particles on mouse move
-      if (Math.random() < 0.45 && !isMobile) {
+      // Spawn dust trail particles on mouse move (optimized rate)
+      if (Math.random() < 0.3 && particles.length < 40) {
         spawnDust(e.clientX, e.clientY);
       }
     };
 
     const handleMouseLeave = () => {
+      if (isMobile) return;
       mouseRef.current.active = false;
     };
 
@@ -96,6 +100,8 @@ export function AntigravityCursor() {
 
     // Track mouse click to spawn shockwaves and particle bursts
     const handleMouseDown = (e: MouseEvent) => {
+      if (isMobile) return; // Completely disable click explosions on mobile!
+
       const colorBase = colors[Math.floor(Math.random() * colors.length)];
       shockwaves.push({
         x: e.clientX,
@@ -106,8 +112,8 @@ export function AntigravityCursor() {
         color: colorBase
       });
 
-      // Spawn a colorful burst of sparkling dust particles expanding in 360 degrees
-      const particleCount = 24;
+      // Spawn a colorful burst of sparkling dust particles expanding in 360 degrees (optimized count to 12)
+      const particleCount = 12;
       for (let i = 0; i < particleCount; i++) {
         const angle = Math.random() * Math.PI * 2;
         const speed = Math.random() * 5 + 3.5;
@@ -116,11 +122,11 @@ export function AntigravityCursor() {
           y: e.clientY,
           vx: Math.cos(angle) * speed,
           vy: Math.sin(angle) * speed - 1.5, // slightly upwards biased
-          size: Math.random() * 4 + 2,
+          size: Math.random() * 3 + 1.5,
           color: colorBase,
           alpha: 1,
-          decay: Math.random() * 0.02 + 0.01,
-          glow: Math.random() * 20 + 10,
+          decay: Math.random() * 0.035 + 0.02, // faster decay for crisp animation & low overhead
+          glow: Math.random() * 15 + 5,
           type: "dust"
         });
       }
@@ -139,12 +145,12 @@ export function AntigravityCursor() {
           size,
           color: reaction.color,
           alpha: 0.9,
-          decay: Math.random() * 0.006 + 0.003, // decays slightly faster than standard floaters
+          decay: Math.random() * 0.008 + 0.005, // slightly faster click-bubble decay
           glow: Math.random() * 20 + 10,
           type: "bubble",
           symbol: reaction.char,
           rotation: (Math.random() - 0.5) * 0.2, // subtle tilt
-          rotSpeed: (Math.random() - 0.5) * 0.004, // very slow rotate to keep readable
+          rotSpeed: (Math.random() - 0.5) * 0.004, // slow rotate to keep readable
           wobble: Math.random() * Math.PI * 2,
           wobbleSpeed: Math.random() * 0.06 + 0.03,
           wobbleAmount: Math.random() * 0.15 + 0.05,
@@ -155,9 +161,9 @@ export function AntigravityCursor() {
       }
     };
 
-    // Track touch interactions for mobile devices (Android / iOS)
+    // Track touch interactions for desktop touchscreens (only active if not mobile viewport)
     const handleTouchStart = (e: TouchEvent) => {
-      if (e.touches.length === 0) return;
+      if (isMobile || e.touches.length === 0) return;
       const touch = e.touches[0];
       mouseRef.current.targetX = touch.clientX;
       mouseRef.current.targetY = touch.clientY;
@@ -174,7 +180,7 @@ export function AntigravityCursor() {
       });
 
       // Spawn colorful sparks on tap
-      const particleCount = 14;
+      const particleCount = 8;
       for (let i = 0; i < particleCount; i++) {
         const angle = Math.random() * Math.PI * 2;
         const speed = Math.random() * 4 + 2.5;
@@ -183,10 +189,10 @@ export function AntigravityCursor() {
           y: touch.clientY,
           vx: Math.cos(angle) * speed,
           vy: Math.sin(angle) * speed - 1.0,
-          size: Math.random() * 3 + 1.5,
+          size: Math.random() * 2.5 + 1.2,
           color: colorBase,
           alpha: 1,
-          decay: Math.random() * 0.02 + 0.01,
+          decay: Math.random() * 0.035 + 0.02,
           glow: Math.random() * 15 + 5,
           type: "dust"
         });
@@ -206,7 +212,7 @@ export function AntigravityCursor() {
           size,
           color: reaction.color,
           alpha: 0.9,
-          decay: Math.random() * 0.008 + 0.004,
+          decay: Math.random() * 0.01 + 0.006,
           glow: Math.random() * 15 + 8,
           type: "bubble",
           symbol: reaction.char,
@@ -223,27 +229,28 @@ export function AntigravityCursor() {
     };
 
     const handleTouchMove = (e: TouchEvent) => {
-      if (e.touches.length === 0) return;
+      if (isMobile || e.touches.length === 0) return;
       const touch = e.touches[0];
       mouseRef.current.targetX = touch.clientX;
       mouseRef.current.targetY = touch.clientY;
       mouseRef.current.active = true;
 
       // Spawn dust trail on finger drag
-      if (Math.random() < 0.4) {
+      if (Math.random() < 0.3 && particles.length < 40) {
         spawnDust(touch.clientX, touch.clientY);
       }
     };
 
     const handleTouchEnd = () => {
+      if (isMobile) return;
       mouseRef.current.active = false;
     };
 
-    window.addEventListener("mousemove", handleMouseMove);
-    document.addEventListener("mouseleave", handleMouseLeave);
-    window.addEventListener("mousedown", handleMouseDown);
-    
+    // Only hook up interactions if NOT on mobile view!
     if (!isMobile) {
+      window.addEventListener("mousemove", handleMouseMove);
+      document.addEventListener("mouseleave", handleMouseLeave);
+      window.addEventListener("mousedown", handleMouseDown);
       window.addEventListener("touchstart", handleTouchStart, { passive: true });
       window.addEventListener("touchmove", handleTouchMove, { passive: true });
       window.addEventListener("touchend", handleTouchEnd, { passive: true });
@@ -257,10 +264,10 @@ export function AntigravityCursor() {
         y,
         vx: (Math.random() - 0.5) * 1.8,
         vy: -Math.random() * 1.5 - 0.6, // Always float upwards
-        size: Math.random() * 3 + 1.5,
+        size: Math.random() * 2.5 + 1.2,
         color: colorBase,
         alpha: 1,
-        decay: Math.random() * 0.015 + 0.008,
+        decay: Math.random() * 0.02 + 0.012,
         glow: Math.random() * 15 + 5,
         type: "dust"
       });
@@ -342,16 +349,18 @@ export function AntigravityCursor() {
         ctx.stroke();
         ctx.restore();
 
-        // 3. Central Core Plasma Spark
+        // 3. Central Core Plasma Spark (Optimized concentric glow circles)
+        ctx.beginPath();
+        ctx.arc(lerpX, lerpY, 9, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(29, 185, 84, 0.25)";
+        ctx.fill();
+
         ctx.beginPath();
         ctx.arc(lerpX, lerpY, 4, 0, Math.PI * 2);
         ctx.fillStyle = "#1DB954"; // Spotify Green core
-        ctx.shadowBlur = 20;
-        ctx.shadowColor = "#1ed760";
         ctx.fill();
-        ctx.shadowBlur = 0; // Reset shadow
 
-        // 4. Energy Beams / Tractor Beams connecting to nearby bubbles
+        // 4. Energy Beams / Tractor Beams connecting to nearby bubbles (Optimized line distance & glow)
         ctx.save();
         for (let i = 0; i < particles.length; i++) {
           const p = particles[i];
@@ -359,13 +368,12 @@ export function AntigravityCursor() {
 
           const dx = p.x - lerpX;
           const dy = p.y - lerpY;
-          const dist = Math.sqrt(dx * dx + dy * dy);
+          const distSq = dx * dx + dy * dy;
 
-          if (dist < 200) {
+          if (distSq < 40000) { // 200px (200 * 200 = 40000)
+            const dist = Math.sqrt(distSq);
             // Draw a faint electric arc / laser line connecting the cursor to the bubble
             const alpha = (1 - (dist / 200)) * 0.35 * p.alpha;
-            ctx.beginPath();
-            ctx.moveTo(lerpX, lerpY);
             
             // Draw a curved organic line that wiggles
             const midX = (lerpX + p.x) / 2;
@@ -373,12 +381,20 @@ export function AntigravityCursor() {
             const perpX = -(p.y - lerpY) * 0.12 * Math.sin(time + (p.size || 0));
             const perpY = (p.x - lerpX) * 0.12 * Math.sin(time + (p.size || 0));
             
+            // Outer glow line
+            ctx.beginPath();
+            ctx.moveTo(lerpX, lerpY);
             ctx.quadraticCurveTo(midX + perpX, midY + perpY, p.x, p.y);
-            
+            ctx.strokeStyle = p.color + `${alpha * 0.35})`;
+            ctx.lineWidth = 3;
+            ctx.stroke();
+
+            // Inner intense line
+            ctx.beginPath();
+            ctx.moveTo(lerpX, lerpY);
+            ctx.quadraticCurveTo(midX + perpX, midY + perpY, p.x, p.y);
             ctx.strokeStyle = p.color + `${alpha})`;
             ctx.lineWidth = 1.2;
-            ctx.shadowBlur = 10;
-            ctx.shadowColor = p.color + "0.8)";
             ctx.stroke();
           }
         }
@@ -401,16 +417,24 @@ export function AntigravityCursor() {
           continue;
         }
 
-        // Draw growing glowing ring
+        // Draw growing glowing ring (Optimized glow, no slow shadowBlur!)
         ctx.save();
         ctx.globalAlpha = sw.alpha;
+        
+        // Outer soft glow ring
         ctx.beginPath();
         ctx.arc(sw.x, sw.y, sw.radius, 0, Math.PI * 2);
-        ctx.strokeStyle = sw.color + "0.7)";
-        ctx.lineWidth = 3;
-        ctx.shadowBlur = 30;
-        ctx.shadowColor = sw.color + "0.9)";
+        ctx.strokeStyle = sw.color + "0.22)";
+        ctx.lineWidth = 9;
         ctx.stroke();
+
+        // Inner intense ring
+        ctx.beginPath();
+        ctx.arc(sw.x, sw.y, sw.radius, 0, Math.PI * 2);
+        ctx.strokeStyle = sw.color + "0.85)";
+        ctx.lineWidth = 3;
+        ctx.stroke();
+
         ctx.restore();
 
         // Apply physical impact from shockwave to all particles
@@ -418,47 +442,62 @@ export function AntigravityCursor() {
           const p = particles[i];
           const dx = p.x - sw.x;
           const dy = p.y - sw.y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
+          const distSq = dx * dx + dy * dy;
 
-          if (dist > sw.radius - 25 && dist < sw.radius + 35) {
-            const force = (1 - (dist / sw.maxRadius)) * 14;
-            if (force > 0) {
-              const pushX = (dx / dist) * force;
-              const pushY = (dy / dist) * force - 1.5;
+          const lowerR = sw.radius - 25;
+          const upperR = sw.radius + 35;
+          if (distSq > lowerR * lowerR && distSq < upperR * upperR) {
+            const dist = Math.sqrt(distSq);
+            if (dist > 0) {
+              const force = (1 - (dist / sw.maxRadius)) * 14;
+              if (force > 0) {
+                const pushX = (dx / dist) * force;
+                const pushY = (dy / dist) * force - 1.5;
 
-              p.vx += pushX;
-              p.vy += pushY;
+                p.vx += pushX;
+                p.vy += pushY;
+              }
             }
           }
         }
       }
 
-      // Draw faint lines between nearby dust particles (constellation trail)
-      ctx.save();
-      for (let i = 0; i < particles.length; i++) {
-        const p1 = particles[i];
-        if (p1.type !== "dust") continue;
+      // Draw faint lines between nearby dust particles (constellation trail) - HIGHLY OPTIMIZED
+      const dustParticles = particles.filter(p => p.type === "dust");
+      if (dustParticles.length < 40) {
+        ctx.save();
+        for (let i = 0; i < dustParticles.length; i++) {
+          const p1 = dustParticles[i];
+          // Limit connection checks to subsequent 6 particles to avoid O(N^2) load
+          const checkLimit = Math.min(dustParticles.length, i + 7);
+          for (let j = i + 1; j < checkLimit; j++) {
+            const p2 = dustParticles[j];
+            const dx = p1.x - p2.x;
+            const dy = p1.y - p2.y;
+            const distSq = dx * dx + dy * dy;
 
-        for (let j = i + 1; j < particles.length; j++) {
-          const p2 = particles[j];
-          if (p2.type !== "dust") continue;
-
-          const dx = p1.x - p2.x;
-          const dy = p1.y - p2.y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-
-          if (dist < 60) {
-            const alpha = (1 - (dist / 60)) * 0.16 * Math.min(p1.alpha, p2.alpha);
-            ctx.beginPath();
-            ctx.moveTo(p1.x, p1.y);
-            ctx.lineTo(p2.x, p2.y);
-            ctx.strokeStyle = p1.color + `${alpha})`;
-            ctx.lineWidth = 0.8;
-            ctx.stroke();
+            if (distSq < 3600) { // 60px distance (60 * 60 = 3600)
+              const dist = Math.sqrt(distSq);
+              const alpha = (1 - (dist / 60)) * 0.16 * Math.min(p1.alpha, p2.alpha);
+              ctx.beginPath();
+              ctx.moveTo(p1.x, p1.y);
+              ctx.lineTo(p2.x, p2.y);
+              ctx.strokeStyle = p1.color + `${alpha})`;
+              ctx.lineWidth = 0.8;
+              ctx.stroke();
+            }
           }
         }
+        ctx.restore();
       }
-      ctx.restore();
+
+      // Cap maximum dust particles to prevent array bloat
+      if (dustParticles.length > 35) {
+        const firstDustIdx = particles.findIndex(p => p.type === "dust");
+        if (firstDustIdx !== -1) {
+          particles.splice(firstDustIdx, 1);
+        }
+      }
 
       // Update and draw particles
       for (let i = particles.length - 1; i >= 0; i--) {
@@ -483,19 +522,22 @@ export function AntigravityCursor() {
         }
 
         // Apply mouse repulsion force (antigravity field)
-        if (mouse.active) {
+        if (mouse.active && !isMobile) {
           const dx = p.x - mouse.targetX;
           const dy = p.y - mouse.targetY;
-          const dist = Math.sqrt(dx * dx + dy * dy);
+          const distSq = dx * dx + dy * dy;
           const forceRadius = p.type === "bubble" ? 180 : 120;
 
-          if (dist < forceRadius) {
-            const force = (forceRadius - dist) / forceRadius;
-            const pushX = (dx / dist) * force * (p.type === "bubble" ? 5 : 2.5);
-            const pushY = (dy / dist) * force * (p.type === "bubble" ? 5 : 2.5);
+          if (distSq < forceRadius * forceRadius) {
+            const dist = Math.sqrt(distSq);
+            if (dist > 0) {
+              const force = (forceRadius - dist) / forceRadius;
+              const pushX = (dx / dist) * force * (p.type === "bubble" ? 5 : 2.5);
+              const pushY = (dy / dist) * force * (p.type === "bubble" ? 5 : 2.5);
 
-            p.vx += pushX;
-            p.vy += pushY;
+              p.vx += pushX;
+              p.vy += pushY;
+            }
           }
         }
 
@@ -506,7 +548,7 @@ export function AntigravityCursor() {
         // Decelerate extreme velocities
         const maxSpeed = p.type === "bubble" ? 5.5 : 4.5;
         const currentSpeed = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
-        if (currentSpeed > maxSpeed) {
+        if (currentSpeed > maxSpeed && currentSpeed > 0) {
           p.vx = (p.vx / currentSpeed) * maxSpeed;
           p.vy = (p.vy / currentSpeed) * maxSpeed;
         }
@@ -525,13 +567,15 @@ export function AntigravityCursor() {
         ctx.globalAlpha = p.alpha;
 
         if (p.type === "dust") {
-          // Spark glow
-          ctx.shadowBlur = p.glow;
-          ctx.shadowColor = p.color + "0.6)";
+          // Spark glow (concentric circles, highly optimized, no slow shadowBlur!)
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.size * 2.2, 0, Math.PI * 2);
+          ctx.fillStyle = p.color + "0.22)";
+          ctx.fill();
 
           ctx.beginPath();
           ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-          ctx.fillStyle = p.color + "0.9)";
+          ctx.fillStyle = p.color + "0.95)";
           ctx.fill();
         } else if (p.type === "bubble") {
           // Localize coordinate system to bubble center for squish/rotation operations
@@ -569,8 +613,12 @@ export function AntigravityCursor() {
           gradient.addColorStop(0.5, "rgba(255, 255, 255, 0.02)");
           gradient.addColorStop(1, p.color + "0.26)");
 
-          ctx.shadowBlur = p.glow;
-          ctx.shadowColor = p.color + "0.5)";
+          // Outer ellipse glow (Double border, no shadowBlur!)
+          ctx.beginPath();
+          ctx.ellipse(0, 0, rx * 1.15, ry * 1.15, 0, 0, Math.PI * 2);
+          ctx.strokeStyle = p.color + "0.15)";
+          ctx.lineWidth = 4;
+          ctx.stroke();
 
           // Draw outline border
           ctx.beginPath();
@@ -593,8 +641,6 @@ export function AntigravityCursor() {
 
           // Render symbol if present
           if (p.symbol) {
-            ctx.shadowBlur = 0; // Disable shadow for text clarity
-            
             // Undo velocity-stretch rotation to keep symbols upright (or slightly wobbling)
             if (speed > 0.15) {
               const stretchAngle = Math.atan2(p.vy, p.vx);
@@ -621,10 +667,10 @@ export function AntigravityCursor() {
 
     return () => {
       window.removeEventListener("resize", resizeCanvas);
-      window.removeEventListener("mousemove", handleMouseMove);
-      document.removeEventListener("mouseleave", handleMouseLeave);
-      window.removeEventListener("mousedown", handleMouseDown);
       if (!isMobile) {
+        window.removeEventListener("mousemove", handleMouseMove);
+        document.removeEventListener("mouseleave", handleMouseLeave);
+        window.removeEventListener("mousedown", handleMouseDown);
         window.removeEventListener("touchstart", handleTouchStart);
         window.removeEventListener("touchmove", handleTouchMove);
         window.removeEventListener("touchend", handleTouchEnd);
