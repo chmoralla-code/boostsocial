@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { format } from "date-fns";
-import { Search, ArrowUpDown, Mail, ShoppingBag, DollarSign, Calendar, Landmark, Trash2, Users } from "lucide-react";
+import { Search, ArrowUpDown, Mail, ShoppingBag, DollarSign, Calendar, Landmark, Trash2, Users, MessageSquare, Send, X, Loader2 } from "lucide-react";
 
 interface Customer {
   id?: string;
@@ -42,6 +42,44 @@ export function CustomersList({
   const [newBalanceValue, setNewBalanceValue] = useState("");
   const [isUpdatingBalance, setIsUpdatingBalance] = useState(false);
   const [isDeletingAll, setIsDeletingAll] = useState(false);
+
+  // Real-time Chatbox States
+  const [chatCustomer, setChatCustomer] = useState<Customer | null>(null);
+  const [chatMessages, setChatMessages] = useState<any[]>([]);
+  const [chatInput, setChatInput] = useState("");
+  const [isSendingMessage, setIsSendingMessage] = useState(false);
+  const [isLoadingChat, setIsLoadingChat] = useState(false);
+
+  const adminChatEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!chatCustomer) {
+      setChatMessages([]);
+      return;
+    }
+
+    const fetchMessages = async () => {
+      try {
+        const res = await fetch(`/api/chat/messages?email=${encodeURIComponent(chatCustomer.email)}`);
+        if (res.ok) {
+          const data = await res.json();
+          setChatMessages(data.messages || []);
+        }
+      } catch (err) {
+        console.error("Error fetching chat messages:", err);
+      }
+    };
+
+    setIsLoadingChat(true);
+    fetchMessages().finally(() => setIsLoadingChat(false));
+
+    const interval = setInterval(fetchMessages, 4000);
+    return () => clearInterval(interval);
+  }, [chatCustomer]);
+
+  useEffect(() => {
+    adminChatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [chatMessages]);
 
   const handleDeleteAllAccounts = async () => {
     if (confirm("🚨 WARNING: Are you absolutely sure you want to DELETE ALL CUSTOMER ACCOUNTS? (The admin account admin@boostsocial.com will be spared, and orders will be anonymized). This action is permanent and CANNOT be undone!")) {
@@ -310,6 +348,12 @@ export function CustomersList({
                     </div>
                   </td>
                   <td className="py-4 px-6 text-sm text-right whitespace-nowrap space-x-2">
+                    <button
+                      onClick={() => setChatCustomer(customer)}
+                      className="px-3 py-1.5 bg-blue-500/10 border border-blue-500/20 text-blue-400 hover:bg-blue-500/20 rounded-lg text-xs font-bold transition-all shadow-sm"
+                    >
+                      Chat
+                    </button>
                     {customer.hasProfile && (
                       <button
                         onClick={() => {
@@ -434,6 +478,128 @@ export function CustomersList({
               </div>
             </form>
           </div>
+        </div>
+      )}
+
+      {/* Real-time Customer Chat Drawer */}
+      {chatCustomer && (
+        <div className="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-[#181818] border-l border-slate-800/80 shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-right duration-300 text-slate-350">
+          {/* Header */}
+          <div className="bg-[#121212] border-b border-slate-800 p-4 flex items-center justify-between text-white flex-shrink-0">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="bg-[#1DB954]/10 text-[#1DB954] border border-[#1DB954]/25 p-2 rounded-xl flex-shrink-0">
+                <MessageSquare size={18} />
+              </div>
+              <div className="min-w-0">
+                <h3 className="font-black text-sm tracking-tight text-white">Customer Support Chat</h3>
+                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider select-all truncate max-w-[280px]">{chatCustomer.email}</p>
+              </div>
+            </div>
+            <button 
+              onClick={() => setChatCustomer(null)}
+              className="text-slate-400 hover:text-white p-1.5 hover:bg-slate-800/50 rounded-lg transition-colors"
+            >
+              <X size={20} />
+            </button>
+          </div>
+
+          {/* Chat Messages Panel */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-3.5 bg-[#121212] flex flex-col">
+            {isLoadingChat && chatMessages.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full text-slate-500 space-y-2 my-auto">
+                <Loader2 size={24} className="animate-spin text-[#1DB954]" />
+                <span className="text-xs font-bold uppercase tracking-wider">Loading conversation...</span>
+              </div>
+            ) : chatMessages.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full text-slate-500 text-center p-6 space-y-2 my-auto">
+                <MessageSquare size={32} className="text-slate-700" />
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-400">No message history</p>
+                <p className="text-[10px] text-slate-500 max-w-xs">Start a real-time conversation by typing a message below. The customer will see it instantly in their Support Chathead!</p>
+              </div>
+            ) : (
+              chatMessages.map((msg: any) => {
+                const isAdmin = msg.sender === 'admin';
+                const isSystem = msg.sender === 'system';
+                return (
+                  <div key={msg.id} className={`flex ${isAdmin ? 'justify-end' : 'justify-start'}`}>
+                    <div 
+                      className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm shadow-sm flex flex-col ${
+                        isAdmin 
+                          ? 'bg-[#1DB954] text-black font-semibold rounded-br-none animate-in fade-in duration-200' 
+                          : isSystem
+                          ? 'bg-purple-500/10 border border-purple-500/20 text-purple-400 rounded-bl-none font-medium'
+                          : 'bg-[#282828] border border-slate-800/60 text-slate-200 rounded-bl-none font-semibold'
+                      }`}
+                    >
+                      <span className="break-all">{msg.message}</span>
+                      <span className={`text-[9px] mt-1 self-end ${isAdmin ? 'text-black/60 font-extrabold' : 'text-slate-500 font-bold'}`}>
+                        {format(new Date(msg.created_at), 'h:mm a')}
+                        {isSystem && " • AI Bot"}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+            <div ref={adminChatEndRef} />
+          </div>
+
+          {/* Message Input Form */}
+          <form 
+            onSubmit={async (e) => {
+              e.preventDefault();
+              if (!chatInput.trim() || isSendingMessage) return;
+
+              const messageText = chatInput.trim();
+              setChatInput("");
+              setIsSendingMessage(true);
+
+              try {
+                const res = await fetch("/api/chat/messages", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    email: chatCustomer.email,
+                    message: messageText,
+                    sender: "admin"
+                  })
+                });
+
+                if (res.ok) {
+                  const data = await res.json();
+                  setChatMessages(prev => [...prev, data.message]);
+                } else {
+                  alert("Failed to send message.");
+                }
+              } catch (err) {
+                console.error("Error sending message:", err);
+                alert("An error occurred.");
+              } finally {
+                setIsSendingMessage(false);
+              }
+            }}
+            className="p-3 bg-[#181818] border-t border-slate-800 flex gap-2 items-center flex-shrink-0"
+          >
+            <input
+              type="text"
+              value={chatInput}
+              onChange={(e) => setChatInput(e.target.value)}
+              placeholder="Type your response to the customer..."
+              className="flex-grow px-4 py-2.5 rounded-xl bg-[#121212] border border-slate-850/60 focus:outline-none focus:border-[#1DB954]/55 focus:ring-1 focus:ring-[#1DB954]/25 text-white font-medium placeholder-slate-500 text-sm"
+              disabled={isSendingMessage}
+            />
+            <button
+              type="submit"
+              disabled={isSendingMessage || !chatInput.trim()}
+              className="bg-[#1DB954] hover:bg-[#1ed760] disabled:bg-[#121212] disabled:border-slate-800 disabled:text-slate-600 text-black font-extrabold p-2.5 rounded-xl transition-colors flex items-center justify-center flex-shrink-0"
+            >
+              {isSendingMessage ? (
+                <Loader2 size={16} className="animate-spin" />
+              ) : (
+                <Send size={16} />
+              )}
+            </button>
+          </form>
         </div>
       )}
     </div>

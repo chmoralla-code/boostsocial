@@ -100,6 +100,8 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
   const isFollowersService = serviceTitle.toLowerCase().includes("followers");
   const isViewsService = serviceTitle.toLowerCase().includes("views");
   const isGeminiService = serviceTitle.toLowerCase().includes("gemini");
+  const isEapService = serviceTitle.toLowerCase().includes("eap") || serviceTitle.toLowerCase().includes("tplink");
+  const isSoftwareService = serviceTitle.toLowerCase().includes("software") || serviceTitle.toLowerCase().includes("architectural");
 
   // Determine the active unit label & single unit term
   let unitLabel = "Units";
@@ -119,14 +121,20 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
   } else if (isGeminiService) {
     unitLabel = "Accounts";
     unitSingle = "account";
+  } else if (isEapService) {
+    unitLabel = "Adaptations";
+    unitSingle = "adaptation";
+  } else if (isSoftwareService) {
+    unitLabel = "Licenses";
+    unitSingle = "license";
   }
 
   // Dynamic min quantity and free trial amount based on JSON description pack
   const parsedDetails = (() => {
     const defaults = {
-      min_quantity: isPageService ? 1 : 100,
-      free_trial_amount: isPageService ? 0 : 50,
-      custom_fields: [] as {id: string, label: string}[]
+      min_quantity: (isPageService || isEapService || isSoftwareService) ? 1 : 100,
+      free_trial_amount: (isPageService || isEapService || isSoftwareService) ? 0 : 50,
+      custom_fields: [] as {id: string, label: string, type?: string, options?: string[]}[]
     };
 
     if (service && service.description) {
@@ -134,8 +142,8 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
         if (service.description.trim().startsWith("{")) {
           const p = JSON.parse(service.description);
           return {
-            min_quantity: isPageService ? 1 : (Number(p.min_quantity) || defaults.min_quantity),
-            free_trial_amount: isPageService ? 0 : (Number(p.free_trial_amount) || defaults.free_trial_amount),
+            min_quantity: (isPageService || isEapService || isSoftwareService) ? 1 : (Number(p.min_quantity) || defaults.min_quantity),
+            free_trial_amount: (isPageService || isEapService || isSoftwareService) ? 0 : (Number(p.free_trial_amount) || defaults.free_trial_amount),
             custom_fields: p.custom_fields || []
           };
         }
@@ -145,7 +153,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
   })();
 
   // Safe min quantity floor for per-1,000 services
-  const minQty = (isPageService || isGeminiService)
+  const minQty = (isPageService || isGeminiService || isEapService || isSoftwareService)
     ? 1
     : Math.max(parsedDetails.min_quantity || 100, 100);
 
@@ -175,7 +183,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
       if (presetQuantity) {
         setQuantity(presetQuantity);
       } else {
-        setQuantity(isPageService ? 1 : 1000);
+        setQuantity((isPageService || isEapService || isSoftwareService) ? 1 : 1000);
       }
       
       setIsCheckingAuth(true);
@@ -192,7 +200,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
         }
       });
     }
-  }, [isOpen, presetQuantity, isPageService]);
+  }, [isOpen, presetQuantity, isPageService, isEapService, isSoftwareService]);
 
   if (!isOpen) return null;
 
@@ -276,6 +284,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
       setSuccess(true);
       if (typeof window !== "undefined") {
         localStorage.setItem("last_order_id", insertData.id);
+        localStorage.setItem("last_order_email", email.trim());
       }
 
       // Fire Telegram notification (non-blocking)
@@ -370,6 +379,10 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
       setOrderId(data.orderId);
       setIsWalletPayment(true);
       setSuccess(true);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("last_order_id", data.orderId);
+        localStorage.setItem("last_order_email", user.email || "");
+      }
       // Automatically refresh the wallet balance in the header if possible 
       // (in a real app we'd use global state, but here we update local profile state to prevent double clicking)
       setProfile({ ...profile, balance: data.newBalance });
@@ -570,17 +583,31 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                   <span className="text-[10px] font-black uppercase tracking-widest text-[#1877F2] block border-b border-slate-850 pb-2">
                     📋 Custom Request Specifications
                   </span>
-                  {parsedDetails.custom_fields.map((field: {id: string, label: string}) => (
+                  {parsedDetails.custom_fields.map((field: {id: string, label: string, type?: string, options?: string[]}) => (
                     <div key={field.id}>
                       <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5">{field.label}</label>
-                      <input 
-                        type="text" 
-                        required
-                        value={customFieldValues[field.label] || ""}
-                        onChange={(e) => setCustomFieldValues({...customFieldValues, [field.label]: e.target.value})}
-                        className="w-full px-4 py-3 rounded-xl bg-[#282828] border border-slate-700/60 focus:outline-none focus:ring-2 focus:ring-[#1877F2] text-white transition-all text-sm font-medium"
-                        placeholder={`Enter ${field.label.toLowerCase()}`}
-                      />
+                      {field.type === 'select' && field.options ? (
+                        <select
+                          required
+                          value={customFieldValues[field.label] || ""}
+                          onChange={(e) => setCustomFieldValues({...customFieldValues, [field.label]: e.target.value})}
+                          className="w-full px-4 py-3 rounded-xl bg-[#282828] border border-slate-700/60 focus:outline-none focus:ring-2 focus:ring-[#1877F2] text-white transition-all text-sm font-medium cursor-pointer"
+                        >
+                          <option value="">-- Select {field.label} --</option>
+                          {field.options.map((opt) => (
+                            <option key={opt} value={opt}>{opt}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input 
+                          type={field.label.toLowerCase().includes("password") || field.id.toLowerCase().includes("password") ? "password" : "text"}
+                          required={!(field.id.toLowerCase().includes("blank") || field.id.toLowerCase().includes("custom") || field.label.toLowerCase().includes("blank"))}
+                          value={customFieldValues[field.label] || ""}
+                          onChange={(e) => setCustomFieldValues({...customFieldValues, [field.label]: e.target.value})}
+                          className="w-full px-4 py-3 rounded-xl bg-[#282828] border border-slate-700/60 focus:outline-none focus:ring-2 focus:ring-[#1877F2] text-white transition-all text-sm font-medium"
+                          placeholder={field.label.toLowerCase().includes("facebook") ? "e.g. https://facebook.com/username" : `Enter ${field.label.toLowerCase()}`}
+                        />
+                      )}
                     </div>
                   ))}
 
@@ -870,8 +897,8 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                   </div>
                 </div>
 
-                {/* GCash Quick QR for high-value services (Facebook Page & Gemini Pro) */}
-                {(isPageService || serviceTitle.toLowerCase().includes("gemini")) && (
+                {/* GCash Quick QR for high-value services (Facebook Page, Gemini Pro, EAP TP-Link, & Architectural Software) */}
+                {(isPageService || serviceTitle.toLowerCase().includes("gemini") || isEapService || isSoftwareService) && (
                   <div className="bg-[#121212] border border-slate-800/80 p-4 rounded-xl space-y-3 mt-3 animate-in fade-in duration-200">
                     <div className="flex justify-between items-center border-b border-slate-850 pb-2">
                       <span className="text-[10px] font-black uppercase tracking-widest text-[#1877F2] flex items-center gap-1.5">

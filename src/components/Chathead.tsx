@@ -117,6 +117,10 @@ export function Chathead() {
   const supabase = createClient();
   const [dbServices, setDbServices] = useState<any[]>([]);
 
+  // Real-time Support Chat Session
+  const [customerEmail, setCustomerEmail] = useState("");
+  const [emailInput, setEmailInput] = useState("");
+
   useEffect(() => {
     supabase
       .from('services')
@@ -126,6 +130,69 @@ export function Chathead() {
         if (data) setDbServices(data);
       });
   }, []);
+
+  // 1. Initial Email Session Resolution
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      if (data?.user?.email) {
+        setCustomerEmail(data.user.email);
+      } else {
+        if (typeof window !== "undefined") {
+          const stored = localStorage.getItem("last_order_email");
+          if (stored) {
+            setCustomerEmail(stored);
+          }
+        }
+      }
+    });
+  }, []);
+
+  // 2. Poll Database Chat History
+  useEffect(() => {
+    if (!customerEmail) return;
+
+    const fetchDBChat = async () => {
+      try {
+        const res = await fetch(`/api/chat/messages?email=${encodeURIComponent(customerEmail)}`);
+        if (res.ok) {
+          const data = await res.json();
+          const dbMsgs = data.messages || [];
+          if (dbMsgs.length > 0) {
+            const mapped = dbMsgs.map((m: any) => ({
+              role: m.sender === 'customer' ? 'user' : 'assistant',
+              content: m.message
+            }));
+            setMessages(mapped);
+          }
+        }
+      } catch (err) {
+        console.error("Error loading chat history:", err);
+      }
+    };
+
+    fetchDBChat();
+
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/chat/messages?email=${encodeURIComponent(customerEmail)}`);
+        if (res.ok) {
+          const data = await res.json();
+          const dbMsgs = data.messages || [];
+          if (dbMsgs.length > 0) {
+            const mapped = dbMsgs.map((m: any) => ({
+              role: m.sender === 'customer' ? 'user' : 'assistant',
+              content: m.message
+            }));
+            setMessages(mapped);
+          }
+        }
+      } catch (err) {
+        console.error("Error polling chat history:", err);
+      }
+    }, 4000);
+
+    return () => clearInterval(interval);
+  }, [customerEmail]);
 
   const uploadReceiptFile = async (file: File) => {
     const uuidRegex = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
@@ -243,6 +310,19 @@ export function Chathead() {
   const sendMessage = async (userMsg: string) => {
     setIsLoading(true);
 
+    // Save customer message to Database in background
+    if (customerEmail) {
+      fetch("/api/chat/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: customerEmail,
+          message: userMsg,
+          sender: "customer"
+        })
+      }).catch(err => console.error("Error saving customer message:", err));
+    }
+
     try {
       // 1. Check for Order ID or Tracking ID in the user's message
       const uuidRegex = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
@@ -278,12 +358,36 @@ export function Chathead() {
           }`;
           setMessages(prev => [...prev, { role: 'assistant', content: reply }]);
           setIsLoading(false);
+
+          if (customerEmail) {
+            fetch("/api/chat/messages", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                email: customerEmail,
+                message: reply,
+                sender: "system"
+              })
+            }).catch(err => console.error("Error saving status message:", err));
+          }
           return;
         } else {
           const checkId = uuidMatch ? uuidMatch[0] : `BS-${trackMatch![1].toUpperCase()}`;
           const notFoundReply = `❌ **Order ID Not Found**\n\nI couldn't locate any order with ID: **${checkId}**.\n\nPlease double-check the ID or copy it directly from your checkout success modal and try again!`;
           setMessages(prev => [...prev, { role: 'assistant', content: notFoundReply }]);
           setIsLoading(false);
+
+          if (customerEmail) {
+            fetch("/api/chat/messages", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                email: customerEmail,
+                message: notFoundReply,
+                sender: "system"
+              })
+            }).catch(err => console.error("Error saving not found message:", err));
+          }
           return;
         }
       }
@@ -368,6 +472,19 @@ Format list items on separate lines with simple bullets (e.g. * **Item:** text).
 
       setMessages(prev => [...prev, { role: 'assistant', content: responseText }]);
 
+      // Save bot reply to Database in background
+      if (customerEmail && responseText) {
+        fetch("/api/chat/messages", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: customerEmail,
+            message: responseText,
+            sender: "system"
+          })
+        }).catch(err => console.error("Error saving system message:", err));
+      }
+
     } catch (err: any) {
       console.error(err);
       setMessages(prev => [...prev, { role: 'assistant', content: `Error connecting to AI: ${err.message || err.toString()}` }]);
@@ -435,6 +552,66 @@ Format list items on separate lines with simple bullets (e.g. * **Item:** text).
               <X size={18} />
             </button>
           </div>
+
+          {/* Email Support Sync sub-header */}
+          {!customerEmail ? (
+            <div className="bg-[#282828] border-b border-slate-800 p-3 text-xs text-slate-355 flex flex-col gap-2 flex-shrink-0">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-[#1DB954]">💬 Live Support Chat Available!</span>
+                <span className="text-[9px] text-slate-500 font-extrabold uppercase tracking-wide">Sync Account</span>
+              </div>
+              <p className="text-[10px] text-slate-400 leading-normal">Link your email to instantly message our admin desk and load your previous message history!</p>
+              <div className="flex gap-1.5 mt-0.5">
+                <input
+                  type="email"
+                  placeholder="Enter email to connect..."
+                  value={emailInput}
+                  onChange={(e) => setEmailInput(e.target.value)}
+                  className="flex-1 bg-[#121212] border border-slate-800 text-white rounded-lg px-2.5 py-1 text-xs focus:outline-none focus:border-[#1DB954] font-medium"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const trimmed = emailInput.trim();
+                    if (!trimmed || !trimmed.includes("@")) {
+                      alert("Please enter a valid email address.");
+                      return;
+                    }
+                    setCustomerEmail(trimmed);
+                    if (typeof window !== "undefined") {
+                      localStorage.setItem("last_order_email", trimmed);
+                    }
+                  }}
+                  className="bg-[#1DB954] hover:bg-[#1ed760] text-black font-extrabold px-3 py-1 rounded-lg text-[10px] uppercase tracking-wider transition-colors"
+                >
+                  Connect
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-[#1DB954]/5 border-b border-[#1DB954]/15 p-2.5 px-4 flex items-center justify-between text-slate-400 text-[10px] font-bold flex-shrink-0">
+              <span className="flex items-center gap-1.5 text-[#1DB954] truncate max-w-[200px]">
+                <span className="relative flex h-2 w-2 flex-shrink-0">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#1DB954] opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-[#1DB954]"></span>
+                </span>
+                Active: {customerEmail}
+              </span>
+              <button 
+                onClick={() => {
+                  if (confirm("Disconnect support session? You can reconnect using your email anytime.")) {
+                    setCustomerEmail("");
+                    if (typeof window !== "undefined") {
+                      localStorage.removeItem("last_order_email");
+                    }
+                  }
+                }}
+                className="text-red-400 hover:text-red-300 font-extrabold uppercase tracking-widest text-[9px] hover:underline transition-colors flex-shrink-0"
+              >
+                Disconnect
+              </button>
+            </div>
+          )}
 
           {/* Messages */}
           <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-[#121212]">
