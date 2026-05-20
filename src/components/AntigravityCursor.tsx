@@ -39,14 +39,6 @@ export function AntigravityCursor() {
   const mouseRef = useRef({ x: 0, y: 0, active: false, targetX: 0, targetY: 0 });
 
   useEffect(() => {
-    // Disable on mobile/touch devices to optimize performance and prevent interface issues
-    const isTouchDevice = 
-      "ontouchstart" in window || 
-      navigator.maxTouchPoints > 0 || 
-      (window.matchMedia && window.matchMedia("(max-width: 768px)").matches);
-      
-    if (isTouchDevice) return;
-
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -158,9 +150,96 @@ export function AntigravityCursor() {
       }
     };
 
+    // Track touch interactions for mobile devices (Android / iOS)
+    const handleTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 0) return;
+      const touch = e.touches[0];
+      mouseRef.current.targetX = touch.clientX;
+      mouseRef.current.targetY = touch.clientY;
+      mouseRef.current.active = true;
+
+      const colorBase = colors[Math.floor(Math.random() * colors.length)];
+      shockwaves.push({
+        x: touch.clientX,
+        y: touch.clientY,
+        radius: 10,
+        maxRadius: 180,
+        alpha: 1,
+        color: colorBase
+      });
+
+      // Spawn colorful sparks on tap
+      const particleCount = 14;
+      for (let i = 0; i < particleCount; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Math.random() * 4 + 2.5;
+        particles.push({
+          x: touch.clientX,
+          y: touch.clientY,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed - 1.0,
+          size: Math.random() * 3 + 1.5,
+          color: colorBase,
+          alpha: 1,
+          decay: Math.random() * 0.02 + 0.01,
+          glow: Math.random() * 15 + 5,
+          type: "dust"
+        });
+      }
+
+      // Spawn 2 dynamic reaction bubbles on touch
+      for (let i = 0; i < 2; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Math.random() * 3.5 + 2.0;
+        const reaction = fbReactions[Math.floor(Math.random() * fbReactions.length)];
+        const size = Math.random() * 10 + 12;
+        particles.push({
+          x: touch.clientX,
+          y: touch.clientY,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed - 0.8,
+          size,
+          color: reaction.color,
+          alpha: 0.9,
+          decay: Math.random() * 0.008 + 0.004,
+          glow: Math.random() * 15 + 8,
+          type: "bubble",
+          symbol: reaction.char,
+          rotation: (Math.random() - 0.5) * 0.2,
+          rotSpeed: (Math.random() - 0.5) * 0.004,
+          wobble: Math.random() * Math.PI * 2,
+          wobbleSpeed: Math.random() * 0.06 + 0.03,
+          wobbleAmount: Math.random() * 0.15 + 0.05,
+          sineOffset: Math.random() * Math.PI * 2,
+          sineSpeed: Math.random() * 0.015 + 0.005,
+          sineAmp: Math.random() * 0.3 + 0.1
+        });
+      }
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (e.touches.length === 0) return;
+      const touch = e.touches[0];
+      mouseRef.current.targetX = touch.clientX;
+      mouseRef.current.targetY = touch.clientY;
+      mouseRef.current.active = true;
+
+      // Spawn dust trail on finger drag
+      if (Math.random() < 0.4) {
+        spawnDust(touch.clientX, touch.clientY);
+      }
+    };
+
+    const handleTouchEnd = () => {
+      mouseRef.current.active = false;
+    };
+
     window.addEventListener("mousemove", handleMouseMove);
     document.addEventListener("mouseleave", handleMouseLeave);
     window.addEventListener("mousedown", handleMouseDown);
+    window.addEventListener("touchstart", handleTouchStart, { passive: true });
+    window.addEventListener("touchmove", handleTouchMove, { passive: true });
+    window.addEventListener("touchend", handleTouchEnd, { passive: true });
 
     // Spawn tiny trail dust
     const spawnDust = (x: number, y: number) => {
@@ -537,6 +616,9 @@ export function AntigravityCursor() {
       window.removeEventListener("mousemove", handleMouseMove);
       document.removeEventListener("mouseleave", handleMouseLeave);
       window.removeEventListener("mousedown", handleMouseDown);
+      window.removeEventListener("touchstart", handleTouchStart);
+      window.removeEventListener("touchmove", handleTouchMove);
+      window.removeEventListener("touchend", handleTouchEnd);
       cancelAnimationFrame(animationFrameId);
     };
   }, []);
