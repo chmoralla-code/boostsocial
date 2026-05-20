@@ -16,6 +16,22 @@ interface Particle {
   symbol?: string;
   rotation?: number;
   rotSpeed?: number;
+  // Dynamic squish/oscillation fields
+  wobble?: number;
+  wobbleSpeed?: number;
+  wobbleAmount?: number;
+  sineOffset?: number;
+  sineSpeed?: number;
+  sineAmp?: number;
+}
+
+interface Shockwave {
+  x: number;
+  y: number;
+  radius: number;
+  maxRadius: number;
+  alpha: number;
+  color: string;
 }
 
 export function AntigravityCursor() {
@@ -52,7 +68,7 @@ export function AntigravityCursor() {
       mouseRef.current.active = true;
 
       // Spawn dust trail particles on mouse move
-      if (Math.random() < 0.4) {
+      if (Math.random() < 0.45) {
         spawnDust(e.clientX, e.clientY);
       }
     };
@@ -61,10 +77,9 @@ export function AntigravityCursor() {
       mouseRef.current.active = false;
     };
 
-    window.addEventListener("mousemove", handleMouseMove);
-    document.addEventListener("mouseleave", handleMouseLeave);
-
     const particles: Particle[] = [];
+    const shockwaves: Shockwave[] = [];
+    
     const colors = [
       "rgba(24, 119, 242, ",  // Facebook Blue
       "rgba(29, 185, 84, ",   // Spotify Green
@@ -74,14 +89,50 @@ export function AntigravityCursor() {
 
     const symbols = ["👍", "👥", "▶", "⚡", "💙", "🔥"];
 
+    // Track mouse click to spawn shockwaves
+    const handleMouseDown = (e: MouseEvent) => {
+      const colorBase = colors[Math.floor(Math.random() * colors.length)];
+      shockwaves.push({
+        x: e.clientX,
+        y: e.clientY,
+        radius: 10,
+        maxRadius: 220,
+        alpha: 1,
+        color: colorBase
+      });
+
+      // Spawn a colorful burst of sparkling dust particles expanding in 360 degrees
+      const particleCount = 24;
+      for (let i = 0; i < particleCount; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Math.random() * 5 + 3.5;
+        particles.push({
+          x: e.clientX,
+          y: e.clientY,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed - 1.5, // slightly upwards biased
+          size: Math.random() * 4 + 2,
+          color: colorBase,
+          alpha: 1,
+          decay: Math.random() * 0.02 + 0.01,
+          glow: Math.random() * 20 + 10,
+          type: "dust"
+        });
+      }
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseleave", handleMouseLeave);
+    window.addEventListener("mousedown", handleMouseDown);
+
     // Spawn tiny trail dust
     const spawnDust = (x: number, y: number) => {
       const colorBase = colors[Math.floor(Math.random() * colors.length)];
       particles.push({
         x,
         y,
-        vx: (Math.random() - 0.5) * 1.5,
-        vy: -Math.random() * 1.5 - 0.5, // Always float upwards
+        vx: (Math.random() - 0.5) * 1.8,
+        vy: -Math.random() * 1.5 - 0.6, // Always float upwards
         size: Math.random() * 3 + 1.5,
         color: colorBase,
         alpha: 1,
@@ -95,17 +146,17 @@ export function AntigravityCursor() {
     const spawnFloatingBubble = () => {
       if (particles.filter(p => p.type === "bubble").length >= 15) return;
 
-      const size = Math.random() * 30 + 15;
+      const size = Math.random() * 28 + 14;
       const x = Math.random() * canvas.width;
       const y = canvas.height + size + 10;
       const colorBase = colors[Math.floor(Math.random() * colors.length)];
-      const hasSymbol = Math.random() < 0.6;
+      const hasSymbol = Math.random() < 0.65;
 
       particles.push({
         x,
         y,
         vx: (Math.random() - 0.5) * 0.8,
-        vy: -(Math.random() * 1.2 + 0.6), // Negative velocity to float UPWARDS (Antigravity!)
+        vy: -(Math.random() * 1.2 + 0.6), // float UPWARDS
         size,
         color: colorBase,
         alpha: 0.85,
@@ -114,7 +165,14 @@ export function AntigravityCursor() {
         type: "bubble",
         symbol: hasSymbol ? symbols[Math.floor(Math.random() * symbols.length)] : undefined,
         rotation: Math.random() * Math.PI * 2,
-        rotSpeed: (Math.random() - 0.5) * 0.02
+        rotSpeed: (Math.random() - 0.5) * 0.025,
+        // Wobble physics
+        wobble: Math.random() * Math.PI * 2,
+        wobbleSpeed: Math.random() * 0.04 + 0.02,
+        wobbleAmount: Math.random() * 0.12 + 0.04,
+        sineOffset: Math.random() * Math.PI * 2,
+        sineSpeed: Math.random() * 0.012 + 0.004,
+        sineAmp: Math.random() * 0.4 + 0.15
       });
     };
 
@@ -126,51 +184,182 @@ export function AntigravityCursor() {
     let animationFrameId: number;
     
     const animate = () => {
-      // Clear with very slight transparency to create trace motion paths
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
       const mouse = mouseRef.current;
+      const time = Date.now() * 0.0025;
 
       // Smoothly interpolate cursor bubble position (LERP)
       lerpX += (mouse.targetX - lerpX) * 0.15;
       lerpY += (mouse.targetY - lerpY) * 0.15;
 
-      // Draw custom glowing cursor ring if mouse active
+      // Draw custom glowing cursor targeting portal if mouse active
       if (mouse.active) {
-        // Outer interactive portal ring
+        // 1. Outer dashed energy ring (rotating counter-clockwise)
+        ctx.save();
+        ctx.translate(lerpX, lerpY);
+        ctx.rotate(-time * 0.4);
         ctx.beginPath();
-        ctx.arc(lerpX, lerpY, 20, 0, Math.PI * 2);
-        ctx.strokeStyle = "rgba(24, 119, 242, 0.4)";
+        ctx.arc(0, 0, 22, 0, Math.PI * 2);
+        ctx.strokeStyle = "rgba(14, 165, 233, 0.45)"; // Cyan ring
         ctx.lineWidth = 1.5;
+        ctx.setLineDash([5, 5]);
         ctx.stroke();
+        ctx.restore();
 
+        // 2. Inner segmented ring (rotating clockwise)
+        ctx.save();
+        ctx.translate(lerpX, lerpY);
+        ctx.rotate(time * 0.6);
+        ctx.beginPath();
+        ctx.arc(0, 0, 14, 0, Math.PI * 2);
+        ctx.strokeStyle = "rgba(24, 119, 242, 0.55)"; // FB Blue ring
+        ctx.lineWidth = 2;
+        ctx.setLineDash([12, 6]);
+        ctx.stroke();
+        ctx.restore();
+
+        // 3. Central Core Plasma Spark
         ctx.beginPath();
         ctx.arc(lerpX, lerpY, 4, 0, Math.PI * 2);
-        ctx.fillStyle = "#1DB954";
-        ctx.shadowBlur = 15;
+        ctx.fillStyle = "#1DB954"; // Spotify Green core
+        ctx.shadowBlur = 20;
         ctx.shadowColor = "#1ed760";
         ctx.fill();
-        ctx.shadowBlur = 0; // Reset shadow for next drawings
+        ctx.shadowBlur = 0; // Reset shadow
+
+        // 4. Energy Beams / Tractor Beams connecting to nearby bubbles
+        ctx.save();
+        for (let i = 0; i < particles.length; i++) {
+          const p = particles[i];
+          if (p.type !== "bubble") continue;
+
+          const dx = p.x - lerpX;
+          const dy = p.y - lerpY;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+
+          if (dist < 200) {
+            // Draw a faint electric arc / laser line connecting the cursor to the bubble
+            const alpha = (1 - (dist / 200)) * 0.35 * p.alpha;
+            ctx.beginPath();
+            ctx.moveTo(lerpX, lerpY);
+            
+            // Draw a curved organic line that wiggles
+            const midX = (lerpX + p.x) / 2;
+            const midY = (lerpY + p.y) / 2;
+            const perpX = -(p.y - lerpY) * 0.12 * Math.sin(time + (p.size || 0));
+            const perpY = (p.x - lerpX) * 0.12 * Math.sin(time + (p.size || 0));
+            
+            ctx.quadraticCurveTo(midX + perpX, midY + perpY, p.x, p.y);
+            
+            ctx.strokeStyle = p.color + `${alpha})`;
+            ctx.lineWidth = 1.2;
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = p.color + "0.8)";
+            ctx.stroke();
+          }
+        }
+        ctx.restore();
       }
 
       // Spontaneously spawn floating antigravity bubbles at bottom
-      if (Math.random() < 0.03) {
+      if (Math.random() < 0.035) {
         spawnFloatingBubble();
       }
+
+      // Draw active shockwaves & push particles
+      for (let s = shockwaves.length - 1; s >= 0; s--) {
+        const sw = shockwaves[s];
+        sw.radius += (sw.maxRadius - sw.radius) * 0.09;
+        sw.alpha = 1 - (sw.radius / sw.maxRadius);
+
+        if (sw.alpha <= 0.01) {
+          shockwaves.splice(s, 1);
+          continue;
+        }
+
+        // Draw growing glowing ring
+        ctx.save();
+        ctx.globalAlpha = sw.alpha;
+        ctx.beginPath();
+        ctx.arc(sw.x, sw.y, sw.radius, 0, Math.PI * 2);
+        ctx.strokeStyle = sw.color + "0.7)";
+        ctx.lineWidth = 3;
+        ctx.shadowBlur = 30;
+        ctx.shadowColor = sw.color + "0.9)";
+        ctx.stroke();
+        ctx.restore();
+
+        // Apply physical impact from shockwave to all particles
+        for (let i = 0; i < particles.length; i++) {
+          const p = particles[i];
+          const dx = p.x - sw.x;
+          const dy = p.y - sw.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+
+          if (dist > sw.radius - 25 && dist < sw.radius + 35) {
+            const force = (1 - (dist / sw.maxRadius)) * 14;
+            if (force > 0) {
+              const pushX = (dx / dist) * force;
+              const pushY = (dy / dist) * force - 1.5;
+
+              p.vx += pushX;
+              p.vy += pushY;
+            }
+          }
+        }
+      }
+
+      // Draw faint lines between nearby dust particles (constellation trail)
+      ctx.save();
+      for (let i = 0; i < particles.length; i++) {
+        const p1 = particles[i];
+        if (p1.type !== "dust") continue;
+
+        for (let j = i + 1; j < particles.length; j++) {
+          const p2 = particles[j];
+          if (p2.type !== "dust") continue;
+
+          const dx = p1.x - p2.x;
+          const dy = p1.y - p2.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+
+          if (dist < 60) {
+            const alpha = (1 - (dist / 60)) * 0.16 * Math.min(p1.alpha, p2.alpha);
+            ctx.beginPath();
+            ctx.moveTo(p1.x, p1.y);
+            ctx.lineTo(p2.x, p2.y);
+            ctx.strokeStyle = p1.color + `${alpha})`;
+            ctx.lineWidth = 0.8;
+            ctx.stroke();
+          }
+        }
+      }
+      ctx.restore();
 
       // Update and draw particles
       for (let i = particles.length - 1; i >= 0; i--) {
         const p = particles[i];
 
-        // Apply soft upwards drift (inverted gravity)
+        // Apply upwards drift
         p.y += p.vy;
         p.x += p.x < 0 || p.x > canvas.width ? -p.vx : p.vx; // simple boundary wall bounce
         
-        if (p.type === "bubble" && p.rotation !== undefined && p.rotSpeed !== undefined) {
-          p.rotation += p.rotSpeed;
+        // Custom state updates for bubbles
+        if (p.type === "bubble") {
+          if (p.rotation !== undefined && p.rotSpeed !== undefined) {
+            p.rotation += p.rotSpeed;
+          }
+          if (p.wobble !== undefined && p.wobbleSpeed !== undefined) {
+            p.wobble += p.wobbleSpeed;
+          }
+          if (p.sineOffset !== undefined && p.sineSpeed !== undefined && p.sineAmp !== undefined) {
+            p.sineOffset += p.sineSpeed;
+            p.vx += Math.sin(p.sineOffset) * p.sineAmp * 0.1;
+          }
         }
 
-        // Apply dynamic mouse repulsion bubble force (Antigravity lens)
+        // Apply mouse repulsion force (antigravity field)
         if (mouse.active) {
           const dx = p.x - mouse.targetX;
           const dy = p.y - mouse.targetY;
@@ -179,20 +368,20 @@ export function AntigravityCursor() {
 
           if (dist < forceRadius) {
             const force = (forceRadius - dist) / forceRadius;
-            const pushX = (dx / dist) * force * (p.type === "bubble" ? 4.5 : 2.5);
-            const pushY = (dy / dist) * force * (p.type === "bubble" ? 4.5 : 2.5);
+            const pushX = (dx / dist) * force * (p.type === "bubble" ? 5 : 2.5);
+            const pushY = (dy / dist) * force * (p.type === "bubble" ? 5 : 2.5);
 
             p.vx += pushX;
             p.vy += pushY;
           }
         }
 
-        // Apply friction/drag so forces decay naturally
+        // Apply drag/friction so velocities decay naturally
         p.vx *= 0.94;
-        p.vy = p.vy * 0.98 - 0.02; // continuously pull upwards
+        p.vy = p.vy * 0.98 - 0.025; // float upwards
 
-        // Decelerate heavy acceleration spikes
-        const maxSpeed = p.type === "bubble" ? 5 : 4;
+        // Decelerate extreme velocities
+        const maxSpeed = p.type === "bubble" ? 5.5 : 4.5;
         const currentSpeed = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
         if (currentSpeed > maxSpeed) {
           p.vx = (p.vx / currentSpeed) * maxSpeed;
@@ -203,7 +392,7 @@ export function AntigravityCursor() {
         p.alpha -= p.decay;
 
         // Remove dead particles
-        if (p.alpha <= 0 || p.y < -p.size - 20) {
+        if (p.alpha <= 0 || p.y < -p.size - 30) {
           particles.splice(i, 1);
           continue;
         }
@@ -213,7 +402,7 @@ export function AntigravityCursor() {
         ctx.globalAlpha = p.alpha;
 
         if (p.type === "dust") {
-          // Glow effect for neon sparks
+          // Spark glow
           ctx.shadowBlur = p.glow;
           ctx.shadowColor = p.color + "0.6)";
 
@@ -222,53 +411,79 @@ export function AntigravityCursor() {
           ctx.fillStyle = p.color + "0.9)";
           ctx.fill();
         } else if (p.type === "bubble") {
-          // Render gorgeous interactive glassmorphic orb with brand-colored glowing border
+          // Localize coordinate system to bubble center for squish/rotation operations
+          ctx.translate(p.x, p.y);
+          
+          const speed = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
+          if (speed > 0.15) {
+            const stretchAngle = Math.atan2(p.vy, p.vx);
+            ctx.rotate(stretchAngle);
+          }
+          
+          let scaleX = 1;
+          let scaleY = 1;
+          if (p.wobble !== undefined && p.wobbleAmount !== undefined) {
+            scaleX = 1 + Math.sin(p.wobble) * p.wobbleAmount;
+            scaleY = 1 - Math.sin(p.wobble) * p.wobbleAmount;
+          }
+          
+          // Apply speed stretch multiplier (looks squishy during acceleration)
+          const stretch = Math.min(speed * 0.05, 0.22);
+          const rx = p.size * (1 + stretch) * scaleX;
+          const ry = p.size * (1 - stretch) * scaleY;
+
+          // Radial gradient centered in localized bubble
           const gradient = ctx.createRadialGradient(
-            p.x - p.size * 0.3,
-            p.y - p.size * 0.3,
+            -rx * 0.3,
+            -ry * 0.3,
             2,
-            p.x,
-            p.y,
-            p.size
+            0,
+            0,
+            Math.max(rx, ry)
           );
           
-          gradient.addColorStop(0, "rgba(255, 255, 255, 0.08)");
-          gradient.addColorStop(0.6, "rgba(255, 255, 255, 0.02)");
-          gradient.addColorStop(1, p.color + "0.25)");
+          gradient.addColorStop(0, "rgba(255, 255, 255, 0.12)");
+          gradient.addColorStop(0.5, "rgba(255, 255, 255, 0.02)");
+          gradient.addColorStop(1, p.color + "0.26)");
 
           ctx.shadowBlur = p.glow;
-          ctx.shadowColor = p.color + "0.45)";
+          ctx.shadowColor = p.color + "0.5)";
 
-          // Outline border
+          // Draw outline border
           ctx.beginPath();
-          ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-          ctx.strokeStyle = p.color + "0.55)";
-          ctx.lineWidth = 1.5;
+          ctx.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2);
+          ctx.strokeStyle = p.color + "0.6)";
+          ctx.lineWidth = 1.8;
           ctx.stroke();
 
           // Fill glass body
           ctx.fillStyle = gradient;
           ctx.beginPath();
-          ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+          ctx.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2);
           ctx.fill();
 
-          // Highlight reflection glint in the corner
+          // Highlight reflection glint
           ctx.beginPath();
-          ctx.arc(p.x - p.size * 0.35, p.y - p.size * 0.35, p.size * 0.15, 0, Math.PI * 2);
-          ctx.fillStyle = "rgba(255, 255, 255, 0.22)";
+          ctx.ellipse(-rx * 0.35, -ry * 0.35, rx * 0.15, ry * 0.15, 0, 0, Math.PI * 2);
+          ctx.fillStyle = "rgba(255, 255, 255, 0.25)";
           ctx.fill();
 
           // Render symbol if present
           if (p.symbol) {
-            ctx.shadowBlur = 0; // Disable shadow for text to prevent blur
-            ctx.translate(p.x, p.y);
+            ctx.shadowBlur = 0; // Disable shadow for text clarity
+            
+            // Undo velocity-stretch rotation to keep symbols upright (or slightly wobbling)
+            if (speed > 0.15) {
+              const stretchAngle = Math.atan2(p.vy, p.vx);
+              ctx.rotate(-stretchAngle);
+            }
             if (p.rotation !== undefined) {
               ctx.rotate(p.rotation);
             }
-            ctx.font = `bold ${p.size * 0.7}px sans-serif`;
+            ctx.font = `bold ${p.size * 0.72}px sans-serif`;
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
-            ctx.fillStyle = p.color + "0.95)";
+            ctx.fillStyle = p.color + "0.92)";
             ctx.fillText(p.symbol, 0, 0);
           }
         }
@@ -285,6 +500,7 @@ export function AntigravityCursor() {
       window.removeEventListener("resize", resizeCanvas);
       window.removeEventListener("mousemove", handleMouseMove);
       document.removeEventListener("mouseleave", handleMouseLeave);
+      window.removeEventListener("mousedown", handleMouseDown);
       cancelAnimationFrame(animationFrameId);
     };
   }, []);
