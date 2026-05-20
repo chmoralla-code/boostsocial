@@ -39,6 +39,11 @@ export function AntigravityCursor() {
   const mouseRef = useRef({ x: 0, y: 0, active: false, targetX: 0, targetY: 0 });
 
   useEffect(() => {
+    const isMobile = 
+      "ontouchstart" in window || 
+      navigator.maxTouchPoints > 0 || 
+      (window.matchMedia && window.matchMedia("(max-width: 768px)").matches);
+
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -60,7 +65,7 @@ export function AntigravityCursor() {
       mouseRef.current.active = true;
 
       // Spawn dust trail particles on mouse move
-      if (Math.random() < 0.45) {
+      if (Math.random() < 0.45 && !isMobile) {
         spawnDust(e.clientX, e.clientY);
       }
     };
@@ -237,9 +242,12 @@ export function AntigravityCursor() {
     window.addEventListener("mousemove", handleMouseMove);
     document.addEventListener("mouseleave", handleMouseLeave);
     window.addEventListener("mousedown", handleMouseDown);
-    window.addEventListener("touchstart", handleTouchStart, { passive: true });
-    window.addEventListener("touchmove", handleTouchMove, { passive: true });
-    window.addEventListener("touchend", handleTouchEnd, { passive: true });
+    
+    if (!isMobile) {
+      window.addEventListener("touchstart", handleTouchStart, { passive: true });
+      window.addEventListener("touchmove", handleTouchMove, { passive: true });
+      window.addEventListener("touchend", handleTouchEnd, { passive: true });
+    }
 
     // Spawn tiny trail dust
     const spawnDust = (x: number, y: number) => {
@@ -308,8 +316,8 @@ export function AntigravityCursor() {
       lerpX += (mouse.targetX - lerpX) * 0.15;
       lerpY += (mouse.targetY - lerpY) * 0.15;
 
-      // Draw custom glowing cursor targeting portal if mouse active
-      if (mouse.active) {
+      // Draw custom glowing cursor targeting portal if mouse active and not on mobile
+      if (mouse.active && !isMobile) {
         // 1. Outer dashed energy ring (rotating counter-clockwise)
         ctx.save();
         ctx.translate(lerpX, lerpY);
@@ -616,9 +624,11 @@ export function AntigravityCursor() {
       window.removeEventListener("mousemove", handleMouseMove);
       document.removeEventListener("mouseleave", handleMouseLeave);
       window.removeEventListener("mousedown", handleMouseDown);
-      window.removeEventListener("touchstart", handleTouchStart);
-      window.removeEventListener("touchmove", handleTouchMove);
-      window.removeEventListener("touchend", handleTouchEnd);
+      if (!isMobile) {
+        window.removeEventListener("touchstart", handleTouchStart);
+        window.removeEventListener("touchmove", handleTouchMove);
+        window.removeEventListener("touchend", handleTouchEnd);
+      }
       cancelAnimationFrame(animationFrameId);
     };
   }, []);
