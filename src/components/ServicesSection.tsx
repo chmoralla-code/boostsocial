@@ -60,28 +60,39 @@ export function ServicesSection({ services }: ServicesSectionProps) {
     setIsModalOpen(true);
   };
 
-  // Segment services: otherServices are Gemini, PisoWiFi, EAP TP-Link, and Architectural Software
+  // Segment services: otherServices are Gemini, PisoWiFi, EAP TP-Link, and Architectural Software (Lifetime License)
+  const otherServiceIds = [
+    "530e797c-62d1-467a-bf23-310c169a7103", // Gemini Pro
+    "bace2033-2a35-491f-ad83-ab5fccffb6eb", // PisoWiFi
+    "8134f872-1738-44f1-adb0-bc341e64ace0", // EAP TP-Link
+    "03185a81-49f3-4255-868e-9e9ec3189497"  // Architectural Software / Lifetime License
+  ];
+
   const otherServices = services.filter((s) => {
     const t = s.title.toLowerCase();
     return (
+      otherServiceIds.includes(s.id) ||
       t.includes("gemini") ||
       t.includes("pisowifi") ||
       t.includes("eap") ||
       t.includes("tplink") ||
       t.includes("architectural") ||
-      t.includes("software")
+      t.includes("software") ||
+      t.includes("license")
     );
   });
 
   const coreServices = services.filter((s) => {
     const t = s.title.toLowerCase();
     return !(
+      otherServiceIds.includes(s.id) ||
       t.includes("gemini") ||
       t.includes("pisowifi") ||
       t.includes("eap") ||
       t.includes("tplink") ||
       t.includes("architectural") ||
-      t.includes("software")
+      t.includes("software") ||
+      t.includes("license")
     );
   });
 
