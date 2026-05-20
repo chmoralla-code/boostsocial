@@ -81,7 +81,50 @@ export function PriceCalculator({ services, onOrder }: PriceCalculatorProps) {
 
   if (services.length === 0 || !selectedService) return null;
 
-  // Handled minQty above
+  const getBrandColor = (iconType: string) => {
+    switch (iconType) {
+      case 'followers': return '#1DB954'; // Spotify Green
+      case 'reactions': return '#1877F2'; // Facebook Blue
+      case 'views': return '#1ed760';     // Cyan/Green
+      case 'pisowifi': return '#6366f1';  // Indigo
+      default: return '#1877F2';
+    }
+  };
+
+  const getBrandBg = (iconType: string) => {
+    switch (iconType) {
+      case 'followers': return 'bg-[#1DB954] shadow-emerald-500/25';
+      case 'reactions': return 'bg-[#1877F2] shadow-blue-500/25';
+      case 'views': return 'bg-[#1ed760] shadow-emerald-500/25';
+      case 'pisowifi': return 'bg-[#6366f1] shadow-indigo-500/25';
+      default: return 'bg-[#1877F2] shadow-blue-500/25';
+    }
+  };
+
+  const getBrandText = (iconType: string) => {
+    switch (iconType) {
+      case 'followers': return 'text-[#1DB954]';
+      case 'reactions': return 'text-[#1877F2]';
+      case 'views': return 'text-[#1ed760]';
+      case 'pisowifi': return 'text-[#6366f1]';
+      default: return 'text-[#1877F2]';
+    }
+  };
+
+  const getBrandBadge = (iconType: string) => {
+    switch (iconType) {
+      case 'followers': return 'bg-[#1DB954]/10 text-[#1DB954] border-[#1DB954]/20';
+      case 'reactions': return 'bg-[#1877F2]/10 text-[#1877F2] border-[#1877F2]/20';
+      case 'views': return 'bg-[#1ed760]/10 text-[#1ed760] border-[#1ed760]/20';
+      case 'pisowifi': return 'bg-[#6366f1]/10 text-[#6366f1] border-[#6366f1]/20';
+      default: return 'bg-[#1877F2]/10 text-[#1877F2] border-[#1877F2]/20';
+    }
+  };
+
+  const activeColor = getBrandColor(selectedService.icon_type);
+  const activeBg = getBrandBg(selectedService.icon_type);
+  const activeText = getBrandText(selectedService.icon_type);
+  const activeBadge = getBrandBadge(selectedService.icon_type);
 
   const handleSliderChange = (val: number) => {
     // Align with dynamic min quantity constraints
@@ -100,14 +143,17 @@ export function PriceCalculator({ services, onOrder }: PriceCalculatorProps) {
     <div className="w-full max-w-4xl mx-auto px-4 mt-6 mb-16 relative z-10">
       <div className="bg-[#181818]/60 backdrop-blur-xl border border-slate-800/80 rounded-3xl p-6 sm:p-10 shadow-2xl relative overflow-hidden group">
         {/* Glow effect */}
-        <div className="absolute -top-[30%] -right-[20%] w-[350px] h-[350px] bg-[#1877F2]/5 rounded-full blur-[100px] pointer-events-none group-hover:bg-[#1877F2]/10 transition-all duration-700"></div>
+        <div 
+          style={{ backgroundColor: activeColor }}
+          className="absolute -top-[30%] -right-[20%] w-[350px] h-[350px] rounded-full blur-[100px] pointer-events-none opacity-5 group-hover:opacity-10 transition-all duration-700"
+        ></div>
         
         <div className="text-center mb-8">
-          <span className="bg-[#1877F2]/10 text-[#1877F2] border border-[#1877F2]/20 font-black text-[10px] tracking-widest uppercase px-3 py-1 rounded-full inline-flex items-center gap-1.5 mb-3">
+          <span className={`border font-black text-[10px] tracking-widest uppercase px-3 py-1 rounded-full inline-flex items-center gap-1.5 mb-3 ${activeBadge}`}>
             <Zap size={10} fill="currentColor" /> Interactive SMM Calculator
           </span>
           <h3 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-            Estimate Your <span className="text-[#1877F2]">Amplification Package</span>
+            Estimate Your <span style={{ color: activeColor }}>Amplification Package</span>
           </h3>
           <p className="text-xs sm:text-sm text-slate-400 mt-2 font-medium">
             Drag the slider to customize quantities and view real-time estimates
@@ -125,7 +171,7 @@ export function PriceCalculator({ services, onOrder }: PriceCalculatorProps) {
               <div className="grid grid-cols-3 gap-2.5">
                 {services.map((srv) => {
                   const isSelected = selectedService.id === srv.id;
-                  const isSrvPage = srv.title.toLowerCase().includes("page");
+                  const srvActiveBg = getBrandBg(srv.icon_type);
                   return (
                     <button
                       key={srv.id}
@@ -144,7 +190,7 @@ export function PriceCalculator({ services, onOrder }: PriceCalculatorProps) {
                       }}
                       className={`py-3 px-2 text-[11px] sm:text-xs font-black rounded-xl border transition-all duration-300 ${
                         isSelected
-                          ? "bg-[#1877F2] text-white border-transparent shadow-lg shadow-blue-500/25 scale-[1.02]"
+                          ? `text-white border-transparent shadow-lg scale-[1.02] ${srvActiveBg}`
                           : "bg-[#121212] text-slate-300 border-slate-800/80 hover:bg-[#222]/80 hover:text-white"
                       }`}
                     >
@@ -172,11 +218,12 @@ export function PriceCalculator({ services, onOrder }: PriceCalculatorProps) {
                 step={isSingleItem ? 1 : (quantity < 1000 ? 50 : 100)}
                 value={quantity}
                 onChange={(e) => handleSliderChange(Number(e.target.value))}
-                className="w-full h-2 bg-[#121212] rounded-lg appearance-none cursor-pointer accent-[#1877F2]"
+                className="w-full h-2 bg-[#121212] rounded-lg appearance-none cursor-pointer"
                 style={{
+                  accentColor: activeColor,
                   background: isSingleItem 
-                    ? `linear-gradient(to right, #1877F2 0%, #1877F2 ${((quantity - 1) / (10 - 1)) * 100}%, #121212 ${((quantity - 1) / (10 - 1)) * 100}%, #121212 100%)`
-                    : `linear-gradient(to right, #1877F2 0%, #1877F2 ${((quantity - minQty) / (10000 - minQty)) * 100}%, #121212 ${((quantity - minQty) / (10000 - minQty)) * 100}%, #121212 100%)`
+                    ? `linear-gradient(to right, ${activeColor} 0%, ${activeColor} ${((quantity - 1) / (10 - 1)) * 100}%, #121212 ${((quantity - 1) / (10 - 1)) * 100}%, #121212 100%)`
+                    : `linear-gradient(to right, ${activeColor} 0%, ${activeColor} ${((quantity - minQty) / (10000 - minQty)) * 100}%, #121212 ${((quantity - minQty) / (10000 - minQty)) * 100}%, #121212 100%)`
                 }}
               />
               <div className="flex justify-between items-center mt-2.5 text-[10px] text-slate-500 font-bold uppercase">
@@ -197,13 +244,16 @@ export function PriceCalculator({ services, onOrder }: PriceCalculatorProps) {
                     ₱{baseTotal.toFixed(0)}
                   </span>
                 )}
-                <span className="text-4xl sm:text-5xl font-black text-white font-mono tracking-tight text-[#1877F2]">
+                <span 
+                  style={{ color: activeColor }}
+                  className="text-4xl sm:text-5xl font-black font-mono tracking-tight"
+                >
                   ₱{animatedPrice.toFixed(0)}
                 </span>
                 <span className="text-xs text-slate-400 font-bold">PHP</span>
               </div>
               {discountPercent > 0 && (
-                <div className="text-[10px] text-[#1877F2] font-black uppercase tracking-wider mt-1 animate-pulse">
+                <div className={`text-[10px] font-black uppercase tracking-wider mt-1 animate-pulse ${activeText}`}>
                   🔥 {discountPercent}% Volume Discount Active!
                 </div>
               )}
@@ -217,18 +267,25 @@ export function PriceCalculator({ services, onOrder }: PriceCalculatorProps) {
 
             <div className="border-t border-slate-800/60 my-5 pt-4 text-left space-y-2">
               <div className="flex items-center gap-2 text-xs text-slate-300 font-medium">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#1877F2] animate-pulse"></span>
+                <span 
+                  style={{ backgroundColor: activeColor }}
+                  className="w-1.5 h-1.5 rounded-full animate-pulse"
+                ></span>
                 <span>**Delivery:** Instant Start (15m - 2h)</span>
               </div>
               <div className="flex items-center gap-2 text-xs text-slate-300 font-medium">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#1877F2] animate-pulse"></span>
+                <span 
+                  style={{ backgroundColor: activeColor }}
+                  className="w-1.5 h-1.5 rounded-full animate-pulse"
+                ></span>
                 <span>**Retention:** 100% Lifetime Guarantee</span>
               </div>
             </div>
 
             <button
               onClick={handleBoostClick}
-              className="w-full bg-[#1877F2] hover:bg-[#4e8df5] text-white font-black py-4 rounded-xl shadow-lg transition-all duration-300 transform hover:scale-[1.02] tracking-wider uppercase text-xs flex items-center justify-center gap-2 cursor-pointer shadow-blue-500/10"
+              style={{ backgroundColor: activeColor }}
+              className="w-full hover:brightness-110 text-white font-black py-4 rounded-xl shadow-lg transition-all duration-300 transform hover:scale-[1.02] tracking-wider uppercase text-xs flex items-center justify-center gap-2 cursor-pointer shadow-black/10"
             >
               🚀 Boost {quantity.toLocaleString()} {isSingleItem ? (quantity === 1 ? "Item" : "Items") : "Now"}
             </button>

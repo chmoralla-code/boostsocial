@@ -63,17 +63,46 @@ body {
   letter-spacing: -0.04em;
 }
 
-/* 🪐 Glowing neon radial backdrop blobs */
+/* 🪐 Glowing neon radial backdrop blobs with slow organic floating motion */
+@keyframes floatBlob1 {
+  0% {
+    transform: translate(0px, 0px) scale(1) rotate(0deg);
+  }
+  33% {
+    transform: translate(40px, -60px) scale(1.12) rotate(120deg);
+  }
+  66% {
+    transform: translate(-30px, 30px) scale(0.92) rotate(240deg);
+  }
+  100% {
+    transform: translate(0px, 0px) scale(1) rotate(360deg);
+  }
+}
+
+@keyframes floatBlob2 {
+  0% {
+    transform: translate(0px, 0px) scale(1) rotate(0deg);
+  }
+  50% {
+    transform: translate(-50px, 40px) scale(1.15) rotate(180deg);
+  }
+  100% {
+    transform: translate(0px, 0px) scale(1) rotate(360deg);
+  }
+}
+
 .spotify-glow-blob {
-  background: radial-gradient(circle, rgba(29, 185, 84, 0.12) 0%, rgba(18, 18, 18, 0) 70%);
-  filter: blur(50px);
+  background: radial-gradient(circle, rgba(29, 185, 84, 0.14) 0%, rgba(10, 10, 10, 0) 70%);
+  filter: blur(65px);
   pointer-events: none;
+  animation: floatBlob1 24s ease-in-out infinite;
 }
 
 .fb-glow-blob {
-  background: radial-gradient(circle, rgba(24, 119, 242, 0.15) 0%, rgba(18, 18, 18, 0) 70%);
-  filter: blur(50px);
+  background: radial-gradient(circle, rgba(24, 119, 242, 0.17) 0%, rgba(10, 10, 10, 0) 70%);
+  filter: blur(65px);
   pointer-events: none;
+  animation: floatBlob2 28s ease-in-out infinite alternate;
 }
 
 /* Custom Scrollbar for Spotify Theme */

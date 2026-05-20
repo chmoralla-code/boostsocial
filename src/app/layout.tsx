@@ -23,7 +23,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${inter.className} min-h-screen bg-[#f4f7fb] text-slate-800 flex flex-col`}>
+      <body className={`${inter.className} min-h-screen bg-[#0a0a0a] text-slate-100 flex flex-col antialiased`}>
         <Script src="https://js.puter.com/v2/" strategy="afterInteractive" />
         <AntigravityCursor />
         {children}

@@ -93,7 +93,7 @@ export function ServiceCard({ id, title, description, startingPrice, iconType, o
 
   return (
     <div className={`bg-[#121212]/50 hover:bg-[#161616]/90 backdrop-blur-md rounded-3xl p-8 flex flex-col items-start text-left w-full border border-white/[0.04] shadow-[0_12px_40px_rgba(0,0,0,0.4)] transition-all duration-500 transform hover:-translate-y-2 group ${getGlowClass()}`}>
-      <div className="h-16 flex items-center justify-center">
+      <div className="h-16 flex items-center justify-center group-hover:scale-115 group-hover:rotate-6 transition-transform duration-500 ease-out">
         {getIcon()}
       </div>
       
