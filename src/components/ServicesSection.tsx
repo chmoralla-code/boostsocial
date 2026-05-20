@@ -151,14 +151,11 @@ export function ServicesSection({ services }: ServicesSectionProps) {
                 Premium digital memberships, PisoWiFi setups, network router optimizations, and professional modeling software.
               </p>
               
-              {/* Pricing section with custom caption listing names */}
+              {/* Caption section listing specialty services (Price removed as requested) */}
               <div className="flex justify-between items-end w-full mb-6 pt-4 border-t border-slate-800/60">
-                <div className="w-full">
-                  <span className="block text-slate-500 text-[10px] font-extrabold uppercase tracking-wider mb-1 line-clamp-2 leading-tight">
+                <div className="w-full text-left">
+                  <span className="block text-slate-500 text-[10px] font-extrabold uppercase tracking-wider line-clamp-2 leading-tight">
                     Gemini, PisoWiFi, EAP TP-Link, Architectural Software
-                  </span>
-                  <span className="text-3xl font-black text-white">
-                    ₱{lowestOtherPrice}
                   </span>
                 </div>
               </div>
