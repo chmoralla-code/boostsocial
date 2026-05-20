@@ -105,9 +105,23 @@ export function ServiceCard({ id, title, description, startingPrice, iconType, o
           ) : (
             <>
               <span className="block text-slate-550 text-[10px] font-bold uppercase tracking-wider mb-1">
-                {parsed.min_quantity === 1 ? "Starts (per 1 PCS)" : "Starts (per 1,000)"}
+                {parsed.min_quantity === 1 
+                  ? "Starts (per 1 PCS)" 
+                  : title.toLowerCase().includes("follower")
+                    ? `For as low as ${parsed.min_quantity} followers`
+                    : title.toLowerCase().includes("reaction") || title.toLowerCase().includes("react")
+                      ? `For as low as ${parsed.min_quantity} reactions`
+                      : title.toLowerCase().includes("view")
+                        ? `For as low as ${parsed.min_quantity} views`
+                        : `For as low as ${parsed.min_quantity} units`
+                }
               </span>
-              <span className="text-3xl font-black text-white">₱{Number(startingPrice).toFixed(0)}</span>
+              <span className="text-3xl font-black text-white">
+                ₱{parsed.min_quantity === 1 
+                  ? Number(startingPrice).toFixed(0) 
+                  : ((parsed.min_quantity / 1000) * startingPrice).toFixed(0)
+                }
+              </span>
             </>
           )}
         </div>
