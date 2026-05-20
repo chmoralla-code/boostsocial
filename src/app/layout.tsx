@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import Script from "next/script";
 import { Chathead } from "@/components/Chathead";
 import { LiveOrderTicker } from "@/components/LiveOrderTicker";
+import { AntigravityCursor } from "@/components/AntigravityCursor";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -24,6 +25,7 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${inter.className} min-h-screen bg-[#f4f7fb] text-slate-800 flex flex-col`}>
         <Script src="https://js.puter.com/v2/" strategy="afterInteractive" />
+        <AntigravityCursor />
         {children}
         <Chathead />
         <LiveOrderTicker />
