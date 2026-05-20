@@ -45,6 +45,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
   const [isWalletPayment, setIsWalletPayment] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [selectedReactions, setSelectedReactions] = useState<string[]>(["Like"]);
+  const [eapDeviceCount, setEapDeviceCount] = useState<number>(1);
 
   const toggleReaction = (name: string) => {
     if (selectedReactions.includes(name)) {
@@ -54,6 +55,33 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
     } else {
       setSelectedReactions([...selectedReactions, name]);
     }
+  };
+
+  const removeEapDevice = (indexToRemove: number) => {
+    if (eapDeviceCount <= 1) return;
+    const newValues = { ...customFieldValues };
+    
+    // Shift subsequent device specs upwards
+    for (let d = indexToRemove + 1; d < eapDeviceCount; d++) {
+      parsedDetails.custom_fields.forEach((field: { id: string; label: string }) => {
+        const currentKey = `Device #${d + 1} - ${field.label}`;
+        const previousKey = `Device #${d} - ${field.label}`;
+        if (newValues[currentKey] !== undefined) {
+          newValues[previousKey] = newValues[currentKey];
+        } else {
+          delete newValues[previousKey];
+        }
+      });
+    }
+    
+    // Delete keys of the last device which got shifted out
+    parsedDetails.custom_fields.forEach((field: { id: string; label: string }) => {
+      const lastKey = `Device #${eapDeviceCount} - ${field.label}`;
+      delete newValues[lastKey];
+    });
+    
+    setCustomFieldValues(newValues);
+    setEapDeviceCount(prev => prev - 1);
   };
 
   const toggleAllReactions = () => {
@@ -183,6 +211,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
       setSuccess(false);
       
       setSelectedReactions(["Like"]);
+      setEapDeviceCount(presetQuantity && isEapService ? presetQuantity : 1);
       
       if (presetQuantity) {
         setQuantity(presetQuantity);
@@ -205,6 +234,12 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
       });
     }
   }, [isOpen, presetQuantity, isPageService, isEapService, isSoftwareService]);
+
+  useEffect(() => {
+    if (isEapService) {
+      setQuantity(eapDeviceCount);
+    }
+  }, [eapDeviceCount, isEapService]);
 
   if (!isOpen) return null;
 
@@ -695,15 +730,26 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                   {isEapService ? (
                     <>
                       <span className="text-[10px] font-black uppercase tracking-widest text-[#1877F2] block border-b border-slate-850 pb-2">
-                        📋 EAP Adaptation Specifications ({quantity} {quantity === 1 ? 'item' : 'items'})
+                        📋 EAP Adaptation Specifications ({eapDeviceCount} {eapDeviceCount === 1 ? 'item' : 'items'})
                       </span>
-                      {Array.from({ length: quantity }).map((_, index) => {
+                      {Array.from({ length: eapDeviceCount }).map((_, index) => {
                         const itemNum = index + 1;
                         return (
                           <div key={index} className="space-y-4 bg-[#181818] border border-slate-800/80 p-4 rounded-xl mt-3 shadow-md animate-in fade-in duration-200">
-                            <span className="text-[10px] font-black uppercase tracking-widest text-[#1877F2] block border-b border-slate-850/50 pb-1.5 font-extrabold">
-                              ⚙️ EAP TP-Link Device #{itemNum}
-                            </span>
+                            <div className="flex justify-between items-center border-b border-slate-850/50 pb-1.5">
+                              <span className="text-[10px] font-black uppercase tracking-widest text-[#1877F2] font-extrabold">
+                                ⚙️ EAP TP-Link Device #{itemNum}
+                              </span>
+                              {index > 0 && (
+                                <button
+                                  type="button"
+                                  onClick={() => removeEapDevice(index)}
+                                  className="text-red-500 hover:text-red-400 transition-colors text-[9px] font-black uppercase tracking-widest flex items-center gap-1 active:scale-95"
+                                >
+                                  Remove
+                                </button>
+                              )}
+                            </div>
                             {parsedDetails.custom_fields.map((field: {id: string, label: string, type?: string, options?: string[]}) => {
                               const uniqueKey = `Device #${itemNum} - ${field.label}`;
                               return (
@@ -725,6 +771,13 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                           </div>
                         );
                       })}
+                      <button
+                        type="button"
+                        onClick={() => setEapDeviceCount(prev => prev + 1)}
+                        className="flex items-center justify-center gap-2 w-full mt-4 py-3 px-4 rounded-xl border border-dashed border-slate-700 hover:border-[#1877F2] text-slate-400 hover:text-white transition-all text-xs font-black uppercase tracking-widest bg-transparent hover:bg-[#1877F2]/5 active:scale-[0.98]"
+                      >
+                        ➕ ADD NEW TPLINK DEVICE
+                      </button>
                     </>
                   ) : (
                     <>
@@ -1062,45 +1115,54 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                   </span>
                 </div>
                 
-                <div className="relative rounded-xl shadow-sm">
-                  <input 
-                    type="number" 
-                    required
-                    min={minQty}
-                    step={minQty === 1 ? "1" : "100"}
-                    value={quantity || ""}
-                    onChange={(e) => setQuantity(parseInt(e.target.value) || 0)}
-                    onBlur={() => {
-                      if (quantity < minQty) {
-                        setQuantity(minQty);
-                      }
-                    }}
-                    className={`w-full px-4 py-3 rounded-xl bg-[#282828] text-white transition-all text-sm font-bold border ${
-                      quantity < minQty 
-                        ? "border-red-500/50 focus:ring-2 focus:ring-red-500 focus:outline-none" 
-                        : "border-slate-700/60 focus:border-[#1877F2] focus:ring-2 focus:ring-[#1877F2] focus:outline-none"
-                    }`}
-                    placeholder={String(minQty)}
-                  />
-                </div>
-
-                {quantity < minQty ? (
-                  <div className="bg-red-500/10 border border-red-500/25 p-3 rounded-xl flex items-start gap-2 animate-in slide-in-from-top-2 duration-300">
-                    <span className="text-sm mt-0.5">⚠️</span>
-                    <p className="text-[10px] text-red-400 leading-relaxed font-bold text-left">
-                      Below Minimum Limit: The minimum order size for this service is <strong className="text-white">{minQty.toLocaleString()}</strong> {unitLabel.toLowerCase()}. Please enter at least {minQty.toLocaleString()} units to proceed.
-                    </p>
+                {isEapService ? (
+                  <div className="bg-[#1e1e1e] border border-slate-800/80 p-3.5 rounded-xl text-center text-xs font-semibold text-slate-400">
+                    Quantity locked to device count: <strong className="text-[#1877F2] font-black">{eapDeviceCount}</strong>
+                    <span className="block text-[10px] text-slate-500 mt-1">Managed dynamically via the device list above.</span>
                   </div>
                 ) : (
-                  <div className="bg-[#1877F2]/5 border border-[#1877F2]/10 p-3 rounded-xl flex items-start gap-2 animate-in fade-in duration-300">
-                    <span className="text-sm mt-0.5">💡</span>
-                    <p className="text-[10px] text-slate-400 leading-relaxed font-semibold text-left">
-                      1 unit = 1 {unitSingle}. To order 1,000 {unitLabel.toLowerCase()}, simply type <strong className="text-[#1877F2]">1000</strong>. 
-                      <span className="block mt-1 text-[9px] text-[#1877F2] font-black uppercase tracking-wider">
-                        🎯 Minimum Requirement: {minQty.toLocaleString()} {unitLabel.toLowerCase()}
-                      </span>
-                    </p>
+                  <div className="relative rounded-xl shadow-sm">
+                    <input 
+                      type="number" 
+                      required
+                      min={minQty}
+                      step={minQty === 1 ? "1" : "100"}
+                      value={quantity || ""}
+                      onChange={(e) => setQuantity(parseInt(e.target.value) || 0)}
+                      onBlur={() => {
+                        if (quantity < minQty) {
+                          setQuantity(minQty);
+                        }
+                      }}
+                      className={`w-full px-4 py-3 rounded-xl bg-[#282828] text-white transition-all text-sm font-bold border ${
+                        quantity < minQty 
+                          ? "border-red-500/50 focus:ring-2 focus:ring-red-500 focus:outline-none" 
+                          : "border-slate-700/60 focus:border-[#1877F2] focus:ring-2 focus:ring-[#1877F2] focus:outline-none"
+                      }`}
+                      placeholder={String(minQty)}
+                    />
                   </div>
+                )}
+
+                {!isEapService && (
+                  quantity < minQty ? (
+                    <div className="bg-red-500/10 border border-red-500/25 p-3 rounded-xl flex items-start gap-2 animate-in slide-in-from-top-2 duration-300">
+                      <span className="text-sm mt-0.5">⚠️</span>
+                      <p className="text-[10px] text-red-400 leading-relaxed font-bold text-left">
+                        Below Minimum Limit: The minimum order size for this service is <strong className="text-white">{minQty.toLocaleString()}</strong> {unitLabel.toLowerCase()}. Please enter at least {minQty.toLocaleString()} units to proceed.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="bg-[#1877F2]/5 border border-[#1877F2]/10 p-3 rounded-xl flex items-start gap-2 animate-in fade-in duration-300">
+                      <span className="text-sm mt-0.5">💡</span>
+                      <p className="text-[10px] text-slate-400 leading-relaxed font-semibold text-left">
+                        1 unit = 1 {unitSingle}. To order 1,000 {unitLabel.toLowerCase()}, simply type <strong className="text-[#1877F2]">1000</strong>. 
+                        <span className="block mt-1 text-[9px] text-[#1877F2] font-black uppercase tracking-wider">
+                          🎯 Minimum Requirement: {minQty.toLocaleString()} {unitLabel.toLowerCase()}
+                        </span>
+                      </p>
+                    </div>
+                  )
                 )}
 
                 <div className="flex justify-between items-center mt-3 bg-[#121212] px-3.5 py-2.5 rounded-lg border border-slate-800">
