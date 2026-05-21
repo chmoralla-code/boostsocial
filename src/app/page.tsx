@@ -1,6 +1,7 @@
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { ServicesSection } from "@/components/ServicesSection";
+import { HeroVideoBackground } from "@/components/HeroVideoBackground";
 import { createClient } from "@/utils/supabase/server";
 
 export default async function Home() {
@@ -16,11 +17,14 @@ export default async function Home() {
       <Header />
       
       <main className="flex-grow flex flex-col items-center pt-24 relative overflow-hidden bg-[#0a0a0a] min-h-screen">
+        {/* Video Background */}
+        <HeroVideoBackground />
+        
         {/* Futuristic Technical Grid Backdrop */}
         <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.012)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.012)_1px,transparent_1px)] bg-[size:44px_44px] pointer-events-none -z-10"></div>
         
         {/* Spotify Neon Glow Backdrops */}
-        <div className="absolute top-0 left-0 w-full h-[700px] overflow-hidden -z-10 pointer-events-none">
+        <div className="absolute top-0 left-0 w-full h-[700px] overflow-hidden z-[1] pointer-events-none">
           <div className="absolute top-[-25%] left-[8%] w-[600px] h-[600px] rounded-full fb-glow-blob opacity-80"></div>
           <div className="absolute top-[15%] right-[-12%] w-[700px] h-[700px] rounded-full spotify-glow-blob opacity-80"></div>
           <div className="absolute top-[35%] left-[-15%] w-[600px] h-[600px] rounded-full spotify-glow-blob opacity-80"></div>
