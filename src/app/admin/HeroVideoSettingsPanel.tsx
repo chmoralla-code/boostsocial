@@ -48,11 +48,29 @@ export function HeroVideoSettingsPanel() {
     setUploadProgress(0);
     setResult(null);
 
-    const formData = new FormData();
-    formData.append("file", file);
-
     try {
+      // 1. Get signed upload URL from backend (bypasses Vercel 4.5MB limit)
+      const signFormData = new FormData();
+      signFormData.append("action", "get_upload_url");
+      signFormData.append("fileName", file.name);
+      signFormData.append("fileType", file.type);
+
+      const signRes = await fetch("/api/admin/hero-video-settings", {
+        method: "POST",
+        body: signFormData,
+      });
+
+      if (!signRes.ok) {
+        const errorData = await signRes.json();
+        throw new Error(errorData.error || "Failed to generate signed upload URL.");
+      }
+
+      const { signedUrl, publicUrl } = await signRes.json();
+
+      // 2. Direct upload to Supabase Storage via PUT
       const xhr = new XMLHttpRequest();
+      xhr.open("PUT", signedUrl);
+      xhr.setRequestHeader("Content-Type", file.type);
       
       // Track upload progress
       xhr.upload.addEventListener("progress", (event) => {
@@ -63,38 +81,47 @@ export function HeroVideoSettingsPanel() {
       });
 
       // Handle completion
-      xhr.addEventListener("load", () => {
+      xhr.addEventListener("load", async () => {
         if (xhr.status >= 200 && xhr.status < 300) {
           try {
-            const response = JSON.parse(xhr.responseText);
-            setVideoUrl(response.videoUrl);
-            setResult({ success: true, message: "✅ Hero video background updated successfully!" });
+            // 3. Finalize the configuration on backend
+            const finalizeFormData = new FormData();
+            finalizeFormData.append("action", "finalize");
+            finalizeFormData.append("videoUrl", publicUrl);
+
+            const finalizeRes = await fetch("/api/admin/hero-video-settings", {
+              method: "POST",
+              body: finalizeFormData,
+            });
+
+            if (finalizeRes.ok) {
+              setVideoUrl(publicUrl);
+              setResult({ success: true, message: "✅ Hero background updated successfully!" });
+            } else {
+              const errResponse = await finalizeRes.json();
+              setResult({ success: false, message: `❌ Finalization failed: ${errResponse.error || "Unknown error"}` });
+            }
           } catch {
-            setResult({ success: false, message: "❌ Failed to parse response from server." });
+            setResult({ success: false, message: "❌ Failed to finalize background configuration." });
           }
         } else {
-          try {
-            const errResponse = JSON.parse(xhr.responseText);
-            setResult({ success: false, message: `❌ ${errResponse.error || "Upload failed."}` });
-          } catch {
-            setResult({ success: false, message: `❌ Upload failed with status code ${xhr.status}.` });
-          }
+          setResult({ success: false, message: `❌ Upload to storage failed with status code ${xhr.status}.` });
         }
         setIsUploading(false);
       });
 
       // Handle errors
       xhr.addEventListener("error", () => {
-        setResult({ success: false, message: "❌ Connection error during upload." });
+        setResult({ success: false, message: "❌ Connection error during direct storage upload." });
         setIsUploading(false);
       });
 
-      xhr.open("POST", "/api/admin/hero-video-settings");
-      xhr.send(formData);
+      // Send the raw binary file directly (bypasses multi-part form size bloat!)
+      xhr.send(file);
 
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      setResult({ success: false, message: "❌ Failed to upload hero video background." });
+      setResult({ success: false, message: `❌ ${err.message || "Failed to upload hero background."}` });
       setIsUploading(false);
     }
   };

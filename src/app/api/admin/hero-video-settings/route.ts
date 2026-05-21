@@ -31,17 +31,17 @@ export async function GET() {
   }
 }
 
-// POST — upload a custom hero background video, or reset to default
+// POST — handles multiple actions: get_upload_url, finalize, standard upload, reset
 export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData();
-    const file = formData.get("file") as File | null;
+    const action = formData.get("action") as string | null;
     const isReset = formData.get("reset") === "true";
 
     const supabase = getSupabase();
 
-    if (isReset) {
-      // Revert back to the default video URL by clearing the config
+    // 1. Action: Reset
+    if (isReset || action === "reset") {
       const content = JSON.stringify({ videoUrl: "" });
       const blob = new Blob([content], { type: "image/png" });
 
@@ -53,20 +53,79 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true, videoUrl: "" });
     }
 
+    // 2. Action: Get Signed Upload URL (bypasses Vercel 4.5MB limit)
+    if (action === "get_upload_url") {
+      const clientFileName = formData.get("fileName") as string | null;
+      const clientFileType = formData.get("fileType") as string | null;
+
+      if (!clientFileName || !clientFileType) {
+        return NextResponse.json({ error: "Missing fileName or fileType" }, { status: 400 });
+      }
+
+      // Verify it's a video or image file
+      if (!clientFileType.startsWith("video/") && !clientFileType.startsWith("image/")) {
+        return NextResponse.json({ error: "Invalid file type. Please upload a valid video or image (MP4, GIF, JPEG, JPG, PNG)." }, { status: 400 });
+      }
+
+      const fileExt = clientFileName.split('.').pop() || 'mp4';
+      const storagePath = `admin-config/hero-bg-custom.${fileExt}`;
+
+      // Create signed upload URL
+      const { data, error } = await supabase.storage
+        .from(CONFIG_BUCKET)
+        .createSignedUploadUrl(storagePath, { upsert: true });
+
+      if (error || !data) {
+        throw error || new Error("Failed to generate signed upload URL");
+      }
+
+      // Generate public URL with cache-busting timestamp
+      const publicUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/${CONFIG_BUCKET}/${storagePath}?v=${Date.now()}`;
+
+      return NextResponse.json({
+        success: true,
+        signedUrl: data.signedUrl,
+        publicUrl
+      });
+    }
+
+    // 3. Action: Finalize Config
+    if (action === "finalize") {
+      const videoUrl = formData.get("videoUrl") as string | null;
+
+      if (!videoUrl) {
+        return NextResponse.json({ error: "Missing videoUrl" }, { status: 400 });
+      }
+
+      // Save configuration JSON masked as PNG
+      const content = JSON.stringify({ videoUrl });
+      const blob = new Blob([content], { type: "image/png" });
+
+      const { error: configError } = await supabase.storage
+        .from(CONFIG_BUCKET)
+        .upload(CONFIG_PATH, blob, { upsert: true, contentType: "image/png" });
+
+      if (configError) {
+        throw configError;
+      }
+
+      return NextResponse.json({ success: true, videoUrl });
+    }
+
+    // 4. Fallback: Standard multipart form file upload (for backward compatibility / fallback)
+    const file = formData.get("file") as File | null;
     if (!file) {
       return NextResponse.json({ error: "Missing media file" }, { status: 400 });
     }
 
-    // Verify it's a video or image file (like GIF, JPEG, JPG, PNG)
+    // Verify file type
     if (!file.type.startsWith("video/") && !file.type.startsWith("image/")) {
       return NextResponse.json({ error: "Invalid file type. Please upload a valid video or image (MP4, GIF, JPEG, JPG, PNG)." }, { status: 400 });
     }
 
     const fileExt = file.name.split('.').pop() || 'mp4';
-    // Always upsert to a single file to prevent storage bloat
     const fileName = `admin-config/hero-bg-custom.${fileExt}`;
 
-    // Upload to 'receipts' bucket which is already pre-configured to allow public access
     const { error: uploadError } = await supabase.storage
       .from(CONFIG_BUCKET)
       .upload(fileName, file, {
@@ -78,7 +137,6 @@ export async function POST(req: NextRequest) {
       throw uploadError;
     }
 
-    // Generate public URL with cache-busting timestamp
     const publicUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/${CONFIG_BUCKET}/${fileName}?v=${Date.now()}`;
 
     // Save configuration JSON masked as PNG
