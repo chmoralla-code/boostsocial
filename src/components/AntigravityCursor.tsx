@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { usePathname } from "next/navigation";
 
 interface Particle {
   x: number;
@@ -35,10 +36,15 @@ interface Shockwave {
 }
 
 export function AntigravityCursor() {
+  const pathname = usePathname();
+  const isExcluded = pathname?.startsWith("/admin");
+
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const mouseRef = useRef({ x: 0, y: 0, active: false, targetX: 0, targetY: 0 });
 
   useEffect(() => {
+    if (isExcluded) return;
+
     const isMobile = 
       typeof window !== "undefined" && (
         "ontouchstart" in window || 
@@ -677,7 +683,9 @@ export function AntigravityCursor() {
       }
       cancelAnimationFrame(animationFrameId);
     };
-  }, []);
+  }, [isExcluded]);
+
+  if (isExcluded) return null;
 
   return (
     <canvas
