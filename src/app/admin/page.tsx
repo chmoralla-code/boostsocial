@@ -2,6 +2,7 @@ import { createClient } from "@/utils/supabase/server";
 import { DollarSign, ShoppingCart, Activity, Users, ArrowUpRight, TrendingUp, Sparkles, Clock, Globe } from "lucide-react";
 import { StorageOptimizingPanel } from "./StorageOptimizingPanel";
 import { TelegramSettingsPanel } from "./TelegramSettingsPanel";
+import { HeroVideoSettingsPanel } from "./HeroVideoSettingsPanel";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 
@@ -265,9 +266,10 @@ export default async function AdminOverview() {
             </div>
           </div>
 
-          {/* StoragePreservationPanel and TelegramNotificationPanel */}
+          {/* StoragePreservationPanel, TelegramNotificationPanel, and HeroVideoSettingsPanel */}
           <StorageOptimizingPanel />
           <TelegramSettingsPanel />
+          <HeroVideoSettingsPanel />
 
         </div>
 

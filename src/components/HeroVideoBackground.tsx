@@ -2,19 +2,24 @@
 
 import { useEffect, useRef } from "react";
 
-export function HeroVideoBackground() {
+interface HeroVideoBackgroundProps {
+  videoUrl?: string;
+}
+
+export function HeroVideoBackground({ videoUrl }: HeroVideoBackgroundProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
-    // Ensure video plays on mount (handles autoplay policies)
+    // Reload video source and autoplay when videoUrl changes
     const video = videoRef.current;
     if (video) {
+      video.load();
       video.play().catch(() => {
         // Autoplay was prevented, video will remain paused
         // This is fine — the dark overlay still looks good
       });
     }
-  }, []);
+  }, [videoUrl]);
 
   return (
     <div className="hero-video-wrapper">
@@ -28,7 +33,7 @@ export function HeroVideoBackground() {
         preload="auto"
         poster=""
       >
-        <source src="/hero-bg.mp4" type="video/mp4" />
+        <source src={videoUrl || "/hero-bg.mp4"} type="video/mp4" />
       </video>
       {/* Dark gradient overlay to keep text readable */}
       <div className="hero-video-overlay" />
