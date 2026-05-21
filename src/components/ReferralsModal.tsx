@@ -99,7 +99,7 @@ export function ReferralsModal({
         {/* Modal Header */}
         <div className="p-6 border-b border-slate-800/60 bg-[#1c1c1c]/50">
           <h2 className="text-xl font-black text-white tracking-tight flex items-center gap-2">
-            <Gift className="text-[#1877F2]" size={22} /> BoostSocial <span className="text-[#1877F2]">Invite & Earn</span>
+            <Gift className="text-[#1877F2]" size={22} /> CYNETWORK <span className="text-[#1877F2]">Invite & Earn</span>
           </h2>
           <p className="text-slate-400 text-xs mt-1">Get paid for sharing top-tier Facebook boosting services</p>
         </div>

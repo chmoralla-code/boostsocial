@@ -106,7 +106,7 @@ const renderMessageContent = (content: string, isUser: boolean) => {
 export function Chathead() {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
-    { role: 'assistant', content: 'Hi there! 👋 I am your BoostSocial assistant. How can I help you amplify your reach today? If you have an Order ID, just send it over and I can track it for you!' }
+    { role: 'assistant', content: 'Hi there! 👋 I am your CYNETWORK assistant. How can I help you amplify your reach today? If you have an Order ID, just send it over and I can track it for you!' }
   ]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -408,7 +408,7 @@ export function Chathead() {
           }).join('\n')
         : `- Facebook Followers: ₱10 per 1,000 followers.\n- Post Reactions (Likes, Hearts, etc.): ₱5 per 1,000 reactions.\n- Video Views (for Reels, Stories, etc.): ₱13 per 1,000 views.`;
 
-      const systemContext = `You are a helpful, extremely concise customer support AI for BoostSocial, a platform that boosts Facebook followers, reactions, and views. Keep responses brief (1-3 sentences max). You can perfectly understand and reply in English, Tagalog, and Taglish/Bisaya!
+      const systemContext = `You are a helpful, extremely concise customer support AI for CYNETWORK, a platform that boosts Facebook followers, reactions, and views. Keep responses brief (1-3 sentences max). You can perfectly understand and reply in English, Tagalog, and Taglish/Bisaya!
 
 Our live real-time core services and pricing catalog (fetched dynamically from our active database):
 ${servicesCatalogText}
@@ -464,7 +464,7 @@ Format list items on separate lines with simple bullets (e.g. * **Item:** text).
         } else if (text.includes("payment") || text.includes("gcash") || text.includes("bayad")) {
           responseText = `We accept GCash! You can pay by scanning the QR code at checkout and uploading your receipt screenshot directly in this chat. 🙏`;
         } else if (text.includes("who") || text.includes("owner") || text.includes("create") || text.includes("develop") || text.includes("make")) {
-          responseText = `BoostSocial was fully created and developed by **Cyrhiel Moralla**! 💻✨`;
+          responseText = `CYNETWORK was fully created and developed by **Cyrhiel Moralla**! 💻✨`;
         } else {
           responseText = `Thank you for your message! Please check out our packages on the main page, or enter your Order ID (e.g. BS-D5D1D849) to track your order status instantly! ⚡`;
         }
@@ -545,7 +545,7 @@ Format list items on separate lines with simple bullets (e.g. * **Item:** text).
           {/* Header */}
           <div className="bg-[#121212] border-b border-slate-800 p-4 text-white flex items-center justify-between">
             <div>
-              <h3 className="font-bold text-sm tracking-tight text-white">Boost<span className="text-[#1DB954]">Social</span> Support</h3>
+              <h3 className="font-bold text-sm tracking-tight text-white">CY<span className="text-[#1DB954]">NETWORK</span> Support</h3>
               <p className="text-[10px] text-[#1877F2] font-semibold mt-0.5 tracking-wider uppercase">Powered by Free Open AI</p>
             </div>
             <button onClick={() => setIsOpen(false)} className="text-slate-400 hover:text-white transition-colors">

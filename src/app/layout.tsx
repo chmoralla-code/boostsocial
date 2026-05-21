@@ -9,7 +9,7 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "BoostSocial | Amplify Your Reach",
+  title: "CYNETWORK | Amplify Your Reach",
   description: "Gain Genuine Followers, Reactions, and Views instantly.",
   icons: {
     icon: "/icon.svg",

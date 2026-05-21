@@ -22,8 +22,20 @@ export default async function AdminLayout({
       <aside className="w-64 bg-[#181818]/95 border-r border-slate-850/80 backdrop-blur-md text-slate-400 flex flex-col fixed h-full z-10">
         <div className="p-6 pb-4 border-b border-slate-850/60">
           <Link href="/" className="text-xl font-black text-white tracking-tight flex items-center gap-2 group">
-            <span className="bg-[#1DB954] text-black w-7 h-7 rounded-full flex items-center justify-center font-black text-sm group-hover:scale-105 transition-transform">B</span>
-            BoostSocial
+            <span className="bg-[#1DB954] text-black w-7 h-7 rounded-full flex items-center justify-center font-black text-sm group-hover:scale-110 group-hover:rotate-12 transition-all duration-300">C</span>
+            <span className="flex items-center">
+              {"CYNETWORK".split("").map((letter, idx) => (
+                <span
+                  key={idx}
+                  className="inline-block transition-all duration-300 transform hover:scale-130 hover:text-[#1DB954] hover:-translate-y-0.5 cursor-default select-none font-black text-white"
+                  style={{
+                    transitionDelay: `${idx * 15}ms`
+                  }}
+                >
+                  {letter}
+                </span>
+              ))}
+            </span>
           </Link>
           <div className="text-[9px] mt-1.5 text-slate-500 font-extrabold uppercase tracking-widest pl-1">Admin Control Panel</div>
         </div>

@@ -67,12 +67,22 @@ export function Header() {
   return (
     <>
       <header className="w-full py-6 px-8 flex justify-between items-center max-w-7xl mx-auto border-b border-slate-800/40 relative z-50">
-        <Link href="/" className="flex items-center gap-2.5">
-          <div className="text-[#1DB954] drop-shadow-[0_0_10px_rgba(29,185,84,0.3)]">
+        <Link href="/" className="flex items-center gap-2.5 group">
+          <div className="text-[#1DB954] drop-shadow-[0_0_10px_rgba(29,185,84,0.3)] group-hover:scale-110 transition-transform duration-300">
             <Rocket size={28} strokeWidth={2.5} />
           </div>
-          <span className="text-2xl font-black tracking-tight text-white">
-            Boost<span className="text-[#1DB954]">Social</span>
+          <span className="text-2xl font-black tracking-tight text-white flex items-center">
+            {"CYNETWORK".split("").map((letter, idx) => (
+              <span
+                key={idx}
+                className="inline-block transition-all duration-300 transform hover:scale-135 hover:text-[#1DB954] hover:rotate-6 hover:-translate-y-1 cursor-default select-none drop-shadow-[0_0_8px_transparent] hover:drop-shadow-[0_0_12px_rgba(29,185,84,0.6)] font-black"
+                style={{
+                  transitionDelay: `${idx * 15}ms`
+                }}
+              >
+                {letter}
+              </span>
+            ))}
           </span>
         </Link>
         
