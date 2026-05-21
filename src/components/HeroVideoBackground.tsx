@@ -4,10 +4,13 @@ import { useEffect, useRef } from "react";
 
 interface HeroVideoBackgroundProps {
   videoUrl?: string;
+  opacity?: number;
 }
 
-export function HeroVideoBackground({ videoUrl }: HeroVideoBackgroundProps) {
+export function HeroVideoBackground({ videoUrl, opacity }: HeroVideoBackgroundProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
+
+  const activeOpacity = opacity !== undefined ? opacity : 0.45;
 
   // Check if the URL represents an image/GIF
   const isImage = (url?: string) => {
@@ -45,6 +48,7 @@ export function HeroVideoBackground({ videoUrl }: HeroVideoBackgroundProps) {
           src={videoUrl}
           className="hero-video object-cover"
           alt="Hero background"
+          style={{ opacity: activeOpacity }}
         />
       ) : (
         <video
@@ -56,6 +60,7 @@ export function HeroVideoBackground({ videoUrl }: HeroVideoBackgroundProps) {
           playsInline
           preload="auto"
           poster=""
+          style={{ opacity: activeOpacity }}
         >
           <source src={videoUrl || "/hero-bg.mp4"} />
         </video>

@@ -12,8 +12,9 @@ export default async function Home() {
     .select('*')
     .order('created_at', { ascending: true });
 
-  // Fetch custom hero video URL from Supabase Storage config
+  // Fetch custom hero video URL and opacity from Supabase Storage config
   let videoUrl = "";
+  let opacity = 0.45;
   try {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     if (supabaseUrl) {
@@ -22,6 +23,7 @@ export default async function Home() {
       if (res.ok) {
         const config = await res.json();
         videoUrl = config.videoUrl || "";
+        opacity = config.opacity !== undefined ? Number(config.opacity) : 0.45;
       }
     }
   } catch (err) {
@@ -34,7 +36,7 @@ export default async function Home() {
       
       <main className="flex-grow flex flex-col items-center pt-24 relative overflow-hidden bg-[#0a0a0a] min-h-screen">
         {/* Video Background */}
-        <HeroVideoBackground videoUrl={videoUrl} />
+        <HeroVideoBackground videoUrl={videoUrl} opacity={opacity} />
         
         {/* Futuristic Technical Grid Backdrop */}
         <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.012)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.012)_1px,transparent_1px)] bg-[size:44px_44px] pointer-events-none -z-10"></div>

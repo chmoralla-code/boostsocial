@@ -1,24 +1,27 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Video, Upload, RotateCcw, CheckCircle, XCircle, Loader2 } from "lucide-react";
+import { Video, Upload, RotateCcw, CheckCircle, XCircle, Loader2, Save } from "lucide-react";
 
 export function HeroVideoSettingsPanel() {
   const [videoUrl, setVideoUrl] = useState("");
+  const [opacity, setOpacity] = useState(0.45);
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Load current video URL on mount
+  // Load current video URL and opacity on mount
   useEffect(() => {
     fetch("/api/admin/hero-video-settings")
       .then((r) => r.json())
       .then((data) => {
         setVideoUrl(data.videoUrl || "");
+        setOpacity(data.opacity !== undefined ? Number(data.opacity) : 0.45);
         setIsLoading(false);
       })
       .catch(() => setIsLoading(false));
@@ -88,6 +91,7 @@ export function HeroVideoSettingsPanel() {
             const finalizeFormData = new FormData();
             finalizeFormData.append("action", "finalize");
             finalizeFormData.append("videoUrl", publicUrl);
+            finalizeFormData.append("opacity", opacity.toString());
 
             const finalizeRes = await fetch("/api/admin/hero-video-settings", {
               method: "POST",
@@ -96,7 +100,7 @@ export function HeroVideoSettingsPanel() {
 
             if (finalizeRes.ok) {
               setVideoUrl(publicUrl);
-              setResult({ success: true, message: "✅ Hero background updated successfully!" });
+              setResult({ success: true, message: "✅ Hero background updated and settings saved successfully!" });
             } else {
               const errResponse = await finalizeRes.json();
               setResult({ success: false, message: `❌ Finalization failed: ${errResponse.error || "Unknown error"}` });
@@ -126,6 +130,35 @@ export function HeroVideoSettingsPanel() {
     }
   };
 
+  const handleSaveSettings = async () => {
+    setIsSaving(true);
+    setResult(null);
+
+    try {
+      const formData = new FormData();
+      formData.append("action", "save");
+      formData.append("videoUrl", videoUrl);
+      formData.append("opacity", opacity.toString());
+
+      const res = await fetch("/api/admin/hero-video-settings", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        setResult({ success: true, message: "✅ Hero background settings saved successfully!" });
+      } else {
+        setResult({ success: false, message: `❌ ${data.error || "Save failed."}` });
+      }
+    } catch {
+      setResult({ success: false, message: "❌ Connection error. Save failed." });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const handleReset = async () => {
     if (!window.confirm("Are you sure you want to reset the hero background to the default particles video?")) {
       return;
@@ -147,6 +180,7 @@ export function HeroVideoSettingsPanel() {
 
       if (res.ok) {
         setVideoUrl("");
+        setOpacity(0.45);
         setResult({ success: true, message: "✅ Successfully reset to default hero background video!" });
       } else {
         setResult({ success: false, message: `❌ ${data.error || "Reset failed."}` });
@@ -209,6 +243,35 @@ export function HeroVideoSettingsPanel() {
             </ul>
           </div>
 
+          {/* Opacity Adjustment Slider */}
+          <div className="bg-[#121212]/80 border border-slate-850 rounded-xl p-4 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-black text-emerald-400 uppercase tracking-wide text-[10px]">🎚️ Transparency / Opacity</p>
+                <p className="text-[11px] text-slate-400 mt-0.5 font-semibold">
+                  Controls the visibility strength of the hero background asset.
+                </p>
+              </div>
+              <span className="text-xs font-black text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-lg border border-emerald-500/20 shadow-inner">
+                {Math.round(opacity * 100)}%
+              </span>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Clear</span>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                step="5"
+                value={Math.round(opacity * 100)}
+                onChange={(e) => setOpacity(parseFloat(e.target.value) / 100)}
+                className="flex-grow h-1.5 bg-[#181818] rounded-lg appearance-none cursor-pointer accent-[#1DB954] border border-slate-850"
+              />
+              <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Opaque</span>
+            </div>
+          </div>
+
           <div className="flex flex-wrap gap-3 pt-2">
             <input
               type="file"
@@ -220,17 +283,26 @@ export function HeroVideoSettingsPanel() {
             
             <button
               onClick={handleUploadClick}
-              disabled={isUploading || isResetting}
+              disabled={isUploading || isResetting || isSaving}
               className="flex items-center gap-2 bg-[#1DB954] hover:bg-[#1ed760] disabled:bg-slate-850 disabled:text-slate-550 text-black font-extrabold px-5 py-2.5 rounded-xl text-xs uppercase tracking-wider transition-all cursor-pointer shadow-md"
             >
               {isUploading ? <Loader2 size={14} className="animate-spin text-black" /> : <Upload size={14} />}
               {isUploading ? "Uploading..." : "Upload New File"}
             </button>
 
+            <button
+              onClick={handleSaveSettings}
+              disabled={isUploading || isResetting || isSaving}
+              className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-850 disabled:text-slate-550 text-white font-extrabold px-5 py-2.5 rounded-xl text-xs uppercase tracking-wider transition-all cursor-pointer shadow-md border border-emerald-500/35"
+            >
+              {isSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+              {isSaving ? "Saving..." : "Save Settings"}
+            </button>
+
             {isCustomVideoActive && (
               <button
                 onClick={handleReset}
-                disabled={isUploading || isResetting}
+                disabled={isUploading || isResetting || isSaving}
                 className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-white font-extrabold px-5 py-2.5 rounded-xl text-xs uppercase tracking-wider transition-all cursor-pointer shadow-md border border-slate-700"
               >
                 {isResetting ? <Loader2 size={14} className="animate-spin" /> : <RotateCcw size={14} />}
@@ -276,8 +348,9 @@ export function HeroVideoSettingsPanel() {
                 return (
                   <img
                     src={videoUrl}
-                    className="absolute inset-0 w-full h-full object-cover rounded-xl"
+                    className="absolute inset-0 w-full h-full object-cover rounded-xl transition-opacity duration-300"
                     alt="Hero background preview"
+                    style={{ opacity }}
                   />
                 );
               } else {
@@ -289,7 +362,8 @@ export function HeroVideoSettingsPanel() {
                     muted
                     loop
                     playsInline
-                    className="absolute inset-0 w-full h-full object-cover rounded-xl"
+                    className="absolute inset-0 w-full h-full object-cover rounded-xl transition-opacity duration-300"
+                    style={{ opacity }}
                   />
                 );
               }
@@ -301,7 +375,8 @@ export function HeroVideoSettingsPanel() {
                   muted
                   loop
                   playsInline
-                  className="absolute inset-0 w-full h-full object-cover rounded-xl opacity-60"
+                  className="absolute inset-0 w-full h-full object-cover rounded-xl transition-opacity duration-300"
+                  style={{ opacity }}
                 />
               );
             }

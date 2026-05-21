@@ -20,18 +20,21 @@ export async function GET() {
       .download(CONFIG_PATH);
 
     if (error || !data) {
-      return NextResponse.json({ videoUrl: "" });
+      return NextResponse.json({ videoUrl: "", opacity: 0.45 });
     }
 
     const text = await data.text();
     const config = JSON.parse(text);
-    return NextResponse.json({ videoUrl: config.videoUrl || "" });
+    return NextResponse.json({
+      videoUrl: config.videoUrl || "",
+      opacity: config.opacity !== undefined ? Number(config.opacity) : 0.45
+    });
   } catch {
-    return NextResponse.json({ videoUrl: "" });
+    return NextResponse.json({ videoUrl: "", opacity: 0.45 });
   }
 }
 
-// POST — handles multiple actions: get_upload_url, finalize, standard upload, reset
+// POST — handles multiple actions: get_upload_url, finalize, save, standard upload, reset
 export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData();
@@ -42,7 +45,7 @@ export async function POST(req: NextRequest) {
 
     // 1. Action: Reset
     if (isReset || action === "reset") {
-      const content = JSON.stringify({ videoUrl: "" });
+      const content = JSON.stringify({ videoUrl: "", opacity: 0.45 });
       const blob = new Blob([content], { type: "image/png" });
 
       const { error } = await supabase.storage
@@ -50,7 +53,7 @@ export async function POST(req: NextRequest) {
         .upload(CONFIG_PATH, blob, { upsert: true, contentType: "image/png" });
 
       if (error) throw error;
-      return NextResponse.json({ success: true, videoUrl: "" });
+      return NextResponse.json({ success: true, videoUrl: "", opacity: 0.45 });
     }
 
     // 2. Action: Get Signed Upload URL (bypasses Vercel 4.5MB limit)
@@ -89,16 +92,16 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // 3. Action: Finalize Config
-    if (action === "finalize") {
+    // 3. Action: Finalize or Save Config
+    if (action === "finalize" || action === "save") {
       const videoUrl = formData.get("videoUrl") as string | null;
+      const opacityStr = formData.get("opacity") as string | null;
+      const opacity = opacityStr !== null ? parseFloat(opacityStr) : 0.45;
 
-      if (!videoUrl) {
-        return NextResponse.json({ error: "Missing videoUrl" }, { status: 400 });
-      }
+      const finalVideoUrl = videoUrl !== null ? videoUrl : "";
 
       // Save configuration JSON masked as PNG
-      const content = JSON.stringify({ videoUrl });
+      const content = JSON.stringify({ videoUrl: finalVideoUrl, opacity });
       const blob = new Blob([content], { type: "image/png" });
 
       const { error: configError } = await supabase.storage
@@ -109,7 +112,7 @@ export async function POST(req: NextRequest) {
         throw configError;
       }
 
-      return NextResponse.json({ success: true, videoUrl });
+      return NextResponse.json({ success: true, videoUrl: finalVideoUrl, opacity });
     }
 
     // 4. Fallback: Standard multipart form file upload (for backward compatibility / fallback)
