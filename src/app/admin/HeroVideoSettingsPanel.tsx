@@ -38,9 +38,9 @@ export function HeroVideoSettingsPanel() {
       return;
     }
 
-    // Validate video MIME type
-    if (!file.type.startsWith("video/")) {
-      setResult({ success: false, message: "❌ Invalid file type. Please select an MP4 or other video file." });
+    // Validate video or image MIME type
+    if (!file.type.startsWith("video/") && !file.type.startsWith("image/")) {
+      setResult({ success: false, message: "❌ Invalid file type. Please select an MP4 video, or a GIF/JPEG/JPG/PNG image." });
       return;
     }
 
@@ -100,7 +100,7 @@ export function HeroVideoSettingsPanel() {
   };
 
   const handleReset = async () => {
-    if (!window.confirm("Are you sure you want to reset the hero video background to the default particles video?")) {
+    if (!window.confirm("Are you sure you want to reset the hero background to the default particles video?")) {
       return;
     }
 
@@ -154,7 +154,7 @@ export function HeroVideoSettingsPanel() {
         </div>
         <div>
           <h2 className="text-base font-bold text-white flex items-center gap-2">
-            Hero Video Background
+            Hero Background Media
             <span className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest border ${
               isCustomVideoActive
                 ? "bg-purple-550/10 text-purple-400 border-purple-500/20"
@@ -164,7 +164,7 @@ export function HeroVideoSettingsPanel() {
             </span>
           </h2>
           <p className="text-xs text-slate-400 mt-0.5 font-semibold">
-            Change or reset the video background playing on your landing page.
+            Change or reset the video, GIF, or image background playing on your landing page.
           </p>
         </div>
       </div>
@@ -174,11 +174,11 @@ export function HeroVideoSettingsPanel() {
         {/* Left Side: Upload & Control */}
         <div className="space-y-4">
           <div className="bg-[#121212]/80 border border-slate-850 rounded-xl p-4 text-xs space-y-2.5 text-slate-400">
-            <p className="font-black text-emerald-400 uppercase tracking-wide text-[10px]">🎥 Video Requirements</p>
+            <p className="font-black text-emerald-400 uppercase tracking-wide text-[10px]">🎥 Background Requirements</p>
             <ul className="list-disc pl-4 space-y-1.5 leading-relaxed font-semibold">
-              <li>File type should be <strong className="text-slate-350">MP4</strong> or other web-safe format.</li>
+              <li>Supported formats: <strong className="text-slate-350">MP4, GIF, JPEG, JPG, PNG</strong>.</li>
               <li>Maximum file size limit is <strong className="text-slate-350">20 MB</strong>.</li>
-              <li>A high-quality <strong className="text-slate-350">dark theme / loopable</strong> particles or abstract video is highly recommended for readability.</li>
+              <li>A high-quality <strong className="text-slate-350">dark themed / low-contrast</strong> asset is highly recommended to preserve text readability.</li>
             </ul>
           </div>
 
@@ -187,7 +187,7 @@ export function HeroVideoSettingsPanel() {
               type="file"
               ref={fileInputRef}
               onChange={handleFileChange}
-              accept="video/*"
+              accept="video/*,image/*"
               className="hidden"
             />
             
@@ -197,7 +197,7 @@ export function HeroVideoSettingsPanel() {
               className="flex items-center gap-2 bg-[#1DB954] hover:bg-[#1ed760] disabled:bg-slate-850 disabled:text-slate-550 text-black font-extrabold px-5 py-2.5 rounded-xl text-xs uppercase tracking-wider transition-all cursor-pointer shadow-md"
             >
               {isUploading ? <Loader2 size={14} className="animate-spin text-black" /> : <Upload size={14} />}
-              {isUploading ? "Uploading..." : "Upload New Video"}
+              {isUploading ? "Uploading..." : "Upload New File"}
             </button>
 
             {isCustomVideoActive && (
@@ -229,28 +229,56 @@ export function HeroVideoSettingsPanel() {
           )}
         </div>
 
-        {/* Right Side: Preview Video */}
+        {/* Right Side: Preview Video / Image */}
         <div className="bg-[#121212]/50 border border-slate-850 rounded-2xl overflow-hidden aspect-video flex flex-col justify-between p-3.5 relative group shadow-inner">
-          {videoUrl ? (
-            <video
-              key={videoUrl}
-              src={videoUrl}
-              autoPlay
-              muted
-              loop
-              playsInline
-              className="absolute inset-0 w-full h-full object-cover rounded-xl"
-            />
-          ) : (
-            <video
-              src="/hero-bg.mp4"
-              autoPlay
-              muted
-              loop
-              playsInline
-              className="absolute inset-0 w-full h-full object-cover rounded-xl opacity-60"
-            />
-          )}
+          {(() => {
+            const isImage = (url: string) => {
+              if (!url) return false;
+              const cleanUrl = url.split("?")[0].toLowerCase();
+              return (
+                cleanUrl.endsWith(".gif") ||
+                cleanUrl.endsWith(".jpg") ||
+                cleanUrl.endsWith(".jpeg") ||
+                cleanUrl.endsWith(".png") ||
+                cleanUrl.endsWith(".webp")
+              );
+            };
+
+            if (videoUrl) {
+              if (isImage(videoUrl)) {
+                return (
+                  <img
+                    src={videoUrl}
+                    className="absolute inset-0 w-full h-full object-cover rounded-xl"
+                    alt="Hero background preview"
+                  />
+                );
+              } else {
+                return (
+                  <video
+                    key={videoUrl}
+                    src={videoUrl}
+                    autoPlay
+                    muted
+                    loop
+                    playsInline
+                    className="absolute inset-0 w-full h-full object-cover rounded-xl"
+                  />
+                );
+              }
+            } else {
+              return (
+                <video
+                  src="/hero-bg.mp4"
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
+                  className="absolute inset-0 w-full h-full object-cover rounded-xl opacity-60"
+                />
+              );
+            }
+          })()}
 
           {/* Preview overlay label */}
           <div className="z-10 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border border-white/[0.07] text-white self-start">

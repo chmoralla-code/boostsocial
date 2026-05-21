@@ -54,12 +54,12 @@ export async function POST(req: NextRequest) {
     }
 
     if (!file) {
-      return NextResponse.json({ error: "Missing video file" }, { status: 400 });
+      return NextResponse.json({ error: "Missing media file" }, { status: 400 });
     }
 
-    // Verify it's a video file
-    if (!file.type.startsWith("video/")) {
-      return NextResponse.json({ error: "Invalid file type. Please upload a valid video." }, { status: 400 });
+    // Verify it's a video or image file (like GIF, JPEG, JPG, PNG)
+    if (!file.type.startsWith("video/") && !file.type.startsWith("image/")) {
+      return NextResponse.json({ error: "Invalid file type. Please upload a valid video or image (MP4, GIF, JPEG, JPG, PNG)." }, { status: 400 });
     }
 
     const fileExt = file.name.split('.').pop() || 'mp4';
