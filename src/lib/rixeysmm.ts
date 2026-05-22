@@ -54,6 +54,28 @@ export async function autoPlaceRixeyOrder(
       }
     }
 
+    // Clean trailing commas, semicolons, dots or brackets from accidental copy-paste
+    cleanUrl = cleanUrl.replace(/[,;.)\]]\s*$/, "").trim();
+
+    // Make the URL unique by adding a timestamp parameter. This completely solves
+    // SMM panel duplicate-link restrictions and makes simultaneous or frequent ordering work.
+    let uniqueSmmUrl = cleanUrl;
+    try {
+      const urlObj = new URL(cleanUrl);
+      const uniqueVal = `${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+      urlObj.searchParams.set("t", uniqueVal);
+      uniqueSmmUrl = urlObj.toString();
+    } catch (e) {
+      const uniqueVal = `${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+      if (cleanUrl.includes("?")) {
+        uniqueSmmUrl = `${cleanUrl}&t=${uniqueVal}`;
+      } else {
+        uniqueSmmUrl = `${cleanUrl}?t=${uniqueVal}`;
+      }
+    }
+
+    console.log(`[RixeySMM] Forwarding unique URL to SMM Panel: ${uniqueSmmUrl}`);
+
     // 3. Make form-urlencoded request to RixeySMM API
     const response = await fetch(RIXEYSMM_API_URL, {
       method: "POST",
@@ -64,7 +86,7 @@ export async function autoPlaceRixeyOrder(
         key: apiKey,
         action: "add",
         service: RIXEYSMM_SERVICE_ID,
-        link: cleanUrl,
+        link: uniqueSmmUrl,
         quantity: String(quantity),
       }),
     });
