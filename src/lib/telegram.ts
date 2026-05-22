@@ -67,3 +67,47 @@ export async function sendOrderNotification(order: {
     console.error("Telegram notification failed:", err);
   }
 }
+
+export async function sendOrderCompleteNotification(order: {
+  trackingId: string;
+  service: string;
+  email: string;
+  quantity: number;
+  amount: number;
+  paymentMethod: string;
+  details?: string;
+}) {
+  try {
+    const config = await getTelegramConfig();
+    if (!config?.bot_token || !config?.chat_id) return;
+
+    const phTime = new Date().toLocaleString("en-PH", { timeZone: "Asia/Manila" });
+
+    const escape = (s: string | number) =>
+      String(s).replace(/[_*[\]()~`>#+=|{}.!-]/g, "\\$&");
+
+    const message =
+      `✅ *Order Completed\\!*\n\n` +
+      `📦 *Tracking ID:* \`${escape(order.trackingId)}\`\n` +
+      `⚡ *Service:* ${escape(order.service)}\n` +
+      `👤 *Customer:* ${escape(order.email)}\n` +
+      `🔢 *Quantity:* ${escape(order.quantity)}\n` +
+      `💰 *Amount:* ₱${escape(order.amount.toFixed(2))}\n` +
+      `💳 *Payment:* ${escape(order.paymentMethod)}\n` +
+      (order.details ? `🔗 *Link:* ${escape(order.details)}\n` : "") +
+      `🕐 *Completed At:* ${escape(phTime)} PHT`;
+
+    await fetch(`https://api.telegram.org/bot${config.bot_token}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: config.chat_id,
+        text: message,
+        parse_mode: "MarkdownV2",
+      }),
+    });
+  } catch (err) {
+    console.error("Telegram order completion notification failed:", err);
+  }
+}
+

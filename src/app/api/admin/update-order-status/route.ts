@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { autoPlaceRixeyOrder } from "@/lib/rixeysmm";
+import { sendOrderCompleteNotification } from "@/lib/telegram";
 
 export async function POST(req: NextRequest) {
   try {
@@ -21,10 +22,22 @@ export async function POST(req: NextRequest) {
       auth: { persistSession: false }
     });
 
-    // 1. Fetch current order details
+    // 1. Fetch current order details (including customer email, amount, payment method, and joined service title)
     const { data: order, error: fetchError } = await supabase
       .from("orders")
-      .select("status, service_id, target_url, quantity, external_order_id")
+      .select(`
+        status, 
+        service_id, 
+        target_url, 
+        quantity, 
+        external_order_id,
+        customer_email,
+        amount,
+        payment_method,
+        services (
+          title
+        )
+      `)
       .eq("id", orderId)
       .single();
 
@@ -50,6 +63,23 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    // 4. Fire Telegram completion notification if:
+    // - Order status is updated to 'Completed'
+    if (newStatus === "Completed") {
+      const serviceTitle = (order as any).services?.title || "SMM Service";
+      sendOrderCompleteNotification({
+        trackingId: `BS-${orderId.slice(0, 8).toUpperCase()}`,
+        service: serviceTitle,
+        email: order.customer_email,
+        quantity: order.quantity,
+        amount: Number(order.amount),
+        paymentMethod: order.payment_method || "GCash",
+        details: order.target_url,
+      }).catch((err) => {
+        console.error("Async sendOrderCompleteNotification failed from admin update:", err);
+      });
+    }
+
     return NextResponse.json({ success: true });
 
   } catch (err: any) {
@@ -57,3 +87,4 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: err.message || err.toString() }, { status: 500 });
   }
 }
+

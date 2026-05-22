@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { sendOrderCompleteNotification } from "@/lib/telegram";
 
 const RIXEYSMM_API_URL = "https://rixeysmm.shop/api/v2";
 
@@ -21,10 +22,23 @@ export async function POST(req: NextRequest) {
       auth: { persistSession: false }
     });
 
-    // 1. Fetch all orders that are currently "Processing" and have an active RixeySMM Order ID
+    // 1. Fetch all orders that are currently "Processing" and have an active RixeySMM Order ID (including all details for notification)
     const { data: activeOrders, error: fetchError } = await supabase
       .from("orders")
-      .select("id, status, external_order_id, external_status")
+      .select(`
+        id, 
+        status, 
+        external_order_id, 
+        external_status,
+        customer_email,
+        target_url,
+        quantity,
+        amount,
+        payment_method,
+        services (
+          title
+        )
+      `)
       .eq("status", "Processing")
       .not("external_order_id", "is", null);
 
@@ -103,6 +117,22 @@ export async function POST(req: NextRequest) {
                 newStatus: dbStatusUpdate,
                 externalStatus: externalStatusUpdate,
               });
+
+              // Fire order complete Telegram notification!
+              if (dbStatusUpdate === "Completed") {
+                const serviceTitle = (order as any).services?.title || "SMM Service";
+                sendOrderCompleteNotification({
+                  trackingId: `BS-${order.id.slice(0, 8).toUpperCase()}`,
+                  service: serviceTitle,
+                  email: order.customer_email,
+                  quantity: order.quantity,
+                  amount: Number(order.amount),
+                  paymentMethod: order.payment_method || "GCash",
+                  details: order.target_url,
+                }).catch((err) => {
+                  console.error(`Async sendOrderCompleteNotification failed for order ${order.id} in sync:`, err);
+                });
+              }
             }
           }
         } catch (err: any) {
