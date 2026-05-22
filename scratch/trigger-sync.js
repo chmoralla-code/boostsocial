@@ -350,7 +350,48 @@ async function main() {
       }
     }
   } catch (err) {
-    console.error(err);
+    console.error("SMM Dynamic sync failed:", err);
+    try {
+      console.log("Clearing all SMM service IDs from database because sync failed.");
+      for (const [key, config] of Object.entries(CORE_SERVICES)) {
+        const { data: dbService, error: fetchErr } = await supabase
+          .from("services")
+          .select("description")
+          .eq("id", config.dbId)
+          .maybeSingle();
+
+        if (!fetchErr && dbService) {
+          let descriptionObj = {};
+          try {
+            if (dbService.description && dbService.description.trim().startsWith("{")) {
+              descriptionObj = JSON.parse(dbService.description);
+            } else {
+              descriptionObj = { description: dbService.description };
+            }
+          } catch (e) {
+            descriptionObj = { description: dbService.description };
+          }
+
+          delete descriptionObj.smm_service_id;
+          delete descriptionObj.smm_original_rate;
+          delete descriptionObj.smm_markup_percent;
+          delete descriptionObj.smm_original_name;
+          delete descriptionObj.smm_min;
+          delete descriptionObj.smm_max;
+          delete descriptionObj.smm_average_time;
+
+          await supabase
+            .from("services")
+            .update({
+              description: JSON.stringify(descriptionObj)
+            })
+            .eq("id", config.dbId);
+        }
+      }
+      console.log("All core SMM services have been successfully marked unavailable in the DB.");
+    } catch (clearErr) {
+      console.error("Failed to clear SMM services inside failure handler:", clearErr);
+    }
   }
 }
 
