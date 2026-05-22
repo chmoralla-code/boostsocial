@@ -1,5 +1,39 @@
 const url = 'http://localhost:3000/api/admin/sync-smm-services';
 
+function parseAverageTimeToMinutes(timeStr) {
+  if (!timeStr) return Infinity;
+  const str = timeStr.toLowerCase();
+  if (str.includes("not enough data")) return Infinity;
+  
+  let totalMinutes = 0;
+  
+  const hoursMatch = str.match(/(\d+)\s*hour/);
+  if (hoursMatch) {
+    totalMinutes += parseInt(hoursMatch[1], 10) * 60;
+  }
+  
+  const minutesMatch = str.match(/(\d+)\s*min/);
+  if (minutesMatch) {
+    totalMinutes += parseInt(minutesMatch[1], 10);
+  }
+  
+  const daysMatch = str.match(/(\d+)\s*day/);
+  if (daysMatch) {
+    totalMinutes += parseInt(daysMatch[1], 10) * 24 * 60;
+  }
+
+  if (totalMinutes === 0) {
+    const digitsOnly = str.match(/(\d+)/);
+    if (digitsOnly) {
+      totalMinutes = parseInt(digitsOnly[1], 10);
+    } else {
+      return Infinity;
+    }
+  }
+  
+  return totalMinutes;
+}
+
 async function main() {
   console.log('Synchronizing SMM services dynamically...');
   
@@ -103,7 +137,14 @@ async function main() {
         continue;
       }
 
-      candidates.sort((a, b) => Number(a.rate) - Number(b.rate));
+      // Sort candidates by combined score ascending: Score = Rate * (1 + minutes / 1440)
+      candidates.sort((a, b) => {
+        const minutesA = parseAverageTimeToMinutes(averageTimes[String(a.service)]);
+        const minutesB = parseAverageTimeToMinutes(averageTimes[String(b.service)]);
+        const scoreA = Number(a.rate) * (1 + minutesA / 1440);
+        const scoreB = Number(b.rate) * (1 + minutesB / 1440);
+        return scoreA - scoreB;
+      });
       const cheapest = candidates[0];
       const smmRate = Number(cheapest.rate);
       const calculatedPerPiece = (smmRate / 1000) * (1 + markup / 100);
