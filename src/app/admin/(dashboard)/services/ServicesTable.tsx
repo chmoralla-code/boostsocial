@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { createClient } from "@/utils/supabase/client";
-import { Edit2, Trash2, Plus, X, Users, ThumbsUp, Play, Search, DollarSign, Settings, Layers, Image as ImageIcon } from "lucide-react";
+import { Edit2, Trash2, Plus, X, Users, ThumbsUp, Play, Search, DollarSign, Settings, Layers, Image as ImageIcon, Loader2, RefreshCw } from "lucide-react";
 import { compressImage } from "@/utils/imageCompressor";
 
 interface Service {
@@ -36,6 +36,41 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
   const [customFields, setCustomFields] = useState<{id: string, label: string}[]>([]);
 
   const supabase = createClient();
+
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncMessage, setSyncMessage] = useState("");
+
+  const handleSyncSmmServices = async () => {
+    setIsSyncing(true);
+    setSyncMessage("Syncing RixeySMM services and rates...");
+    try {
+      const res = await fetch("/api/admin/sync-smm-services", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ markupPercent: 60 }), // default 60% markup
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to sync SMM services");
+      }
+      
+      // Success! Reload services
+      const { data: dbData, error: dbErr } = await supabase
+        .from("services")
+        .select("*")
+        .order("created_at", { ascending: true });
+         
+      if (dbErr) throw dbErr;
+      if (dbData) {
+        setServices(dbData);
+      }
+    } catch (err: any) {
+      alert("Sync error: " + err.message);
+    } finally {
+      setIsSyncing(false);
+      setSyncMessage("");
+    }
+  };
 
   const openAddModal = () => {
     setEditingService(null);
@@ -326,12 +361,21 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
             className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#121212] border border-slate-850/60 focus:outline-none focus:border-[#1DB954]/55 focus:ring-1 focus:ring-[#1DB954]/25 transition-all text-slate-200 font-medium placeholder-slate-500"
           />
         </div>
-        <button
-          onClick={openAddModal}
-          className="w-full sm:w-auto bg-[#1DB954] hover:bg-[#1ed760] text-black font-extrabold px-5 py-2.5 rounded-xl transition-all flex items-center justify-center gap-2 text-xs uppercase tracking-wider shadow-md"
-        >
-          <Plus size={16} strokeWidth={3} /> Add New Service
-        </button>
+        <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+          <button
+            onClick={handleSyncSmmServices}
+            disabled={isSyncing}
+            className="w-full sm:w-auto bg-transparent border border-[#1DB954] hover:bg-[#1DB954]/10 disabled:bg-slate-800 text-[#1DB954] disabled:text-slate-500 font-extrabold px-5 py-2.5 rounded-xl transition-all flex items-center justify-center gap-2 text-xs uppercase tracking-wider shadow-md active:scale-95"
+          >
+            <RefreshCw size={16} className={`${isSyncing ? "animate-spin" : ""}`} /> Sync SMM Rates
+          </button>
+          <button
+            onClick={openAddModal}
+            className="w-full sm:w-auto bg-[#1DB954] hover:bg-[#1ed760] text-black font-extrabold px-5 py-2.5 rounded-xl transition-all flex items-center justify-center gap-2 text-xs uppercase tracking-wider shadow-md active:scale-95 font-bold"
+          >
+            <Plus size={16} strokeWidth={3} /> Add New Service
+          </button>
+        </div>
       </div>
 
       {/* Services Table Content */}
@@ -356,7 +400,29 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
                     </div>
                   </td>
                   <td className="py-4 px-6 text-sm font-bold text-white tracking-tight">
-                    {service.title}
+                    <div>{service.title}</div>
+                    {(() => {
+                      try {
+                        if (service.description && service.description.trim().startsWith("{")) {
+                          const parsed = JSON.parse(service.description);
+                          if (parsed.smm_service_id) {
+                            return (
+                              <div className="flex flex-wrap gap-1.5 mt-1.5">
+                                <span className="text-[9px] bg-emerald-500/10 border border-emerald-500/20 text-[#1DB954] px-1.5 py-0.5 rounded-full font-black uppercase tracking-wider">
+                                  SMM ID: {parsed.smm_service_id}
+                                </span>
+                                {parsed.smm_original_rate !== undefined && (
+                                  <span className="text-[9px] bg-slate-800 border border-slate-700/80 text-slate-400 px-1.5 py-0.5 rounded-full font-bold">
+                                    Reseller: ₱{Number(parsed.smm_original_rate).toFixed(3)}/1k
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          }
+                        }
+                      } catch (e) {}
+                      return null;
+                    })()}
                   </td>
                   <td className="py-4 px-6 text-xs text-slate-400 max-w-md truncate">
                     {(() => {
@@ -678,6 +744,24 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Syncing Overlay Spinner */}
+      {isSyncing && (
+        <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-[#090909]/85 backdrop-blur-md p-4 animate-in fade-in duration-200">
+          <div className="bg-[#181818] border border-slate-800/80 rounded-2xl w-full max-w-sm shadow-2xl p-6 text-center space-y-4 animate-in zoom-in-95 duration-200">
+            <div className="w-12 h-12 bg-[#1DB954]/10 border border-[#1DB954]/20 text-[#1DB954] rounded-full flex items-center justify-center mx-auto animate-spin">
+              <RefreshCw size={24} />
+            </div>
+            <div>
+              <p className="text-base font-bold text-white uppercase tracking-wider">Syncing SMM Rates</p>
+              <p className="text-xs text-slate-400 mt-1">{syncMessage}</p>
+            </div>
+            <div className="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest bg-[#121212] p-2.5 rounded-xl border border-slate-800 animate-pulse">
+              Syncing cheapest RixeySMM candidates...
+            </div>
           </div>
         </div>
       )}

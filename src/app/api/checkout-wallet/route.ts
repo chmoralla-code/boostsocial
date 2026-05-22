@@ -5,7 +5,7 @@ import { autoPlaceRixeyOrder } from "@/lib/rixeysmm";
 
 export async function POST(req: NextRequest) {
   try {
-    const { userId, serviceId, email, url, quantity, totalPrice, serviceTitle } = await req.json();
+    const { userId, serviceId, email, url, quantity, totalPrice, serviceTitle, smmServiceId } = await req.json();
 
     if (!userId || !serviceId || !email || !url || !quantity || !totalPrice) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
 
     if (updateProfileError) throw updateProfileError;
 
-    // 3. Create the order with 'Processing' status automatically
+    // 3. Create the order with 'Pending' status (admin approval required first)
     const { data: order, error: insertError } = await supabase
       .from('orders')
       .insert([
@@ -56,9 +56,10 @@ export async function POST(req: NextRequest) {
           customer_email: email.trim(),
           target_url: url.trim(),
           amount: cost,
-          status: 'Processing',
+          status: 'Pending',
           payment_method: 'Wallet',
-          quantity: quantity
+          quantity: quantity,
+          smm_service_id: smmServiceId || null
         }
       ])
       .select('id')
@@ -66,10 +67,6 @@ export async function POST(req: NextRequest) {
 
     if (insertError) throw insertError;
 
-    // 4. Fire automated placement on RixeySMM if Followers service (non-blocking)
-    autoPlaceRixeyOrder(order.id, serviceId, url.trim(), quantity).catch((err) => {
-      console.error("Async auto-placement on RixeySMM failed:", err);
-    });
 
     // 5. Fire Telegram notification (non-blocking)
     sendOrderNotification({

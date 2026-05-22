@@ -166,7 +166,8 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
     const defaults = {
       min_quantity: (isPageService || isEapService || isSoftwareService) ? 1 : 100,
       free_trial_amount: (isPageService || isEapService || isSoftwareService) ? 0 : 50,
-      custom_fields: [] as {id: string, label: string, type?: string, options?: string[]}[]
+      custom_fields: [] as {id: string, label: string, type?: string, options?: string[]}[],
+      smm_service_id: null as number | null
     };
 
     if (service && service.description) {
@@ -176,7 +177,8 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
           return {
             min_quantity: (isPageService || isEapService || isSoftwareService) ? 1 : (Number(p.min_quantity) || defaults.min_quantity),
             free_trial_amount: (isPageService || isEapService || isSoftwareService) ? 0 : (Number(p.free_trial_amount) || defaults.free_trial_amount),
-            custom_fields: p.custom_fields || []
+            custom_fields: p.custom_fields || [],
+            smm_service_id: p.smm_service_id ? Number(p.smm_service_id) : null
           };
         }
       } catch (e) {}
@@ -291,7 +293,8 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
             target_url: tempUrl,
             amount: totalPrice,
             status: 'Pending',
-            quantity: quantity
+            quantity: quantity,
+            smm_service_id: parsedDetails.smm_service_id
           }
         ])
         .select('id')
@@ -387,7 +390,8 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
           email: user.email,
           url: tempUrl,
           quantity,
-          totalPrice
+          totalPrice,
+          smmServiceId: parsedDetails.smm_service_id
         })
       });
 

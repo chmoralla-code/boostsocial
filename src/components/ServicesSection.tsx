@@ -7,6 +7,7 @@ import { PriceCalculator } from "./PriceCalculator";
 import { StatCounters } from "./StatCounters";
 import { FaqSection } from "./FaqSection";
 import { ReviewsSection } from "./ReviewsSection";
+import { SmmCatalogModal } from "./SmmCatalogModal";
 import { Layers, X } from "lucide-react";
 
 interface Service {
@@ -31,6 +32,9 @@ export function ServicesSection({ services }: ServicesSectionProps) {
 
   // New state for "Other Services" visual selector modal
   const [isOtherModalOpen, setIsOtherModalOpen] = useState(false);
+  
+  // New state for "RixeySMM Catalog" explorer modal
+  const [isSmmCatalogModalOpen, setIsSmmCatalogModalOpen] = useState(false);
 
   const handleOrder = (id: string, title: string, price: number, description?: string) => {
     // Check if this service has a redirect URL
@@ -176,6 +180,35 @@ export function ServicesSection({ services }: ServicesSectionProps) {
               </button>
             </div>
           )}
+
+          {/* Render the Single Unified "SMM CATALOG EXPLORER" Card */}
+          <div className="bg-[#121212]/50 hover:bg-[#161616]/90 backdrop-blur-md rounded-3xl p-8 flex flex-col items-start text-left w-full border border-white/[0.04] shadow-[0_12px_40px_rgba(0,0,0,0.4)] transition-all duration-500 transform hover:-translate-y-2 group hover:shadow-[0_0_35px_rgba(29,185,84,0.18)] hover:border-[#1DB954]/30">
+            <div className="h-16 flex items-center justify-center group-hover:scale-115 group-hover:rotate-6 transition-transform duration-500 ease-out">
+              <Layers size={40} className="text-[#1DB954] drop-shadow-[0_0_15px_rgba(29,185,84,0.3)] mb-4" />
+            </div>
+            
+            <h3 className="uppercase text-xs font-black tracking-widest text-[#1DB954] mb-2">1,100+ BOOSTS</h3>
+            <h4 className="text-xl font-bold text-white mb-3 group-hover:text-[#1DB954] transition-colors">SMM Catalog Explorer</h4>
+            
+            <p className="text-slate-400 text-sm leading-relaxed mb-8 flex-grow">
+              Instantly browse and order premium boosts for Instagram, TikTok, YouTube, Twitter, and other platforms at cheap direct reseller rates.
+            </p>
+            
+            <div className="flex justify-between items-end w-full mb-6 pt-4 border-t border-slate-800/60">
+              <div className="w-full text-left">
+                <span className="block text-slate-500 text-[10px] font-extrabold uppercase tracking-wider line-clamp-2 leading-tight">
+                  Instagram, TikTok, YouTube, Telegram, Twitter, & More
+                </span>
+              </div>
+            </div>
+            
+            <button 
+              onClick={() => setIsSmmCatalogModalOpen(true)}
+              className="w-full bg-[#1DB954] hover:bg-[#1ed760] text-black font-extrabold py-3.5 rounded-full transition-all duration-300 uppercase text-xs tracking-wider transform group-hover:scale-[1.02] shadow-lg shadow-[#1DB954]/5 cursor-pointer"
+            >
+              EXPLORE SMM CATALOG
+            </button>
+          </div>
         </div>
       </section>
 
@@ -237,6 +270,12 @@ export function ServicesSection({ services }: ServicesSectionProps) {
           </div>
         </div>
       )}
+
+      {/* 8. SMM Panel Catalog Modal */}
+      <SmmCatalogModal 
+        isOpen={isSmmCatalogModalOpen}
+        onClose={() => setIsSmmCatalogModalOpen(false)}
+      />
     </>
   );
 }

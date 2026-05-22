@@ -1,7 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
 
-const FOLLOWERS_SERVICE_ID = "6ef1e136-c2c8-4719-8c12-b0f20504d15e";
-const RIXEYSMM_SERVICE_ID = "1141";
 const RIXEYSMM_API_URL = "https://rixeysmm.shop/api/v2";
 
 const getSupabase = () =>
@@ -12,8 +10,8 @@ const getSupabase = () =>
   );
 
 /**
- * Automatically places an order on RixeySMM for the Facebook Followers service.
- * Only triggers if the serviceId matches the defined Followers service.
+ * Automatically places an order on RixeySMM for any mapped service.
+ * Looks up the correct RixeySMM Service ID dynamically from the order or the database services catalog.
  * Saves the response (external order ID or failure reason) in the database.
  */
 export async function autoPlaceRixeyOrder(
@@ -22,17 +20,47 @@ export async function autoPlaceRixeyOrder(
   targetUrl: string,
   quantity: number
 ) {
-  // 1. Strict guard: only process for FB FOLLOWERS service
-  if (serviceId !== FOLLOWERS_SERVICE_ID) {
-    return;
-  }
-
   const supabase = getSupabase();
 
   try {
     console.log(`[RixeySMM] Triggering automated placement for Order ID: ${orderId}`);
 
-    // 2. Read SMM API key
+    // 1. Load order details to check for an smm_service_id
+    const { data: order, error: orderErr } = await supabase
+      .from("orders")
+      .select("smm_service_id, service_id")
+      .eq("id", orderId)
+      .maybeSingle();
+
+    if (orderErr) throw orderErr;
+
+    let smmServiceId = order?.smm_service_id;
+
+    // 2. Fallback: Check if the associated service has a mapped smm_service_id in its JSON description
+    if (!smmServiceId && order?.service_id) {
+      const { data: service } = await supabase
+        .from("services")
+        .select("description")
+        .eq("id", order.service_id)
+        .maybeSingle();
+
+      if (service?.description && service.description.trim().startsWith("{")) {
+        try {
+          const parsed = JSON.parse(service.description);
+          smmServiceId = parsed.smm_service_id ? String(parsed.smm_service_id) : null;
+        } catch (e) {
+          console.warn(`[RixeySMM] Failed parsing JSON description for service ${order.service_id}:`, e);
+        }
+      }
+    }
+
+    // 3. Strict guard: If there is no SMM Service ID, this is a manual service. Do not forward.
+    if (!smmServiceId) {
+      console.log(`[RixeySMM] Order ${orderId} does not map to any RixeySMM Service ID. Skipping SMM placement.`);
+      return;
+    }
+
+    // 4. Read SMM API key
     const apiKey = process.env.RIXEYSMM_API_KEY;
     if (!apiKey) {
       const errorMsg = "Failed: RixeySMM API Key is missing in environment variables.";
@@ -47,8 +75,13 @@ export async function autoPlaceRixeyOrder(
     // Clean up target URL if it has pre-made specs formatting (just in case)
     let cleanUrl = targetUrl.trim();
     if (cleanUrl.includes("Page Wants:")) {
-      // If it contains specs (shouldn't happen for direct followers but let's be robust)
       const linkMatch = cleanUrl.match(/\[FB Admin:\s*([^\]]+)\]/);
+      if (linkMatch && linkMatch[1]) {
+        cleanUrl = linkMatch[1];
+      }
+    } else if (cleanUrl.startsWith("Reactions:")) {
+      // Extract the link from "Reactions: [Like] Link: http://..."
+      const linkMatch = cleanUrl.match(/Link:\s*([^\s]+)/);
       if (linkMatch && linkMatch[1]) {
         cleanUrl = linkMatch[1];
       }
@@ -61,10 +94,19 @@ export async function autoPlaceRixeyOrder(
     // SMM panel duplicate-link restrictions and makes simultaneous or frequent ordering work.
     let uniqueSmmUrl = cleanUrl;
     try {
-      const urlObj = new URL(cleanUrl);
-      const uniqueVal = `${Date.now()}_${Math.floor(Math.random() * 1000)}`;
-      urlObj.searchParams.set("t", uniqueVal);
-      uniqueSmmUrl = urlObj.toString();
+      if (cleanUrl.startsWith("http")) {
+        const urlObj = new URL(cleanUrl);
+        const uniqueVal = `${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+        urlObj.searchParams.set("t", uniqueVal);
+        uniqueSmmUrl = urlObj.toString();
+      } else {
+        const uniqueVal = `${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+        if (cleanUrl.includes("?")) {
+          uniqueSmmUrl = `${cleanUrl}&t=${uniqueVal}`;
+        } else {
+          uniqueSmmUrl = `${cleanUrl}?t=${uniqueVal}`;
+        }
+      }
     } catch (e) {
       const uniqueVal = `${Date.now()}_${Math.floor(Math.random() * 1000)}`;
       if (cleanUrl.includes("?")) {
@@ -74,9 +116,9 @@ export async function autoPlaceRixeyOrder(
       }
     }
 
-    console.log(`[RixeySMM] Forwarding unique URL to SMM Panel: ${uniqueSmmUrl}`);
+    console.log(`[RixeySMM] Forwarding unique URL to SMM Panel (Service ID ${smmServiceId}): ${uniqueSmmUrl}`);
 
-    // 3. Make form-urlencoded request to RixeySMM API
+    // 5. Make form-urlencoded request to RixeySMM API
     const response = await fetch(RIXEYSMM_API_URL, {
       method: "POST",
       headers: {
@@ -85,7 +127,7 @@ export async function autoPlaceRixeyOrder(
       body: new URLSearchParams({
         key: apiKey,
         action: "add",
-        service: RIXEYSMM_SERVICE_ID,
+        service: smmServiceId,
         link: uniqueSmmUrl,
         quantity: String(quantity),
       }),
@@ -98,7 +140,7 @@ export async function autoPlaceRixeyOrder(
     const data = await response.json();
     console.log(`[RixeySMM] Response for Order ${orderId}:`, data);
 
-    // 4. Handle SMM Panel API responses
+    // 6. Handle SMM Panel API responses
     if (data.order) {
       // Order placed successfully
       const externalId = String(data.order);
@@ -107,6 +149,7 @@ export async function autoPlaceRixeyOrder(
         .update({
           external_order_id: externalId,
           external_status: "Pending", // SMM panel starts in Pending
+          smm_service_id: smmServiceId // Save the placed SMM service ID
         })
         .eq("id", orderId);
       console.log(`[RixeySMM] Order successfully placed! External ID: ${externalId}`);
