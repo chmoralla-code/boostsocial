@@ -30,6 +30,7 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
   const [minQuantity, setMinQuantity] = useState("100");
   const [freeTrialAmount, setFreeTrialAmount] = useState("50");
   const [customCaption, setCustomCaption] = useState("");
+  const [pricePerPcs, setPricePerPcs] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [customIconFile, setCustomIconFile] = useState<File | null>(null);
@@ -47,6 +48,7 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
     setFreeTrialAmount("50");
     setCustomCaption("");
     setStartingPrice("");
+    setPricePerPcs("");
     setIconType("followers");
     setCustomIconFile(null);
     setCustomFields([]);
@@ -100,6 +102,7 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
         setFreeTrialAmount(String(parsed.free_trial_amount) || String(defaults.free_trial_amount));
         setCustomCaption(parsed.custom_caption || "");
         setCustomFields(parsed.custom_fields || []);
+        setPricePerPcs(parsed.price_per_pcs ? String(parsed.price_per_pcs) : "");
       } else {
         setDescription(service.description);
         setSubtitle(defaults.subtitle);
@@ -108,6 +111,7 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
         setFreeTrialAmount(String(defaults.free_trial_amount));
         setCustomCaption("");
         setCustomFields([]);
+        setPricePerPcs("");
       }
     } catch (e) {
       setDescription(service.description);
@@ -117,6 +121,7 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
       setFreeTrialAmount(String(defaults.free_trial_amount));
       setCustomCaption("");
       setCustomFields([]);
+      setPricePerPcs("");
     }
 
     setIsModalOpen(true);
@@ -170,6 +175,7 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
       free_trial_amount: Number(freeTrialAmount) || 50,
       custom_caption: customCaption.trim(),
       custom_fields: customFields,
+      price_per_pcs: pricePerPcs ? Number(pricePerPcs) : null,
     });
 
     try {
@@ -369,7 +375,25 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
                     })()}
                   </td>
                   <td className="py-4 px-6 text-sm font-extrabold text-[#1DB954] whitespace-nowrap">
-                    ₱{Number(service.starting_price).toFixed(2)} <span className="text-[10px] text-slate-500 font-bold uppercase">/ 1K units</span>
+                    {(() => {
+                      try {
+                        if (service.description && service.description.startsWith("{")) {
+                          const parsed = JSON.parse(service.description);
+                          if (parsed.price_per_pcs) {
+                            return (
+                              <>
+                                ₱{Number(parsed.price_per_pcs).toFixed(4)} <span className="text-[10px] text-slate-500 font-bold uppercase">/ pc</span>
+                              </>
+                            );
+                          }
+                        }
+                      } catch (e) {}
+                      return (
+                        <>
+                          ₱{Number(service.starting_price).toFixed(2)} <span className="text-[10px] text-slate-500 font-bold uppercase">/ 1K units</span>
+                        </>
+                      );
+                    })()}
                   </td>
                   <td className="py-4 px-6 text-sm text-right whitespace-nowrap space-x-2">
                     <button
@@ -424,7 +448,7 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
                 </div>
               )}
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-4">
                 <div>
                   <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-1.5">
                     Service Title
@@ -439,19 +463,36 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
                   />
                 </div>
 
-                <div>
-                  <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-1.5">
-                    Starting Price (₱ per 1,000)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    required
-                    value={startingPrice}
-                    onChange={(e) => setStartingPrice(e.target.value)}
-                    placeholder="e.g. 9.99"
-                    className="w-full px-4 py-2.5 rounded-xl bg-[#121212] border border-slate-850/60 focus:outline-none focus:border-[#1DB954]/55 focus:ring-1 focus:ring-[#1DB954]/25 text-[#1DB954] font-black transition-all text-sm"
-                  />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-1.5">
+                      Starting Price (₱ per 1,000)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      required
+                      value={startingPrice}
+                      onChange={(e) => setStartingPrice(e.target.value)}
+                      placeholder="e.g. 9.99"
+                      className="w-full px-4 py-2.5 rounded-xl bg-[#121212] border border-slate-850/60 focus:outline-none focus:border-[#1DB954]/55 focus:ring-1 focus:ring-[#1DB954]/25 text-[#1DB954] font-black transition-all text-sm"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-1.5 flex justify-between">
+                      <span>How Much Per Pcs</span>
+                      <span className="text-[8px] text-slate-500 font-normal normal-case">Optional - overrides 1k price</span>
+                    </label>
+                    <input
+                      type="number"
+                      step="0.0001"
+                      value={pricePerPcs}
+                      onChange={(e) => setPricePerPcs(e.target.value)}
+                      placeholder="e.g. 0.25 (overrides price per 1k)"
+                      className="w-full px-4 py-2.5 rounded-xl bg-[#121212] border border-slate-850/60 focus:outline-none focus:border-[#1DB954]/55 focus:ring-1 focus:ring-[#1DB954]/25 text-[#1DB954] font-black transition-all text-sm"
+                    />
+                  </div>
                 </div>
               </div>
 

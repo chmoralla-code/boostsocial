@@ -40,11 +40,14 @@ export function PriceCalculator({ services, onOrder }: PriceCalculatorProps) {
 
   const minQty = Number(parsedDetails.min_quantity) || 100;
   const isSingleItem = minQty === 1;
+  const pricePerPcs = Number(parsedDetails.price_per_pcs) || 0;
 
   const baseTotal = selectedService
-    ? (isSingleItem 
-        ? quantity * selectedService.starting_price 
-        : (quantity * selectedService.starting_price) / 1000)
+    ? (pricePerPcs > 0
+        ? quantity * pricePerPcs
+        : (isSingleItem 
+            ? quantity * selectedService.starting_price 
+            : (quantity * selectedService.starting_price) / 1000))
     : 0;
 
   const discountPercent = isSingleItem
@@ -258,9 +261,12 @@ export function PriceCalculator({ services, onOrder }: PriceCalculatorProps) {
                 </div>
               )}
               <p className="text-[10px] text-slate-550 font-semibold italic mt-1 bg-[#121212] rounded-lg">
-                {isSingleItem
-                  ? `*Computed rate: ₱${selectedService.starting_price.toFixed(0)} per item`
-                  : `*Computed rate: ₱${selectedService.starting_price.toFixed(0)} per 1,000 units`
+                {pricePerPcs > 0
+                  ? `*Computed rate: ₱${pricePerPcs.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })} per item`
+                  : (isSingleItem
+                      ? `*Computed rate: ₱${selectedService.starting_price.toFixed(0)} per item`
+                      : `*Computed rate: ₱${selectedService.starting_price.toFixed(0)} per 1,000 units`
+                    )
                 }
               </p>
             </div>

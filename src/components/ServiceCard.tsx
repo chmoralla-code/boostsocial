@@ -72,10 +72,11 @@ export function ServiceCard({ id, title, description, startingPrice, iconType, o
           min_quantity: Number(p.min_quantity) || 1000,
           redirect_url: p.redirect_url || null,
           custom_caption: p.custom_caption || null,
+          price_per_pcs: p.price_per_pcs ? Number(p.price_per_pcs) : null
         };
       }
     } catch (e) {}
-    return { ...defaults, min_quantity: 1000, redirect_url: null, custom_caption: null };
+    return { ...defaults, min_quantity: 1000, redirect_url: null, custom_caption: null, price_per_pcs: null };
   })();
 
   const getGlowClass = () => {
@@ -133,9 +134,11 @@ export function ServiceCard({ id, title, description, startingPrice, iconType, o
                 }
               </span>
               <span className="text-3xl font-black text-white">
-                ₱{parsed.min_quantity === 1 
-                  ? Number(startingPrice).toFixed(0) 
-                  : ((parsed.min_quantity / 1000) * startingPrice).toFixed(0)
+                ₱{parsed.price_per_pcs && parsed.price_per_pcs > 0
+                  ? (parsed.min_quantity * parsed.price_per_pcs).toFixed(0)
+                  : (parsed.min_quantity === 1 
+                      ? Number(startingPrice).toFixed(0) 
+                      : ((parsed.min_quantity / 1000) * startingPrice).toFixed(0))
                 }
               </span>
             </>
