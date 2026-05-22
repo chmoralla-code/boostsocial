@@ -41,6 +41,22 @@ async function main() {
       body: new URLSearchParams({ key: apiKey, action: "services" }),
     });
     
+    // Fetch public services page to get average time data
+    console.log("Fetching public services page to get average times...");
+    const pageRes = await fetch("https://rixeysmm.shop/services");
+    const html = await pageRes.text();
+    const averageTimes = {};
+    const regex = /data-service-id="(\d+)"[\s\S]*?<td class="avarage_time_Services">([\s\S]*?)<\/td>/g;
+    let match;
+    while ((match = regex.exec(html)) !== null) {
+      averageTimes[match[1]] = match[2].trim();
+    }
+    const fallbackRegex = /<span id="servis_id" class="order_id">(\d+)<\/span>[\s\S]*?<td class="avarage_time_Services">([\s\S]*?)<\/td>/g;
+    while ((match = fallbackRegex.exec(html)) !== null) {
+      averageTimes[match[1]] = match[2].trim();
+    }
+    console.log(`Parsed average times for ${Object.keys(averageTimes).length} services.`);
+
     const smmServices = await res.json();
     const markup = 60; // 60% ROI markup
     const syncResults = {};
@@ -70,7 +86,16 @@ async function main() {
 
         const speedKeywords = ["min", "minute", "speed", "day", "instant", "plays", "/d", "/day", "1k", "per min"];
         const hasSpeed = speedKeywords.some(kw => name.includes(kw) || desc.includes(kw));
-        return hasSpeed;
+        if (!hasSpeed) return false;
+
+        // Exclude services without valid average time data (Not enough data)
+        const serviceIdStr = String(s.service);
+        const avgTime = averageTimes[serviceIdStr];
+        if (!avgTime || avgTime.toLowerCase().includes("not enough data")) {
+          return false;
+        }
+
+        return true;
       });
 
       if (candidates.length === 0) {
@@ -108,6 +133,7 @@ async function main() {
       descriptionObj.smm_original_name = cheapest.name;
       descriptionObj.smm_min = Number(cheapest.min);
       descriptionObj.smm_max = Number(cheapest.max);
+      descriptionObj.smm_average_time = averageTimes[String(cheapest.service)] || "No data";
 
       const { error: updateErr } = await supabase
         .from("services")

@@ -66,6 +66,28 @@ export async function POST(req: NextRequest) {
       throw new Error("Invalid response format from RixeySMM");
     }
 
+    // 1.5 Fetch public average times to check for "Not enough data"
+    const averageTimes: { [key: string]: string } = {};
+    try {
+      const pageRes = await fetch("https://rixeysmm.shop/services");
+      if (pageRes.ok) {
+        const html = await pageRes.text();
+        const regex = /data-service-id="(\d+)"[\s\S]*?<td class="avarage_time_Services">([\s\S]*?)<\/td>/g;
+        let match;
+        while ((match = regex.exec(html)) !== null) {
+          averageTimes[match[1]] = match[2].trim();
+        }
+        const fallbackRegex = /<span id="servis_id" class="order_id">(\d+)<\/span>[\s\S]*?<td class="avarage_time_Services">([\s\S]*?)<\/td>/g;
+        while ((match = fallbackRegex.exec(html)) !== null) {
+          averageTimes[match[1]] = match[2].trim();
+        }
+      } else {
+        console.warn("Failed to fetch public services catalog page for average time sync:", pageRes.status);
+      }
+    } catch (e) {
+      console.error("Error fetching public average times:", e);
+    }
+
     const syncResults: any = {};
 
     // 2. Process each core service type
@@ -100,7 +122,16 @@ export async function POST(req: NextRequest) {
         // Must have data minutes / speed indicator
         const speedKeywords = ["min", "minute", "speed", "day", "instant", "plays", "/d", "/day", "1k", "per min"];
         const hasSpeed = speedKeywords.some(kw => name.includes(kw) || desc.includes(kw));
-        return hasSpeed;
+        if (!hasSpeed) return false;
+
+        // Exclude services without valid average time data (Not enough data)
+        const serviceIdStr = String(s.service);
+        const avgTime = averageTimes[serviceIdStr];
+        if (!avgTime || avgTime.toLowerCase().includes("not enough data")) {
+          return false;
+        }
+
+        return true;
       });
 
       if (candidates.length === 0) {
@@ -150,6 +181,7 @@ export async function POST(req: NextRequest) {
       descriptionObj.smm_original_name = cheapest.name;
       descriptionObj.smm_min = Number(cheapest.min);
       descriptionObj.smm_max = Number(cheapest.max);
+      descriptionObj.smm_average_time = averageTimes[String(smmServiceId)] || "No data";
 
       // Update database starting_price and description payload
       const { error: updateErr } = await supabase
