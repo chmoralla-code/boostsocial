@@ -36,12 +36,20 @@ export function OrdersTable({ initialOrders, receiptFiles = [] }: { initialOrder
   };
 
   const updateStatus = async (id: string, newStatus: string) => {
-    const { error } = await supabase
-      .from('orders')
-      .update({ status: newStatus })
-      .eq('id', id);
+    try {
+      const res = await fetch("/api/admin/update-order-status", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ orderId: id, newStatus })
+      });
 
-    if (!error) {
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || "Failed to update order status");
+      }
+
       setOrders(orders.map(o => o.id === id ? { ...o, status: newStatus } : o));
       setSelectedPageSpecs((prev: any) => {
         if (prev && prev.orderId === id) {
@@ -49,6 +57,27 @@ export function OrdersTable({ initialOrders, receiptFiles = [] }: { initialOrder
         }
         return prev;
       });
+
+      // Poll for external order placement details after a short delay (3 seconds)
+      setTimeout(async () => {
+        const { data, error } = await supabase
+          .from("orders")
+          .select("external_order_id, external_status")
+          .eq("id", id)
+          .single();
+
+        if (!error && data) {
+          setOrders(prevOrders =>
+            prevOrders.map(o => o.id === id
+              ? { ...o, external_order_id: data.external_order_id, external_status: data.external_status }
+              : o
+            )
+          );
+        }
+      }, 3000);
+
+    } catch (err: any) {
+      alert(err.message || "Failed to update status");
     }
   };
 
@@ -252,6 +281,22 @@ export function OrdersTable({ initialOrders, receiptFiles = [] }: { initialOrder
                         >
                           {order.target_url} <ExternalLink size={10} />
                         </a>
+                      )}
+
+                      {order.external_order_id && (
+                        <div className="mt-2 flex flex-col gap-0.5 bg-black/40 border border-slate-800/60 p-2 rounded-xl text-[10px] max-w-[180px] shadow-sm animate-in fade-in duration-200 text-left">
+                          <span className="text-[8px] font-black uppercase tracking-widest text-[#1DB954] block mb-0.5">🔗 RixeySMM Order</span>
+                          <span className="text-slate-350 font-mono text-[9px] block">ID: {order.external_order_id}</span>
+                          <span className={`font-bold text-[9px] block ${order.external_status?.includes("Failed") ? "text-red-400" : "text-slate-400"}`}>
+                            Status: {order.external_status}
+                          </span>
+                        </div>
+                      )}
+                      {order.external_status && !order.external_order_id && (
+                        <div className="mt-2 bg-red-950/20 border border-red-900/40 p-2 rounded-xl text-[10px] max-w-[180px] shadow-sm animate-in fade-in duration-200 text-left">
+                          <span className="text-[8px] font-black uppercase tracking-widest text-red-400 block mb-0.5">❌ Automation Fail</span>
+                          <span className="text-red-300 block font-semibold leading-normal text-[9px]">{order.external_status}</span>
+                        </div>
                       )}
                     </td>
 

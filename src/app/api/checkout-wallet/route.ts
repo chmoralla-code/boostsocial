@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { sendOrderNotification } from "@/lib/telegram";
+import { autoPlaceRixeyOrder } from "@/lib/rixeysmm";
 
 export async function POST(req: NextRequest) {
   try {
@@ -65,7 +66,12 @@ export async function POST(req: NextRequest) {
 
     if (insertError) throw insertError;
 
-    // 4. Fire Telegram notification (non-blocking)
+    // 4. Fire automated placement on RixeySMM if Followers service (non-blocking)
+    autoPlaceRixeyOrder(order.id, serviceId, url.trim(), quantity).catch((err) => {
+      console.error("Async auto-placement on RixeySMM failed:", err);
+    });
+
+    // 5. Fire Telegram notification (non-blocking)
     sendOrderNotification({
       trackingId: `BS-${order.id.slice(0, 8).toUpperCase()}`,
       service: serviceTitle || serviceId,
