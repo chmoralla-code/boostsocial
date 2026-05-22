@@ -220,7 +220,7 @@ async function main() {
     console.log(`Parsed average times for ${Object.keys(averageTimes).length} services.`);
 
     const smmServices = await res.json();
-    const markup = 60; // 60% ROI markup
+    const markup = 90; // 90% ROI markup
 
     for (const [key, config] of Object.entries(CORE_SERVICES)) {
       console.log(`Filtering candidates for: ${config.name}`);
@@ -330,6 +330,7 @@ async function main() {
       descriptionObj.smm_original_rate = smmRate;
       descriptionObj.smm_markup_percent = markup;
       descriptionObj.smm_original_name = cheapest.name;
+      descriptionObj.min_quantity = Number(cheapest.min);
       descriptionObj.smm_min = Number(cheapest.min);
       descriptionObj.smm_max = Number(cheapest.max);
       descriptionObj.smm_average_time = averageTimes[String(cheapest.service)] || "No data";

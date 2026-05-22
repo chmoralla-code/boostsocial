@@ -200,7 +200,7 @@ function matchesExactly(name: string, cat: string, config: CoreServiceConfig): b
 export async function POST(req: NextRequest) {
   try {
     const { markupPercent } = await req.json();
-    const markup = markupPercent !== undefined ? Number(markupPercent) : 60; // default to 60% markup
+    const markup = markupPercent !== undefined ? Number(markupPercent) : 90; // default to 90% markup
 
     if (isNaN(markup) || markup < 0) {
       return NextResponse.json({ error: "Invalid markup percentage" }, { status: 400 });
@@ -384,6 +384,7 @@ export async function POST(req: NextRequest) {
       descriptionObj.smm_original_rate = smmRate;
       descriptionObj.smm_markup_percent = markup;
       descriptionObj.smm_original_name = cheapest.name;
+      descriptionObj.min_quantity = Number(cheapest.min);
       descriptionObj.smm_min = Number(cheapest.min);
       descriptionObj.smm_max = Number(cheapest.max);
       descriptionObj.smm_average_time = averageTimes[String(smmServiceId)] || "No data";

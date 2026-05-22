@@ -55,7 +55,7 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
       const res = await fetch("/api/admin/sync-smm-services", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ markupPercent: 60 }), // default 60% markup
+        body: JSON.stringify({ markupPercent: 90 }), // default 90% markup
       });
       const data = await res.json();
       if (!res.ok) {

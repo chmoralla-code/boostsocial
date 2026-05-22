@@ -236,7 +236,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
   // Safe min quantity floor for per-1,000 services
   const minQty = (isPageService || isGeminiService || isEapService || isSoftwareService)
     ? 1
-    : Math.max(parsedDetails.min_quantity || 100, 100);
+    : Math.max(parsedDetails.min_quantity || 100, 1);
 
   useEffect(() => {
     if (minQty > 0 && quantity < minQty) {
