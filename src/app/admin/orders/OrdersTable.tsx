@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { format } from "date-fns";
 import { toZonedTime } from "date-fns-tz";
-import { Trash2, Clock, Search, Filter, ExternalLink, Image, Key, Loader2, Sparkles } from "lucide-react";
+import { Trash2, Clock, Search, Filter, ExternalLink, Image, Key, Loader2, Sparkles, RefreshCw } from "lucide-react";
 
 export function OrdersTable({ initialOrders, receiptFiles = [] }: { initialOrders: any[], receiptFiles?: string[] }) {
   const [orders, setOrders] = useState(initialOrders);
@@ -13,7 +13,55 @@ export function OrdersTable({ initialOrders, receiptFiles = [] }: { initialOrder
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
   const [selectedPageSpecs, setSelectedPageSpecs] = useState<any | null>(null);
   const [isDeletingAll, setIsDeletingAll] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
   const supabase = createClient();
+
+  useEffect(() => {
+    // Run silent sync on mount
+    syncExternalOrders(true);
+  }, []);
+
+  const syncExternalOrders = async (silent = false) => {
+    if (!silent) setIsSyncing(true);
+    try {
+      const res = await fetch("/api/admin/sync-external-orders", {
+        method: "POST",
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.updatedCount > 0) {
+          // Fetch refreshed list
+          const { data: refreshedOrders, error } = await supabase
+            .from("orders")
+            .select(`
+              *,
+              services (
+                title
+              )
+            `)
+            .order("created_at", { ascending: false });
+
+          if (!error && refreshedOrders) {
+            setOrders(refreshedOrders);
+          }
+          if (!silent) {
+            alert(`🔄 Successfully synced! ${data.updatedCount} orders updated to Completed/Cancelled.`);
+          }
+        } else {
+          if (!silent) {
+            alert("🔄 Sync complete. No status updates were required.");
+          }
+        }
+      } else {
+        const data = await res.json();
+        if (!silent) alert(data.error || "Failed to sync external orders");
+      }
+    } catch (err: any) {
+      if (!silent) alert("Failed to connect to sync endpoint");
+    } finally {
+      if (!silent) setIsSyncing(false);
+    }
+  };
 
   const parsePageSpecs = (text: string) => {
     const name = text.match(/\[Name:\s*([^\]]+)\]/)?.[1] || "N/A";
@@ -167,6 +215,19 @@ export function OrdersTable({ initialOrders, receiptFiles = [] }: { initialOrder
             Records: <strong className="text-white font-extrabold">{filteredOrders.length}</strong> / {orders.length}
           </span>
           
+          <button
+            onClick={() => syncExternalOrders(false)}
+            disabled={isSyncing}
+            className="px-4 py-2.5 bg-[#1DB954]/10 hover:bg-[#1DB954]/25 border border-[#1DB954]/30 hover:border-[#1DB954]/60 disabled:opacity-50 text-[#1DB954] hover:text-[#1ed760] font-extrabold rounded-xl text-xs uppercase tracking-wider transition-all flex items-center gap-1.5 shadow-md cursor-pointer border-0"
+          >
+            {isSyncing ? (
+              <Loader2 size={13} className="animate-spin text-[#1DB954]" />
+            ) : (
+              <RefreshCw size={13} />
+            )}
+            {isSyncing ? "Syncing..." : "Sync SMM"}
+          </button>
+
           {orders.length > 0 && (
             <button
               onClick={handleDeleteAllOrders}
