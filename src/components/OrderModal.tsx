@@ -123,16 +123,25 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
   const [coverPic, setCoverPic] = useState<File | null>(null);
   const [notes, setNotes] = useState("");
 
-  const isPageService = serviceTitle.toLowerCase().includes("page");
-  const isReactionService = serviceTitle.toLowerCase().includes("reaction");
-  const isFollowersService = serviceTitle.toLowerCase().includes("followers");
-  const isViewsService = serviceTitle.toLowerCase().includes("views");
-  const isGeminiService = serviceTitle.toLowerCase().includes("gemini");
-  const isEapService = serviceTitle.toLowerCase().includes("eap") || serviceTitle.toLowerCase().includes("tplink");
+  const titleLower = serviceTitle.toLowerCase();
+  const isInstagram = titleLower.includes("instagram") || titleLower.includes("ig ");
+  const isTikTok = titleLower.includes("tiktok") || titleLower.includes("tt ");
+  const isYouTube = titleLower.includes("youtube") || titleLower.includes("yt ");
+  const isFacebook = titleLower.includes("facebook") || titleLower.includes("fb ");
+
+  const isSubscribersService = titleLower.includes("subscribers") || titleLower.includes("subscriber") || titleLower.includes("sub");
+  const isFollowersService = titleLower.includes("followers") || titleLower.includes("follower");
+  const isLikesService = titleLower.includes("likes") || titleLower.includes("like") || titleLower.includes("heart") || titleLower.includes("hearts");
+  const isViewsService = titleLower.includes("views") || titleLower.includes("view") || titleLower.includes("plays") || titleLower.includes("play");
+
+  const isPageService = titleLower.includes("page");
+  const isReactionService = titleLower.includes("reaction");
+  const isGeminiService = titleLower.includes("gemini");
+  const isEapService = titleLower.includes("eap") || titleLower.includes("tplink");
   const isSoftwareService = 
-    serviceTitle.toLowerCase().includes("software") || 
-    serviceTitle.toLowerCase().includes("architectural") ||
-    serviceTitle.toLowerCase().includes("license") ||
+    titleLower.includes("software") || 
+    titleLower.includes("architectural") ||
+    titleLower.includes("license") ||
     serviceId === "03185a81-49f3-4255-868e-9e9ec3189497";
 
   // Determine the active unit label & single unit term
@@ -141,6 +150,12 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
   if (isFollowersService) {
     unitLabel = "Followers";
     unitSingle = "follower";
+  } else if (isSubscribersService) {
+    unitLabel = "Subscribers";
+    unitSingle = "subscriber";
+  } else if (isLikesService) {
+    unitLabel = "Likes";
+    unitSingle = "like";
   } else if (isReactionService) {
     unitLabel = "Reactions";
     unitSingle = "reaction";
@@ -159,6 +174,38 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
   } else if (isSoftwareService) {
     unitLabel = "Licenses";
     unitSingle = "license";
+  }
+
+  // Dynamic field requirements based on platform and service type
+  let inputLabel = "Target Link / URL";
+  let inputPlaceholder = "https://facebook.com/your-page";
+
+  if (isFollowersService || isSubscribersService) {
+    inputLabel = "Target Profile / Channel URL";
+    if (isInstagram) {
+      inputPlaceholder = "e.g. https://instagram.com/username";
+    } else if (isTikTok) {
+      inputPlaceholder = "e.g. https://tiktok.com/@username";
+    } else if (isYouTube) {
+      inputPlaceholder = "e.g. https://youtube.com/@channel";
+    } else if (isFacebook) {
+      inputPlaceholder = "e.g. https://facebook.com/your-profile";
+    } else {
+      inputPlaceholder = "e.g. https://instagram.com/username";
+    }
+  } else if (isLikesService || isViewsService || isReactionService) {
+    inputLabel = "Target Post / Video URL";
+    if (isInstagram) {
+      inputPlaceholder = "e.g. https://instagram.com/p/post_id";
+    } else if (isTikTok) {
+      inputPlaceholder = "e.g. https://tiktok.com/@username/video/video_id";
+    } else if (isYouTube) {
+      inputPlaceholder = "e.g. https://youtube.com/watch?v=video_id";
+    } else if (isFacebook) {
+      inputPlaceholder = "e.g. https://facebook.com/your-post";
+    } else {
+      inputPlaceholder = "e.g. https://instagram.com/p/post_id";
+    }
   }
 
   // Dynamic min quantity and free trial amount based on JSON description pack
@@ -907,14 +954,14 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
               ) : !isPageService ? (
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5">Target Link / URL</label>
+                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5">{inputLabel}</label>
                     <input 
                       type="url" 
                       required
                       value={url}
                       onChange={(e) => setUrl(e.target.value)}
                       className="w-full px-4 py-3 rounded-xl bg-[#282828] border border-slate-700/60 focus:outline-none focus:ring-2 focus:ring-[#1877F2] text-white transition-all text-sm font-medium"
-                      placeholder="https://facebook.com/your-page"
+                      placeholder={inputPlaceholder}
                     />
                   </div>
 
@@ -1187,8 +1234,8 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                   </div>
                 </div>
 
-                {/* GCash Quick QR for high-value services (Facebook Page, Gemini Pro, EAP TP-Link, & Architectural Software) */}
-                {(isPageService || serviceTitle.toLowerCase().includes("gemini") || isEapService || isSoftwareService) && (
+                {/* GCash Quick QR for all manual checkouts to ensure the GCash payment flow is easily accessible */}
+                {true && (
                   <div className="bg-[#121212] border border-slate-800/80 p-4 rounded-xl space-y-3 mt-3 animate-in fade-in duration-200">
                     <div className="flex justify-between items-center border-b border-slate-850 pb-2">
                       <span className="text-[10px] font-black uppercase tracking-widest text-[#1877F2] flex items-center gap-1.5">
