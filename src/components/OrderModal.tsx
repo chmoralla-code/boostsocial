@@ -166,8 +166,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
     const defaults = {
       min_quantity: (isPageService || isEapService || isSoftwareService) ? 1 : 100,
       free_trial_amount: (isPageService || isEapService || isSoftwareService) ? 0 : 50,
-      custom_fields: [] as {id: string, label: string, type?: string, options?: string[]}[],
-      price_per_pcs: null as number | null
+      custom_fields: [] as {id: string, label: string, type?: string, options?: string[]}[]
     };
 
     if (service && service.description) {
@@ -177,8 +176,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
           return {
             min_quantity: (isPageService || isEapService || isSoftwareService) ? 1 : (Number(p.min_quantity) || defaults.min_quantity),
             free_trial_amount: (isPageService || isEapService || isSoftwareService) ? 0 : (Number(p.free_trial_amount) || defaults.free_trial_amount),
-            custom_fields: p.custom_fields || [],
-            price_per_pcs: p.price_per_pcs ? Number(p.price_per_pcs) : null
+            custom_fields: p.custom_fields || []
           };
         }
       } catch (e) {}
@@ -250,15 +248,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
 
   const effectiveQuantity = Math.max(quantity, minQty);
 
-  const pricePerPcs = Number(parsedDetails.price_per_pcs) || 0;
-
-  const baseTotal = isEapService
-    ? effectiveQuantity * 350
-    : (pricePerPcs > 0
-      ? effectiveQuantity * pricePerPcs
-      : (minQty === 1 
-        ? effectiveQuantity * serviceBasePrice 
-        : (effectiveQuantity / 1000) * serviceBasePrice));
+  const baseTotal = effectiveQuantity * serviceBasePrice;
 
   // Volume Discount Engine (Up to 20% off for large volumes and single high-value purchases)
   const discountPercent = isEapService 
