@@ -35,6 +35,14 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
   const [customIconFile, setCustomIconFile] = useState<File | null>(null);
   const [customFields, setCustomFields] = useState<{id: string, label: string}[]>([]);
 
+  // SMM metadata fields
+  const [smmServiceId, setSmmServiceId] = useState("");
+  const [smmOriginalRate, setSmmOriginalRate] = useState("");
+  const [smmMarkupPercent, setSmmMarkupPercent] = useState("");
+  const [smmOriginalName, setSmmOriginalName] = useState("");
+  const [smmMin, setSmmMin] = useState("");
+  const [smmMax, setSmmMax] = useState("");
+
   const supabase = createClient();
 
   const [isSyncing, setIsSyncing] = useState(false);
@@ -86,6 +94,12 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
     setCustomIconFile(null);
     setCustomFields([]);
     setError("");
+    setSmmServiceId("");
+    setSmmOriginalRate("");
+    setSmmMarkupPercent("");
+    setSmmOriginalName("");
+    setSmmMin("");
+    setSmmMax("");
     setIsModalOpen(true);
   };
 
@@ -135,6 +149,14 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
         setFreeTrialAmount(String(parsed.free_trial_amount) || String(defaults.free_trial_amount));
         setCustomCaption(parsed.custom_caption || "");
         setCustomFields(parsed.custom_fields || []);
+        
+        // SMM properties
+        setSmmServiceId(parsed.smm_service_id ? String(parsed.smm_service_id) : "");
+        setSmmOriginalRate(parsed.smm_original_rate !== undefined ? String(parsed.smm_original_rate) : "");
+        setSmmMarkupPercent(parsed.smm_markup_percent !== undefined ? String(parsed.smm_markup_percent) : "");
+        setSmmOriginalName(parsed.smm_original_name || "");
+        setSmmMin(parsed.smm_min !== undefined ? String(parsed.smm_min) : "");
+        setSmmMax(parsed.smm_max !== undefined ? String(parsed.smm_max) : "");
       } else {
         setDescription(service.description);
         setSubtitle(defaults.subtitle);
@@ -143,6 +165,13 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
         setFreeTrialAmount(String(defaults.free_trial_amount));
         setCustomCaption("");
         setCustomFields([]);
+        
+        setSmmServiceId("");
+        setSmmOriginalRate("");
+        setSmmMarkupPercent("");
+        setSmmOriginalName("");
+        setSmmMin("");
+        setSmmMax("");
       }
     } catch (e) {
       setDescription(service.description);
@@ -152,6 +181,13 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
       setFreeTrialAmount(String(defaults.free_trial_amount));
       setCustomCaption("");
       setCustomFields([]);
+      
+      setSmmServiceId("");
+      setSmmOriginalRate("");
+      setSmmMarkupPercent("");
+      setSmmOriginalName("");
+      setSmmMin("");
+      setSmmMax("");
     }
 
     setIsModalOpen(true);
@@ -205,6 +241,12 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
       free_trial_amount: Number(freeTrialAmount) || 50,
       custom_caption: customCaption.trim(),
       custom_fields: customFields,
+      smm_service_id: smmServiceId ? smmServiceId.trim() : undefined,
+      smm_original_rate: smmOriginalRate ? Number(smmOriginalRate) : undefined,
+      smm_markup_percent: smmMarkupPercent ? Number(smmMarkupPercent) : undefined,
+      smm_original_name: smmOriginalName ? smmOriginalName.trim() : undefined,
+      smm_min: smmMin ? Number(smmMin) : undefined,
+      smm_max: smmMax ? Number(smmMax) : undefined,
     });
 
     try {
@@ -407,13 +449,18 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
                           const parsed = JSON.parse(service.description);
                           if (parsed.smm_service_id) {
                             return (
-                              <div className="flex flex-wrap gap-1.5 mt-1.5">
-                                <span className="text-[9px] bg-emerald-500/10 border border-emerald-500/20 text-[#1DB954] px-1.5 py-0.5 rounded-full font-black uppercase tracking-wider">
-                                  SMM ID: {parsed.smm_service_id}
+                              <div className="flex flex-wrap gap-1.5 mt-1.5 items-center">
+                                <span className="text-[9px] bg-emerald-500/10 border border-emerald-500/20 text-[#1DB954] px-2 py-0.5 rounded-full font-black uppercase tracking-wider inline-flex items-center gap-1 shadow-sm">
+                                  <Layers size={9} strokeWidth={3} /> SMM ID: {parsed.smm_service_id}
                                 </span>
                                 {parsed.smm_original_rate !== undefined && (
-                                  <span className="text-[9px] bg-slate-800 border border-slate-700/80 text-slate-400 px-1.5 py-0.5 rounded-full font-bold">
-                                    Reseller: ₱{Number(parsed.smm_original_rate).toFixed(3)}/1k
+                                  <span className="text-[9px] bg-slate-800 border border-slate-700/85 text-slate-400 px-2 py-0.5 rounded-full font-bold inline-flex items-center gap-1">
+                                    <DollarSign size={9} /> Reseller: ₱{Number(parsed.smm_original_rate).toFixed(3)}/1k
+                                  </span>
+                                )}
+                                {parsed.smm_original_name && (
+                                  <span className="text-[9px] bg-blue-500/10 border border-blue-500/20 text-blue-400 px-2 py-0.5 rounded-full font-bold max-w-[220px] truncate inline-block" title={parsed.smm_original_name}>
+                                    {parsed.smm_original_name}
                                   </span>
                                 )}
                               </div>
@@ -667,6 +714,99 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
                   placeholder="Describe the service tier benefits and features..."
                   className="w-full px-4 py-2.5 rounded-xl bg-[#121212] border border-slate-850/60 focus:outline-none focus:border-[#1DB954]/55 focus:ring-1 focus:ring-[#1DB954]/25 text-white font-medium resize-none text-sm"
                 />
+              </div>
+
+              {/* Premium SMM reseller sync metadata layout */}
+              <div className="bg-[#121212]/60 p-4 rounded-xl border border-slate-800/80 space-y-3">
+                <div className="flex items-center gap-2 border-b border-slate-850 pb-2">
+                  <span className="text-xs font-black text-white uppercase tracking-wider flex items-center gap-1.5">
+                    <Settings size={14} className="text-[#1DB954]" />
+                    SMM Reseller Sync Integration
+                  </span>
+                  <span className="text-[8px] bg-[#1DB954]/10 border border-[#1DB954]/20 text-[#1DB954] px-1.5 py-0.5 rounded-full font-black uppercase tracking-wider">
+                    Optional
+                  </span>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[9px] font-extrabold text-slate-500 uppercase tracking-widest mb-1">
+                      SMM Service ID
+                    </label>
+                    <input
+                      type="text"
+                      value={smmServiceId}
+                      onChange={(e) => setSmmServiceId(e.target.value)}
+                      placeholder="e.g. 2983"
+                      className="w-full px-3 py-2 rounded-lg bg-[#181818] border border-slate-800/80 focus:outline-none focus:border-[#1DB954]/55 text-white font-bold text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[9px] font-extrabold text-slate-500 uppercase tracking-widest mb-1">
+                      SMM Reseller Cost (₱/1k)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.001"
+                      value={smmOriginalRate}
+                      onChange={(e) => setSmmOriginalRate(e.target.value)}
+                      placeholder="e.g. 9.96"
+                      className="w-full px-3 py-2 rounded-lg bg-[#181818] border border-slate-800/80 focus:outline-none focus:border-[#1DB954]/55 text-white font-bold text-xs"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <label className="block text-[9px] font-extrabold text-slate-500 uppercase tracking-widest mb-1">
+                      Markup (%)
+                    </label>
+                    <input
+                      type="number"
+                      value={smmMarkupPercent}
+                      onChange={(e) => setSmmMarkupPercent(e.target.value)}
+                      placeholder="60"
+                      className="w-full px-3 py-2 rounded-lg bg-[#181818] border border-slate-800/80 focus:outline-none focus:border-[#1DB954]/55 text-white font-bold text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[9px] font-extrabold text-slate-500 uppercase tracking-widest mb-1">
+                      Min SMM Qty
+                    </label>
+                    <input
+                      type="number"
+                      value={smmMin}
+                      onChange={(e) => setSmmMin(e.target.value)}
+                      placeholder="10"
+                      className="w-full px-3 py-2 rounded-lg bg-[#181818] border border-slate-800/80 focus:outline-none focus:border-[#1DB954]/55 text-white font-bold text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[9px] font-extrabold text-slate-500 uppercase tracking-widest mb-1">
+                      Max SMM Qty
+                    </label>
+                    <input
+                      type="number"
+                      value={smmMax}
+                      onChange={(e) => setSmmMax(e.target.value)}
+                      placeholder="100000"
+                      className="w-full px-3 py-2 rounded-lg bg-[#181818] border border-slate-800/80 focus:outline-none focus:border-[#1DB954]/55 text-white font-bold text-xs"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[9px] font-extrabold text-slate-500 uppercase tracking-widest mb-1">
+                    SMM Original Name
+                  </label>
+                  <input
+                    type="text"
+                    value={smmOriginalName}
+                    onChange={(e) => setSmmOriginalName(e.target.value)}
+                    placeholder="e.g. Facebook Followers | Global"
+                    className="w-full px-3 py-2 rounded-lg bg-[#181818] border border-slate-800/80 focus:outline-none focus:border-[#1DB954]/55 text-white text-xs truncate"
+                  />
+                </div>
               </div>
 
               <div className="pt-2">
