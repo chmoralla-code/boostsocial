@@ -12,8 +12,8 @@ export default async function AdminLayout({
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
-  if (!user) {
-    redirect("/login");
+  if (!user || !user.email?.endsWith("@boostsocial.com")) {
+    redirect("/admin/login");
   }
 
   return (
