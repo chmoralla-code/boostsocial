@@ -45,8 +45,8 @@ export async function GET() {
       throw new Error("Invalid response format from RixeySMM API");
     }
 
-    // We apply 60% markup as the default affordable markup for ROI
-    const markupMultiplier = 1.6;
+    // Automatically multiply to x2 of reseller's price
+    const markupMultiplier = 2.0;
 
     // Process and enrich services
     const processedServices = services.map(s => {
@@ -79,15 +79,10 @@ export async function GET() {
 
   } catch (err: any) {
     console.error("Failed fetching SMM services catalog:", err);
-    // Return stale cache if API fails, otherwise error
-    if (cachedServices) {
-      return NextResponse.json(cachedServices, {
-        headers: {
-          "X-Stale-Cache": "true",
-          "Cache-Control": "public, s-maxage=60",
-        },
-      });
-    }
-    return NextResponse.json({ error: err.message || err.toString() }, { status: 500 });
+    // Strict Lockdown: Do not make services available when they did not fetch from Rixeysmm
+    return NextResponse.json({ 
+      error: "Rixeysmm services are currently unavailable.",
+      details: err.message || err.toString()
+    }, { status: 503 });
   }
 }
