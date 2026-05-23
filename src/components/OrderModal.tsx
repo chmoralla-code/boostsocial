@@ -295,7 +295,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
 
   if (!isOpen) return null;
 
-  const effectiveQuantity = Math.max(quantity, minQty);
+  const effectiveQuantity = quantity;
 
   const baseTotal = effectiveQuantity * serviceBasePrice;
 
@@ -308,6 +308,13 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
 
   const totalPrice = baseTotal; // Customer pays exactly x2 resellers price (no discount deduction!)
   const fakeOriginalPrice = totalPrice / (1 - fakeDiscountPercent / 105); // Derived original price for marketing cross-out
+
+  const formatPrice = (amount: number) => {
+    if (isPageService || isGeminiService || isEapService || isSoftwareService) {
+      return amount.toFixed(0);
+    }
+    return amount.toFixed(3);
+  };
 
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -548,7 +555,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                       🎉 Balance Payment Successful!
                     </h3>
                     <p className="text-xs text-slate-300 leading-relaxed font-semibold">
-                      We deducted <strong className="text-white">₱{totalPrice.toFixed(0)} PHP</strong> directly from your account wallet balance. Your order is registered!
+                      We deducted <strong className="text-white">₱{formatPrice(totalPrice)} PHP</strong> directly from your account wallet balance. Your order is registered!
                     </p>
                     <div className="bg-[#121212] border border-slate-800/80 p-3.5 rounded-lg text-xs space-y-1 text-center">
                       <span className="text-[9px] text-slate-500 font-black uppercase tracking-widest block">Remote Setup Protocol</span>
@@ -590,7 +597,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                       🎉 Balance Payment Successful!
                     </h3>
                     <p className="text-xs text-slate-300 leading-relaxed font-semibold">
-                      We deducted <strong className="text-white">₱{totalPrice.toFixed(0)} PHP</strong> directly from your account wallet balance. Your boost has been automatically approved and is already set to **Processing**!
+                      We deducted <strong className="text-white">₱{formatPrice(totalPrice)} PHP</strong> directly from your account wallet balance. Your boost has been automatically approved and is already set to **Processing**!
                     </p>
                     <div className="bg-[#121212] border border-slate-800/80 p-3.5 rounded-lg text-xs space-y-1 text-center">
                       <span className="text-[9px] text-slate-500 font-black uppercase tracking-widest block">Amplification Flow Status</span>
@@ -624,7 +631,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                         <div className="flex gap-2">
                           <span className="bg-[#1877F2]/10 text-[#1877F2] font-bold w-4 h-4 rounded-full flex items-center justify-center text-[10px] flex-shrink-0 mt-0.5">1</span>
                           <p>
-                            <strong>Pay via GCash:</strong> Scan the Instapay QR code below and pay: <strong className="text-[#1877F2]">₱{totalPrice.toFixed(0)}</strong>.
+                            <strong>Pay via GCash:</strong> Scan the Instapay QR code below and pay: <strong className="text-[#1877F2]">₱{formatPrice(totalPrice)}</strong>.
                           </p>
                         </div>
 
@@ -691,7 +698,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                         <div className="flex gap-2">
                           <span className="bg-[#1877F2]/10 text-[#1877F2] font-bold w-4 h-4 rounded-full flex items-center justify-center text-[10px] flex-shrink-0 mt-0.5">{parsedDetails.free_trial_amount > 0 ? "2" : "1"}</span>
                           <p>
-                            <strong>Pay via GCash:</strong> {parsedDetails.free_trial_amount > 0 ? `Once you see the free ${parsedDetails.free_trial_amount} delivered, scan` : "Scan"} the QR code below to pay the remaining balance: <strong className="text-[#1877F2]">₱{totalPrice.toFixed(0)}</strong>.
+                            <strong>Pay via GCash:</strong> {parsedDetails.free_trial_amount > 0 ? `Once you see the free ${parsedDetails.free_trial_amount} delivered, scan` : "Scan"} the QR code below to pay the remaining balance: <strong className="text-[#1877F2]">₱{formatPrice(totalPrice)}</strong>.
                           </p>
                         </div>
 
@@ -1228,10 +1235,10 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                   <div className="text-right">
                     {fakeDiscountPercent > 0 && (
                       <span className="text-[11px] text-slate-500 font-mono line-through block leading-tight">
-                        ₱{fakeOriginalPrice.toFixed(0)}
+                        ₱{formatPrice(fakeOriginalPrice)}
                       </span>
                     )}
-                    <span className="text-lg font-black text-white block">₱{totalPrice.toFixed(0)}</span>
+                    <span className="text-lg font-black text-white block">₱{formatPrice(totalPrice)}</span>
                   </div>
                 </div>
 
@@ -1247,11 +1254,11 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                     <p className="text-[10px] text-slate-300 leading-relaxed font-semibold text-left">
                       {isSoftwareService ? (
                         <>
-                          Pay <strong className="text-white">₱{totalPrice.toFixed(0)} PHP</strong> directly using the GCash QR code below. Once your order is placed, send your Tracking ID to our support chatbot, download **UltraViewer**, and wait for remote setup!
+                          Pay <strong className="text-white">₱{formatPrice(totalPrice)} PHP</strong> directly using the GCash QR code below. Once your order is placed, send your Tracking ID to our support chatbot, download **UltraViewer**, and wait for remote setup!
                         </>
                       ) : (
                         <>
-                          Pay <strong className="text-white">₱{totalPrice.toFixed(0)} PHP</strong> directly using the GCash QR code below. Once your order is placed, send your Tracking ID and payment receipt in our support chatbot for instant verification and activation!
+                          Pay <strong className="text-white">₱{formatPrice(totalPrice)} PHP</strong> directly using the GCash QR code below. Once your order is placed, send your Tracking ID and payment receipt in our support chatbot for instant verification and activation!
                         </>
                       )}
                     </p>
@@ -1283,7 +1290,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                     disabled={isSubmitting}
                     className="w-full bg-[#1877F2]/20 hover:bg-[#1877F2]/30 border border-[#1877F2]/50 disabled:opacity-50 text-[#1877F2] font-extrabold py-3.5 rounded-full transition-all duration-300 flex justify-center items-center gap-2 tracking-wider uppercase text-xs"
                   >
-                    {isSubmitting ? <Loader2 className="animate-spin text-[#1877F2]" size={18} /> : `Pay with Wallet (₱${totalPrice.toFixed(0)})`}
+                    {isSubmitting ? <Loader2 className="animate-spin text-[#1877F2]" size={18} /> : `Pay with Wallet (₱${formatPrice(totalPrice)})`}
                   </button>
                 )}
                 

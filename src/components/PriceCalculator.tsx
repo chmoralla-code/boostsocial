@@ -53,6 +53,23 @@ export function PriceCalculator({ services, onOrder }: PriceCalculatorProps) {
   const targetPrice = baseTotal; // Customer pays exactly x2 resellers price (no discount deduction!)
   const fakeOriginalPrice = targetPrice / (1 - fakeDiscountPercent / 105); // Derived original price for marketing cross-out
 
+  const formatPrice = (amount: number) => {
+    const isSingleSrv = 
+      selectedService?.title.toLowerCase().includes("page") || 
+      selectedService?.title.toLowerCase().includes("gemini") || 
+      selectedService?.title.toLowerCase().includes("eap") || 
+      selectedService?.title.toLowerCase().includes("tplink") || 
+      selectedService?.title.toLowerCase().includes("software") || 
+      selectedService?.title.toLowerCase().includes("architectural") ||
+      selectedService?.title.toLowerCase().includes("license") ||
+      selectedService?.id === "03185a81-49f3-4255-868e-9e9ec3189497";
+      
+    if (isSingleSrv) {
+      return amount.toFixed(0);
+    }
+    return amount.toFixed(3);
+  };
+
   // Smooth ticking price counter animation
   useEffect(() => {
     let start = animatedPrice;
@@ -241,14 +258,14 @@ export function PriceCalculator({ services, onOrder }: PriceCalculatorProps) {
               <div className="flex items-baseline gap-1.5 flex-wrap">
                 {fakeDiscountPercent > 0 && (
                   <span className="text-sm text-slate-500 font-mono line-through mr-1 block">
-                    ₱{fakeOriginalPrice.toFixed(0)}
+                    ₱{formatPrice(fakeOriginalPrice)}
                   </span>
                 )}
                 <span 
                   style={{ color: activeColor }}
                   className="text-4xl sm:text-5xl font-black font-mono tracking-tight"
                 >
-                  ₱{animatedPrice.toFixed(0)}
+                  ₱{formatPrice(animatedPrice)}
                 </span>
                 <span className="text-xs text-slate-400 font-bold">PHP</span>
               </div>

@@ -188,7 +188,7 @@ export function Header() {
                             <span className="text-slate-500 font-normal">•</span>
                             <span className="text-slate-300">{order.quantity.toLocaleString()} units</span>
                             <span className="text-slate-500 font-normal">•</span>
-                            <span className="text-[#1877F2]">₱{Number(order.amount).toFixed(0)}</span>
+                            <span className="text-[#1877F2]">₱{Number(order.amount).toFixed(2)}</span>
                           </div>
                           <div className="text-[10px] text-slate-400 truncate max-w-xs sm:max-w-md font-mono select-all">
                             🔗 {order.target_url}
