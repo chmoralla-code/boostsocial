@@ -281,37 +281,38 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
         setQuantity(1000);
       }
       
-      setIsCheckingAuth(true);
-      supabase.auth.getUser()
-        .then(({ data }) => {
+      const checkAuth = async () => {
+        setIsCheckingAuth(true);
+        try {
+          const { data } = await supabase.auth.getUser();
           if (data?.user) {
             setUser(data.user);
             setEmail(data.user.email || "");
-            supabase.from('profiles')
-              .select('*')
-              .eq('id', data.user.id)
-              .single()
-              .then(({ data: pData, error: pError }) => {
-                if (pError) {
-                  console.error("Error fetching user profile:", pError);
-                }
-                if (pData) {
-                  setProfile(pData);
-                }
-                setIsCheckingAuth(false);
-              })
-              .catch((err) => {
-                console.error("Profile query rejected:", err);
-                setIsCheckingAuth(false);
-              });
-          } else {
-            setIsCheckingAuth(false);
+            try {
+              const { data: pData, error: pError } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', data.user.id)
+                .single();
+              
+              if (pError) {
+                console.error("Error fetching user profile:", pError);
+              }
+              if (pData) {
+                setProfile(pData);
+              }
+            } catch (profileErr) {
+              console.error("Profile query rejected:", profileErr);
+            }
           }
-        })
-        .catch((err) => {
-          console.error("GetUser query rejected:", err);
+        } catch (authErr) {
+          console.error("GetUser query rejected:", authErr);
+        } finally {
           setIsCheckingAuth(false);
-        });
+        }
+      };
+
+      checkAuth();
     }
   }, [isOpen, presetQuantity, isPageService, isEapService, isSoftwareService]);
 
