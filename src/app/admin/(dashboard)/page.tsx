@@ -1,5 +1,5 @@
 import { createClient } from "@/utils/supabase/server";
-import { DollarSign, ShoppingCart, Activity, Users, ArrowUpRight, TrendingUp, Sparkles, Clock, Globe } from "lucide-react";
+import { DollarSign, ShoppingCart, Activity, Users, ArrowUpRight, TrendingUp, Sparkles, Clock, Globe, Wallet } from "lucide-react";
 import { StorageOptimizingPanel } from "./StorageOptimizingPanel";
 import { MaintenanceSettingsPanel } from "./MaintenanceSettingsPanel";
 import { TelegramSettingsPanel } from "./TelegramSettingsPanel";
@@ -9,6 +9,31 @@ import { formatDistanceToNow } from "date-fns";
 
 export default async function AdminOverview() {
   const supabase = await createClient();
+
+  // Fetch RixeySMM live balance
+  const apiKey = process.env.RIXEYSMM_API_KEY;
+  let rixeyBalance = "0.00";
+  if (apiKey) {
+    try {
+      const res = await fetch("https://rixeysmm.shop/api/v2", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: new URLSearchParams({
+          key: apiKey,
+          action: "balance",
+        }),
+        next: { revalidate: 30 }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        rixeyBalance = data.balance ? Number(data.balance).toFixed(2) : "0.00";
+      }
+    } catch (err) {
+      console.error("Failed to fetch RixeySMM balance:", err);
+    }
+  }
 
   // Fetch orders with services details
   const { data: orders } = await supabase
@@ -90,7 +115,7 @@ export default async function AdminOverview() {
       </div>
 
       {/* Analytics Metric Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-5">
         {/* Metric: Revenue */}
         <div className="bg-[#181818]/90 border border-slate-850/80 rounded-2xl p-5 shadow-lg relative overflow-hidden group hover:border-[#1DB954]/30 transition-all hover:scale-[1.01] duration-300">
           <div className="absolute top-0 right-0 w-24 h-24 bg-[#1DB954]/5 rounded-full blur-xl pointer-events-none group-hover:bg-[#1DB954]/10 transition-colors"></div>
@@ -164,6 +189,24 @@ export default async function AdminOverview() {
           <div className="flex items-center gap-1.5 mt-4 text-[10px] font-bold text-slate-450">
             <span className={`w-1.5 h-1.5 rounded-full ${pendingOrders > 0 ? "bg-orange-500 animate-ping" : "bg-slate-650"}`}></span>
             <span>Action required</span>
+          </div>
+        </div>
+
+        {/* Metric: RixeySMM Balance */}
+        <div className="bg-[#181818]/90 border border-slate-850/80 rounded-2xl p-5 shadow-lg relative overflow-hidden group hover:border-[#1DB954]/30 transition-all hover:scale-[1.01] duration-300">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-[#1DB954]/5 rounded-full blur-xl pointer-events-none group-hover:bg-[#1DB954]/10 transition-colors"></div>
+          <div className="flex justify-between items-start">
+            <div className="space-y-1">
+              <span className="text-[10px] font-black uppercase text-slate-500 tracking-wider">RixeySMM Balance</span>
+              <h3 className="text-2xl font-black text-white tracking-tight">₱{Number(rixeyBalance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</h3>
+            </div>
+            <span className="bg-[#1DB954]/10 text-[#1DB954] p-2.5 rounded-xl border border-[#1DB954]/25">
+              <Wallet size={18} />
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5 mt-4 text-[10px] font-bold text-slate-450">
+            <span className="w-1.5 h-1.5 bg-[#1DB954] rounded-full animate-pulse"></span>
+            <span>Realtime SMM API</span>
           </div>
         </div>
       </div>

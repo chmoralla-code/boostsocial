@@ -45,11 +45,13 @@ export function PriceCalculator({ services, onOrder }: PriceCalculatorProps) {
     ? quantity * selectedService.starting_price
     : 0;
 
-  const discountPercent = isSingleItem
-    ? (quantity >= 5 ? 10 : quantity >= 3 ? 5 : 0)
-    : (quantity >= 10000 ? 20 : quantity >= 5000 ? 15 : quantity >= 3000 ? 10 : 0);
+  // Fake Marketing Discount Engine (Visual-only discount to incentivize sales)
+  const fakeDiscountPercent = isSingleItem
+    ? (quantity >= 5 ? 20 : quantity >= 3 ? 15 : 10)
+    : (quantity >= 10000 ? 25 : quantity >= 5000 ? 20 : quantity >= 3000 ? 15 : 10);
 
-  const targetPrice = baseTotal * (1 - discountPercent / 100);
+  const targetPrice = baseTotal; // Customer pays exactly x2 resellers price (no discount deduction!)
+  const fakeOriginalPrice = targetPrice / (1 - fakeDiscountPercent / 105); // Derived original price for marketing cross-out
 
   // Smooth ticking price counter animation
   useEffect(() => {
@@ -237,9 +239,9 @@ export function PriceCalculator({ services, onOrder }: PriceCalculatorProps) {
             <div className="text-left space-y-1">
               <span className="text-[10px] text-slate-500 font-black uppercase tracking-wider">Estimated Price</span>
               <div className="flex items-baseline gap-1.5 flex-wrap">
-                {discountPercent > 0 && (
+                {fakeDiscountPercent > 0 && (
                   <span className="text-sm text-slate-500 font-mono line-through mr-1 block">
-                    ₱{baseTotal.toFixed(0)}
+                    ₱{fakeOriginalPrice.toFixed(0)}
                   </span>
                 )}
                 <span 
@@ -250,9 +252,9 @@ export function PriceCalculator({ services, onOrder }: PriceCalculatorProps) {
                 </span>
                 <span className="text-xs text-slate-400 font-bold">PHP</span>
               </div>
-              {discountPercent > 0 && (
+              {fakeDiscountPercent > 0 && (
                 <div className={`text-[10px] font-black uppercase tracking-wider mt-1 animate-pulse ${activeText}`}>
-                  🔥 {discountPercent}% Volume Discount Active!
+                  🔥 {fakeDiscountPercent}% Special Discount Active!
                 </div>
               )}
               <p className="text-[10px] text-slate-550 font-semibold italic mt-1 bg-[#121212] rounded-lg">

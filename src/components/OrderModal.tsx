@@ -299,14 +299,15 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
 
   const baseTotal = effectiveQuantity * serviceBasePrice;
 
-  // Volume Discount Engine (Up to 20% off for large volumes and single high-value purchases)
-  const discountPercent = isEapService 
+  // Fake Marketing Discount Engine (Visual-only discount to incentivize sales)
+  const fakeDiscountPercent = isEapService 
     ? 0 
     : (minQty === 1
-      ? (effectiveQuantity >= 5 ? 10 : effectiveQuantity >= 3 ? 5 : 0)
-      : (effectiveQuantity >= 10000 ? 20 : effectiveQuantity >= 5000 ? 15 : effectiveQuantity >= 3000 ? 10 : 0));
+      ? (effectiveQuantity >= 5 ? 20 : effectiveQuantity >= 3 ? 15 : 10)
+      : (effectiveQuantity >= 10000 ? 25 : effectiveQuantity >= 5000 ? 20 : effectiveQuantity >= 3000 ? 15 : 10));
 
-  const totalPrice = baseTotal * (1 - discountPercent / 100);
+  const totalPrice = baseTotal; // Customer pays exactly x2 resellers price (no discount deduction!)
+  const fakeOriginalPrice = totalPrice / (1 - fakeDiscountPercent / 105); // Derived original price for marketing cross-out
 
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -1218,16 +1219,16 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                 <div className="flex justify-between items-center mt-3 bg-[#121212] px-3.5 py-2.5 rounded-lg border border-slate-800">
                   <div className="flex flex-col text-left">
                     <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Estimated Total:</span>
-                    {discountPercent > 0 && (
+                    {fakeDiscountPercent > 0 && (
                       <span className="text-[10px] text-[#1877F2] font-black uppercase tracking-wider mt-0.5 animate-pulse">
-                        🔥 {discountPercent}% Volume Discount Applied!
+                        🔥 {fakeDiscountPercent}% Special Discount Applied!
                       </span>
                     )}
                   </div>
                   <div className="text-right">
-                    {discountPercent > 0 && (
+                    {fakeDiscountPercent > 0 && (
                       <span className="text-[11px] text-slate-500 font-mono line-through block leading-tight">
-                        ₱{baseTotal.toFixed(0)}
+                        ₱{fakeOriginalPrice.toFixed(0)}
                       </span>
                     )}
                     <span className="text-lg font-black text-white block">₱{totalPrice.toFixed(0)}</span>
