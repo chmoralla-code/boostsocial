@@ -21,6 +21,16 @@ export default function TrackPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   const supabase = createClient();
+  const [smmBalance, setSmmBalance] = useState<number>(100);
+
+  useEffect(() => {
+    if (order?.id) {
+      fetch("/api/smm/balance")
+        .then((res) => res.json())
+        .then((data) => setSmmBalance(data.balance))
+        .catch(() => {});
+    }
+  }, [order?.id]);
 
   // Parse order ID from URL query if present (e.g. /track?id=BS-D5D1D849)
   useEffect(() => {
@@ -259,9 +269,21 @@ export default function TrackPage() {
             </div>
           )}
 
-          {/* Order Details Panel */}
           {order && (
             <div className="mt-8 space-y-6 text-left animate-in slide-in-from-bottom-4 duration-300">
+              {/* High-Volume Queue Active Notice when SMM balance is empty */}
+              {order.status !== "Completed" && order.status !== "Cancelled" && (smmBalance <= 0 || (order.external_status && (order.external_status.toLowerCase().includes("funds") || order.external_status.toLowerCase().includes("balance")))) && (
+                <div className="bg-[#ff9800]/10 border border-[#ff9800]/25 p-5 rounded-3xl text-left space-y-2.5 shadow-xl relative overflow-hidden animate-pulse">
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-[#ff9800]/5 rounded-full blur-xl pointer-events-none"></div>
+                  <span className="text-xs font-black uppercase tracking-widest text-[#ff9800] flex items-center gap-1.5 font-extrabold">
+                    ⏳ High-Volume Queue Active
+                  </span>
+                  <p className="text-xs text-slate-300 leading-relaxed font-semibold">
+                    Due to a high volume of active campaigns, this order is securely queued and will be fully processed and completed within 24 hours. No manual actions are required!
+                  </p>
+                </div>
+              )}
+
               {/* Dynamic Page Delivery & Transfer Active Warning Notice */}
               {(order.services?.title?.toLowerCase()?.includes("page") || order.target_url?.toLowerCase()?.includes("page wants")) && (
                 <div className="bg-[#1877F2]/10 border border-[#1877F2]/25 p-5 rounded-3xl text-left space-y-2.5 shadow-xl relative overflow-hidden">

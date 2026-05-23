@@ -46,6 +46,16 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [selectedReactions, setSelectedReactions] = useState<string[]>(["Like"]);
   const [eapDeviceCount, setEapDeviceCount] = useState<number>(1);
+  const [smmBalance, setSmmBalance] = useState<number>(100);
+
+  useEffect(() => {
+    if (success) {
+      fetch("/api/smm/balance")
+        .then((res) => res.json())
+        .then((data) => setSmmBalance(data.balance))
+        .catch(() => {});
+    }
+  }, [success]);
 
   const toggleReaction = (name: string) => {
     if (selectedReactions.includes(name)) {
@@ -590,18 +600,37 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                     <h3 className="text-xs font-black uppercase tracking-widest text-[#1877F2] flex items-center gap-1.5">
                       🎉 Balance Payment Successful!
                     </h3>
-                    <p className="text-xs text-slate-300 leading-relaxed font-semibold">
-                      We deducted <strong className="text-white">₱{formatPrice(totalPrice)} PHP</strong> directly from your account wallet balance. Your boost has been automatically approved and is already set to **Processing**!
-                    </p>
-                    <div className="bg-[#121212] border border-slate-800/80 p-3.5 rounded-lg text-xs space-y-1 text-center">
-                      <span className="text-[9px] text-slate-500 font-black uppercase tracking-widest block">Amplification Flow Status</span>
-                      <span className="text-[#1877F2] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 animate-pulse">
-                        ⚡ ACTIVE & PROCESSING
-                      </span>
-                    </div>
-                    <p className="text-[9px] text-slate-450 leading-relaxed font-bold">
-                      No further actions or manual GCash receipt verification are required. Our system will deliver your complete boost package shortly!
-                    </p>
+                    {smmBalance <= 0 ? (
+                      <>
+                        <p className="text-xs text-slate-300 leading-relaxed font-semibold">
+                          We deducted <strong className="text-white">₱{formatPrice(totalPrice)} PHP</strong> directly from your account wallet balance. Your boost has been securely registered and queued!
+                        </p>
+                        <div className="bg-[#121212] border border-slate-800/80 p-3.5 rounded-lg text-xs space-y-1 text-center">
+                          <span className="text-[9px] text-slate-550 font-black uppercase tracking-widest block">Amplification Flow Status</span>
+                          <span className="text-[#ff9800] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 animate-pulse">
+                            ⏳ IN QUEUE (HIGH VOLUME)
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-[#ff9800] leading-relaxed font-bold">
+                          ⚠️ **Notice:** Due to a high volume of active campaigns, this order is securely queued and will be fully processed and completed within 24 hours.
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-xs text-slate-300 leading-relaxed font-semibold">
+                          We deducted <strong className="text-white">₱{formatPrice(totalPrice)} PHP</strong> directly from your account wallet balance. Your boost has been automatically approved and is already set to **Processing**!
+                        </p>
+                        <div className="bg-[#121212] border border-slate-800/80 p-3.5 rounded-lg text-xs space-y-1 text-center">
+                          <span className="text-[9px] text-slate-500 font-black uppercase tracking-widest block">Amplification Flow Status</span>
+                          <span className="text-[#1877F2] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 animate-pulse">
+                            ⚡ ACTIVE & PROCESSING
+                          </span>
+                        </div>
+                        <p className="text-[9px] text-slate-450 leading-relaxed font-bold">
+                          No further actions or manual GCash receipt verification are required. Our system will deliver your complete boost package shortly!
+                        </p>
+                      </>
+                    )}
                     {isPageService && (
                       <div className="bg-[#1877F2]/20 border border-[#1877F2]/40 p-4 rounded-xl mt-3 text-left">
                         <span className="text-[10px] font-black uppercase tracking-widest text-[#1877F2] block mb-1">

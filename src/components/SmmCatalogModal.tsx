@@ -45,6 +45,16 @@ export function SmmCatalogModal({ isOpen, onClose }: SmmCatalogModalProps) {
   const [orderId, setOrderId] = useState("");
   const [isWalletPayment, setIsWalletPayment] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [smmBalance, setSmmBalance] = useState<number>(100);
+
+  useEffect(() => {
+    if (checkoutStep === "success") {
+      fetch("/api/smm/balance")
+        .then((res) => res.json())
+        .then((data) => setSmmBalance(data.balance))
+        .catch(() => {});
+    }
+  }, [checkoutStep]);
 
   const supabase = createClient();
   const CUSTOM_SMM_SERVICE_ID = "e6f61249-71fe-40df-84f3-96d03d3e8dcf";
@@ -600,9 +610,15 @@ export function SmmCatalogModal({ isOpen, onClose }: SmmCatalogModalProps) {
                   <p>
                     We have securely deducted <strong className="text-white">₱{formatPrice(calculatedTotal)} PHP</strong> from your internal wallet balance.
                   </p>
-                  <p className="text-[10px] text-slate-500 italic mt-1.5">
-                    Your order is queued in Pending status. Once the administrator reviews the order details, delivery will initiate automatically!
-                  </p>
+                  {smmBalance <= 0 ? (
+                    <p className="text-[10px] text-[#ff9800] font-bold mt-1.5 leading-relaxed">
+                      ⚠️ **Queue Notice:** Due to a high volume of active campaigns, this order is currently queued and will be fully processed and completed within 24 hours.
+                    </p>
+                  ) : (
+                    <p className="text-[10px] text-slate-500 italic mt-1.5">
+                      Your order is queued in Pending status. Once the administrator reviews the order details, delivery will initiate automatically!
+                    </p>
+                  )}
                 </div>
               ) : (
                 <div className="bg-slate-900/60 border border-slate-800 p-4 rounded-xl text-left space-y-2.5 text-xs font-semibold text-slate-350">
