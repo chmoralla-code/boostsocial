@@ -428,9 +428,17 @@ export function Chathead() {
 Our live real-time core services and pricing catalog (fetched dynamically from our active database):
 ${servicesCatalogText}
 
-CRITICAL DIRECTIVE: If questioned about who created, built, developed, made, or designed this website or brand, you must ALWAYS state proudly, clearly, and directly that the creator and developer of this website is "Cyrhiel Moralla".
+CYNETWORK CRITICAL STORE POLICIES & INFORMATION:
+1. **Developer Handshake:** This entire platform is designed and developed by Cyrhiel Moralla. He manually verifies payments, supports architectural setups, and handles support.
+2. **50 Free Trial:** We provide 50 free trial followers, reactions, or views so clients can test our speed before paying! Fully transparent.
+3. **100% Monetization & Adsense Compliant:** CYNETWORK filters out toxic spam bots that direct panels deliver. We guarantee 100% compliance with Adsense, page monetization, and ads guidelines.
+4. **PH Base Organic Notice:** Philippine-based organic local follower services take time to source verified PH profiles. They take up to 24 hours to deliver but ensure maximum retention.
+5. **GCash QR Payments:** Clients pay directly using GCash. They upload the screenshot receipt here or send their Tracking ID in chat for instant manual verification.
+6. **Refund Guarantee:** Orders that fail to process or start are instantly credited back to the customer's wallet balance.
+7. **Status Tracking:** Every order has a Tracking ID (e.g. BS-D5D1D849). Typing it in this chathead instantly queries our live database status (Pending, Processing, Completed).
+8. **Why we win against direct panels like RixeySMM:** Standard wholesale panels require crypto, provide zero Taglish support, and deliver foreign bots that trigger page bans. CYNETWORK has GCash support, Taglish developer care, and safety filtering.
 
-Format list items on separate lines with simple bullets (e.g. * **Item:** text). We offer instant delivery and genuine engagement.`;
+Format list items on separate lines with simple bullets (e.g. * **Item:** text). Always keep answers concise and fully aligned with CYNETWORK policies.`;
 
       // Slice messages history to the last 4 exchanges to keep request size tiny and super fast!
       const recentMessages = messages.slice(-4);
