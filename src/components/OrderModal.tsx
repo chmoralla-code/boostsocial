@@ -154,6 +154,15 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
     titleLower.includes("license") ||
     serviceId === "03185a81-49f3-4255-868e-9e9ec3189497";
 
+  const isPhBase = 
+    titleLower.includes("ph base") || 
+    titleLower.includes("ph-base") || 
+    titleLower.includes("ph local") || 
+    titleLower.includes("ph targeted") ||
+    titleLower.includes("ph ") ||
+    serviceTitle.toUpperCase().includes("PH BASE") ||
+    serviceTitle.toUpperCase().includes("PH ");
+
   // Determine the active unit label & single unit term
   let unitLabel = "Units";
   let unitSingle = "unit";
@@ -1278,6 +1287,20 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                     <span className="text-lg font-black text-white block">₱{formatPrice(totalPrice)}</span>
                   </div>
                 </div>
+
+                {isPhBase && (
+                  <div className="bg-amber-500/10 border border-amber-500/25 p-3.5 rounded-xl flex items-start gap-2.5 animate-in slide-in-from-bottom-2 duration-300 mt-3 text-left">
+                    <span className="text-base leading-none">⏳</span>
+                    <div className="space-y-0.5">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-amber-550 block">
+                        🇵🇭 PH Base Delivery Protocol
+                      </span>
+                      <p className="text-[10px] text-slate-300 leading-relaxed font-semibold">
+                        Since organic targeted Philippine accounts require verified distribution and staggered delivery to ensure safety, this PH Base service will be securely queued, processed, and completed within **24 hours**. Thank you for your patience!
+                      </p>
+                    </div>
+                  </div>
+                )}
 
                 {/* GCash Quick QR for all manual checkouts to ensure the GCash payment flow is easily accessible */}
                 {true && (
