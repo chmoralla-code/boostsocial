@@ -172,6 +172,13 @@ export function SmmCatalogModal({ isOpen, onClose }: SmmCatalogModalProps) {
   const effectiveQuantity = selectedService ? Math.max(quantity, selectedService.min) : 0;
   const calculatedTotal = selectedService ? effectiveQuantity * selectedService.startingPrice : 0;
 
+  const isPhBase = selectedService
+    ? (selectedService.name.toLowerCase().includes("ph base") || 
+       selectedService.name.toLowerCase().includes("philippine") || 
+       selectedService.category.toLowerCase().includes("ph base") || 
+       selectedService.category.toLowerCase().includes("philippine"))
+    : false;
+
   // Manual GCash submission
   const handleSubmitGcash = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -517,6 +524,14 @@ export function SmmCatalogModal({ isOpen, onClose }: SmmCatalogModalProps) {
                         💡 Note: Automatically upgraded to minimum {selectedService.min.toLocaleString()} quantity at the minimum rate!
                       </p>
                     )}
+                    {isPhBase && (
+                      <p className="text-[9px] text-slate-400 mt-1.5 font-semibold text-left">
+                        🇵🇭 <strong className="text-white">PH Base Organic Notice:</strong> Sourced with high-retention local accounts. Delivery completes **within 24 hours**.
+                      </p>
+                    )}
+                    <p className="text-[9px] text-[#1DB954] mt-1 font-bold text-left flex items-center gap-1">
+                      <span>🔒</span> <span>100% Adsense & Monetization Compliant filtered pool.</span>
+                    </p>
                   </div>
 
                   <div className="flex flex-col justify-end">
@@ -535,6 +550,13 @@ export function SmmCatalogModal({ isOpen, onClose }: SmmCatalogModalProps) {
                   <p className="text-[10px] text-slate-400 leading-relaxed font-semibold">
                     Pay exactly <strong className="text-white">₱{formatPrice(calculatedTotal)} PHP</strong> using the GCash QR code. After placing your order, copy your **Tracking ID** and send it along with your transaction receipt to our Support Chatbot for instant approval.
                   </p>
+                  
+                  {/* Safety compliance notice under QR scan text to boost purchase intent */}
+                  <div className="text-[9px] text-slate-500 font-bold border-t border-slate-850 pt-2 flex items-center gap-1.5">
+                    <span>🛡️</span>
+                    <span>CYNETWORK Curation guarantees 100% compliant, secure delivery matching Adsense criteria.</span>
+                  </div>
+
                   <div className="text-center">
                     <div className="bg-white p-1 rounded-xl inline-block shadow-md max-w-[120px] mx-auto overflow-hidden border border-slate-700/20">
                       <img 
@@ -630,6 +652,17 @@ export function SmmCatalogModal({ isOpen, onClose }: SmmCatalogModalProps) {
                   </p>
                   <p>
                     2. Once the admin confirms the receipt, your order will be approved instantly!
+                  </p>
+                </div>
+              )}
+
+              {isPhBase && (
+                <div className="bg-[#1DB954]/10 border border-[#1DB954]/25 p-4 rounded-xl text-left space-y-1.5 text-xs font-semibold text-slate-350 mt-3 animate-in slide-in-from-bottom-2">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-[#1DB954] block">
+                    🇵🇭 PH Base Organic Delivery Notice
+                  </span>
+                  <p>
+                    This premium package uses authentic, organic local accounts to ensure maximum retention and natural reach. Finding real organic local followers takes time, so processing is scheduled and will be completed **within 24 hours**.
                   </p>
                 </div>
               )}

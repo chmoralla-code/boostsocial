@@ -1302,6 +1302,15 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                   </div>
                 )}
 
+                {/* Safety Curation Layer Reassurance */}
+                <div className="bg-[#1DB954]/5 border border-[#1DB954]/10 p-3.5 rounded-xl flex items-start gap-2 mt-3 animate-in fade-in duration-300">
+                  <span className="text-sm mt-0.5">🛡️</span>
+                  <p className="text-[10px] text-slate-355 leading-relaxed font-bold text-left">
+                    <span className="text-[#1DB954] uppercase tracking-wider block mb-0.5">🔒 100% Monetization Safe Guarantee</span>
+                    Your campaign passes through CYNETWORK's proprietary filters to exclude toxic bot pools that trigger restrictions. Safe for Facebook Adsense & organic page growth.
+                  </p>
+                </div>
+
                 {/* GCash Quick QR for all manual checkouts to ensure the GCash payment flow is easily accessible */}
                 {true && (
                   <div className="bg-[#121212] border border-slate-800/80 p-4 rounded-xl space-y-3 mt-3 animate-in fade-in duration-200">

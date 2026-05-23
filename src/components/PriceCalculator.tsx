@@ -283,19 +283,33 @@ export function PriceCalculator({ services, onOrder }: PriceCalculatorProps) {
             </div>
 
             <div className="border-t border-slate-800/60 my-5 pt-4 text-left space-y-2">
-              <div className="flex items-center gap-2 text-xs text-slate-300 font-medium">
+              <div className="flex items-center gap-2 text-[11px] sm:text-xs text-slate-300 font-medium">
                 <span 
                   style={{ backgroundColor: activeColor }}
                   className="w-1.5 h-1.5 rounded-full animate-pulse"
                 ></span>
                 <span>**Delivery:** Instant Start (15m - 2h)</span>
               </div>
-              <div className="flex items-center gap-2 text-xs text-slate-300 font-medium">
+              <div className="flex items-center gap-2 text-[11px] sm:text-xs text-slate-300 font-medium">
                 <span 
                   style={{ backgroundColor: activeColor }}
                   className="w-1.5 h-1.5 rounded-full animate-pulse"
                 ></span>
                 <span>**Retention:** 100% Lifetime Guarantee</span>
+              </div>
+              <div className="flex items-center gap-2 text-[11px] sm:text-xs text-slate-300 font-medium">
+                <span 
+                  style={{ backgroundColor: activeColor }}
+                  className="w-1.5 h-1.5 rounded-full animate-pulse"
+                ></span>
+                <span>**Safety:** 🔒 100% Adsense & Monetization Compliant</span>
+              </div>
+              <div className="flex items-center gap-2 text-[11px] sm:text-xs text-slate-300 font-medium">
+                <span 
+                  style={{ backgroundColor: activeColor }}
+                  className="w-1.5 h-1.5 rounded-full animate-pulse"
+                ></span>
+                <span>**Curation:** 🇵🇭 PH-Base Profile Option Filtered</span>
               </div>
             </div>
 

@@ -215,6 +215,126 @@ export function ServicesSection({ services }: ServicesSectionProps) {
       {/* 4. Customer reviews Grid & Form */}
       <ReviewsSection />
 
+      {/* 4.5 Comparison Grid - CYNETWORK vs Faceless SMM Panels */}
+      <section className="w-full max-w-5xl mx-auto px-4 mt-24 mb-20 relative z-10">
+        <div className="text-center mb-12">
+          <span className="bg-[#1DB954]/10 text-[#1DB954] border border-[#1DB954]/20 font-black text-[10px] tracking-widest uppercase px-3 py-1 rounded-full inline-flex items-center gap-1.5 mb-3">
+            ⚖️ Strategic Advantage
+          </span>
+          <h2 className="text-3xl md:text-4xl font-black text-center text-white tracking-tight">
+            How <span className="text-[#1DB954]">CYNETWORK</span> Wins Against Wholesale Panels
+          </h2>
+          <p className="text-sm text-slate-400 mt-2 font-medium">
+            Unlike sterile automated direct SMM panels (like RixeySMM), we offer premium curated layers of safety and trust
+          </p>
+        </div>
+
+        <div className="bg-[#121212]/50 backdrop-blur-xl border border-white/[0.04] rounded-3xl overflow-hidden shadow-2xl">
+          {/* Grid Header (Hidden on Mobile) */}
+          <div className="hidden md:grid grid-cols-3 border-b border-slate-800/80 bg-black/40 py-5 px-8 text-xs font-black uppercase tracking-wider text-slate-400 text-left">
+            <div>Core Feature</div>
+            <div className="text-[#1DB954] flex items-center gap-1.5">🟢 CYNETWORK Curation</div>
+            <div className="text-slate-555 flex items-center gap-1.5">🔴 Faceless Wholesale SMM Panels</div>
+          </div>
+
+          {/* Feature 1 */}
+          <div className="grid grid-cols-1 md:grid-cols-3 border-b border-slate-900/60 py-6 px-6 sm:px-8 hover:bg-[#161616]/40 transition-colors duration-200 text-left items-start gap-4 md:gap-0">
+            <div>
+              <h4 className="text-sm font-black text-white uppercase tracking-wide">Account Safety</h4>
+              <p className="text-[11px] text-slate-500 mt-0.5 font-medium leading-normal">Compliance & page health protection.</p>
+            </div>
+            <div className="flex flex-col gap-1 md:pr-4">
+              <span className="text-xs font-black text-[#1ed760] flex items-center gap-1.5">
+                🛡️ 100% Adsense & Compliant
+              </span>
+              <p className="text-xs text-slate-350 leading-relaxed font-semibold">
+                Filters out toxic direct-bot server pools that trigger platform restrictions or monetization bans.
+              </p>
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="text-xs font-black text-slate-550 flex items-center gap-1.5">
+                ⚠️ Raw Unfiltered Delivery
+              </span>
+              <p className="text-xs text-slate-500 leading-relaxed font-semibold">
+                Direct raw bots easily flagged by platform algorithms, risking immediate page deletion or restrictions.
+              </p>
+            </div>
+          </div>
+
+          {/* Feature 2 */}
+          <div className="grid grid-cols-1 md:grid-cols-3 border-b border-slate-900/60 py-6 px-6 sm:px-8 hover:bg-[#161616]/40 transition-colors duration-200 text-left items-start gap-4 md:gap-0">
+            <div>
+              <h4 className="text-sm font-black text-white uppercase tracking-wide">Profile Quality</h4>
+              <p className="text-[11px] text-slate-500 mt-0.5 font-medium leading-normal">Retention rates and account realism.</p>
+            </div>
+            <div className="flex flex-col gap-1 md:pr-4">
+              <span className="text-xs font-black text-[#1ed760] flex items-center gap-1.5">
+                🇵🇭 Curated PH Base & Organic Realism
+              </span>
+              <p className="text-xs text-slate-350 leading-relaxed font-semibold">
+                Curates realistic local accounts with actual human avatars and activity histories for maximum retention.
+              </p>
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="text-xs font-black text-slate-550 flex items-center gap-1.5">
+                🤖 Sterile Foreign Bot Spams
+              </span>
+              <p className="text-xs text-slate-500 leading-relaxed font-semibold">
+                Uses massive foreign accounts (mixed Russian, Turkish, Vietnamese) with zero local relevance that drop rapidly.
+              </p>
+            </div>
+          </div>
+
+          {/* Feature 3 */}
+          <div className="grid grid-cols-1 md:grid-cols-3 border-b border-slate-900/60 py-6 px-6 sm:px-8 hover:bg-[#161616]/40 transition-colors duration-200 text-left items-start gap-4 md:gap-0">
+            <div>
+              <h4 className="text-sm font-black text-white uppercase tracking-wide">Payment & Top-Ups</h4>
+              <p className="text-[11px] text-slate-500 mt-0.5 font-medium leading-normal">Convenience and transaction speed.</p>
+            </div>
+            <div className="flex flex-col gap-1 md:pr-4">
+              <span className="text-xs font-black text-[#1ed760] flex items-center gap-1.5">
+                📲 Seamless GCash Direct QR
+              </span>
+              <p className="text-xs text-slate-350 leading-relaxed font-semibold">
+                Frictionless manual GCash payment scans with instant developer approval. No processing fee.
+              </p>
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="text-xs font-black text-slate-550 flex items-center gap-1.5">
+                💳 Crypto & High Deposits
+              </span>
+              <p className="text-xs text-slate-500 leading-relaxed font-semibold">
+                Requires crypto wallets, international credit cards, and steep minimum balances to perform single orders.
+              </p>
+            </div>
+          </div>
+
+          {/* Feature 4 */}
+          <div className="grid grid-cols-1 md:grid-cols-3 py-6 px-6 sm:px-8 hover:bg-[#161616]/40 transition-colors duration-200 text-left items-start gap-4 md:gap-0">
+            <div>
+              <h4 className="text-sm font-black text-white uppercase tracking-wide">Client Assistance</h4>
+              <p className="text-[11px] text-slate-500 mt-0.5 font-medium leading-normal">Direct human contact and guarantees.</p>
+            </div>
+            <div className="flex flex-col gap-1 md:pr-4">
+              <span className="text-xs font-black text-[#1ed760] flex items-center gap-1.5">
+                💬 24/7 Developer Handshake
+              </span>
+              <p className="text-xs text-slate-350 leading-relaxed font-semibold">
+                Direct client support backed by Cyrhiel Moralla. Real human answers in quick Taglish/English.
+              </p>
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="text-xs font-black text-slate-550 flex items-center gap-1.5">
+                🤖 Delayed Robotic Tickets
+              </span>
+              <p className="text-xs text-slate-500 leading-relaxed font-semibold">
+                Faceless ticket forms with 48h delay, often replying with generic technical errors that offer zero actual help.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* 5. FAQs Section */}
       <FaqSection />
 
