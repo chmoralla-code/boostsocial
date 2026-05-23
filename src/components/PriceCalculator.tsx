@@ -42,7 +42,7 @@ export function PriceCalculator({ services, onOrder }: PriceCalculatorProps) {
   const isSingleItem = minQty === 1;
 
   const baseTotal = selectedService
-    ? quantity * selectedService.starting_price
+    ? Math.max(quantity, minQty) * selectedService.starting_price
     : 0;
 
   // Fake Marketing Discount Engine (Visual-only discount to incentivize sales)

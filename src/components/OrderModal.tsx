@@ -295,7 +295,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
 
   if (!isOpen) return null;
 
-  const effectiveQuantity = quantity;
+  const effectiveQuantity = Math.max(quantity, minQty);
 
   const baseTotal = effectiveQuantity * serviceBasePrice;
 
@@ -321,10 +321,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
     e.preventDefault();
     if (!serviceId) return;
 
-    if (quantity < minQty) {
-      setError(`Minimum quantity is ${minQty}.`);
-      return;
-    }
+    const finalQuantity = Math.max(quantity, minQty);
 
     setIsSubmitting(true);
     setError("");
@@ -348,7 +345,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
             target_url: tempUrl,
             amount: totalPrice,
             status: 'Pending',
-            quantity: quantity,
+            quantity: finalQuantity,
             smm_service_id: parsedDetails.smm_service_id
           }
         ])
@@ -395,7 +392,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
           trackingId: `BS-${insertData.id.slice(0, 8).toUpperCase()}`,
           service: serviceTitle,
           email: email.trim(),
-          quantity,
+          quantity: finalQuantity,
           amount: totalPrice,
           paymentMethod: "📱 GCash",
           details: tempUrl,
@@ -412,10 +409,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
     e.preventDefault();
     if (!serviceId || !user) return;
 
-    if (quantity < minQty) {
-      setError(`Minimum quantity is ${minQty}.`);
-      return;
-    }
+    const finalQuantity = Math.max(quantity, minQty);
 
     if (Number(profile?.balance || 0) < totalPrice) {
       setError("Insufficient wallet balance. Please top up first.");
@@ -444,7 +438,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
           serviceTitle,
           email: user.email,
           url: tempUrl,
-          quantity,
+          quantity: finalQuantity,
           totalPrice,
           smmServiceId: parsedDetails.smm_service_id
         })
@@ -1187,14 +1181,9 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                       step={minQty === 1 ? "1" : "100"}
                       value={quantity || ""}
                       onChange={(e) => setQuantity(parseInt(e.target.value) || 0)}
-                      onBlur={() => {
-                        if (quantity < minQty) {
-                          setQuantity(minQty);
-                        }
-                      }}
                       className={`w-full px-4 py-3 rounded-xl bg-[#282828] text-white transition-all text-sm font-bold border ${
-                        quantity < minQty 
-                          ? "border-red-500/50 focus:ring-2 focus:ring-red-500 focus:outline-none" 
+                        (quantity > 0 && quantity < minQty)
+                          ? "border-[#1877F2]/50 focus:ring-2 focus:ring-[#1877F2] focus:outline-none" 
                           : "border-slate-700/60 focus:border-[#1877F2] focus:ring-2 focus:ring-[#1877F2] focus:outline-none"
                       }`}
                       placeholder={String(minQty)}
@@ -1203,11 +1192,11 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                 )}
 
                 {!isEapService && (
-                  quantity < minQty ? (
-                    <div className="bg-red-500/10 border border-red-500/25 p-3 rounded-xl flex items-start gap-2 animate-in slide-in-from-top-2 duration-300">
-                      <span className="text-sm mt-0.5">⚠️</span>
-                      <p className="text-[10px] text-red-400 leading-relaxed font-bold text-left">
-                        Below Minimum Limit: The minimum order size for this service is <strong className="text-white">{minQty.toLocaleString()}</strong> {unitLabel.toLowerCase()}. Please enter at least {minQty.toLocaleString()} units to proceed.
+                  (quantity > 0 && quantity < minQty) ? (
+                    <div className="bg-[#1877F2]/10 border border-[#1877F2]/25 p-3 rounded-xl flex items-start gap-2 animate-in slide-in-from-top-2 duration-300">
+                      <span className="text-sm mt-0.5">💡</span>
+                      <p className="text-[10px] text-[#1877F2] leading-relaxed font-bold text-left">
+                        Below Minimum Limit: The minimum order size for this service is <strong className="text-white">{minQty.toLocaleString()}</strong>. Your order will be automatically upgraded to the minimum quantity of <strong className="text-white">{minQty.toLocaleString()}</strong> units at the standard minimum price.
                       </p>
                     </div>
                   ) : (

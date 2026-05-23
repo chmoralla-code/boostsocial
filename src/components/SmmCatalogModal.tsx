@@ -155,17 +155,28 @@ export function SmmCatalogModal({ isOpen, onClose }: SmmCatalogModalProps) {
     return "https://facebook.com/your-target-url";
   };
 
-  const calculatedTotal = selectedService ? quantity * selectedService.startingPrice : 0;
+  const formatPrice = (amount: number) => {
+    return amount.toFixed(3);
+  };
+
+  const effectiveQuantity = selectedService ? Math.max(quantity, selectedService.min) : 0;
+  const calculatedTotal = selectedService ? effectiveQuantity * selectedService.startingPrice : 0;
 
   // Manual GCash submission
   const handleSubmitGcash = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedService) return;
 
-    if (quantity < selectedService.min || quantity > selectedService.max) {
-      setError(`Quantity must be between ${selectedService.min.toLocaleString()} and ${selectedService.max.toLocaleString()}.`);
+    if (quantity > selectedService.max) {
+      setError(`Quantity cannot exceed ${selectedService.max.toLocaleString()}.`);
       return;
     }
+    if (quantity <= 0) {
+      setError("Quantity must be greater than 0.");
+      return;
+    }
+
+    const finalQuantity = Math.max(quantity, selectedService.min);
 
     setIsSubmitting(true);
     setError("");
@@ -180,7 +191,7 @@ export function SmmCatalogModal({ isOpen, onClose }: SmmCatalogModalProps) {
             target_url: url.trim(),
             amount: calculatedTotal,
             status: "Pending",
-            quantity: quantity,
+            quantity: finalQuantity,
             smm_service_id: selectedService.id
           }
         ])
@@ -206,7 +217,7 @@ export function SmmCatalogModal({ isOpen, onClose }: SmmCatalogModalProps) {
           trackingId: `BS-${insertData.id.slice(0, 8).toUpperCase()}`,
           service: `[SMM #${selectedService.id}] ${selectedService.name}`,
           email: email.trim(),
-          quantity,
+          quantity: finalQuantity,
           amount: calculatedTotal,
           paymentMethod: "📱 GCash",
           details: url.trim(),
@@ -225,10 +236,16 @@ export function SmmCatalogModal({ isOpen, onClose }: SmmCatalogModalProps) {
     e.preventDefault();
     if (!selectedService || !user) return;
 
-    if (quantity < selectedService.min || quantity > selectedService.max) {
-      setError(`Quantity must be between ${selectedService.min.toLocaleString()} and ${selectedService.max.toLocaleString()}.`);
+    if (quantity > selectedService.max) {
+      setError(`Quantity cannot exceed ${selectedService.max.toLocaleString()}.`);
       return;
     }
+    if (quantity <= 0) {
+      setError("Quantity must be greater than 0.");
+      return;
+    }
+
+    const finalQuantity = Math.max(quantity, selectedService.min);
 
     if (Number(profile?.balance || 0) < calculatedTotal) {
       setError("Insufficient wallet balance. Please top up first.");
@@ -248,7 +265,7 @@ export function SmmCatalogModal({ isOpen, onClose }: SmmCatalogModalProps) {
           serviceTitle: `[SMM #${selectedService.id}] ${selectedService.name}`,
           email: user.email,
           url: url.trim(),
-          quantity,
+          quantity: finalQuantity,
           totalPrice: calculatedTotal,
           smmServiceId: selectedService.id
         })
@@ -485,12 +502,17 @@ export function SmmCatalogModal({ isOpen, onClose }: SmmCatalogModalProps) {
                     <p className="text-[9px] text-slate-500 mt-1">
                       Min: {selectedService.min.toLocaleString()} • Max: {selectedService.max.toLocaleString()}
                     </p>
+                    {quantity > 0 && quantity < selectedService.min && (
+                      <p className="text-[9px] text-[#1DB954] mt-1 font-bold animate-pulse text-left">
+                        💡 Note: Automatically upgraded to minimum {selectedService.min.toLocaleString()} quantity at the minimum rate!
+                      </p>
+                    )}
                   </div>
 
                   <div className="flex flex-col justify-end">
                     <div className="bg-[#181818]/80 px-4 py-2.5 rounded-xl border border-slate-800 flex justify-between items-center h-[42px]">
                       <span className="text-[9px] font-extrabold text-slate-500 uppercase tracking-wider">Estimator cost:</span>
-                      <span className="text-sm font-black text-white">₱{calculatedTotal.toFixed(2)} PHP</span>
+                      <span className="text-sm font-black text-white">₱{formatPrice(calculatedTotal)} PHP</span>
                     </div>
                   </div>
                 </div>
@@ -501,7 +523,7 @@ export function SmmCatalogModal({ isOpen, onClose }: SmmCatalogModalProps) {
                     📱 GCash Checkout QR Code
                   </span>
                   <p className="text-[10px] text-slate-400 leading-relaxed font-semibold">
-                    Pay exactly <strong className="text-white">₱{calculatedTotal.toFixed(2)} PHP</strong> using the GCash QR code. After placing your order, copy your **Tracking ID** and send it along with your transaction receipt to our Support Chatbot for instant approval.
+                    Pay exactly <strong className="text-white">₱{formatPrice(calculatedTotal)} PHP</strong> using the GCash QR code. After placing your order, copy your **Tracking ID** and send it along with your transaction receipt to our Support Chatbot for instant approval.
                   </p>
                   <div className="text-center">
                     <div className="bg-white p-1 rounded-xl inline-block shadow-md max-w-[120px] mx-auto overflow-hidden border border-slate-700/20">
@@ -523,7 +545,7 @@ export function SmmCatalogModal({ isOpen, onClose }: SmmCatalogModalProps) {
                       onClick={handleWalletCheckout}
                       className="flex-1 bg-[#1DB954]/10 hover:bg-[#1DB954]/20 border border-[#1DB954]/30 hover:border-[#1DB954]/50 disabled:opacity-50 text-[#1DB954] font-extrabold py-3 rounded-xl transition-all flex items-center justify-center gap-2 text-xs uppercase tracking-wider"
                     >
-                      <Wallet size={14} /> Pay with Wallet (₱{calculatedTotal.toFixed(2)})
+                      <Wallet size={14} /> Pay with Wallet (₱{formatPrice(calculatedTotal)})
                     </button>
                   )}
                   
@@ -576,7 +598,7 @@ export function SmmCatalogModal({ isOpen, onClose }: SmmCatalogModalProps) {
                     ✓ Balance Deducted Successful!
                   </span>
                   <p>
-                    We have securely deducted <strong className="text-white">₱{calculatedTotal.toFixed(2)} PHP</strong> from your internal wallet balance.
+                    We have securely deducted <strong className="text-white">₱{formatPrice(calculatedTotal)} PHP</strong> from your internal wallet balance.
                   </p>
                   <p className="text-[10px] text-slate-500 italic mt-1.5">
                     Your order is queued in Pending status. Once the administrator reviews the order details, delivery will initiate automatically!
