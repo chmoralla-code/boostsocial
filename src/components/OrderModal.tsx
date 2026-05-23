@@ -282,18 +282,36 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
       }
       
       setIsCheckingAuth(true);
-      supabase.auth.getUser().then(({ data }) => {
-        if (data.user) {
-          setUser(data.user);
-          setEmail(data.user.email || "");
-          supabase.from('profiles').select('*').eq('id', data.user.id).single().then(({ data: pData }) => {
-            if (pData) setProfile(pData);
+      supabase.auth.getUser()
+        .then(({ data }) => {
+          if (data?.user) {
+            setUser(data.user);
+            setEmail(data.user.email || "");
+            supabase.from('profiles')
+              .select('*')
+              .eq('id', data.user.id)
+              .single()
+              .then(({ data: pData, error: pError }) => {
+                if (pError) {
+                  console.error("Error fetching user profile:", pError);
+                }
+                if (pData) {
+                  setProfile(pData);
+                }
+                setIsCheckingAuth(false);
+              })
+              .catch((err) => {
+                console.error("Profile query rejected:", err);
+                setIsCheckingAuth(false);
+              });
+          } else {
             setIsCheckingAuth(false);
-          });
-        } else {
+          }
+        })
+        .catch((err) => {
+          console.error("GetUser query rejected:", err);
           setIsCheckingAuth(false);
-        }
-      });
+        });
     }
   }, [isOpen, presetQuantity, isPageService, isEapService, isSoftwareService]);
 
@@ -1207,7 +1225,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                       type="number" 
                       required
                       min={minQty}
-                      step={minQty === 1 ? "1" : "100"}
+                      step="1"
                       value={quantity || ""}
                       onChange={(e) => setQuantity(parseInt(e.target.value) || 0)}
                       className={`w-full px-4 py-3 rounded-xl bg-[#282828] text-white transition-all text-sm font-bold border ${
