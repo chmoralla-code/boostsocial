@@ -44,6 +44,39 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
   const [smmMin, setSmmMin] = useState("");
   const [smmMax, setSmmMax] = useState("");
 
+  // Search & Map SMM Services selector
+  interface SmmService {
+    id: string;
+    name: string;
+    category: string;
+    originalRate: number;
+    ratePer1k: number;
+    startingPrice: number;
+    min: number;
+    max: number;
+    desc: string;
+  }
+  const [smmServicesList, setSmmServicesList] = useState<SmmService[]>([]);
+  const [smmSearchTerm, setSmmSearchTerm] = useState("");
+  const [smmLoading, setSmmLoading] = useState(false);
+  const [showSmmDropdown, setShowSmmDropdown] = useState(false);
+
+  const fetchSmmServicesList = async () => {
+    if (smmServicesList.length > 0) return;
+    setSmmLoading(true);
+    try {
+      const res = await fetch("/api/smm/services");
+      const data = await res.json();
+      if (res.ok && Array.isArray(data)) {
+        setSmmServicesList(data);
+      }
+    } catch (e) {
+      console.error("Failed to fetch RixeySMM services list:", e);
+    } finally {
+      setSmmLoading(false);
+    }
+  };
+
   const supabase = createClient();
 
   const [isSyncing, setIsSyncing] = useState(false);
@@ -101,6 +134,8 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
     setSmmOriginalName("");
     setSmmMin("");
     setSmmMax("");
+    setSmmSearchTerm("");
+    fetchSmmServicesList();
     setIsModalOpen(true);
   };
 
@@ -111,6 +146,7 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
     setIconType(service.icon_type);
     setCustomIconFile(null);
     setError("");
+    const rawDesc = typeof service.description === "string" ? service.description : "";
 
     const defaults = {
       description: service.description,
@@ -159,7 +195,6 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
         setSmmMin(parsed.smm_min !== undefined ? String(parsed.smm_min) : "");
         setSmmMax(parsed.smm_max !== undefined ? String(parsed.smm_max) : "");
       } else {
-        const rawDesc = typeof service.description === "string" ? service.description : "";
         setDescription(rawDesc);
         setSubtitle(defaults.subtitle);
         setButtonText(defaults.button_text);
@@ -193,6 +228,9 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
       setSmmMax("");
     }
 
+    const parsed = parseDescription(service.description);
+    setSmmSearchTerm(parsed?.smm_original_name || "");
+    fetchSmmServicesList();
     setIsModalOpen(true);
   };
 
@@ -729,6 +767,75 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
                   <span className="text-[8px] bg-[#1DB954]/10 border border-[#1DB954]/20 text-[#1DB954] px-1.5 py-0.5 rounded-full font-black uppercase tracking-wider">
                     Optional
                   </span>
+                </div>
+
+                {/* Search & Map Combobox */}
+                <div className="space-y-1 relative">
+                  <label className="block text-[9px] font-extrabold text-slate-500 uppercase tracking-widest mb-1 flex justify-between items-center">
+                    <span>Search & Select RixeySMM Service</span>
+                    {smmLoading && <Loader2 size={10} className="animate-spin text-[#1DB954]" />}
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      placeholder={smmLoading ? "Loading reseller catalog..." : "Type to search SMM services..."}
+                      disabled={smmLoading}
+                      value={smmSearchTerm}
+                      onChange={(e) => {
+                        setSmmSearchTerm(e.target.value);
+                        setShowSmmDropdown(true);
+                      }}
+                      onFocus={() => setShowSmmDropdown(true)}
+                      onBlur={() => setTimeout(() => setShowSmmDropdown(false), 200)}
+                      className="w-full px-3 py-2 rounded-lg bg-[#181818] border border-slate-800 focus:outline-none focus:border-[#1DB954]/55 text-white text-xs placeholder-slate-500"
+                    />
+                    
+                    {showSmmDropdown && smmServicesList.length > 0 && (
+                      <div className="absolute z-50 w-full mt-1 bg-[#181818] border border-slate-800 rounded-lg shadow-xl max-h-[180px] overflow-y-auto divide-y divide-slate-850/50">
+                        {smmServicesList
+                          .filter(s => 
+                            s.name.toLowerCase().includes(smmSearchTerm.toLowerCase()) || 
+                            s.category.toLowerCase().includes(smmSearchTerm.toLowerCase()) ||
+                            s.id.toString().includes(smmSearchTerm)
+                          )
+                          .slice(0, 40)
+                          .map(s => (
+                            <button
+                              key={s.id}
+                              type="button"
+                              onClick={() => {
+                                setSmmServiceId(String(s.id));
+                                setSmmOriginalRate(String(s.originalRate));
+                                setSmmOriginalName(s.name);
+                                setSmmMin(String(s.min));
+                                setSmmMax(String(s.max));
+                                setStartingPrice(s.startingPrice.toFixed(4));
+                                setSmmSearchTerm(s.name);
+                                setShowSmmDropdown(false);
+                              }}
+                              className="w-full text-left px-3 py-2 hover:bg-[#1DB954]/10 transition-colors text-[10px] text-slate-350 hover:text-white"
+                            >
+                              <div className="font-extrabold flex justify-between">
+                                <span>ID {s.id}: {s.name}</span>
+                                <span className="text-[#1DB954] font-black">₱{s.originalRate}/1k</span>
+                              </div>
+                              <div className="text-[9px] text-slate-500 font-bold uppercase tracking-wider mt-0.5">
+                                {s.category} | Auto Price: ₱{s.startingPrice.toFixed(4)}/pc
+                              </div>
+                            </button>
+                          ))}
+                        {smmServicesList.filter(s => 
+                          s.name.toLowerCase().includes(smmSearchTerm.toLowerCase()) || 
+                          s.category.toLowerCase().includes(smmSearchTerm.toLowerCase()) ||
+                          s.id.toString().includes(smmSearchTerm)
+                        ).length === 0 && (
+                          <div className="p-3 text-center text-xs text-slate-500 font-semibold">
+                            No matching services found
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
                 
                 <div className="grid grid-cols-2 gap-3">
