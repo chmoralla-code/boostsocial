@@ -8,11 +8,22 @@ import { compressImage } from "@/utils/imageCompressor";
 interface Service {
   id: string;
   title: string;
-  description: string;
+  description: any;
   starting_price: number;
   icon_type: string;
   created_at?: string;
 }
+
+const parseDescription = (desc: any) => {
+  if (!desc) return null;
+  if (typeof desc === "object") return desc;
+  if (typeof desc === "string" && desc.trim().startsWith("{")) {
+    try {
+      return JSON.parse(desc);
+    } catch (e) {}
+  }
+  return null;
+};
 
 export function ServicesTable({ initialServices }: { initialServices: Service[] }) {
   const [services, setServices] = useState<Service[]>(initialServices);
@@ -140,8 +151,8 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
     }
 
     try {
-      if (service.description && service.description.trim().startsWith("{")) {
-        const parsed = JSON.parse(service.description);
+      const parsed = parseDescription(service.description);
+      if (parsed) {
         setDescription(parsed.description || defaults.description);
         setSubtitle(parsed.subtitle || defaults.subtitle);
         setButtonText(parsed.button_text || defaults.button_text);
@@ -158,7 +169,8 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
         setSmmMin(parsed.smm_min !== undefined ? String(parsed.smm_min) : "");
         setSmmMax(parsed.smm_max !== undefined ? String(parsed.smm_max) : "");
       } else {
-        setDescription(service.description);
+        const rawDesc = typeof service.description === "string" ? service.description : "";
+        setDescription(rawDesc);
         setSubtitle(defaults.subtitle);
         setButtonText(defaults.button_text);
         setMinQuantity(String(defaults.min_quantity));
@@ -174,7 +186,8 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
         setSmmMax("");
       }
     } catch (e) {
-      setDescription(service.description);
+      const rawDesc = typeof service.description === "string" ? service.description : "";
+      setDescription(rawDesc);
       setSubtitle(defaults.subtitle);
       setButtonText(defaults.button_text);
       setMinQuantity(String(defaults.min_quantity));
@@ -335,10 +348,13 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
   const dominantCategory = Object.entries(categoryCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || "None";
 
   // Filter lists based on Search input
-  const filteredServices = services.filter(s =>
-    s.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    s.description.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredServices = services.filter(s => {
+    const rawDesc = typeof s.description === 'string' ? s.description : '';
+    const parsed = parseDescription(s.description);
+    const descText = parsed ? (parsed.description || '') : rawDesc;
+    return s.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      descText.toLowerCase().includes(searchTerm.toLowerCase());
+  });
 
   return (
     <div className="space-y-6 text-slate-300">
@@ -445,27 +461,25 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
                     <div>{service.title}</div>
                     {(() => {
                       try {
-                        if (service.description && service.description.trim().startsWith("{")) {
-                          const parsed = JSON.parse(service.description);
-                          if (parsed.smm_service_id) {
-                            return (
-                              <div className="flex flex-wrap gap-1.5 mt-1.5 items-center">
-                                <span className="text-[9px] bg-emerald-500/10 border border-emerald-500/20 text-[#1DB954] px-2 py-0.5 rounded-full font-black uppercase tracking-wider inline-flex items-center gap-1 shadow-sm">
-                                  <Layers size={9} strokeWidth={3} /> SMM ID: {parsed.smm_service_id}
+                        const parsed = parseDescription(service.description);
+                        if (parsed && parsed.smm_service_id) {
+                          return (
+                            <div className="flex flex-wrap gap-1.5 mt-1.5 items-center">
+                              <span className="text-[9px] bg-emerald-500/10 border border-emerald-500/20 text-[#1DB954] px-2 py-0.5 rounded-full font-black uppercase tracking-wider inline-flex items-center gap-1 shadow-sm">
+                                <Layers size={9} strokeWidth={3} /> SMM ID: {parsed.smm_service_id}
+                              </span>
+                              {parsed.smm_original_rate !== undefined && (
+                                <span className="text-[9px] bg-slate-800 border border-slate-700/85 text-slate-400 px-2 py-0.5 rounded-full font-bold inline-flex items-center gap-1">
+                                  <DollarSign size={9} /> Reseller: ₱{Number(parsed.smm_original_rate).toFixed(2)}/1k
                                 </span>
-                                {parsed.smm_original_rate !== undefined && (
-                                  <span className="text-[9px] bg-slate-800 border border-slate-700/85 text-slate-400 px-2 py-0.5 rounded-full font-bold inline-flex items-center gap-1">
-                                    <DollarSign size={9} /> Reseller: ₱{Number(parsed.smm_original_rate).toFixed(2)}/1k
-                                  </span>
-                                )}
-                                {parsed.smm_original_name && (
-                                  <span className="text-[9px] bg-blue-500/10 border border-blue-500/20 text-blue-400 px-2 py-0.5 rounded-full font-bold max-w-[220px] truncate inline-block" title={parsed.smm_original_name}>
-                                    {parsed.smm_original_name}
-                                  </span>
-                                )}
-                              </div>
-                            );
-                          }
+                              )}
+                              {parsed.smm_original_name && (
+                                <span className="text-[9px] bg-blue-500/10 border border-blue-500/20 text-blue-400 px-2 py-0.5 rounded-full font-bold max-w-[220px] truncate inline-block" title={parsed.smm_original_name}>
+                                  {parsed.smm_original_name}
+                                </span>
+                              )}
+                            </div>
+                          );
                         }
                       } catch (e) {}
                       return null;
@@ -474,11 +488,12 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
                   <td className="py-4 px-6 text-xs text-slate-400 max-w-md truncate">
                     {(() => {
                       try {
-                        if (service.description && service.description.trim().startsWith("{")) {
-                          return JSON.parse(service.description).description || service.description;
+                        const parsed = parseDescription(service.description);
+                        if (parsed) {
+                          return parsed.description || "";
                         }
                       } catch (e) {}
-                      return service.description;
+                      return typeof service.description === "string" ? service.description : "";
                     })()}
                   </td>
                   <td className="py-4 px-6 text-sm font-extrabold text-[#1DB954] whitespace-nowrap">
