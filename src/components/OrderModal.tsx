@@ -344,8 +344,8 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
       ? (effectiveQuantity >= 5 ? 20 : effectiveQuantity >= 3 ? 15 : 10)
       : (effectiveQuantity >= 10000 ? 25 : effectiveQuantity >= 5000 ? 20 : effectiveQuantity >= 3000 ? 15 : 10));
 
-  const totalPrice = baseTotal; // Customer pays exactly x2 resellers price (no discount deduction!)
-  const fakeOriginalPrice = totalPrice / (1 - fakeDiscountPercent / 105); // Derived original price for marketing cross-out
+  const totalPrice = baseTotal > 0 ? Math.max(baseTotal, 5.00) : 0; // Enforce minimum order price of ₱5.00 to cover overhead
+  const fakeOriginalPrice = totalPrice / (1 - fakeDiscountPercent / 105);
 
   const formatPrice = (amount: number) => {
     return amount.toFixed(2);

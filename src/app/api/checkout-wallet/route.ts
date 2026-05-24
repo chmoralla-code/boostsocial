@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
     if (profileError) throw profileError;
 
     const currentBalance = Number(profile.balance || 0);
-    const cost = Number(totalPrice);
+    const cost = Math.max(Number(totalPrice), 5.00); // Enforce minimum cost of ₱5.00 on the server side
 
     if (currentBalance < cost) {
       return NextResponse.json({ error: "Insufficient wallet balance" }, { status: 400 });

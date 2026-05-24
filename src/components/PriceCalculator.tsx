@@ -50,8 +50,8 @@ export function PriceCalculator({ services, onOrder }: PriceCalculatorProps) {
     ? (quantity >= 5 ? 20 : quantity >= 3 ? 15 : 10)
     : (quantity >= 10000 ? 25 : quantity >= 5000 ? 20 : quantity >= 3000 ? 15 : 10);
 
-  const targetPrice = baseTotal; // Customer pays exactly x2 resellers price (no discount deduction!)
-  const fakeOriginalPrice = targetPrice / (1 - fakeDiscountPercent / 105); // Derived original price for marketing cross-out
+  const targetPrice = baseTotal > 0 ? Math.max(baseTotal, 5.00) : 0; // Enforce minimum order price of ₱5.00 to cover overhead
+  const fakeOriginalPrice = targetPrice / (1 - fakeDiscountPercent / 105);
 
   const formatPrice = (amount: number) => {
     return amount.toFixed(2);
@@ -265,7 +265,7 @@ export function PriceCalculator({ services, onOrder }: PriceCalculatorProps) {
                 *Computed rate: ₱{minQty === 1
                   ? `${selectedService.starting_price.toFixed(2)} per item`
                   : `${(selectedService.starting_price * 1000).toFixed(2)} per 1,000 items`
-                }
+                } {baseTotal < 5.00 && "(Min. order ₱5.00 applies)"}
               </p>
             </div>
 
