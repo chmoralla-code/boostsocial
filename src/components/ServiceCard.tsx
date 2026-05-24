@@ -147,7 +147,7 @@ export function ServiceCard({ id, title, description, startingPrice, iconType, o
                   if (isSingleSrv) {
                     return total.toFixed(0);
                   }
-                  return total.toFixed(3);
+                  return total.toFixed(2);
                 })()}
               </span>
             </>

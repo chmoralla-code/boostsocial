@@ -455,7 +455,7 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
                                 </span>
                                 {parsed.smm_original_rate !== undefined && (
                                   <span className="text-[9px] bg-slate-800 border border-slate-700/85 text-slate-400 px-2 py-0.5 rounded-full font-bold inline-flex items-center gap-1">
-                                    <DollarSign size={9} /> Reseller: ₱{Number(parsed.smm_original_rate).toFixed(3)}/1k
+                                    <DollarSign size={9} /> Reseller: ₱{Number(parsed.smm_original_rate).toFixed(2)}/1k
                                   </span>
                                 )}
                                 {parsed.smm_original_name && (
@@ -482,9 +482,7 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
                     })()}
                   </td>
                   <td className="py-4 px-6 text-sm font-extrabold text-[#1DB954] whitespace-nowrap">
-                    ₱{Number(service.starting_price) < 1 
-                      ? Number(service.starting_price).toFixed(4) 
-                      : Number(service.starting_price).toFixed(2)
+                    ₱{Number(service.starting_price).toFixed(2)
                     } <span className="text-[10px] text-slate-500 font-bold uppercase">/ pc</span>
                   </td>
                   <td className="py-4 px-6 text-sm text-right whitespace-nowrap space-x-2">

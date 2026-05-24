@@ -351,7 +351,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
     if (isPageService || isGeminiService || isEapService || isSoftwareService) {
       return amount.toFixed(0);
     }
-    return amount.toFixed(3);
+    return amount.toFixed(2);
   };
 
 

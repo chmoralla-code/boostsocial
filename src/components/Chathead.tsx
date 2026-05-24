@@ -419,7 +419,7 @@ export function Chathead() {
               return `- **${srv.title}:** ₱${Number(srv.starting_price).toFixed(0)} per unit.${minQtyStr}${freeTrialStr}`;
             }
             const perThousandPrice = Number(srv.starting_price) * 1000;
-            return `- **${srv.title}:** ₱${perThousandPrice.toFixed(3)} per 1,000 units.${minQtyStr}${freeTrialStr}`;
+            return `- **${srv.title}:** ₱${perThousandPrice.toFixed(2)} per 1,000 units.${minQtyStr}${freeTrialStr}`;
           }).join('\n')
         : `- Facebook Followers: ₱10 per 1,000 followers.\n- Post Reactions (Likes, Hearts, etc.): ₱5 per 1,000 reactions.\n- Video Views (for Reels, Stories, etc.): ₱13 per 1,000 views.`;
 

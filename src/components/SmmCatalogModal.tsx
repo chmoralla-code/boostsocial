@@ -166,7 +166,7 @@ export function SmmCatalogModal({ isOpen, onClose }: SmmCatalogModalProps) {
   };
 
   const formatPrice = (amount: number) => {
-    return amount.toFixed(3);
+    return amount.toFixed(2);
   };
 
   const effectiveQuantity = selectedService ? Math.max(quantity, selectedService.min) : 0;
@@ -402,7 +402,7 @@ export function SmmCatalogModal({ isOpen, onClose }: SmmCatalogModalProps) {
                             ID: #{service.id}
                           </span>
                           <span className="text-[9px] bg-[#1DB954]/10 text-[#1DB954] border border-[#1DB954]/20 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
-                            ₱{service.startingPrice.toFixed(4)} / pc
+                            ₱{service.startingPrice.toFixed(2)} / pc
                           </span>
                         </div>
                         <h4 className="text-sm font-black text-white group-hover:text-[#1DB954] transition-colors line-clamp-2 leading-snug">
