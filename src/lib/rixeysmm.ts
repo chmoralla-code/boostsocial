@@ -64,7 +64,8 @@ export async function autoPlaceRixeyOrder(
     }
 
     // 4. Read SMM API key
-    const apiKey = process.env.RIXEYSMM_API_KEY;
+    const rawApiKey = process.env.RIXEYSMM_API_KEY;
+    const apiKey = rawApiKey?.replace(/['"\r\n]/g, "").trim();
     if (!apiKey) {
       const errorMsg = "Failed: RixeySMM API Key is missing in environment variables.";
       console.error(`[RixeySMM] ${errorMsg}`);

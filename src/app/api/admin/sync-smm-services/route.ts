@@ -207,7 +207,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid markup percentage" }, { status: 400 });
     }
 
-    const apiKey = process.env.RIXEYSMM_API_KEY;
+    const rawApiKey = process.env.RIXEYSMM_API_KEY;
+    const apiKey = rawApiKey?.replace(/['"\r\n]/g, "").trim();
     if (!apiKey) {
       return NextResponse.json({ error: "RixeySMM API Key is missing on the server" }, { status: 500 });
     }
@@ -218,9 +219,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Server Supabase configuration missing" }, { status: 500 });
     }
 
+    const backupSupabaseUrl = process.env.BACKUP_SUPABASE_URL;
+    const backupServiceRoleKey = process.env.BACKUP_SUPABASE_SERVICE_ROLE_KEY;
+
     const supabase = createClient(supabaseUrl, serviceRoleKey, {
       auth: { persistSession: false }
     });
+
+    const backupSupabase = backupSupabaseUrl && backupServiceRoleKey
+      ? createClient(backupSupabaseUrl, backupServiceRoleKey, { auth: { persistSession: false } })
+      : null;
 
     // 1. Fetch RixeySMM services
     const res = await fetch(RIXEYSMM_API_URL, {
@@ -249,15 +257,23 @@ export async function POST(req: NextRequest) {
       const pageRes = await fetch("https://rixeysmm.shop/services");
       if (pageRes.ok) {
         const html = await pageRes.text();
-        const regex = /data-service-id="(\d+)"[\s\S]*?<td class="avarage_time_Services">([\s\S]*?)<\/td>/g;
+        const regex = /data-filter-table-service-id="(\d+)"/g;
         let match;
         while ((match = regex.exec(html)) !== null) {
-          averageTimes[match[1]] = match[2].trim();
+          const serviceId = match[1];
+          const startIndex = match.index;
+          const startTr = html.lastIndexOf("<tr", startIndex);
+          const endTr = html.indexOf("</tr>", startIndex);
+          if (startTr !== -1 && endTr !== -1 && startTr < startIndex) {
+            const trHtml = html.substring(startTr, endTr);
+            const cells = trHtml.split(/<td[^>]*>/i);
+            if (cells.length >= 7) {
+              const avgTimeCell = cells[6].split("</td>")[0].trim();
+              averageTimes[serviceId] = avgTimeCell;
+            }
+          }
         }
-        const fallbackRegex = /<span id="servis_id" class="order_id">(\d+)<\/span>[\s\S]*?<td class="avarage_time_Services">([\s\S]*?)<\/td>/g;
-        while ((match = fallbackRegex.exec(html)) !== null) {
-          averageTimes[match[1]] = match[2].trim();
-        }
+        console.log(`Successfully parsed average times for ${Object.keys(averageTimes).length} services.`);
       } else {
         console.warn("Failed to fetch public services catalog page for average time sync:", pageRes.status);
       }
@@ -269,8 +285,8 @@ export async function POST(req: NextRequest) {
 
     // 2. Process each core service type
     for (const [key, config] of Object.entries(CORE_SERVICES)) {
-      // Filter SMM services
-      const candidates = smmServices.filter(s => {
+      // Filter all candidates first without strict average time filter
+      const allCandidates = smmServices.filter(s => {
         const name = (s.name || "").toLowerCase();
         const cat = (s.category || "").toLowerCase();
         const desc = (s.desc || "").toLowerCase();
@@ -290,17 +306,35 @@ export async function POST(req: NextRequest) {
         const hasSpeed = speedKeywords.some(kw => name.includes(kw) || desc.includes(kw));
         if (!hasSpeed) return false;
 
-        // Exclude services without valid average time data (Not enough data)
-        const serviceIdStr = String(s.service);
-        const avgTime = averageTimes[serviceIdStr];
-        if (!avgTime || avgTime.toLowerCase().includes("not enough data")) {
-          return false;
-        }
-
         return true;
       });
 
-      if (candidates.length === 0) {
+      // Filter candidates that have valid average time data
+      const candidatesWithAvgTime = allCandidates.filter(s => {
+        const serviceIdStr = String(s.service);
+        const avgTime = averageTimes[serviceIdStr];
+        return avgTime && !avgTime.toLowerCase().includes("not enough data");
+      });
+
+      let cheapest: any = null;
+
+      if (candidatesWithAvgTime.length > 0) {
+        // Sort candidates: primary = cheapest rate, secondary = fastest average time
+        candidatesWithAvgTime.sort((a, b) => {
+          const rateDiff = Number(a.rate) - Number(b.rate);
+          if (rateDiff !== 0) return rateDiff;
+          const minutesA = parseAverageTimeToMinutes(averageTimes[String(a.service)]);
+          const minutesB = parseAverageTimeToMinutes(averageTimes[String(b.service)]);
+          return minutesA - minutesB;
+        });
+        cheapest = candidatesWithAvgTime[0];
+      } else if (allCandidates.length > 0) {
+        // Fallback to absolute cheapest among all candidates regardless of average time data
+        allCandidates.sort((a, b) => Number(a.rate) - Number(b.rate));
+        cheapest = allCandidates[0];
+      }
+
+      if (!cheapest) {
         syncResults[key] = { success: false, error: "No suitable SMM service candidate found" };
 
         const { data: dbService, error: fetchErr } = await supabase
@@ -336,20 +370,23 @@ export async function POST(req: NextRequest) {
               description: JSON.stringify(descriptionObj)
             })
             .eq("id", config.dbId);
+
+          if (backupSupabase) {
+            try {
+              await backupSupabase
+                .from("services")
+                .update({
+                  description: JSON.stringify(descriptionObj)
+                })
+                .eq("id", config.dbId);
+            } catch (err) {
+              console.error("Backup DB candidate clear update failed:", err);
+            }
+          }
         }
 
         continue;
       }
-
-      // Sort candidates by combined score ascending: Score = Rate * (1 + minutes / 1440)
-      candidates.sort((a, b) => {
-        const minutesA = parseAverageTimeToMinutes(averageTimes[String(a.service)]);
-        const minutesB = parseAverageTimeToMinutes(averageTimes[String(b.service)]);
-        const scoreA = Number(a.rate) * (1 + minutesA / 1440);
-        const scoreB = Number(b.rate) * (1 + minutesB / 1440);
-        return scoreA - scoreB;
-      });
-      const cheapest = candidates[0];
 
       const smmRate = Number(cheapest.rate); // per 1000
       const smmServiceId = cheapest.service;
@@ -401,6 +438,20 @@ export async function POST(req: NextRequest) {
         })
         .eq("id", config.dbId);
 
+      if (backupSupabase) {
+        try {
+          await backupSupabase
+            .from("services")
+            .update({
+              starting_price: calculatedPerPiece,
+              description: JSON.stringify(descriptionObj)
+            })
+            .eq("id", config.dbId);
+        } catch (err) {
+          console.error("Backup DB sync update failed:", err);
+        }
+      }
+
       if (updateErr) {
         syncResults[key] = { success: false, error: `Supabase update failed: ${updateErr.message}` };
       } else {
@@ -424,9 +475,16 @@ export async function POST(req: NextRequest) {
       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
       const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
       if (supabaseUrl && serviceRoleKey) {
+        const backupSupabaseUrl = process.env.BACKUP_SUPABASE_URL;
+        const backupServiceRoleKey = process.env.BACKUP_SUPABASE_SERVICE_ROLE_KEY;
+
         const supabase = createClient(supabaseUrl, serviceRoleKey, {
           auth: { persistSession: false }
         });
+
+        const backupSupabase = backupSupabaseUrl && backupServiceRoleKey
+          ? createClient(backupSupabaseUrl, backupServiceRoleKey, { auth: { persistSession: false } })
+          : null;
 
         console.log("Clearing all SMM service IDs from database because sync failed.");
         for (const [key, config] of Object.entries(CORE_SERVICES)) {
@@ -463,6 +521,19 @@ export async function POST(req: NextRequest) {
                 description: JSON.stringify(descriptionObj)
               })
               .eq("id", config.dbId);
+
+            if (backupSupabase) {
+              try {
+                await backupSupabase
+                  .from("services")
+                  .update({
+                    description: JSON.stringify(descriptionObj)
+                  })
+                  .eq("id", config.dbId);
+              } catch (err) {
+                console.error("Backup DB catch block clear failed:", err);
+              }
+            }
           }
         }
         console.log("All core SMM services have been successfully marked unavailable in the DB.");
