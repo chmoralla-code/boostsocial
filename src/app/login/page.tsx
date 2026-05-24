@@ -158,7 +158,7 @@ export default function LoginPage() {
           setError(resData.error || "Failed to create account.");
           setLoading(false);
         } else {
-          setSuccess("✨ Account Successfully Activated! You can now sign in instantly.");
+          setSuccess("📬 Registration Successful! We have sent a verification link to your email. Please check your inbox (and spam/junk folder) and click the link to activate your wallet before signing in! 🚀");
           setLoading(false);
           setMode("signin"); // Go straight to Sign In
           setPassword("");

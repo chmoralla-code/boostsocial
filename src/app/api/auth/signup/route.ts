@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 import { promises as dnsPromises } from "dns";
+import { createClient } from "@supabase/supabase-js";
+import { dualWrite, getPrimaryAdminClient, getBackupAdminClient } from "@/utils/supabase/dual-db";
 
 // ─────────────────────────────────────────────────────────────
 // 1.  MASSIVE DISPOSABLE / BURNER DOMAIN BLOCKLIST (100+)
@@ -152,7 +153,7 @@ export async function POST(req: NextRequest) {
 
     const cleanEmail = email.trim().toLowerCase();
 
-    // ── CHECK 1: RFC 5322 Syntax Regex ───────────────────
+    // ── CHECK 1: RFC 5322 Syntax Check ───────────────────
     const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
     if (!emailRegex.test(cleanEmail)) {
       return NextResponse.json({ error: "Invalid email syntax format. Please double-check your spelling!" }, { status: 400 });
@@ -160,14 +161,14 @@ export async function POST(req: NextRequest) {
 
     const [username, domain] = cleanEmail.split("@");
 
-    // ── CHECK 2: Disposable / Burner Domain Blocklist ────
+    // ── CHECK 2: Disposable Blocklist Check ──────────────
     if (DISPOSABLE_DOMAINS.has(domain)) {
       return NextResponse.json({
         error: `Burner or temporary email accounts (@${domain}) are not permitted. Please use a real, personal email account! 🔒`
       }, { status: 400 });
     }
 
-    // ── CHECK 3: Role-Based / Non-Personal Usernames ─────
+    // ── CHECK 3: Role-Based Email Check ──────────────────
     const baseUsername = username.replace(/[._+-].*$/, "");
     if (ROLE_BASED_USERNAMES.has(username) || ROLE_BASED_USERNAMES.has(baseUsername)) {
       return NextResponse.json({
@@ -175,20 +176,20 @@ export async function POST(req: NextRequest) {
       }, { status: 400 });
     }
 
-    // ── CHECK 4: Junk / Keyboard-Smash Username Detection ─
+    // ── CHECK 4: Junk Username Detection ─────────────────
     const junkMsg = isJunkUsername(username);
     if (junkMsg) {
       return NextResponse.json({ error: junkMsg }, { status: 400 });
     }
 
-    // ── CHECK 5: Common Typo Corrections ─────────────────
+    // ── CHECK 5: Typo Suggestions ────────────────────────
     if (COMMON_TYPOS[domain]) {
       return NextResponse.json({
         error: `Did you mean @${COMMON_TYPOS[domain]}? Please verify your email domain spelling!`
       }, { status: 400 });
     }
 
-    // ── CHECK 6: DNS MX Record Validation ────────────────
+    // ── CHECK 6: DNS MX Record check ─────────────────────
     let mxRecords: any[] = [];
     let dnsValid = false;
     try {
@@ -221,53 +222,92 @@ export async function POST(req: NextRequest) {
     }
 
     // ══════════════════════════════════════════════════════
-    //  ALL CHECKS PASSED — Proceed with user creation
+    //  ALL CLIENT CHECKS PASSED — Dual-Database Signup
     // ══════════════════════════════════════════════════════
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const primaryUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const primaryServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-    if (!supabaseUrl || !serviceRoleKey) {
-      return NextResponse.json({ error: "Server configuration missing" }, { status: 500 });
+    if (!primaryUrl || !primaryServiceKey) {
+      return NextResponse.json({ error: "Primary server configuration missing" }, { status: 500 });
     }
 
-    // Initialize administrative client bypassing RLS and rate limits
-    const supabase = createClient(supabaseUrl, serviceRoleKey, {
-      auth: {
-        persistSession: false
+    // 1. Initialize admin clients for duplicate checks
+    const primaryAdmin = getPrimaryAdminClient();
+    const backupAdmin = getBackupAdminClient();
+
+    // 2. Fetch user lists to prevent duplicate registrations across primary & backup
+    let existingUser = null;
+    try {
+      const { data: primaryUsers } = await primaryAdmin.auth.admin.listUsers();
+      existingUser = primaryUsers?.users.find(u => u.email && u.email.toLowerCase() === cleanEmail.toLowerCase());
+    } catch (e) {
+      console.warn("Failed listing primary users:", e);
+    }
+
+    if (!existingUser) {
+      try {
+        const { data: backupUsers } = await backupAdmin.auth.admin.listUsers();
+        existingUser = backupUsers?.users.find(u => u.email && u.email.toLowerCase() === cleanEmail.toLowerCase());
+      } catch (e) {
+        console.warn("Failed listing backup users:", e);
       }
-    });
-
-    // Fetch user list securely to prevent duplicate registrations
-    const { data, error: listError } = await supabase.auth.admin.listUsers();
-    if (listError) {
-      throw listError;
     }
 
-    const existingUser = data.users.find(u => u.email && u.email.toLowerCase() === cleanEmail.toLowerCase());
     if (existingUser) {
       return NextResponse.json({ error: "This email is already registered. Please sign in!" }, { status: 400 });
     }
 
-    // Create the user with email_confirm: true (bypassing confirmation rates & emails)
-    const { data: createData, error: createError } = await supabase.auth.admin.createUser({
+    // 3. Create the auth user in the PRIMARY database via standard signUp
+    //    We use standard signUp (omitting email_confirm: true) so that Supabase automatically
+    //    sends the email verification/confirmation email to the user!
+    const primaryAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    if (!primaryAnonKey) {
+      return NextResponse.json({ error: "Primary server public key missing" }, { status: 500 });
+    }
+
+    const primaryAnonClient = createClient(primaryUrl, primaryAnonKey, {
+      auth: { persistSession: false }
+    });
+
+    const { data: createData, error: createError } = await primaryAnonClient.auth.signUp({
       email: cleanEmail,
       password: password,
-      email_confirm: true
+      options: {
+        emailRedirectTo: `${req.nextUrl.origin}/auth/callback`
+      }
     });
 
     if (createError) {
-      throw createError;
+      return NextResponse.json({ error: createError.message }, { status: 400 });
     }
 
-    // Process referral systems & welcome balance
-    const newUserId = createData.user.id;
+    const newUserId = createData.user?.id;
+    if (!newUserId) {
+      return NextResponse.json({ error: "Failed to generate user ID" }, { status: 500 });
+    }
+
+    // 4. Create the auth user inside the BACKUP database's auth list so the auth records match!
+    //    We create them via admin on backup so they can log in there if primary fails.
+    try {
+      await backupAdmin.auth.admin.createUser({
+        id: newUserId, // preserve matching UUID!
+        email: cleanEmail,
+        password: password,
+        email_confirm: false // keeps confirmation state matching
+      });
+      console.log(`Successfully replicated auth user ${newUserId} to Backup Auth database.`);
+    } catch (backupAuthErr: any) {
+      console.warn("⚠️ Failed replicating auth user to Backup database:", backupAuthErr.message);
+    }
+
+    // 5. Process referrals & welcome balances
     const generatedReferralCode = `REF-${newUserId.slice(0, 8).toUpperCase()}`;
     let initialBalance = 0.00;
     let referredById = null;
 
     if (referralCode && referralCode.trim() !== "") {
-      const { data: referrer, error: referrerError } = await supabase
+      const { data: referrer, error: referrerError } = await primaryAdmin
         .from("profiles")
         .select("id")
         .eq("referral_code", referralCode.trim())
@@ -276,39 +316,73 @@ export async function POST(req: NextRequest) {
       if (referrer && !referrerError) {
         referredById = referrer.id;
         initialBalance = 20.00; // ₱20 Welcome Balance bonus
+      } else {
+        // Try looking up referrer in backup database in case primary was offline
+        try {
+          const { data: referrerB } = await backupAdmin
+            .from("profiles")
+            .select("id")
+            .eq("referral_code", referralCode.trim())
+            .maybeSingle();
+          if (referrerB) {
+            referredById = referrerB.id;
+            initialBalance = 20.00;
+          }
+        } catch (e) {
+          console.warn("Backup referrer lookup error:", e);
+        }
       }
     }
 
-    // Update newly generated profile with referral code & optional referred_by connection
-    const { error: profileUpdateError } = await supabase
-      .from("profiles")
-      .update({
-        referral_code: generatedReferralCode,
-        referred_by: referredById,
-        balance: initialBalance
-      })
-      .eq("id", newUserId);
+    // 6. Write and sync profiles to BOTH databases using our secure dualWrite system
+    const { error: profileUpdateError, databaseUsed } = await dualWrite(async (dbClient) => {
+      // First, upsert the profile in case the trigger delay didn't finish executing yet
+      return await dbClient
+        .from("profiles")
+        .upsert({
+          id: newUserId,
+          email: cleanEmail,
+          referral_code: generatedReferralCode,
+          referred_by: referredById,
+          balance: initialBalance
+        }, { onConflict: "id" })
+        .select()
+        .single();
+    });
 
     if (profileUpdateError) {
-      console.error("Failed to update profile after signup:", profileUpdateError);
+      console.error("Failed to sync profile after signup across databases:", profileUpdateError);
+    } else {
+      console.log(`Successfully initialized profile across databases (Used: ${databaseUsed})`);
     }
 
-    // Record welcome bonus transaction
+    // 7. Record welcome bonus transaction to BOTH databases
     if (referredById) {
-      const { error: txnError } = await supabase
-        .from("referral_transactions")
-        .insert([
-          {
-            referrer_id: referredById,
-            referee_id: newUserId,
-            amount: 20.00,
-            description: `Welcome signup bonus using referral code ${referralCode.trim()}`
-          }
-        ]);
-      if (txnError) console.error("Failed to log welcome transaction:", txnError);
+      const { error: txnError, databaseUsed: txnDbUsed } = await dualWrite(async (dbClient) => {
+        return await dbClient
+          .from("referral_transactions")
+          .insert([
+            {
+              referrer_id: referredById,
+              referee_id: newUserId,
+              amount: 20.00,
+              description: `Welcome signup bonus using referral code ${referralCode.trim()}`
+            }
+          ]);
+      });
+      
+      if (txnError) {
+        console.error("Failed to log welcome transaction:", txnError);
+      } else {
+        console.log(`Logged welcome transaction across databases (Used: ${txnDbUsed})`);
+      }
     }
 
-    return NextResponse.json({ success: true, user: createData.user });
+    return NextResponse.json({ 
+      success: true, 
+      user: createData.user,
+      message: "Confirmation email sent! Please check your inbox to verify." 
+    });
   } catch (err: any) {
     console.error("Signup endpoint failed:", err);
     return NextResponse.json({ error: err.message || err.toString() }, { status: 500 });
