@@ -36,7 +36,7 @@ export default function AdminLoginPage() {
     }
 
     // Automatically append @boostsocial.com if it's a simple username without @
-    const loginEmail = email.includes("@") ? email.trim() : `${email.trim()}@boostsocial.com`;
+    const loginEmail = (email.includes("@") ? email.trim() : `${email.trim()}@boostsocial.com`).toLowerCase();
 
     try {
       const { data, error: signInError } = await supabase.auth.signInWithPassword({
