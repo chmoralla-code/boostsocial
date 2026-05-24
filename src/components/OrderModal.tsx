@@ -348,9 +348,6 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
   const fakeOriginalPrice = totalPrice / (1 - fakeDiscountPercent / 105); // Derived original price for marketing cross-out
 
   const formatPrice = (amount: number) => {
-    if (isPageService || isGeminiService || isEapService || isSoftwareService) {
-      return amount.toFixed(0);
-    }
     return amount.toFixed(2);
   };
 

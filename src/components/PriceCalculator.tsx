@@ -54,19 +54,6 @@ export function PriceCalculator({ services, onOrder }: PriceCalculatorProps) {
   const fakeOriginalPrice = targetPrice / (1 - fakeDiscountPercent / 105); // Derived original price for marketing cross-out
 
   const formatPrice = (amount: number) => {
-    const isSingleSrv = 
-      selectedService?.title.toLowerCase().includes("page") || 
-      selectedService?.title.toLowerCase().includes("gemini") || 
-      selectedService?.title.toLowerCase().includes("eap") || 
-      selectedService?.title.toLowerCase().includes("tplink") || 
-      selectedService?.title.toLowerCase().includes("software") || 
-      selectedService?.title.toLowerCase().includes("architectural") ||
-      selectedService?.title.toLowerCase().includes("license") ||
-      selectedService?.id === "03185a81-49f3-4255-868e-9e9ec3189497";
-      
-    if (isSingleSrv) {
-      return amount.toFixed(0);
-    }
     return amount.toFixed(2);
   };
 
@@ -275,10 +262,10 @@ export function PriceCalculator({ services, onOrder }: PriceCalculatorProps) {
                 </div>
               )}
               <p className="text-[10px] text-slate-550 font-semibold italic mt-1 bg-[#121212] rounded-lg">
-                *Computed rate: ₱{selectedService.starting_price < 1
-                  ? selectedService.starting_price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })
-                  : selectedService.starting_price.toFixed(2)
-                } per item
+                *Computed rate: ₱{minQty === 1
+                  ? `${selectedService.starting_price.toFixed(2)} per item`
+                  : `${(selectedService.starting_price * 1000).toFixed(2)} per 1,000 items`
+                }
               </p>
             </div>
 

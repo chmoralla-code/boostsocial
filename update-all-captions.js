@@ -40,22 +40,24 @@ async function main() {
     
     // Check if it's a redirect/specialty service (like Gemini, PisoWiFi, software licenses)
     const isSpecialty = 
+      service.title.toLowerCase().includes("page") || 
       service.title.toLowerCase().includes("gemini") || 
       service.title.toLowerCase().includes("pisowifi") || 
       service.title.toLowerCase().includes("eap") || 
       service.title.toLowerCase().includes("tplink") || 
       service.title.toLowerCase().includes("software") || 
+      service.title.toLowerCase().includes("architectural") || 
       service.title.toLowerCase().includes("license") ||
-      parsedDesc.redirect_url;
+      parsedDesc.redirect_url ||
+      Number(parsedDesc.min_quantity) === 1 ||
+      service.id === "03185a81-49f3-4255-868e-9e9ec3189497";
 
     let convincingCaption = "";
     if (isSpecialty) {
-      convincingCaption = `⚡ ONLY ₱${price.toFixed(0)} PER LIFETIME LICENSE !`;
+      convincingCaption = `⚡ ONLY ₱${price.toFixed(2)} PER LIFETIME LICENSE !`;
     } else {
-      const formattedPrice = price < 1 
-        ? price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 5 })
-        : price.toFixed(2);
-      convincingCaption = `🔥 ONLY ₱${formattedPrice} PER SINGLE ITEM RATE !`;
+      const pricePer1k = price * 1000;
+      convincingCaption = `🔥 ONLY ₱${pricePer1k.toFixed(2)} PER 1,000 ITEMS !`;
     }
 
     console.log(`Setting caption for "${service.title}" to: "${convincingCaption}"`);

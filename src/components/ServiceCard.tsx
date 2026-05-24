@@ -135,18 +135,6 @@ export function ServiceCard({ id, title, description, startingPrice, iconType, o
               <span className="text-3xl font-black text-white">
                 ₱{(() => {
                   const total = parsed.min_quantity * startingPrice;
-                  const isSingleSrv = 
-                    title.toLowerCase().includes("page") || 
-                    title.toLowerCase().includes("gemini") || 
-                    title.toLowerCase().includes("eap") || 
-                    title.toLowerCase().includes("tplink") || 
-                    title.toLowerCase().includes("software") || 
-                    title.toLowerCase().includes("architectural") || 
-                    title.toLowerCase().includes("license") ||
-                    id === "03185a81-49f3-4255-868e-9e9ec3189497";
-                  if (isSingleSrv) {
-                    return total.toFixed(0);
-                  }
                   return total.toFixed(2);
                 })()}
               </span>

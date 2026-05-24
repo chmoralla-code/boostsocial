@@ -416,7 +416,7 @@ export function Chathead() {
               srv.id === "03185a81-49f3-4255-868e-9e9ec3189497";
               
             if (isSingleSrv) {
-              return `- **${srv.title}:** ₱${Number(srv.starting_price).toFixed(0)} per unit.${minQtyStr}${freeTrialStr}`;
+              return `- **${srv.title}:** ₱${Number(srv.starting_price).toFixed(2)} per unit.${minQtyStr}${freeTrialStr}`;
             }
             const perThousandPrice = Number(srv.starting_price) * 1000;
             return `- **${srv.title}:** ₱${perThousandPrice.toFixed(2)} per 1,000 units.${minQtyStr}${freeTrialStr}`;
