@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { X, Loader2, ShieldCheck, Copy, Check, Download, Laptop, HelpCircle } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { compressImage } from "@/utils/imageCompressor";
+import { parseDescription } from "@/utils/serviceHelpers";
 
 interface OrderModalProps {
   isOpen: boolean;
@@ -15,7 +16,7 @@ interface OrderModalProps {
   service?: {
     id: string;
     title: string;
-    description: string;
+    description: any;
     starting_price: number;
     icon_type: string;
   } | null;
@@ -238,8 +239,8 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
 
     if (service && service.description) {
       try {
-        if (service.description.trim().startsWith("{")) {
-          const p = JSON.parse(service.description);
+        const p = parseDescription(service.description);
+        if (p) {
           return {
             min_quantity: (isPageService || isEapService || isSoftwareService) ? 1 : (Number(p.min_quantity) || defaults.min_quantity),
             free_trial_amount: (isPageService || isEapService || isSoftwareService) ? 0 : (Number(p.free_trial_amount) || defaults.free_trial_amount),

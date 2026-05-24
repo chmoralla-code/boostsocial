@@ -1,11 +1,12 @@
 "use client";
 
 import { Users, ThumbsUp, Play, ExternalLink, Wifi } from "lucide-react";
+import { parseDescription } from "@/utils/serviceHelpers";
 
 interface ServiceCardProps {
   id: string;
   title: string;
-  description: string;
+  description: any;
   startingPrice: number;
   iconType: string;
   onOrder: (serviceId: string, serviceTitle: string, startingPrice: number) => void;
@@ -63,8 +64,8 @@ export function ServiceCard({ id, title, description, startingPrice, iconType, o
     }
 
     try {
-      if (description && description.trim().startsWith("{")) {
-        const p = JSON.parse(description);
+      const p = parseDescription(description);
+      if (p) {
         return {
           description: p.description || defaults.description,
           subtitle: p.subtitle || defaults.subtitle,

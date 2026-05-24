@@ -2,11 +2,12 @@
 
 import { useState, useEffect } from "react";
 import { Zap, HelpCircle } from "lucide-react";
+import { parseDescription } from "@/utils/serviceHelpers";
 
 interface Service {
   id: string;
   title: string;
-  description: string;
+  description: any;
   starting_price: number;
   icon_type: string;
 }
@@ -30,9 +31,8 @@ export function PriceCalculator({ services, onOrder }: PriceCalculatorProps) {
   const parsedDetails = (() => {
     if (selectedService && selectedService.description) {
       try {
-        if (selectedService.description.trim().startsWith("{")) {
-          return JSON.parse(selectedService.description);
-        }
+        const p = parseDescription(selectedService.description);
+        if (p) return p;
       } catch (e) {}
     }
     return { min_quantity: 100 };
@@ -185,8 +185,9 @@ export function PriceCalculator({ services, onOrder }: PriceCalculatorProps) {
                         // Parse next service min quantity
                         let nextMinQty = 100;
                         try {
-                          if (srv.description && srv.description.trim().startsWith("{")) {
-                            nextMinQty = Number(JSON.parse(srv.description).min_quantity) || 100;
+                          const parsed = parseDescription(srv.description);
+                          if (parsed) {
+                            nextMinQty = Number(parsed.min_quantity) || 100;
                           }
                         } catch (e) {}
                         

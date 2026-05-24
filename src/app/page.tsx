@@ -3,6 +3,7 @@ import { Footer } from "@/components/Footer";
 import { ServicesSection } from "@/components/ServicesSection";
 import { HeroVideoBackground } from "@/components/HeroVideoBackground";
 import { createClient } from "@/utils/supabase/server";
+import { parseDescription } from "@/utils/serviceHelpers";
 
 export default async function Home() {
   const supabase = await createClient();
@@ -27,11 +28,8 @@ export default async function Home() {
 
     if (isSmmService) {
       try {
-        if (service.description && service.description.trim().startsWith("{")) {
-          const parsed = JSON.parse(service.description);
-          return !!parsed.smm_service_id;
-        }
-        return false;
+        const parsed = parseDescription(service.description);
+        return !!(parsed && parsed.smm_service_id);
       } catch (e) {
         return false;
       }

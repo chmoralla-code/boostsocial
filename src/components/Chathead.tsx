@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { MessageCircle, X, Send, Loader2, Image } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
+import { parseDescription } from "@/utils/serviceHelpers";
 
 declare global {
   interface Window {
@@ -398,8 +399,8 @@ export function Chathead() {
             let minQtyStr = "";
             let freeTrialStr = "";
             try {
-              if (srv.description && srv.description.trim().startsWith("{")) {
-                const parsed = JSON.parse(srv.description);
+              const parsed = parseDescription(srv.description);
+              if (parsed) {
                 if (parsed.min_qty) minQtyStr = ` (Min order: ${parsed.min_qty})`;
                 if (parsed.free_trial_amount) freeTrialStr = ` (Free Trial: ${parsed.free_trial_amount} units available!)`;
               }

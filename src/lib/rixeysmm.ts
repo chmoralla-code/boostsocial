@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { parseDescription } from "@/utils/serviceHelpers";
 
 const RIXEYSMM_API_URL = "https://rixeysmm.shop/api/v2";
 
@@ -44,10 +45,12 @@ export async function autoPlaceRixeyOrder(
         .eq("id", order.service_id)
         .maybeSingle();
 
-      if (service?.description && service.description.trim().startsWith("{")) {
+      if (service?.description) {
         try {
-          const parsed = JSON.parse(service.description);
-          smmServiceId = parsed.smm_service_id ? String(parsed.smm_service_id) : null;
+          const parsed = parseDescription(service.description);
+          if (parsed) {
+            smmServiceId = parsed.smm_service_id ? String(parsed.smm_service_id) : null;
+          }
         } catch (e) {
           console.warn(`[RixeySMM] Failed parsing JSON description for service ${order.service_id}:`, e);
         }

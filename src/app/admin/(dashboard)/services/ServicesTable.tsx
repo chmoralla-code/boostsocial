@@ -4,6 +4,7 @@ import { useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { Edit2, Trash2, Plus, X, Users, ThumbsUp, Play, Search, DollarSign, Settings, Layers, Image as ImageIcon, Loader2, RefreshCw } from "lucide-react";
 import { compressImage } from "@/utils/imageCompressor";
+import { parseDescription } from "@/utils/serviceHelpers";
 
 interface Service {
   id: string;
@@ -13,17 +14,6 @@ interface Service {
   icon_type: string;
   created_at?: string;
 }
-
-const parseDescription = (desc: any) => {
-  if (!desc) return null;
-  if (typeof desc === "object") return desc;
-  if (typeof desc === "string" && desc.trim().startsWith("{")) {
-    try {
-      return JSON.parse(desc);
-    } catch (e) {}
-  }
-  return null;
-};
 
 export function ServicesTable({ initialServices }: { initialServices: Service[] }) {
   const [services, setServices] = useState<Service[]>(initialServices);

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { parseDescription } from "@/utils/serviceHelpers";
 
 interface CoreServiceConfig {
   dbId: string;
@@ -311,8 +312,9 @@ export async function POST(req: NextRequest) {
         if (!fetchErr && dbService) {
           let descriptionObj: any = {};
           try {
-            if (dbService.description && dbService.description.trim().startsWith("{")) {
-              descriptionObj = JSON.parse(dbService.description);
+            const parsed = parseDescription(dbService.description);
+            if (parsed) {
+              descriptionObj = parsed;
             } else {
               descriptionObj = { description: dbService.description };
             }
@@ -370,8 +372,9 @@ export async function POST(req: NextRequest) {
       // Parse existing description
       let descriptionObj: any = {};
       try {
-        if (dbService.description && dbService.description.trim().startsWith("{")) {
-          descriptionObj = JSON.parse(dbService.description);
+        const parsed = parseDescription(dbService.description);
+        if (parsed) {
+          descriptionObj = parsed;
         } else {
           descriptionObj = { description: dbService.description };
         }
@@ -436,8 +439,9 @@ export async function POST(req: NextRequest) {
           if (!fetchErr && dbService) {
             let descriptionObj: any = {};
             try {
-              if (dbService.description && dbService.description.trim().startsWith("{")) {
-                descriptionObj = JSON.parse(dbService.description);
+              const parsed = parseDescription(dbService.description);
+              if (parsed) {
+                descriptionObj = parsed;
               } else {
                 descriptionObj = { description: dbService.description };
               }

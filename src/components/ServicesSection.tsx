@@ -9,11 +9,12 @@ import { FaqSection } from "./FaqSection";
 import { ReviewsSection } from "./ReviewsSection";
 import { SmmCatalogModal } from "./SmmCatalogModal";
 import { Layers, X } from "lucide-react";
+import { parseDescription } from "@/utils/serviceHelpers";
 
 interface Service {
   id: string;
   title: string;
-  description: string;
+  description: any;
   starting_price: number;
   icon_type: string;
 }
@@ -36,15 +37,13 @@ export function ServicesSection({ services }: ServicesSectionProps) {
   // New state for "RixeySMM Catalog" explorer modal
   const [isSmmCatalogModalOpen, setIsSmmCatalogModalOpen] = useState(false);
 
-  const handleOrder = (id: string, title: string, price: number, description?: string) => {
+  const handleOrder = (id: string, title: string, price: number, description?: any) => {
     // Check if this service has a redirect URL
     try {
-      if (description && description.trim().startsWith("{")) {
-        const parsed = JSON.parse(description);
-        if (parsed.redirect_url) {
-          window.open(parsed.redirect_url, "_blank", "noopener,noreferrer");
-          return;
-        }
+      const parsed = parseDescription(description);
+      if (parsed && parsed.redirect_url) {
+        window.open(parsed.redirect_url, "_blank", "noopener,noreferrer");
+        return;
       }
     } catch (e) {}
 
