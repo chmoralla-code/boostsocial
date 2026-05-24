@@ -13,30 +13,6 @@ export default async function Home() {
     .select('*')
     .order('created_at', { ascending: true });
 
-  // Filter out core SMM services that do not have a successful RixeySMM mapping (e.g. unsynced/no speed data)
-  const availableServices = (services || []).filter(service => {
-    const titleLower = (service.title || "").toLowerCase();
-    const isSmmService = 
-      titleLower.includes("fb ") || 
-      titleLower.includes("ig ") || 
-      titleLower.includes("tiktok ") || 
-      titleLower.includes("yt ") || 
-      titleLower.startsWith("fb ") || 
-      titleLower.startsWith("ig ") || 
-      titleLower.startsWith("tiktok ") || 
-      titleLower.startsWith("yt ");
-
-    if (isSmmService) {
-      try {
-        const parsed = parseDescription(service.description);
-        return !!(parsed && parsed.smm_service_id);
-      } catch (e) {
-        return false;
-      }
-    }
-    return true;
-  });
-
   // Fetch custom hero video URL and opacity from Supabase Storage config
   let videoUrl = "";
   let opacity = 0.45;
@@ -125,7 +101,7 @@ export default async function Home() {
           </div>
         </div>
 
-        <ServicesSection services={availableServices} />
+        <ServicesSection services={services || []} />
       </main>
 
       <Footer />
