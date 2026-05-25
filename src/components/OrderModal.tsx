@@ -1153,10 +1153,10 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                               </p>
                               
                               <div className="space-y-1.5 pl-3 pt-1 text-[10px] text-slate-500 border-l border-slate-800 font-bold">
-                                <div>1. Locate your <strong>public/extension</strong> folder inside your code files.</div>
-                                <div>2. Open Chrome and go to <strong>chrome://extensions</strong>.</div>
-                                <div>3. Enable <strong>Developer Mode</strong> (top right).</div>
-                                <div>4. Click <strong>Load unpacked</strong> and select that folder.</div>
+                                <div>1. <a href="/boostsocial-bot.zip" download className="text-[#1877F2] hover:underline font-black">Download the Bot Extension ZIP</a> and extract it on your PC.</div>
+                                <div>2. Open Google Chrome and go to <strong>chrome://extensions</strong>.</div>
+                                <div>3. Enable <strong>Developer Mode</strong> (top-right toggle).</div>
+                                <div>4. Click <strong>Load unpacked</strong> (top-left) and select the extracted folder.</div>
                                 <div>5. Copy the generated Extension ID and paste it below.</div>
                               </div>
                             </div>
