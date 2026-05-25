@@ -1,0 +1,27 @@
+{
+  "manifest_version": 3,
+  "name": "CYNETWORK Facebook Autonomous Bot",
+  "version": "1.1.0",
+  "description": "100% Autonomous background posting, MyDay stories, and group sharing in real-time.",
+  "permissions": [
+    "activeTab",
+    "tabs",
+    "scripting",
+    "alarms",
+    "storage",
+    "offscreen"
+  ],
+  "host_permissions": [
+    "https://*.facebook.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "externally_connectable": {
+    "matches": [
+      "http://localhost:3000/*",
+      "https://fboosting.vercel.app/*",
+      "https://*.vercel.app/*"
+    ]
+  }
+}
