@@ -3,6 +3,7 @@ import { Footer } from "@/components/Footer";
 import { ServicesSection } from "@/components/ServicesSection";
 import { HeroVideoBackground } from "@/components/HeroVideoBackground";
 import { createClient } from "@/utils/supabase/server";
+import { HeroSearch } from "@/components/HeroSearch";
 import { parseDescription } from "@/utils/serviceHelpers";
 
 export const dynamic = "force-dynamic";
@@ -71,12 +72,7 @@ export default async function Home() {
             reactions, or views so you can test our service before paying fully!
           </p>
           
-          <a 
-            href="#services" 
-            className="inline-block bg-[#1877F2] hover:bg-[#4e8df5] text-white font-black py-4.5 px-12 rounded-full shadow-[0_0_30px_rgba(24,119,242,0.35)] hover:shadow-[0_0_45px_rgba(24,119,242,0.55)] transition-all duration-300 transform hover:scale-[1.04] tracking-widest uppercase text-xs border border-blue-400/20 cursor-pointer animate-fade-in-up-3 mb-10"
-          >
-            Explore Services
-          </a>
+          <HeroSearch services={services || []} />
 
           {/* Value Propositions / Trust Highlights to beat automated faceless panels */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 max-w-3xl w-full mt-2 animate-fade-in-up-3">
