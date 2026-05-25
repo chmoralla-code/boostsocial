@@ -5,6 +5,7 @@ import { X, Loader2, ShieldCheck, Copy, Check, Download, Laptop, HelpCircle } fr
 import { createClient } from "@/utils/supabase/client";
 import { compressImage } from "@/utils/imageCompressor";
 import { parseDescription } from "@/utils/serviceHelpers";
+import { getFBReactionRetailPrice, getFBReactionsSMMDetails } from "@/utils/fbReactions";
 
 interface OrderModalProps {
   isOpen: boolean;
@@ -336,7 +337,8 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
 
   const effectiveQuantity = Math.max(quantity, minQty);
 
-  const baseTotal = effectiveQuantity * serviceBasePrice;
+  const dynamicReactionPrice = isReactionService ? getFBReactionRetailPrice(selectedReactions) : serviceBasePrice;
+  const baseTotal = effectiveQuantity * dynamicReactionPrice;
 
   // Fake Marketing Discount Engine (Visual-only discount to incentivize sales)
   const fakeDiscountPercent = isEapService 
@@ -382,7 +384,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
             amount: totalPrice,
             status: 'Pending',
             quantity: finalQuantity,
-            smm_service_id: parsedDetails.smm_service_id
+            smm_service_id: isReactionService ? getFBReactionsSMMDetails(selectedReactions).smmId : parsedDetails.smm_service_id
           }
         ])
         .select('id')
@@ -476,7 +478,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
           url: tempUrl,
           quantity: finalQuantity,
           totalPrice,
-          smmServiceId: parsedDetails.smm_service_id
+          smmServiceId: isReactionService ? getFBReactionsSMMDetails(selectedReactions).smmId : parsedDetails.smm_service_id
         })
       });
 

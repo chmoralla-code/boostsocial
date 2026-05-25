@@ -258,24 +258,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "This email is already registered. Please sign in!" }, { status: 400 });
     }
 
-    // 3. Create the auth user in the PRIMARY database via standard signUp
-    //    We use standard signUp (omitting email_confirm: true) so that Supabase automatically
-    //    sends the email verification/confirmation email to the user!
-    const primaryAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    if (!primaryAnonKey) {
-      return NextResponse.json({ error: "Primary server public key missing" }, { status: 500 });
-    }
-
-    const primaryAnonClient = createClient(primaryUrl, primaryAnonKey, {
-      auth: { persistSession: false }
-    });
-
-    const { data: createData, error: createError } = await primaryAnonClient.auth.signUp({
+    // 3. Create the auth user in the PRIMARY database via Admin API to bypass SMTP rate limits!
+    //    This automatically confirms the email, enabling unlimited and instant registrations.
+    const { data: createData, error: createError } = await primaryAdmin.auth.admin.createUser({
       email: cleanEmail,
       password: password,
-      options: {
-        emailRedirectTo: `${req.nextUrl.origin}/auth/callback`
-      }
+      email_confirm: true
     });
 
     if (createError) {
@@ -288,13 +276,13 @@ export async function POST(req: NextRequest) {
     }
 
     // 4. Create the auth user inside the BACKUP database's auth list so the auth records match!
-    //    We create them via admin on backup so they can log in there if primary fails.
+    //    We also confirm their email on backup to keep the confirmation state matching.
     try {
       await backupAdmin.auth.admin.createUser({
         id: newUserId, // preserve matching UUID!
         email: cleanEmail,
         password: password,
-        email_confirm: false // keeps confirmation state matching
+        email_confirm: true // keeps confirmation state matching
       });
       console.log(`Successfully replicated auth user ${newUserId} to Backup Auth database.`);
     } catch (backupAuthErr: any) {
@@ -381,7 +369,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ 
       success: true, 
       user: createData.user,
-      message: "Confirmation email sent! Please check your inbox to verify." 
+      message: "🎉 Registration Successful! Your account has been instantly activated. You can now sign in immediately! 🚀" 
     });
   } catch (err: any) {
     console.error("Signup endpoint failed:", err);
