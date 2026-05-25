@@ -1,7 +1,20 @@
 // CYNETWORK Offscreen DOM Automation Engine
 console.log("CYNETWORK Offscreen Automation script loaded.");
 
-// Listen to messages from our background service worker
+// Auto-execute if queue is buffered in local storage upon launch
+document.addEventListener("DOMContentLoaded", () => {
+  chrome.storage.local.get(["activeQueue"], (result) => {
+    if (result && result.activeQueue) {
+      const { photos, fbEmail } = result.activeQueue;
+      // Immediately clear the queue to prevent duplicate runs
+      chrome.storage.local.remove(["activeQueue"], () => {
+        executeBackgroundPosting(photos, fbEmail);
+      });
+    }
+  });
+});
+
+// Listen to messages from our background service worker (Fallback)
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === "RUN_OFFSCREEN_POSTS") {
     executeBackgroundPosting(message.photos, message.fbEmail);

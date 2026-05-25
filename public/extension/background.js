@@ -17,13 +17,17 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
 
     if (useBackground) {
       logToWebApp("🤖 [SYSTEM] Spawning autonomous background worker process...", 5);
-      setupOffscreenDocument().then(() => {
-        chrome.runtime.sendMessage({
-          action: "RUN_OFFSCREEN_POSTS",
+      
+      // Securely store queue state to local storage to prevent any messaging race conditions with the offscreen DOM
+      chrome.storage.local.set({
+        activeQueue: {
           photos: message.photos,
           fbEmail: message.fbEmail
-        });
+        }
+      }, () => {
+        setupOffscreenDocument();
       });
+      
       sendResponse({ success: true, status: "Autonomous background bot launched invisibly!" });
     } else {
       // Classic Visual Tab posting mode
