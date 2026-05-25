@@ -73,13 +73,12 @@ export function ServicesSection({ services }: ServicesSectionProps) {
     setIsModalOpen(true);
   };
 
-  // Segment services: otherServices are Gemini, PisoWiFi, EAP TP-Link, Architectural Software (Lifetime License), and Autonomous Bot
+  // Segment services: otherServices are Gemini, PisoWiFi, EAP TP-Link, and Architectural Software (Lifetime License)
   const otherServiceIds = [
     "530e797c-62d1-467a-bf23-310c169a7103", // Gemini Pro
     "bace2033-2a35-491f-ad83-ab5fccffb6eb", // PisoWiFi
     "8134f872-1738-44f1-adb0-bc341e64ace0", // EAP TP-Link
-    "03185a81-49f3-4255-868e-9e9ec3189497", // Architectural Software / Lifetime License
-    "autonomous-bot"
+    "03185a81-49f3-4255-868e-9e9ec3189497"  // Architectural Software / Lifetime License
   ];
 
   const otherServices = services.filter((s) => {
@@ -92,32 +91,26 @@ export function ServicesSection({ services }: ServicesSectionProps) {
       t.includes("tplink") ||
       t.includes("architectural") ||
       t.includes("software") ||
-      t.includes("license") ||
-      t.includes("autonomous") ||
-      t.includes("bot")
+      t.includes("license")
     );
   });
 
-  const coreServices = services.filter((s) => {
-    const t = s.title.toLowerCase();
-    return !(
-      otherServiceIds.includes(s.id) ||
-      t.includes("gemini") ||
-      t.includes("pisowifi") ||
-      t.includes("eap") ||
-      t.includes("tplink") ||
-      t.includes("architectural") ||
-      t.includes("software") ||
-      t.includes("license") ||
-      t.includes("autonomous") ||
-      t.includes("bot")
-    );
-  });
+  // Core services are those that are not classified as other services
+  const coreServices = services.filter((s) => !otherServices.some((o) => o.id === s.id));
 
-  // Dynamically find the lowest price in the otherServices catalog (fallback to 250)
-  const lowestOtherPrice = otherServices.reduce(
-    (min, s) => (s.starting_price < min ? s.starting_price : min),
-    250
+  // Local state for searching services directly inside the services section
+  const [sectionSearchQuery, setSectionSearchQuery] = useState("");
+
+  // Determine if a search is active to dynamically display specific cards
+  const isSearchActive = sectionSearchQuery.trim().length > 0;
+
+  // Filtered lists based on the header search box
+  const searchedCoreServices = coreServices.filter(s => 
+    s.title.toLowerCase().includes(sectionSearchQuery.toLowerCase())
+  );
+  
+  const searchedOtherServices = otherServices.filter(s => 
+    s.title.toLowerCase().includes(sectionSearchQuery.toLowerCase())
   );
 
   return (
@@ -133,89 +126,181 @@ export function ServicesSection({ services }: ServicesSectionProps) {
 
       {/* 3. Choose Your Boost Tier Grid */}
       <section id="services" className="w-full max-w-6xl mx-auto px-4 mt-12 mb-20 relative z-10">
-        <h2 className="text-3xl md:text-4xl font-black text-center text-white mb-12 tracking-tight">
-          Choose Your <span className="text-[#1877F2]">Boost Tier</span>
-        </h2>
-        
-        {/* Adjusted grid classes to balance 5 columns on extra large viewports */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
-          {/* Render Core SMM services */}
-          {coreServices.map((service) => (
-            <ServiceCard 
-              key={service.id}
-              id={service.id}
-              title={service.title}
-              description={service.description}
-              startingPrice={service.starting_price}
-              iconType={service.icon_type}
-              onOrder={(id, title, price) => {
-                setSelectedService(service);
-                handleOrder(id, title, price, service.description);
-              }}
-            />
-          ))}
+        <div className="flex flex-col items-center mb-10">
+          <h2 className="text-3xl md:text-4xl font-black text-center text-white tracking-tight">
+            Choose Your <span className="text-[#1877F2]">Boost Tier</span>
+          </h2>
+          <p className="text-slate-400 text-xs mt-2 text-center max-w-md">
+            Premium growth bundles, high-speed reseller SMM boosts, and smart local hardware integration setups.
+          </p>
 
-          {/* Render the Single Unified "OTHER SERVICES" Card */}
-          {otherServices.length > 0 && (
-            <div className="bg-[#121212]/50 hover:bg-[#161616]/90 backdrop-blur-md rounded-3xl p-8 flex flex-col items-start text-left w-full border border-white/[0.04] shadow-[0_12px_40px_rgba(0,0,0,0.4)] transition-all duration-500 transform hover:-translate-y-2 group hover:shadow-[0_0_35px_rgba(24,119,242,0.18)] hover:border-[#1877F2]/30">
+          {/* Search Button/Input for Ease and Convenience (Perfect for Mobile & Desktop) */}
+          <div className="mt-8 w-full max-w-lg relative px-2">
+            <div className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-500 flex items-center">
+              <span className="text-base">🔍</span>
+            </div>
+            <input
+              type="text"
+              placeholder="Search specific services (e.g. Followers, Wifi, Lumion)..."
+              value={sectionSearchQuery}
+              onChange={(e) => setSectionSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-10 py-3 rounded-full bg-[#121212]/90 border border-slate-800 hover:border-[#1877F2]/50 focus:outline-none focus:border-[#1877F2] focus:ring-1 focus:ring-[#1877F2]/30 transition-all text-slate-200 font-extrabold placeholder-slate-600 text-xs sm:text-sm tracking-wide shadow-2xl"
+            />
+            {isSearchActive && (
+              <button
+                onClick={() => setSectionSearchQuery("")}
+                className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white transition-colors text-xs font-black bg-transparent border-0 cursor-pointer"
+              >
+                CLEAR
+              </button>
+            )}
+          </div>
+        </div>
+        
+        {/* Dynamic Grid Layout showing consolidated cards OR filtered results */}
+        {isSearchActive ? (
+          /* Search results layout */
+          <div className="space-y-8 animate-in fade-in duration-300">
+            <div className="text-left border-b border-slate-850 pb-2">
+              <span className="text-[10px] font-black uppercase tracking-widest text-[#1877F2]">
+                Search Results ({searchedCoreServices.length + searchedOtherServices.length} items found)
+              </span>
+            </div>
+            
+            {searchedCoreServices.length === 0 && searchedOtherServices.length === 0 ? (
+              <div className="text-center py-16 bg-[#121212]/35 border border-slate-850 border-dashed rounded-3xl">
+                <p className="text-slate-550 font-black uppercase text-sm">No matching services found</p>
+                <p className="text-xs text-slate-600 mt-1">Try searching another term like followers, likes, sketchup or d5.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {/* Render found core services */}
+                {searchedCoreServices.map((service) => (
+                  <ServiceCard 
+                    key={service.id}
+                    id={service.id}
+                    title={service.title}
+                    description={service.description}
+                    startingPrice={service.starting_price}
+                    iconType={service.icon_type}
+                    onOrder={(id, title, price) => {
+                      setSelectedService(service);
+                      handleOrder(id, title, price, service.description);
+                    }}
+                  />
+                ))}
+
+                {/* Render found other specialty services */}
+                {searchedOtherServices.map((service) => (
+                  <ServiceCard 
+                    key={service.id}
+                    id={service.id}
+                    title={service.title}
+                    description={service.description}
+                    startingPrice={service.starting_price}
+                    iconType={service.icon_type}
+                    onOrder={(id, title, price) => {
+                      setSelectedService(service);
+                      handleOrder(id, title, price, service.description);
+                    }}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        ) : (
+          /* Premium Consolidated Homepage Grid (Mobile-First responsive grids) */
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 justify-center max-w-4xl mx-auto">
+            {/* 1. Unified "SOCIAL MEDIA BOOST" Card */}
+            <div className="bg-[#121212]/50 hover:bg-[#161616]/90 backdrop-blur-md rounded-3xl p-8 flex flex-col items-start text-left w-full border border-white/[0.04] shadow-[0_12px_40px_rgba(0,0,0,0.4)] transition-all duration-500 transform hover:-translate-y-2 group hover:shadow-[0_0_35px_rgba(29,185,84,0.18)] hover:border-[#1DB954]/30">
               <div className="h-16 flex items-center justify-center group-hover:scale-115 group-hover:rotate-6 transition-transform duration-500 ease-out">
-                <Layers size={40} className="text-[#1877F2] drop-shadow-[0_0_15px_rgba(24,119,242,0.3)] mb-4" />
+                <Layers size={40} className="text-[#1DB954] drop-shadow-[0_0_15px_rgba(29,185,84,0.3)] mb-4" />
               </div>
               
-              <h3 className="uppercase text-xs font-black tracking-widest text-[#1877F2] mb-2">OTHER SERVICES</h3>
-              <h4 className="text-xl font-bold text-white mb-3 group-hover:text-[#1877F2] transition-colors">Specialty & Utilities</h4>
+              <h3 className="uppercase text-xs font-black tracking-widest text-[#1DB954] mb-2">Platform Boost</h3>
+              <h4 className="text-xl font-bold text-white mb-3 group-hover:text-[#1DB954] transition-colors">SOCIAL MEDIA BOOST</h4>
               
               <p className="text-slate-400 text-sm leading-relaxed mb-8 flex-grow">
-                Premium digital memberships, PisoWiFi setups, network router optimizations, professional modeling software, and content queue automation previews.
+                Instantly amplify your social media channels with high-fidelity, high-retention boosts. Curated SMM plans for Facebook likes, views, organic targeted profile growth, and more!
               </p>
               
-              {/* Caption section listing specialty services (Price removed as requested) */}
               <div className="flex justify-between items-end w-full mb-6 pt-4 border-t border-slate-800/60">
                 <div className="w-full text-left">
                   <span className="block text-slate-500 text-[10px] font-extrabold uppercase tracking-wider line-clamp-2 leading-tight">
-                    Gemini, PisoWiFi, EAP TP-Link, Architectural Software, Autonomous Bot
+                    Facebook Likes & Page Growth, organic targeted campaigns, custom reaction bundles
                   </span>
                 </div>
               </div>
               
               <button 
-                onClick={() => setIsOtherModalOpen(true)}
-                className="w-full bg-[#1877F2] hover:bg-[#4e8df5] text-white font-extrabold py-3.5 rounded-full transition-all duration-300 uppercase text-xs tracking-wider transform group-hover:scale-[1.02] shadow-lg shadow-blue-500/5 cursor-pointer"
+                onClick={() => setIsSmmCatalogModalOpen(true)}
+                className="w-full bg-[#1DB954] hover:bg-[#1ed760] text-black font-extrabold py-3.5 rounded-full transition-all duration-300 uppercase text-xs tracking-wider transform group-hover:scale-[1.02] shadow-lg shadow-[#1DB954]/5 cursor-pointer text-center"
               >
-                VIEW OTHER SERVICES
+                VIEW
               </button>
             </div>
-          )}
 
-          {/* Render the Single Unified "SMM CATALOG EXPLORER" Card */}
-          <div className="bg-[#121212]/50 hover:bg-[#161616]/90 backdrop-blur-md rounded-3xl p-8 flex flex-col items-start text-left w-full border border-white/[0.04] shadow-[0_12px_40px_rgba(0,0,0,0.4)] transition-all duration-500 transform hover:-translate-y-2 group hover:shadow-[0_0_35px_rgba(29,185,84,0.18)] hover:border-[#1DB954]/30">
-            <div className="h-16 flex items-center justify-center group-hover:scale-115 group-hover:rotate-6 transition-transform duration-500 ease-out">
-              <Layers size={40} className="text-[#1DB954] drop-shadow-[0_0_15px_rgba(29,185,84,0.3)] mb-4" />
-            </div>
-            
-            <h3 className="uppercase text-xs font-black tracking-widest text-[#1DB954] mb-2">1,100+ BOOSTS</h3>
-            <h4 className="text-xl font-bold text-white mb-3 group-hover:text-[#1DB954] transition-colors">SMM Catalog Explorer</h4>
-            
-            <p className="text-slate-400 text-sm leading-relaxed mb-8 flex-grow">
-              Instantly browse and order premium boosts for Instagram, TikTok, YouTube, Twitter, and other platforms at cheap direct reseller rates.
-            </p>
-            
-            <div className="flex justify-between items-end w-full mb-6 pt-4 border-t border-slate-800/60">
-              <div className="w-full text-left">
-                <span className="block text-slate-500 text-[10px] font-extrabold uppercase tracking-wider line-clamp-2 leading-tight">
-                  Instagram, TikTok, YouTube, Telegram, Twitter, & More
-                </span>
+            {/* 2. Single Unified "OTHER SERVICES" Card */}
+            {otherServices.length > 0 && (
+              <div className="bg-[#121212]/50 hover:bg-[#161616]/90 backdrop-blur-md rounded-3xl p-8 flex flex-col items-start text-left w-full border border-white/[0.04] shadow-[0_12px_40px_rgba(0,0,0,0.4)] transition-all duration-500 transform hover:-translate-y-2 group hover:shadow-[0_0_35px_rgba(24,119,242,0.18)] hover:border-[#1877F2]/30">
+                <div className="h-16 flex items-center justify-center group-hover:scale-115 group-hover:rotate-6 transition-transform duration-500 ease-out">
+                  <Layers size={40} className="text-[#1877F2] drop-shadow-[0_0_15px_rgba(24,119,242,0.3)] mb-4" />
+                </div>
+                
+                <h3 className="uppercase text-xs font-black tracking-widest text-[#1877F2] mb-2">OTHER SERVICES</h3>
+                <h4 className="text-xl font-bold text-white mb-3 group-hover:text-[#1877F2] transition-colors">Specialty & Utilities</h4>
+                
+                <p className="text-slate-400 text-sm leading-relaxed mb-8 flex-grow">
+                  Premium digital memberships, PisoWiFi setups, network router optimizations, and pre-activated professional architectural design tools.
+                </p>
+                
+                <div className="flex justify-between items-end w-full mb-6 pt-4 border-t border-slate-800/60">
+                  <div className="w-full text-left">
+                    <span className="block text-slate-500 text-[10px] font-extrabold uppercase tracking-wider line-clamp-2 leading-tight">
+                      Gemini Subscriptions, PisoWiFi setups, EAP TP-Link routers, and Architectural Software
+                    </span>
+                  </div>
+                </div>
+                
+                <button 
+                  onClick={() => setIsOtherModalOpen(true)}
+                  className="w-full bg-[#1877F2] hover:bg-[#4e8df5] text-white font-extrabold py-3.5 rounded-full transition-all duration-300 uppercase text-xs tracking-wider transform group-hover:scale-[1.02] shadow-lg shadow-blue-500/5 cursor-pointer text-center"
+                >
+                  VIEW
+                </button>
               </div>
+            )}
+
+            {/* 3. Single Unified "SMM CATALOG EXPLORER" Card */}
+            <div className="bg-[#121212]/50 hover:bg-[#161616]/90 backdrop-blur-md rounded-3xl p-8 flex flex-col items-start text-left w-full border border-white/[0.04] shadow-[0_12px_40px_rgba(0,0,0,0.4)] transition-all duration-500 transform hover:-translate-y-2 group hover:shadow-[0_0_35px_rgba(29,185,84,0.18)] hover:border-[#1DB954]/30">
+              <div className="h-16 flex items-center justify-center group-hover:scale-115 group-hover:rotate-6 transition-transform duration-500 ease-out">
+                <Layers size={40} className="text-[#1DB954] drop-shadow-[0_0_15px_rgba(29,185,84,0.3)] mb-4" />
+              </div>
+              
+              <h3 className="uppercase text-xs font-black tracking-widest text-[#1DB954] mb-2">1,100+ BOOSTS</h3>
+              <h4 className="text-xl font-bold text-white mb-3 group-hover:text-[#1DB954] transition-colors">SMM Catalog Explorer</h4>
+              
+              <p className="text-slate-400 text-sm leading-relaxed mb-8 flex-grow">
+                Instantly search and order premium boosts for Instagram, TikTok, YouTube, Twitter, and other platforms at direct reseller pricing.
+              </p>
+              
+              <div className="flex justify-between items-end w-full mb-6 pt-4 border-t border-slate-800/60">
+                <div className="w-full text-left">
+                  <span className="block text-slate-500 text-[10px] font-extrabold uppercase tracking-wider line-clamp-2 leading-tight">
+                    Instagram followers, TikTok hearts, YouTube sub packs, Telegram, Twitter, & More
+                  </span>
+                </div>
+              </div>
+              
+              <button 
+                onClick={() => setIsSmmCatalogModalOpen(true)}
+                className="w-full bg-[#1DB954] hover:bg-[#1ed760] text-black font-extrabold py-3.5 rounded-full transition-all duration-300 uppercase text-xs tracking-wider transform group-hover:scale-[1.02] shadow-lg shadow-[#1DB954]/5 cursor-pointer text-center"
+              >
+                VIEW
+              </button>
             </div>
-            
-            <button 
-              onClick={() => setIsSmmCatalogModalOpen(true)}
-              className="w-full bg-[#1DB954] hover:bg-[#1ed760] text-black font-extrabold py-3.5 rounded-full transition-all duration-300 uppercase text-xs tracking-wider transform group-hover:scale-[1.02] shadow-lg shadow-[#1DB954]/5 cursor-pointer"
-            >
-              EXPLORE SMM CATALOG
-            </button>
           </div>
-        </div>
+        )}
       </section>
 
       {/* 4. Customer reviews Grid & Form */}

@@ -21,6 +21,16 @@ interface SmmCatalogModalProps {
   onClose: () => void;
 }
 
+const PLATFORMS = [
+  { id: "all", name: "All Platforms", icon: "🌐" },
+  { id: "facebook", name: "Facebook", icon: "📘" },
+  { id: "instagram", name: "Instagram", icon: "📸" },
+  { id: "tiktok", name: "TikTok", icon: "🎵" },
+  { id: "youtube", name: "YouTube", icon: "🎥" },
+  { id: "twitter", name: "Twitter", icon: "🐦" },
+  { id: "telegram", name: "Telegram", icon: "✈️" }
+];
+
 export function SmmCatalogModal({ isOpen, onClose }: SmmCatalogModalProps) {
   const [services, setServices] = useState<SmmService[]>([]);
   const [loading, setLoading] = useState(true);
@@ -28,6 +38,7 @@ export function SmmCatalogModal({ isOpen, onClose }: SmmCatalogModalProps) {
   
   // Search & Filter
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedPlatform, setSelectedPlatform] = useState("all");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [categories, setCategories] = useState<string[]>([]);
   
@@ -111,6 +122,10 @@ export function SmmCatalogModal({ isOpen, onClose }: SmmCatalogModalProps) {
     }
   }, [selectedService]);
 
+  useEffect(() => {
+    setSelectedCategory("all");
+  }, [selectedPlatform]);
+
   const handleSelectService = (service: SmmService) => {
     setSelectedService(service);
     setCheckoutStep("form");
@@ -129,15 +144,30 @@ export function SmmCatalogModal({ isOpen, onClose }: SmmCatalogModalProps) {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // Filter logic
+  // Filter categories based on selected platform
+  const filteredCategories = categories.filter((cat) => {
+    if (selectedPlatform === "all") return true;
+    return cat.toLowerCase().includes(selectedPlatform);
+  });
+
+  // Filter logic for SMM Catalog services
   const filteredServices = services.filter((s) => {
+    const nameLower = s.name.toLowerCase();
+    const categoryLower = s.category.toLowerCase();
+    const idLower = s.id.toLowerCase();
+    const searchLower = searchTerm.toLowerCase();
+
     const matchesSearch = 
-      s.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      s.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      s.id.toLowerCase().includes(searchTerm.toLowerCase());
+      nameLower.includes(searchLower) || 
+      categoryLower.includes(searchLower) ||
+      idLower.includes(searchLower);
       
+    const matchesPlatform = selectedPlatform === "all" || 
+      categoryLower.includes(selectedPlatform) || 
+      nameLower.includes(selectedPlatform);
+
     const matchesCategory = selectedCategory === "all" || s.category === selectedCategory;
-    return matchesSearch && matchesCategory;
+    return matchesSearch && matchesPlatform && matchesCategory;
   });
 
   const getTargetUrlLabel = (category: string) => {
@@ -344,26 +374,50 @@ export function SmmCatalogModal({ isOpen, onClose }: SmmCatalogModalProps) {
         <div className="flex-grow overflow-y-auto p-6 sm:p-8">
           {checkoutStep === "catalog" && (
             <div className="space-y-6 h-full flex flex-col">
+              {/* Premium Quick Platform Filter Bar */}
+              <div className="flex gap-2 overflow-x-auto pb-2.5 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] snap-x snap-mandatory touch-pan-x select-none border-b border-slate-800/40 scroll-smooth">
+                {PLATFORMS.map((platform) => {
+                  const isActive = selectedPlatform === platform.id;
+                  return (
+                    <button
+                      key={platform.id}
+                      onClick={() => setSelectedPlatform(platform.id)}
+                      type="button"
+                      className={`flex items-center gap-1.5 px-4 py-2 rounded-full border text-[10px] sm:text-xs font-black uppercase tracking-wider transition-all duration-300 transform active:scale-95 whitespace-nowrap snap-start cursor-pointer ${
+                        isActive
+                          ? "bg-[#1DB954] text-black border-[#1DB954] shadow-[0_0_15px_rgba(29,185,84,0.3)] font-black"
+                          : "bg-[#161616]/60 text-slate-400 border-slate-800/85 hover:text-white hover:border-slate-700 hover:bg-[#1a1a1a]"
+                      }`}
+                    >
+                      <span className="text-xs sm:text-sm">{platform.icon}</span>
+                      <span>{platform.name}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
               {/* Search and Filters */}
               <div className="flex flex-col sm:flex-row gap-4 justify-between items-center bg-[#181818]/60 p-4 rounded-2xl border border-slate-800/60 shadow-md">
                 <div className="relative w-full sm:flex-1">
                   <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
                   <input
                     type="text"
-                    placeholder="Search from 1,100+ services (e.g. Instagram, TikTok, Followers)..."
+                    placeholder="Search from 1,100+ services (e.g. Followers, Views, Likes)..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 rounded-xl bg-[#090909] border border-slate-800 focus:outline-none focus:border-[#1DB954]/55 focus:ring-1 focus:ring-[#1DB954]/25 transition-all text-slate-200 font-medium placeholder-slate-500 text-sm"
+                    className="w-full pl-10 pr-4 py-2 rounded-xl bg-[#090909] border border-slate-800 focus:outline-none focus:border-[#1DB954] focus:ring-2 focus:ring-[#1DB954]/25 transition-all text-slate-250 font-semibold placeholder-slate-650 text-xs sm:text-sm hover:border-slate-750"
                   />
                 </div>
                 
                 <select
                   value={selectedCategory}
                   onChange={(e) => setSelectedCategory(e.target.value)}
-                  className="w-full sm:w-64 px-4 py-2 rounded-xl bg-[#090909] border border-slate-800 focus:outline-none focus:border-[#1DB954]/55 focus:ring-1 focus:ring-[#1DB954]/25 text-white font-bold cursor-pointer text-sm"
+                  className="w-full sm:w-64 px-4 py-2 rounded-xl bg-[#090909] border border-slate-800 focus:outline-none focus:border-[#1DB954] focus:ring-2 focus:ring-[#1DB954]/25 text-white font-extrabold cursor-pointer text-xs sm:text-sm transition-all hover:border-slate-750"
                 >
-                  <option value="all">All SMM Platforms ({categories.length})</option>
-                  {categories.map((cat) => (
+                  <option value="all">
+                    {selectedPlatform === "all" ? "All Categories" : `All ${selectedPlatform.charAt(0).toUpperCase() + selectedPlatform.slice(1)}`} ({filteredCategories.length})
+                  </option>
+                  {filteredCategories.map((cat) => (
                     <option key={cat} value={cat}>{cat}</option>
                   ))}
                 </select>
@@ -389,7 +443,7 @@ export function SmmCatalogModal({ isOpen, onClose }: SmmCatalogModalProps) {
                   <p className="text-xs text-slate-600 mt-1">Try relaxing your search terms or choosing another category.</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-grow overflow-y-auto max-h-[48vh] pr-1.5 custom-scrollbar">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-grow overflow-y-auto max-h-[35vh] sm:max-h-[48vh] pr-1.5 custom-scrollbar">
                   {filteredServices.map((service) => (
                     <div 
                       key={service.id}
