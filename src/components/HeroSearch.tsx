@@ -77,7 +77,8 @@ INSTRUCTIONS FOR MAPPING:
 1. If the user query is about social media growth or boosting (e.g. followers, reactions, views, likes, retweets, subs, members) for ANY platform (Facebook, Instagram, TikTok, YouTube, Twitter/X, Telegram):
    - Mapped service: "smm".
    - "search_keyword" MUST be the exact specific platform service term (e.g. "Facebook Page Likes", "Instagram Followers", "TikTok Video Views", "YouTube Subscribers", "Telegram Group Members", "Twitter Retweets").
-   - In your "explanation", give a highly comprehensive, custom response analyzing their goal. If they mention a business or content style, relate it! Explain that our SMM catalog contains 1,100+ reseller-rate packages with 100% Adsense compliance and realistic organic-looking profiles (such as curated PH base pools) that protect their page from flagging.
+   - CRITICAL SPECIAL RULE FOR PH BASE: If the query mentions "PH Base", "Filipino", "Philippines", "local", or "pinoy" (especially "Facebook Followers PH Base" or "FB Followers PH Base"), your "search_keyword" MUST be exactly "PH Base" to filter correctly in the catalog explorer, and your explanation must specifically focus on our premium organic Filipino base profiles, explaining that these are real accounts from the Philippines with active feed histories, realistic local human avatars, and high-retention rates, making them 100% safe from algorithm drops or flags.
+   - In your "explanation" for general platforms, give a highly comprehensive, custom response analyzing their goal. If they mention a business or content style, relate it! Explain that our SMM catalog contains 1,100+ reseller-rate packages with 100% Adsense compliance and realistic organic-looking profiles (such as curated PH base pools) that protect their page from flagging.
 2. If the user query is about AI, premium intelligence, or Gemini:
    - Mapped service: "gemini".
    - "search_keyword": "Gemini Pro Premium Subscription".
@@ -157,7 +158,11 @@ No other text, markdown formatting, or symbols around the JSON. Just the raw JSO
       let keyword = "";
       let explanation = "Napansin ko na naghahanap ka ng digital boosts! We have exactly what you need.";
 
-      if (q.includes("gemini") || q.includes("pro") || q.includes("ai")) {
+      if (q.includes("ph base") || q.includes("philippine") || q.includes("filipino") || q.includes("pinoy")) {
+        fallbackService = "smm";
+        keyword = "PH Base";
+        explanation = "Naghahanap ka ba ng Premium Facebook Followers with real local Filipino accounts? Matutuwa ka dahil mayroon kaming premium 'PH Base' followers package sa ating catalog! Perfect ito para sa local brand credibility dahil real accounts na may actual human avatars at activity histories ang gagamitin natin, completely compliant sa account safety standards.";
+      } else if (q.includes("gemini") || q.includes("pro") || q.includes("ai")) {
         fallbackService = "gemini";
         explanation = "I found Gemini Pro Premium subscriptions in our services! Instantly activate your AI workflow.";
       } else if (q.includes("wifi") || q.includes("piso") || q.includes("portal")) {
