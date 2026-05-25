@@ -2,6 +2,8 @@ import { createClient } from "@/utils/supabase/server";
 import { ServicesTable } from "./ServicesTable";
 import { Settings } from "lucide-react";
 
+export const dynamic = "force-dynamic";
+
 export default async function ServicesPage() {
   const supabase = await createClient();
 

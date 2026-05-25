@@ -57,7 +57,9 @@ export function ServicesSection({ services }: ServicesSectionProps) {
       title.toLowerCase().includes("tplink") || 
       title.toLowerCase().includes("software") || 
       title.toLowerCase().includes("architectural") ||
-      title.toLowerCase().includes("license");
+      title.toLowerCase().includes("license") ||
+      title.toLowerCase().includes("autonomous") ||
+      title.toLowerCase().includes("bot");
     setPresetQty(isSingleQty ? 1 : 1000);
     setIsModalOpen(true);
   };

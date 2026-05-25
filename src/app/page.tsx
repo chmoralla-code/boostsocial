@@ -5,6 +5,8 @@ import { HeroVideoBackground } from "@/components/HeroVideoBackground";
 import { createClient } from "@/utils/supabase/server";
 import { parseDescription } from "@/utils/serviceHelpers";
 
+export const dynamic = "force-dynamic";
+
 export default async function Home() {
   const supabase = await createClient();
 

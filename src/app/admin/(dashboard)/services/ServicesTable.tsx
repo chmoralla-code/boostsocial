@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { createClient } from "@/utils/supabase/client";
-import { Edit2, Trash2, Plus, X, Users, ThumbsUp, Play, Search, DollarSign, Settings, Layers, Image as ImageIcon, Loader2, RefreshCw } from "lucide-react";
+import { Edit2, Trash2, Plus, X, Users, ThumbsUp, Play, Search, DollarSign, Settings, Layers, Image as ImageIcon, Loader2, RefreshCw, Sparkles } from "lucide-react";
 import { compressImage } from "@/utils/imageCompressor";
 import { parseDescription } from "@/utils/serviceHelpers";
 
@@ -169,6 +169,10 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
       case "views":
         defaults.subtitle = "Maximize Exposure";
         defaults.button_text = "Boost Views";
+        break;
+      case "automation":
+        defaults.subtitle = "Queue Content Faster";
+        defaults.button_text = "Build Queue";
         break;
       default:
         defaults.subtitle = "Instant Amplification";
@@ -358,6 +362,8 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
         return <ThumbsUp size={18} className="text-red-400" />;
       case "views":
         return <Play size={18} className="text-[#1DB954]" />;
+      case "automation":
+        return <Sparkles size={18} className="text-blue-400" />;
       default:
         return <Users size={18} className="text-slate-400" />;
     }
@@ -630,6 +636,7 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
                     <option value="followers">Followers (Users Icon)</option>
                     <option value="reactions">Reactions (Thumbs Up Icon)</option>
                     <option value="views">Views (Play Button Icon)</option>
+                    <option value="automation">Automation (Sparkles Icon)</option>
                     {iconType.startsWith("http") && (
                       <option value="custom">Custom PNG Upload (Current)</option>
                     )}
