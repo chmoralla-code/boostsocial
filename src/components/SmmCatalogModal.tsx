@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { X, Search, Loader2, Globe, ArrowLeft, ShieldCheck, Check, Copy, AlertCircle, ShoppingBag, Wallet } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
+import { LinkPreviewWindow } from "./LinkPreviewWindow";
 
 interface SmmService {
   id: string; // RixeySMM service ID (e.g. "2983")
@@ -724,6 +725,15 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
                     placeholder={getTargetUrlPlaceholder(selectedService.category)}
                   />
                   <p className="text-[9px] text-slate-500 mt-1 italic">Please ensure your account/post privacy is set to Public.</p>
+
+                  {url && /^https?:\/\//i.test(url) && (
+                    <div className="mt-4 animate-in fade-in duration-300">
+                      <LinkPreviewWindow 
+                        targetUrl={url} 
+                        serviceTitle={selectedService.name} 
+                      />
+                    </div>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

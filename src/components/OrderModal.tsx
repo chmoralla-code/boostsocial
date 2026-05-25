@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { X, Loader2, ShieldCheck, Copy, Check, Download, Laptop, HelpCircle, Plus, Trash2, Terminal, CheckCircle2, Lock, User, Image, AlertCircle } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
+import { LinkPreviewWindow } from "./LinkPreviewWindow";
 import { compressImage } from "@/utils/imageCompressor";
 import { parseDescription } from "@/utils/serviceHelpers";
 import { getFBReactionRetailPrice, getFBReactionsSMMDetails } from "@/utils/fbReactions";
@@ -1010,6 +1011,15 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                       className="w-full px-4 py-3 rounded-xl bg-[#282828] border border-slate-700/60 focus:outline-none focus:ring-2 focus:ring-[#1877F2] text-white transition-all text-sm font-medium"
                       placeholder={inputPlaceholder}
                     />
+
+                    {url && /^https?:\/\//i.test(url) && (
+                      <div className="mt-4 animate-in fade-in duration-300">
+                        <LinkPreviewWindow 
+                          targetUrl={url} 
+                          serviceTitle={serviceTitle} 
+                        />
+                      </div>
+                    )}
                   </div>
 
                   {isReactionService && (
