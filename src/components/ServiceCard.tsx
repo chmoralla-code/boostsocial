@@ -1,6 +1,6 @@
 "use client";
 
-import { Users, ThumbsUp, Play, ExternalLink, Wifi } from "lucide-react";
+import { Users, ThumbsUp, Play, ExternalLink, Wifi, Sparkles } from "lucide-react";
 import { parseDescription } from "@/utils/serviceHelpers";
 
 interface ServiceCardProps {
@@ -32,6 +32,8 @@ export function ServiceCard({ id, title, description, startingPrice, iconType, o
         return <Play size={40} className="text-[#1DB954] drop-shadow-[0_0_15px_rgba(29,185,84,0.3)] mb-4" />;
       case 'pisowifi':
         return <Wifi size={40} className="text-[#1DB954] drop-shadow-[0_0_15px_rgba(29,185,84,0.3)] mb-4" />;
+      case 'automation':
+        return <Sparkles size={40} className="text-[#1DB954] drop-shadow-[0_0_15px_rgba(29,185,84,0.3)] mb-4" />;
       default:
         return <Users size={40} className="text-[#1DB954] drop-shadow-[0_0_15px_rgba(29,185,84,0.3)] mb-4" />;
     }
@@ -56,6 +58,10 @@ export function ServiceCard({ id, title, description, startingPrice, iconType, o
       case 'views':
         defaults.subtitle = 'Maximize Exposure';
         defaults.button_text = 'Boost Views';
+        break;
+      case 'automation':
+        defaults.subtitle = 'Queue Content Faster';
+        defaults.button_text = 'Build Queue';
         break;
       default:
         defaults.subtitle = 'Instant Amplification';
@@ -87,6 +93,8 @@ export function ServiceCard({ id, title, description, startingPrice, iconType, o
         return "hover:shadow-[0_0_35px_rgba(24,119,242,0.18)] hover:border-[#1877F2]/30";
       case "views":
         return "hover:shadow-[0_0_35px_rgba(29,185,84,0.15)] hover:border-[#1ed760]/30";
+      case "automation":
+        return "hover:shadow-[0_0_35px_rgba(24,119,242,0.18)] hover:border-[#1877F2]/30";
       default:
         return "hover:shadow-[0_0_35px_rgba(99,102,241,0.15)] hover:border-indigo-500/30";
     }

@@ -71,12 +71,13 @@ export function ServicesSection({ services }: ServicesSectionProps) {
     setIsModalOpen(true);
   };
 
-  // Segment services: otherServices are Gemini, PisoWiFi, EAP TP-Link, and Architectural Software (Lifetime License)
+  // Segment services: otherServices are Gemini, PisoWiFi, EAP TP-Link, Architectural Software (Lifetime License), and Autonomous Bot
   const otherServiceIds = [
     "530e797c-62d1-467a-bf23-310c169a7103", // Gemini Pro
     "bace2033-2a35-491f-ad83-ab5fccffb6eb", // PisoWiFi
     "8134f872-1738-44f1-adb0-bc341e64ace0", // EAP TP-Link
-    "03185a81-49f3-4255-868e-9e9ec3189497"  // Architectural Software / Lifetime License
+    "03185a81-49f3-4255-868e-9e9ec3189497", // Architectural Software / Lifetime License
+    "autonomous-bot"
   ];
 
   const otherServices = services.filter((s) => {
@@ -89,7 +90,9 @@ export function ServicesSection({ services }: ServicesSectionProps) {
       t.includes("tplink") ||
       t.includes("architectural") ||
       t.includes("software") ||
-      t.includes("license")
+      t.includes("license") ||
+      t.includes("autonomous") ||
+      t.includes("bot")
     );
   });
 
@@ -103,7 +106,9 @@ export function ServicesSection({ services }: ServicesSectionProps) {
       t.includes("tplink") ||
       t.includes("architectural") ||
       t.includes("software") ||
-      t.includes("license")
+      t.includes("license") ||
+      t.includes("autonomous") ||
+      t.includes("bot")
     );
   });
 
@@ -159,14 +164,14 @@ export function ServicesSection({ services }: ServicesSectionProps) {
               <h4 className="text-xl font-bold text-white mb-3 group-hover:text-[#1877F2] transition-colors">Specialty & Utilities</h4>
               
               <p className="text-slate-400 text-sm leading-relaxed mb-8 flex-grow">
-                Premium digital memberships, PisoWiFi setups, network router optimizations, and professional modeling software.
+                Premium digital memberships, PisoWiFi setups, network router optimizations, professional modeling software, and content queue automation previews.
               </p>
               
               {/* Caption section listing specialty services (Price removed as requested) */}
               <div className="flex justify-between items-end w-full mb-6 pt-4 border-t border-slate-800/60">
                 <div className="w-full text-left">
                   <span className="block text-slate-500 text-[10px] font-extrabold uppercase tracking-wider line-clamp-2 leading-tight">
-                    Gemini, PisoWiFi, EAP TP-Link, Architectural Software
+                    Gemini, PisoWiFi, EAP TP-Link, Architectural Software, Autonomous Bot
                   </span>
                 </div>
               </div>

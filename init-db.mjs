@@ -54,6 +54,11 @@ async function init() {
       SELECT 'Video Views', 'Boost views for your videos, stories, and Reels instantly.', 12.99, 'views'
       WHERE NOT EXISTS (SELECT 1 FROM services WHERE title = 'Video Views');
     `;
+    await sql`
+      INSERT INTO services (title, description, starting_price, icon_type)
+      SELECT 'AUTONOMOUS BOT', 'Upload product photos, attach captions, and preview a human-approved content queue before publishing.', 499, 'automation'
+      WHERE NOT EXISTS (SELECT 1 FROM services WHERE title = 'AUTONOMOUS BOT');
+    `;
 
     console.log('Database initialization completed successfully.');
   } catch (error) {

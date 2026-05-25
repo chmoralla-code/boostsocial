@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Loader2, ShieldCheck, Copy, Check, Download, Laptop, HelpCircle } from "lucide-react";
+import { X, Loader2, ShieldCheck, Copy, Check, Download, Laptop, Sparkles, Plus, Eye, EyeOff, UploadCloud } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { compressImage } from "@/utils/imageCompressor";
 import { parseDescription } from "@/utils/serviceHelpers";
 import { getFBReactionRetailPrice, getFBReactionsSMMDetails } from "@/utils/fbReactions";
+import { LinkPreviewWindow } from "@/components/LinkPreviewWindow";
 
 interface OrderModalProps {
   isOpen: boolean;
@@ -22,6 +23,11 @@ interface OrderModalProps {
     icon_type: string;
   } | null;
 }
+
+type AutonomousPhotoDraft = {
+  file: File | null;
+  caption: string;
+};
 
 const REACTION_OPTIONS = [
   { name: "Like", emoji: "👍", color: "#1877F2", glow: "rgba(24, 119, 242, 0.4)" },
@@ -134,6 +140,12 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
   const [profilePic, setProfilePic] = useState<File | null>(null);
   const [coverPic, setCoverPic] = useState<File | null>(null);
   const [notes, setNotes] = useState("");
+  const [autonomousPhotos, setAutonomousPhotos] = useState<AutonomousPhotoDraft[]>([
+    { file: null, caption: "" },
+    { file: null, caption: "" },
+    { file: null, caption: "" },
+  ]);
+  const [showAutonomousPreview, setShowAutonomousPreview] = useState(false);
 
   const titleLower = serviceTitle.toLowerCase();
   const isInstagram = titleLower.includes("instagram") || titleLower.includes("ig ");
@@ -150,11 +162,13 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
   const isReactionService = titleLower.includes("reaction");
   const isGeminiService = titleLower.includes("gemini");
   const isEapService = titleLower.includes("eap") || titleLower.includes("tplink");
+  const isAutonomousService = titleLower.includes("autonomous bot");
   const isSoftwareService = 
     titleLower.includes("software") || 
     titleLower.includes("architectural") ||
     titleLower.includes("license") ||
     serviceId === "03185a81-49f3-4255-868e-9e9ec3189497";
+  const previewSource = isPageService ? fbProfile : (isAutonomousService ? "" : url);
 
   const isPhBase = 
     titleLower.includes("ph base") || 
@@ -195,6 +209,9 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
   } else if (isSoftwareService) {
     unitLabel = "Licenses";
     unitSingle = "license";
+  } else if (isAutonomousService) {
+    unitLabel = "Campaigns";
+    unitSingle = "campaign";
   }
 
   // Dynamic field requirements based on platform and service type
@@ -232,8 +249,8 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
   // Dynamic min quantity and free trial amount based on JSON description pack
   const parsedDetails = (() => {
     const defaults = {
-      min_quantity: (isPageService || isEapService || isSoftwareService) ? 1 : 100,
-      free_trial_amount: (isPageService || isEapService || isSoftwareService) ? 0 : 50,
+      min_quantity: (isPageService || isEapService || isSoftwareService || isAutonomousService) ? 1 : 100,
+      free_trial_amount: (isPageService || isEapService || isSoftwareService || isAutonomousService) ? 0 : 50,
       custom_fields: [] as {id: string, label: string, type?: string, options?: string[]}[],
       smm_service_id: null as number | null
     };
@@ -243,8 +260,8 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
         const p = parseDescription(service.description);
         if (p) {
           return {
-            min_quantity: (isPageService || isEapService || isSoftwareService) ? 1 : (Number(p.min_quantity) || defaults.min_quantity),
-            free_trial_amount: (isPageService || isEapService || isSoftwareService) ? 0 : (Number(p.free_trial_amount) || defaults.free_trial_amount),
+            min_quantity: (isPageService || isEapService || isSoftwareService || isAutonomousService) ? 1 : (Number(p.min_quantity) || defaults.min_quantity),
+            free_trial_amount: (isPageService || isEapService || isSoftwareService || isAutonomousService) ? 0 : (Number(p.free_trial_amount) || defaults.free_trial_amount),
             custom_fields: p.custom_fields || [],
             smm_service_id: p.smm_service_id ? Number(p.smm_service_id) : null
           };
@@ -255,7 +272,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
   })();
 
   // Safe min quantity floor for per-1,000 services
-  const minQty = (isPageService || isGeminiService || isEapService || isSoftwareService)
+  const minQty = (isPageService || isGeminiService || isEapService || isSoftwareService || isAutonomousService)
     ? 1
     : Math.max(parsedDetails.min_quantity || 100, 1);
 
@@ -275,6 +292,56 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const updateAutonomousPhoto = (index: number, updates: Partial<AutonomousPhotoDraft>) => {
+    setAutonomousPhotos((photos) =>
+      photos.map((photo, photoIndex) => (photoIndex === index ? { ...photo, ...updates } : photo))
+    );
+  };
+
+  const addAutonomousPhoto = () => {
+    setAutonomousPhotos((photos) => [...photos, { file: null, caption: "" }]);
+  };
+
+  const removeAutonomousPhoto = (index: number) => {
+    setAutonomousPhotos((photos) => photos.filter((_, photoIndex) => photoIndex !== index));
+  };
+
+  const getReadyAutonomousPhotos = () =>
+    autonomousPhotos.filter((photo) => photo.file && photo.caption.trim());
+
+  const compileAutonomousQueue = (items: { caption: string; url: string }[]) => {
+    const queueItems = items
+      .map((item, index) => `[Photo ${index + 1}: ${item.url}] [Caption ${index + 1}: ${item.caption}]`)
+      .join(" ");
+
+    return `Autonomous Bot: [Workflow: Human-approved queue] [Status: Ready for review] [Preview: Live queue available] [Items: ${items.length}] ${queueItems}`;
+  };
+
+  const uploadAutonomousQueue = async (activeOrderId: string) => {
+    const readyPhotos = getReadyAutonomousPhotos();
+
+    if (readyPhotos.length === 0) {
+      throw new Error("Please upload at least one product photo and caption before ordering Autonomous Bot.");
+    }
+
+    const uploadedItems: { caption: string; url: string }[] = [];
+    for (let index = 0; index < readyPhotos.length; index++) {
+      const photo = readyPhotos[index];
+      if (!photo.file) continue;
+
+      const uploadedUrl = await compressAndUploadAsset(photo.file, activeOrderId, `autonomous-${index + 1}`);
+      if (uploadedUrl === "N/A") {
+        throw new Error(`Failed to upload Autonomous Bot asset #${index + 1}.`);
+      }
+      uploadedItems.push({
+        caption: photo.caption.trim(),
+        url: uploadedUrl,
+      });
+    }
+
+    return compileAutonomousQueue(uploadedItems);
+  };
+
   useEffect(() => {
     if (isOpen) {
       setError("");
@@ -283,8 +350,14 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
       
       setSelectedReactions(["Like"]);
       setEapDeviceCount(1);
+      setAutonomousPhotos([
+        { file: null, caption: "" },
+        { file: null, caption: "" },
+        { file: null, caption: "" },
+      ]);
+      setShowAutonomousPreview(false);
       
-      if (isEapService || isSoftwareService || isPageService) {
+      if (isEapService || isSoftwareService || isPageService || isAutonomousService) {
         setQuantity(1);
       } else if (presetQuantity) {
         setQuantity(presetQuantity);
@@ -325,7 +398,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
 
       checkAuth();
     }
-  }, [isOpen, presetQuantity, isPageService, isEapService, isSoftwareService]);
+  }, [isOpen, presetQuantity, isPageService, isEapService, isSoftwareService, isAutonomousService]);
 
   useEffect(() => {
     if (isEapService) {
@@ -360,16 +433,23 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
     if (!serviceId) return;
 
     const finalQuantity = Math.max(quantity, minQty);
+    const readyAutonomousPhotos = isAutonomousService ? getReadyAutonomousPhotos() : [];
 
     setIsSubmitting(true);
     setError("");
 
     try {
+      if (isAutonomousService && readyAutonomousPhotos.length === 0) {
+        throw new Error("Please upload at least one product photo with a caption before ordering Autonomous Bot.");
+      }
+
       let tempUrl = url.trim();
       if (parsedDetails.custom_fields && parsedDetails.custom_fields.length > 0) {
         tempUrl = "Custom Request: " + Object.entries(customFieldValues).map(([k, v]) => `[${k}: ${v}]`).join(" ");
       } else if (isPageService) {
         tempUrl = "Compiling page specifications...";
+      } else if (isAutonomousService) {
+        tempUrl = `Autonomous Bot: [Workflow: Human-approved queue] [Status: Uploading assets] [Preview: Live queue pending] [Items: ${readyAutonomousPhotos.length}]`;
       } else if (isReactionService) {
         tempUrl = `Reactions: [${selectedReactions.join(", ")}] Link: ${url.trim()}`;
       }
@@ -414,6 +494,14 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
           .eq('id', insertData.id);
       }
 
+      if (isAutonomousService) {
+        const finalUrl = await uploadAutonomousQueue(insertData.id);
+        await supabase
+          .from('orders')
+          .update({ target_url: finalUrl })
+          .eq('id', insertData.id);
+      }
+
       setOrderId(insertData.id);
       setIsWalletPayment(false);
       setSuccess(true);
@@ -448,6 +536,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
     if (!serviceId || !user) return;
 
     const finalQuantity = Math.max(quantity, minQty);
+    const readyAutonomousPhotos = isAutonomousService ? getReadyAutonomousPhotos() : [];
 
     if (Number(profile?.balance || 0) < totalPrice) {
       setError("Insufficient wallet balance. Please top up first.");
@@ -458,11 +547,17 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
     setError("");
 
     try {
+      if (isAutonomousService && readyAutonomousPhotos.length === 0) {
+        throw new Error("Please upload at least one product photo with a caption before ordering Autonomous Bot.");
+      }
+
       let tempUrl = url.trim();
       if (parsedDetails.custom_fields && parsedDetails.custom_fields.length > 0) {
         tempUrl = "Custom Request: " + Object.entries(customFieldValues).map(([k, v]) => `[${k}: ${v}]`).join(" ");
       } else if (isPageService) {
         tempUrl = "Compiling page specifications...";
+      } else if (isAutonomousService) {
+        tempUrl = `Autonomous Bot: [Workflow: Human-approved queue] [Status: Uploading assets] [Preview: Live queue pending] [Items: ${readyAutonomousPhotos.length}]`;
       } else if (isReactionService) {
         tempUrl = `Reactions: [${selectedReactions.join(", ")}] Link: ${url.trim()}`;
       }
@@ -503,6 +598,14 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
         const finalUrl = `Page Wants: [Name: ${desiredName.trim() || 'Any'}] [Category: ${pageCategory}] [Region: ${demographics}] [FB Admin: ${fbProfile.trim() || 'Any'}] [Profile Pic: ${profileUrl}] [Cover Pic: ${coverUrl}]${notes.trim() ? ` [Notes: ${notes.trim()}]` : ""}`;
 
         // Update with fully detailed spec string
+        await supabase
+          .from('orders')
+          .update({ target_url: finalUrl })
+          .eq('id', data.orderId);
+      }
+
+      if (isAutonomousService) {
+        const finalUrl = await uploadAutonomousQueue(data.orderId);
         await supabase
           .from('orders')
           .update({ target_url: finalUrl })
@@ -834,7 +937,140 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                 </div>
               )}
               
-              {parsedDetails.custom_fields && parsedDetails.custom_fields.length > 0 ? (
+              {isAutonomousService ? (
+                <div className="space-y-4 bg-[#121212] border border-slate-800/80 p-4 rounded-xl">
+                  <div className="flex items-start justify-between gap-3 border-b border-slate-850 pb-3">
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-[#1877F2] flex items-center gap-1.5">
+                        <Sparkles size={12} /> Autonomous Bot Content Queue
+                      </span>
+                      <p className="text-[10px] text-slate-400 leading-relaxed font-semibold max-w-[32ch]">
+                        Upload product images and captions. We&apos;ll prepare a publish-ready queue with live preview and approval tracking.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowAutonomousPreview((prev) => !prev)}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-full bg-[#1877F2]/10 hover:bg-[#1877F2]/20 text-[#1877F2] border border-[#1877F2]/20 font-black text-[10px] uppercase tracking-widest transition-all active:scale-95"
+                    >
+                      {showAutonomousPreview ? <EyeOff size={12} /> : <Eye size={12} />}
+                      {showAutonomousPreview ? "Hide Preview" : "Preview Queue"}
+                    </button>
+                  </div>
+
+                  <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1">
+                    {autonomousPhotos.map((photo, index) => (
+                      <div key={`autonomous-photo-${index}`} className="bg-[#181818] border border-slate-800/80 p-4 rounded-xl space-y-3 shadow-md">
+                        <div className="flex items-center justify-between gap-3 border-b border-slate-850/60 pb-2">
+                          <span className="text-[10px] font-black uppercase tracking-widest text-[#1877F2]">
+                            Product Asset #{index + 1}
+                          </span>
+                          {autonomousPhotos.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => removeAutonomousPhoto(index)}
+                              className="text-[10px] font-black uppercase tracking-widest text-red-400 hover:text-red-300 transition-colors"
+                            >
+                              Remove
+                            </button>
+                          )}
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                            Upload Product Photo
+                          </label>
+                          <input
+                            id={`autonomous-photo-${index}`}
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => updateAutonomousPhoto(index, { file: e.target.files?.[0] || null })}
+                            className="hidden"
+                          />
+                          <label
+                            htmlFor={`autonomous-photo-${index}`}
+                            className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-[#282828] border border-dashed border-slate-700 hover:border-[#1877F2] text-slate-300 hover:text-white cursor-pointer transition-all text-xs font-bold"
+                          >
+                            <UploadCloud size={14} />
+                            {photo.file ? "Change Photo" : "Choose Photo"}
+                          </label>
+                          {photo.file && (
+                            <p className="text-[10px] text-[#1877F2] font-bold truncate">
+                              {photo.file.name}
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                            Caption for this photo
+                          </label>
+                          <textarea
+                            value={photo.caption}
+                            onChange={(e) => updateAutonomousPhoto(index, { caption: e.target.value })}
+                            rows={3}
+                            className="w-full px-4 py-3 rounded-xl bg-[#282828] border border-slate-700/60 focus:outline-none focus:ring-2 focus:ring-[#1877F2] text-white transition-all text-xs font-medium resize-none"
+                            placeholder="Add the caption that will accompany this product photo."
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={addAutonomousPhoto}
+                    className="flex items-center justify-center gap-2 w-full py-3 px-4 rounded-xl border border-dashed border-slate-700 hover:border-[#1877F2] text-slate-400 hover:text-white transition-all text-xs font-black uppercase tracking-widest bg-transparent hover:bg-[#1877F2]/5 active:scale-[0.98]"
+                  >
+                    <Plus size={14} />
+                    Add Another Photo
+                  </button>
+
+                  {showAutonomousPreview && (
+                    <div className="bg-[#181818] border border-[#1877F2]/20 p-4 rounded-xl space-y-3 animate-in fade-in duration-200">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-[#1877F2]">
+                          Live Queue Preview
+                        </span>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                          {getReadyAutonomousPhotos().length} ready
+                        </span>
+                      </div>
+
+                      {getReadyAutonomousPhotos().length > 0 ? (
+                        <div className="space-y-3">
+                          {getReadyAutonomousPhotos().map((photo, index) => (
+                            <div key={`autonomous-preview-${index}`} className="bg-[#121212] border border-slate-800/80 rounded-xl p-3 space-y-2">
+                              <div className="flex items-center justify-between gap-3">
+                                <span className="text-[10px] font-black uppercase tracking-widest text-white">
+                                  Preview Item #{index + 1}
+                                </span>
+                                <span className="text-[9px] font-black uppercase tracking-widest text-[#1877F2]">
+                                  Ready for review
+                                </span>
+                              </div>
+                              <p className="text-[10px] text-slate-400 font-semibold truncate">
+                                {photo.file?.name}
+                              </p>
+                              <p className="text-xs text-slate-200 font-semibold leading-relaxed whitespace-pre-line">
+                                {photo.caption.trim()}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-slate-400 font-semibold leading-relaxed">
+                          Add at least one photo with a caption to preview the queue.
+                        </p>
+                      )}
+
+                      <div className="bg-[#121212] border border-slate-800/80 rounded-xl p-3 text-xs text-slate-400 font-semibold leading-relaxed">
+                        Workflow: Upload assets {">"} review queue {">"} human approval before publishing.
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : parsedDetails.custom_fields && parsedDetails.custom_fields.length > 0 ? (
                 <div className="space-y-4 bg-[#121212] border border-slate-800/80 p-4 rounded-xl">
                   {isEapService ? (
                     <>
@@ -1214,6 +1450,15 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                 </div>
               )}
 
+              {previewSource && (
+                <div className="space-y-3">
+                  <LinkPreviewWindow
+                    targetUrl={previewSource}
+                    serviceTitle={serviceTitle}
+                  />
+                </div>
+              )}
+
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest">
@@ -1224,7 +1469,16 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                   </span>
                 </div>
                 
-                {isEapService ? (
+                {isAutonomousService ? (
+                  <div className="bg-[#1e1e1e] border border-slate-800/80 p-4 rounded-xl text-center text-xs font-semibold text-slate-400 space-y-2">
+                    <span className="block text-[10px] font-black uppercase tracking-widest text-[#1877F2]">
+                      Queue Size Locked
+                    </span>
+                    <p className="leading-relaxed">
+                      One order creates one publish-ready content queue. Add as many product photos as you need in the section above.
+                    </p>
+                  </div>
+                ) : isEapService ? (
                   <div className="bg-[#1e1e1e] border border-slate-800/80 p-3.5 rounded-xl text-center text-xs font-semibold text-slate-400">
                     Quantity locked to device count: <strong className="text-[#1877F2] font-black">{eapDeviceCount}</strong>
                     <span className="block text-[10px] text-slate-500 mt-1">Managed dynamically via the device list above.</span>

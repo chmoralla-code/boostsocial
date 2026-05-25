@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
+import { LinkPreviewWindow } from "@/components/LinkPreviewWindow";
 import { Search, Loader2, ShieldCheck, CheckCircle2, AlertCircle, Copy, Check, UploadCloud, Image, ArrowRight } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { format } from "date-fns";
@@ -14,6 +15,7 @@ export default function TrackPage() {
   const [order, setOrder] = useState<any>(null);
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
+  const [showAutonomousPreview, setShowAutonomousPreview] = useState(true);
   
   // File upload state for Pending orders
   const [uploading, setUploading] = useState(false);
@@ -29,6 +31,12 @@ export default function TrackPage() {
         .then((res) => res.json())
         .then((data) => setSmmBalance(data.balance))
         .catch(() => {});
+    }
+  }, [order?.id]);
+
+  useEffect(() => {
+    if (order?.id) {
+      setShowAutonomousPreview(true);
     }
   }, [order?.id]);
 
@@ -200,6 +208,50 @@ export default function TrackPage() {
     return "upcoming";
   };
 
+  const parseAutonomousQueue = (targetUrl?: string | null) => {
+    if (!targetUrl || !targetUrl.startsWith("Autonomous Bot:")) return null;
+
+    const fields: { label: string; value: string }[] = [];
+    const regex = /\[([^\]:]+):\s*([^\]]*)\]/g;
+    let match: RegExpExecArray | null;
+    while ((match = regex.exec(targetUrl)) !== null) {
+      fields.push({ label: match[1].trim(), value: match[2].trim() });
+    }
+
+    const queueMap = new Map<number, { photoUrl?: string; caption?: string }>();
+    fields.forEach(({ label, value }) => {
+      const photoMatch = label.match(/^Photo\s+(\d+)$/i);
+      const captionMatch = label.match(/^Caption\s+(\d+)$/i);
+
+      if (photoMatch) {
+        const index = Number(photoMatch[1]);
+        queueMap.set(index, { ...(queueMap.get(index) || {}), photoUrl: value });
+      } else if (captionMatch) {
+        const index = Number(captionMatch[1]);
+        queueMap.set(index, { ...(queueMap.get(index) || {}), caption: value });
+      }
+    });
+
+    const getField = (name: string) => fields.find((field) => field.label.toLowerCase() === name.toLowerCase())?.value || "";
+
+    return {
+      workflow: getField("Workflow"),
+      status: getField("Status"),
+      preview: getField("Preview"),
+      itemCount: Number(getField("Items")) || queueMap.size,
+      items: Array.from(queueMap.entries())
+        .sort((a, b) => a[0] - b[0])
+        .map(([index, item]) => ({
+          index,
+          photoUrl: item.photoUrl || "",
+          caption: item.caption || "",
+        })),
+    };
+  };
+
+  const autonomousQueue = parseAutonomousQueue(order?.target_url);
+  const isExternalPreviewUrl = !!order?.target_url && /^https?:\/\//i.test(order.target_url);
+
   return (
     <>
       <Header />
@@ -354,7 +406,90 @@ export default function TrackPage() {
                   </div>
                   <div className="col-span-2">
                     <span className="text-[9px] text-slate-500 font-black uppercase tracking-wider block mb-0.5">Target Destination Link</span>
-                    {order.target_url && order.target_url.includes("Page Wants:") ? (
+                    {autonomousQueue ? (
+                        <div className="bg-[#121212] p-4 rounded-xl border border-slate-800/80 text-xs space-y-3 mt-2">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="space-y-1">
+                              <span className="text-[10px] font-black uppercase tracking-widest text-[#1877F2] block">
+                                Autonomous Bot Queue
+                              </span>
+                              <p className="text-[10px] text-slate-400 font-semibold leading-relaxed">
+                                Publish-ready queue with image previews and captions. Manual approval is required before any publish action.
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setShowAutonomousPreview((prev) => !prev)}
+                              className="flex items-center gap-1.5 px-3 py-2 rounded-full bg-[#1877F2]/10 hover:bg-[#1877F2]/20 text-[#1877F2] border border-[#1877F2]/20 font-black text-[10px] uppercase tracking-widest transition-all active:scale-95"
+                            >
+                              {showAutonomousPreview ? "Hide Preview" : "Show Preview"}
+                            </button>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2 text-[10px]">
+                            <div className="bg-[#181818] rounded-xl border border-slate-800/80 p-3">
+                              <span className="block text-slate-500 font-black uppercase tracking-widest mb-1">Workflow</span>
+                              <span className="text-white font-semibold">{autonomousQueue.workflow || "Human-approved queue"}</span>
+                            </div>
+                            <div className="bg-[#181818] rounded-xl border border-slate-800/80 p-3">
+                              <span className="block text-slate-500 font-black uppercase tracking-widest mb-1">Status</span>
+                              <span className="text-[#1877F2] font-black uppercase tracking-widest">{autonomousQueue.status || "Ready for review"}</span>
+                            </div>
+                            <div className="bg-[#181818] rounded-xl border border-slate-800/80 p-3">
+                              <span className="block text-slate-500 font-black uppercase tracking-widest mb-1">Preview</span>
+                              <span className="text-white font-semibold">{autonomousQueue.preview || "Live queue available"}</span>
+                            </div>
+                            <div className="bg-[#181818] rounded-xl border border-slate-800/80 p-3">
+                              <span className="block text-slate-500 font-black uppercase tracking-widest mb-1">Items</span>
+                              <span className="text-white font-black">{autonomousQueue.itemCount}</span>
+                            </div>
+                          </div>
+
+                          {showAutonomousPreview && (
+                            <div className="space-y-3">
+                              {autonomousQueue.items.length > 0 ? autonomousQueue.items.map((item) => (
+                                <div key={item.index} className="bg-[#181818] rounded-xl border border-slate-800/80 overflow-hidden">
+                                  <div className="grid grid-cols-1 sm:grid-cols-[140px_minmax(0,1fr)] gap-3">
+                                    <div className="bg-[#121212] border-b sm:border-b-0 sm:border-r border-slate-800/80 p-2">
+                                      {item.photoUrl && item.photoUrl.startsWith("http") ? (
+                                        <img
+                                          src={item.photoUrl}
+                                          alt={`Autonomous item ${item.index} preview`}
+                                          className="w-full h-32 sm:h-full max-h-40 object-cover rounded-lg border border-slate-800/80"
+                                        />
+                                      ) : (
+                                        <div className="w-full h-32 sm:h-full max-h-40 rounded-lg border border-slate-800/80 flex items-center justify-center text-slate-500 text-[10px] font-black uppercase tracking-widest">
+                                          No preview asset
+                                        </div>
+                                      )}
+                                    </div>
+                                    <div className="p-4 space-y-2">
+                                      <div className="flex items-center justify-between gap-3">
+                                        <span className="text-[10px] font-black uppercase tracking-widest text-[#1877F2]">
+                                          Queue Item #{item.index}
+                                        </span>
+                                        <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">
+                                          Ready for approval
+                                        </span>
+                                      </div>
+                                      <p className="text-[10px] text-slate-400 font-semibold break-all">
+                                        {item.photoUrl || "No asset URL available"}
+                                      </p>
+                                      <p className="text-sm text-white font-semibold leading-relaxed whitespace-pre-line">
+                                        {item.caption || "No caption provided."}
+                                      </p>
+                                    </div>
+                                  </div>
+                                </div>
+                              )) : (
+                                <div className="bg-[#181818] rounded-xl border border-slate-800/80 p-4 text-slate-400 text-xs font-semibold leading-relaxed">
+                                  This queue is waiting for uploaded images to be compiled.
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                    ) : order.target_url && order.target_url.includes("Page Wants:") ? (
                       <div className="bg-[#121212] p-4 rounded-xl border border-slate-800/80 text-xs space-y-2 mt-2">
                         {order.target_url.replace("Page Wants: ", "").split("] [").map((part: string, idx: number) => {
                           const clean = part.replace(/[\[\]]/g, "");
@@ -496,6 +631,14 @@ export default function TrackPage() {
                   </div>
                 </div>
               </div>
+
+              {isExternalPreviewUrl && (
+                <LinkPreviewWindow
+                  targetUrl={order.target_url}
+                  orderStatus={order.status}
+                  serviceTitle={order.services?.title}
+                />
+              )}
 
               {/* Uploader section (ONLY displays if status is Pending) */}
               {order.status === "Pending" && (

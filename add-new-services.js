@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 const { createClient } = require('@supabase/supabase-js');
 
 async function seedServices() {
@@ -46,6 +47,15 @@ async function seedServices() {
     ]
   });
 
+  const autonomousDescription = JSON.stringify({
+    description: "Upload product photos, add a caption to each one, preview the queue in real time, and prepare a human-approved publishing workflow for your content calendar.",
+    subtitle: "AUTONOMOUS BOT",
+    button_text: "BUILD QUEUE",
+    min_quantity: 1,
+    free_trial_amount: 0,
+    custom_fields: []
+  });
+
   console.log("Checking if EAP TP-Link Adaptation already exists...");
   const { data: existingEap } = await supabase.from('services').select('id').eq('title', 'EAP TPLINK ADAPTION');
   if (existingEap && existingEap.length > 0) {
@@ -88,6 +98,28 @@ async function seedServices() {
     }).select().single();
     if (err) console.error("Error inserting Architectural Software:", err.message);
     else console.log("✅ Architectural Software created:", newSw.id);
+  }
+
+  console.log("Checking if Autonomous Bot already exists...");
+  const { data: existingAutonomous } = await supabase.from('services').select('id').eq('title', 'AUTONOMOUS BOT');
+  if (existingAutonomous && existingAutonomous.length > 0) {
+    console.log("Autonomous Bot already exists, updating it...");
+    await supabase.from('services').update({
+      description: autonomousDescription,
+      starting_price: 499,
+      icon_type: 'automation'
+    }).eq('title', 'AUTONOMOUS BOT');
+    console.log("Autonomous Bot updated.");
+  } else {
+    console.log("Inserting Autonomous Bot...");
+    const { data: newAutonomous, error: err } = await supabase.from('services').insert({
+      title: 'AUTONOMOUS BOT',
+      description: autonomousDescription,
+      starting_price: 499,
+      icon_type: 'automation'
+    }).select().single();
+    if (err) console.error("Error inserting Autonomous Bot:", err.message);
+    else console.log("Autonomous Bot created:", newAutonomous.id);
   }
 }
 
