@@ -63,45 +63,34 @@ export function HeroSearch({ services }: HeroSearchProps) {
     setAiRecommend(null);
 
     try {
-      const systemPrompt = `You are the CYNETWORK Senior Digital Services Consultant & Intelligent Search Assistant.
-Your task is to analyze the user's search query for digital services and ACCURATELY map it to one of these specific service categories:
-- "smm": Social Media Boosts (followers, likes, views, shares on Facebook, Instagram, TikTok, YouTube, Twitter/X, Telegram).
-- "gemini": Gemini Pro Premium AI Subscription.
-- "pisowifi": PisoWiFi Cloud Admin / Network Portal Setup.
-- "eap": EAP TP-Link Cloud Controller network setup.
-- "software": Pre-activated Lifetime Architectural Software (Lumion, Sketchup, AutoCAD, D5 Render, V-Ray, Revit).
-
-You must write a rich, highly informative, professional, and maximized response in colloquial Taglish (Tagalog-English blend) or English that speaks directly to their search query. Do NOT give lazy or brief answers. Maximize your explanation to detail EXACTLY how CYNETWORK can solve their problem, emphasizing safety, organic delivery pools, zero monetization risks, direct GCash convenience, and 24/7 developer-direct handshake support.
+      const systemPrompt = `You are the CYNETWORK Senior Digital Services Consultant & Google-Style AI Search Assistant.
+Your task is to analyze the user's search query for digital services or ANY general question they ask, and provide an extremely detailed, 100% accurate, and comprehensive "AI Overview" response, acting just like the Google Search Generative Experience.
 
 INSTRUCTIONS FOR MAPPING:
-1. If the user query is about social media growth or boosting (e.g. followers, reactions, views, likes, retweets, subs, members) for ANY platform (Facebook, Instagram, TikTok, YouTube, Twitter/X, Telegram):
-   - Mapped service: "smm".
-   - "search_keyword" MUST be the exact specific platform service term (e.g. "Facebook Page Likes", "Instagram Followers", "TikTok Video Views", "YouTube Subscribers", "Telegram Group Members", "Twitter Retweets").
-   - CRITICAL SPECIAL RULE FOR PH BASE: If the query mentions "PH Base", "Filipino", "Philippines", "local", or "pinoy" (especially "Facebook Followers PH Base" or "FB Followers PH Base"), your "search_keyword" MUST be exactly "PH Base" to filter correctly in the catalog explorer, and your explanation must specifically focus on our premium organic Filipino base profiles, explaining that these are real accounts from the Philippines with active feed histories, realistic local human avatars, and high-retention rates, making them 100% safe from algorithm drops or flags.
-   - In your "explanation" for general platforms, give a highly comprehensive, custom response analyzing their goal. If they mention a business or content style, relate it! Explain that our SMM catalog contains 1,100+ reseller-rate packages with 100% Adsense compliance and realistic organic-looking profiles (such as curated PH base pools) that protect their page from flagging.
-2. If the user query is about AI, premium intelligence, or Gemini:
-   - Mapped service: "gemini".
-   - "search_keyword": "Gemini Pro Premium Subscription".
-   - In your "explanation", explain how they can unlock unlimited tokens, multi-modal capabilities, and high-speed developer workflows with our fully-managed private Gemini Pro subscriptions, complete with instant invite link delivery.
-3. If the user query is about PisoWiFi, captive portal design, or admin setups:
-   - Mapped service: "pisowifi".
-   - "search_keyword": "PisoWiFi Cloud Portal Custom Setup".
-   - In your "explanation", explain how our custom-designed captive portals can double their hotspot revenue and streamline voucher generation through secure remote management panels.
-4. If the user query is about TP-Link, network controllers, Omada, or access points:
-   - Mapped service: "eap".
-   - "search_keyword": "EAP TP-Link Cloud Integration".
-   - In your "explanation", detail how we specialize in setting up centralized TP-Link Omada Cloud controllers, providing remote multi-AP monitoring, and maximizing local business network stability.
-5. If the user query is about 3D rendering, drawing, licenses, AutoCAD, SketchUp, Lumion, Revit, or D5:
-   - Mapped service: "software".
-   - "search_keyword": "Architectural Design Software Bundle".
-   - In your "explanation", detail that we provide pre-activated lifetime licenses and easy-to-install bundles for premium tools like AutoCAD, Lumion, SketchUp Pro (with V-Ray or D5 plugins), and Revit, saving them thousands of pesos in monthly subscriptions.
+1. If the user query is about digital services we offer:
+   - "smm": Social Media Boosts (followers, likes, views, shares on Facebook, Instagram, TikTok, YouTube, Twitter/X, Telegram).
+     * CRITICAL SPECIAL RULE FOR PH BASE: If the query mentions "PH Base", "Filipino", "Philippines", "local", or "pinoy" (especially "Facebook Followers PH Base" or "FB Followers PH Base"), your "search_keyword" MUST be exactly "PH Base" to filter correctly in the catalog explorer, and your explanation must specifically focus on our premium organic Filipino base profiles, explaining that these are real accounts from the Philippines with active feed histories, realistic local human avatars, and high-retention rates, making them 100% safe from algorithm drops or flags.
+     * Otherwise, set "search_keyword" to the exact platform service (e.g. "Instagram Followers", "TikTok Video Views", etc.).
+   - "gemini": Gemini Pro Premium AI Subscription. ("search_keyword": "Gemini Pro Premium Subscription")
+   - "pisowifi": PisoWiFi Cloud Admin / Network Portal Setup. ("search_keyword": "PisoWiFi Cloud Portal Custom Setup")
+   - "eap": EAP TP-Link Cloud Controller network setup. ("search_keyword": "EAP TP-Link Cloud Integration")
+   - "software": Pre-activated Lifetime Architectural Software (Lumion, Sketchup, AutoCAD, D5 Render, V-Ray, Revit). ("search_keyword": "Architectural Design Software Bundle")
+2. If the user query is a general question, informational search, or unrelated to our specific catalog services (e.g. general knowledge, tutorials, explanations, recipes, trivia, coding, marketing, or general questions like "why is water wet", "how to cook adobo", "what is the capital of Japan", "how to write a loop in JavaScript"):
+   - Mapped service: "none".
+   - "search_keyword" can be empty ("").
+   - In your "explanation", write a highly complete, comprehensive, and perfectly accurate featured answer just like a Google Search Featured Snippet or AI Overview! Provide deep, structured details to completely satisfy their search.
+
+TONE & RULES:
+- Blends professional Colloquial Taglish (Tagalog-English blend) or English perfectly.
+- Extremely smart, maximized, detailed, and reassuring.
+- Never write lazy or brief responses. Write at least 4-5 rich, detailed sentences or small paragraph chunks with clear points.
 
 OUTPUT FORMAT:
 You MUST respond strictly in the following JSON format:
 {
   "service": "smm" | "gemini" | "pisowifi" | "eap" | "software" | "none",
-  "search_keyword": "the most accurate exact keyword to search",
-  "explanation": "Write a highly detailed, professional, and maximized explanation here (at least 3-4 rich sentences) blending Taglish and tech-savvy advice tailored directly to their search intent."
+  "search_keyword": "exact matched keyword, or empty string if general",
+  "explanation": "Provide the complete, maximized, highly detailed, and 100% accurate Google-style featured answer or service consultant advice here."
 }
 
 No other text, markdown formatting, or symbols around the JSON. Just the raw JSON object. Make the explanation feel extremely premium, comforting, and authoritative.`;
@@ -389,9 +378,39 @@ No other text, markdown formatting, or symbols around the JSON. Just the raw JSO
           )}
 
           {aiRecommend.service === "none" && (
-            <div className="bg-[#161616] border border-slate-800 p-4 rounded-xl text-center">
-              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">⚠️ No Direct Match Found</p>
-              <p className="text-[11px] text-slate-400 mt-1">Try using other general keywords like 'followers', 'gemini pro', 'sketchup software', or 'wifi setup'.</p>
+            <div className="bg-[#10131a] border border-[#3b82f6]/40 p-6 sm:p-7 rounded-3xl flex flex-col gap-3 relative overflow-hidden group shadow-[0_15px_40px_rgba(59,130,246,0.1)] transition-all">
+              {/* Google Search Gradient glow backdrop */}
+              <div className="absolute -right-20 -top-20 w-44 h-44 bg-[#3b82f6]/5 rounded-full blur-2xl group-hover:bg-[#3b82f6]/10 transition-all duration-500" />
+              
+              <div className="flex items-center gap-2 border-b border-slate-850/60 pb-3">
+                <span className="text-sm">🌐</span>
+                <span className="text-[10px] font-black uppercase tracking-widest text-[#3b82f6] flex items-center gap-1 font-mono">
+                  Google Search style AI Overview
+                </span>
+                <span className="text-[8px] bg-[#3b82f6]/15 text-[#3b82f6] px-2 py-0.5 rounded font-black tracking-widest uppercase ml-auto select-none font-mono">
+                  ACCURATE
+                </span>
+              </div>
+              
+              <p className="text-slate-300 text-[11px] sm:text-xs leading-relaxed font-semibold whitespace-pre-wrap animate-in fade-in duration-300">
+                {aiRecommend.explanation}
+              </p>
+              
+              {/* SMM Platform Quick Suggestion CTA in case they want a boost as well */}
+              <div className="border-t border-slate-850/50 pt-4 mt-2 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                <span className="text-[9px] text-slate-500 font-extrabold uppercase tracking-wide leading-tight">
+                  Looking for digital growth? You can also explore our 1,100+ services catalog:
+                </span>
+                <button
+                  onClick={() => {
+                    setCatalogPrefill("");
+                    setIsSmmCatalogModalOpen(true);
+                  }}
+                  className="w-full sm:w-auto bg-slate-850 hover:bg-slate-800 border border-slate-800 text-slate-350 hover:text-white font-extrabold px-4 py-2 rounded-xl text-[10px] uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap text-center shadow-sm"
+                >
+                  Browse Catalog Explorer
+                </button>
+              </div>
             </div>
           )}
         </div>
