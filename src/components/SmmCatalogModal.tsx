@@ -32,6 +32,61 @@ const PLATFORMS = [
   { id: "telegram", name: "Telegram", icon: "✈️" }
 ];
 
+function parseServiceIndicators(name: string, desc: string = "") {
+  const combined = `${name} ${desc}`.toLowerCase();
+  
+  // 1. Detect expected start time
+  let start = "⚡ Instant";
+  if (combined.includes("instant") || combined.includes("auto-start") || combined.includes("auto start")) {
+    start = "⚡ Instant";
+  } else if (combined.includes("0-1h") || combined.includes("0-1 hour") || combined.includes("within 1 hour")) {
+    start = "⏱️ < 1 Hour";
+  } else if (combined.includes("0-12h") || combined.includes("0-12 hour") || combined.includes("within 12 hours")) {
+    start = "⏱️ < 12 Hours";
+  } else if (combined.includes("0-24h") || combined.includes("within 24h") || combined.includes("24 hours")) {
+    start = "⏱️ < 24 Hours";
+  } else if (combined.includes("1-12h") || combined.includes("1-24h")) {
+    start = "⏱️ 1-24 Hours";
+  } else if (combined.includes("slow") || combined.includes("gradual")) {
+    start = "⏱️ Gradual Start";
+  }
+
+  // 2. Detect delivery speed
+  let speed = "⚡ Auto-Speed";
+  const speedMatch = combined.match(/(\d+(?:k|m))\s*\/\s*day/i) || combined.match(/speed:\s*(\d+(?:k|m))\b/i) || combined.match(/(\d+(?:k|m))\s*speed/i);
+  if (speedMatch && speedMatch[1]) {
+    speed = `🚀 Speed: ${speedMatch[1].toUpperCase()}/day`;
+  } else if (combined.includes("50k/day") || combined.includes("50k")) {
+    speed = "🚀 Speed: 50K/day";
+  } else if (combined.includes("10k/day") || combined.includes("10k")) {
+    speed = "🚀 Speed: 10K/day";
+  } else if (combined.includes("5k/day") || combined.includes("5k")) {
+    speed = "🚀 Speed: 5K/day";
+  } else if (combined.includes("1k/day") || combined.includes("1k")) {
+    speed = "🚀 Speed: 1K/day";
+  } else if (combined.includes("instant delivery") || combined.includes("super fast")) {
+    speed = "🚀 Speed: Super Fast";
+  }
+
+  // 3. Detect refill / drop guarantee
+  let refill = "🛡️ Stable";
+  if (combined.includes("no refill") || combined.includes("no drop guarantee") || combined.includes("r0")) {
+    refill = "⚠️ No Refill";
+  } else if (combined.includes("30d refill") || combined.includes("30 days refill") || combined.includes("30 day refill") || combined.includes("r30")) {
+    refill = "♻️ 30-Day Refill";
+  } else if (combined.includes("60d refill") || combined.includes("60 days refill") || combined.includes("r60")) {
+    refill = "♻️ 60-Day Refill";
+  } else if (combined.includes("90d refill") || combined.includes("90 days refill") || combined.includes("r90")) {
+    refill = "♻️ 90-Day Refill";
+  } else if (combined.includes("lifetime refill") || combined.includes("lifetime drop guarantee") || combined.includes("auto-refill") || combined.includes("non drop") || combined.includes("non-drop")) {
+    refill = "♾️ Lifetime Refill";
+  } else if (combined.includes("refill")) {
+    refill = "♻️ Refill Guaranteed";
+  }
+
+  return { start, speed, refill };
+}
+
 export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalogModalProps) {
   const [services, setServices] = useState<SmmService[]>([]);
   const [loading, setLoading] = useState(true);
@@ -42,6 +97,7 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
   const [selectedPlatform, setSelectedPlatform] = useState("all");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [categories, setCategories] = useState<string[]>([]);
+  const [sortBy, setSortBy] = useState<"cheapest" | "expensive" | "alpha" | "id">("cheapest");
   
   // Checkout flow state
   const [selectedService, setSelectedService] = useState<SmmService | null>(null);
@@ -185,6 +241,23 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
 
     const matchesCategory = selectedCategory === "all" || s.category === selectedCategory;
     return matchesSearch && matchesPlatform && matchesCategory;
+  });
+
+  // Dynamic sorting for catalog Explorer matching user demands (defaults to Cheapest First)
+  const sortedServices = [...filteredServices].sort((a, b) => {
+    if (sortBy === "cheapest") {
+      return a.startingPrice - b.startingPrice;
+    }
+    if (sortBy === "expensive") {
+      return b.startingPrice - a.startingPrice;
+    }
+    if (sortBy === "alpha") {
+      return a.name.localeCompare(b.name);
+    }
+    if (sortBy === "id") {
+      return Number(a.id) - Number(b.id);
+    }
+    return 0;
   });
 
   const getTargetUrlLabel = (category: string) => {
@@ -402,7 +475,7 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
                       type="button"
                       className={`flex items-center gap-1.5 px-4 py-2 rounded-full border text-[10px] sm:text-xs font-black uppercase tracking-wider transition-all duration-300 transform active:scale-95 whitespace-nowrap snap-start cursor-pointer ${
                         isActive
-                          ? "bg-[#1DB954] text-black border-[#1DB954] shadow-[0_0_15px_rgba(29,185,84,0.3)] font-black"
+                           ? "bg-[#1DB954] text-black border-[#1DB954] shadow-[0_0_15px_rgba(29,185,84,0.3)] font-black"
                           : "bg-[#161616]/60 text-slate-400 border-slate-800/85 hover:text-white hover:border-slate-700 hover:bg-[#1a1a1a]"
                       }`}
                     >
@@ -413,9 +486,45 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
                 })}
               </div>
 
+              {/* Premium Interactive New User Discovery Banner */}
+              <div className="bg-[#1DB954]/5 border border-[#1DB954]/25 rounded-2xl p-4 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 animate-in slide-in-from-top-2 duration-300">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs">🔥</span>
+                    <span className="text-xs font-black uppercase tracking-wider text-[#1DB954]">New User Quick Guide</span>
+                  </div>
+                  <p className="text-slate-350 text-[11px] font-semibold leading-snug">
+                    Looking for the cheapest options? Click any popular boost below to instantly view our absolute lowest direct reseller pricing:
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2 w-full lg:w-auto">
+                  {[
+                    { label: "📸 IG Followers", price: "₱24.98/1k", platform: "instagram", search: "follower" },
+                    { label: "📘 FB Followers", price: "₱25.18/1k", platform: "facebook", search: "follower" },
+                    { label: "🎵 TikTok Followers", price: "₱30.00/1k", platform: "tiktok", search: "follower" },
+                    { label: "🎥 YT Subscribers", price: "₱132.21/1k", platform: "youtube", search: "subscriber" }
+                  ].map((chip, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => {
+                        setSelectedPlatform(chip.platform);
+                        setSearchTerm(chip.search);
+                        setSelectedCategory("all");
+                        setSortBy("cheapest");
+                      }}
+                      type="button"
+                      className="flex-1 sm:flex-initial flex items-center justify-between gap-2 px-3 py-1.5 rounded-xl bg-black/40 hover:bg-[#1DB954]/10 border border-slate-800 hover:border-[#1DB954]/30 text-[10px] font-bold text-white transition-all transform active:scale-95 cursor-pointer whitespace-nowrap"
+                    >
+                      <span>{chip.label}</span>
+                      <span className="text-[#1DB954] font-mono">{chip.price}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {/* Search and Filters */}
-              <div className="flex flex-col sm:flex-row gap-4 justify-between items-center bg-[#181818]/60 p-4 rounded-2xl border border-slate-800/60 shadow-md">
-                <div className="relative w-full sm:flex-1">
+              <div className="flex flex-col lg:flex-row gap-3 justify-between items-center bg-[#181818]/60 p-4 rounded-2xl border border-slate-800/60 shadow-md w-full">
+                <div className="relative w-full lg:flex-1">
                   <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
                   <input
                     type="text"
@@ -426,18 +535,31 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
                   />
                 </div>
                 
-                <select
-                  value={selectedCategory}
-                  onChange={(e) => setSelectedCategory(e.target.value)}
-                  className="w-full sm:w-64 px-4 py-2 rounded-xl bg-[#090909] border border-slate-800 focus:outline-none focus:border-[#1DB954] focus:ring-2 focus:ring-[#1DB954]/25 text-white font-extrabold cursor-pointer text-xs sm:text-sm transition-all hover:border-slate-750"
-                >
-                  <option value="all">
-                    {selectedPlatform === "all" ? "All Categories" : `All ${selectedPlatform.charAt(0).toUpperCase() + selectedPlatform.slice(1)}`} ({filteredCategories.length})
-                  </option>
-                  {filteredCategories.map((cat) => (
-                    <option key={cat} value={cat}>{cat}</option>
-                  ))}
-                </select>
+                <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
+                  <select
+                    value={selectedCategory}
+                    onChange={(e) => setSelectedCategory(e.target.value)}
+                    className="w-full sm:w-56 px-4 py-2 rounded-xl bg-[#090909] border border-slate-800 focus:outline-none focus:border-[#1DB954] focus:ring-2 focus:ring-[#1DB954]/25 text-white font-extrabold cursor-pointer text-xs sm:text-sm transition-all hover:border-slate-750"
+                  >
+                    <option value="all">
+                      {selectedPlatform === "all" ? "All Categories" : `All ${selectedPlatform.charAt(0).toUpperCase() + selectedPlatform.slice(1)}`} ({filteredCategories.length})
+                    </option>
+                    {filteredCategories.map((cat) => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value as any)}
+                    className="w-full sm:w-48 px-4 py-2 rounded-xl bg-[#090909] border border-slate-800 focus:outline-none focus:border-[#1DB954] focus:ring-2 focus:ring-[#1DB954]/25 text-[#1DB954] font-extrabold cursor-pointer text-xs sm:text-sm transition-all hover:border-slate-750"
+                  >
+                    <option value="cheapest">Cheapest First ₱</option>
+                    <option value="expensive">Highest Price ₱</option>
+                    <option value="alpha">Name (A-Z)</option>
+                    <option value="id">Service ID</option>
+                  </select>
+                </div>
               </div>
 
               {/* Status alerts */}
@@ -454,14 +576,14 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
                   <Loader2 size={36} className="text-[#1DB954] animate-spin" />
                   <span className="text-xs font-bold text-slate-400 uppercase tracking-widest animate-pulse">Syncing catalog direct from SMM API...</span>
                 </div>
-              ) : filteredServices.length === 0 ? (
+              ) : sortedServices.length === 0 ? (
                 <div className="text-center py-16 bg-[#161616]/30 border border-slate-800 border-dashed rounded-2xl flex-grow flex flex-col justify-center">
                   <p className="text-slate-500 font-extrabold uppercase tracking-wider text-sm">No matching SMM services found.</p>
                   <p className="text-xs text-slate-600 mt-1">Try relaxing your search terms or choosing another category.</p>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-grow overflow-y-auto max-h-[35vh] sm:max-h-[48vh] pr-1.5 custom-scrollbar">
-                  {filteredServices.map((service) => (
+                  {sortedServices.map((service) => (
                     <div 
                       key={service.id}
                       onClick={() => handleSelectService(service)}
@@ -479,7 +601,30 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
                         <h4 className="text-sm font-black text-white group-hover:text-[#1DB954] transition-colors line-clamp-2 leading-snug">
                           {service.name}
                         </h4>
-                        <p className="text-[10px] text-slate-500 font-extrabold uppercase tracking-wide mt-1.5">
+                        
+                        {/* Premium Glassmorphic Metadata Badges */}
+                        {(() => {
+                          const indicators = parseServiceIndicators(service.name, service.desc);
+                          return (
+                            <div className="flex flex-wrap gap-1.5 mt-2 select-none">
+                              <span className="inline-flex items-center text-[9px] font-extrabold px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/15 backdrop-blur-sm">
+                                {indicators.start}
+                              </span>
+                              <span className="inline-flex items-center text-[9px] font-extrabold px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-400 border border-blue-500/15 backdrop-blur-sm">
+                                {indicators.speed}
+                              </span>
+                              <span className={`inline-flex items-center text-[9px] font-extrabold px-2 py-0.5 rounded-md backdrop-blur-sm ${
+                                indicators.refill.includes("No Refill")
+                                  ? "bg-amber-500/10 text-amber-400 border border-amber-500/15"
+                                  : "bg-cyan-500/10 text-cyan-400 border border-cyan-500/15"
+                              }`}>
+                                {indicators.refill}
+                              </span>
+                            </div>
+                          );
+                        })()}
+
+                        <p className="text-[10px] text-slate-500 font-extrabold uppercase tracking-wide mt-2.5">
                           Category: {service.category}
                         </p>
                         {service.desc && (

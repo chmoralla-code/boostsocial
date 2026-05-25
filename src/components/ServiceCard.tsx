@@ -73,10 +73,11 @@ export function ServiceCard({ id, title, description, startingPrice, iconType, o
           min_quantity: Number(p.min_quantity) || 1000,
           redirect_url: p.redirect_url || null,
           custom_caption: p.custom_caption || null,
+          smm_average_time: p.smm_average_time || null,
         };
       }
     } catch (e) {}
-    return { ...defaults, min_quantity: 1000, redirect_url: null, custom_caption: null };
+    return { ...defaults, min_quantity: 1000, redirect_url: null, custom_caption: null, smm_average_time: null };
   })();
 
   const getGlowClass = () => {
@@ -99,7 +100,19 @@ export function ServiceCard({ id, title, description, startingPrice, iconType, o
       </div>
       
       <h3 className="uppercase text-xs font-black tracking-widest text-slate-500 mb-2">{title}</h3>
-      <h4 className="text-xl font-bold text-white mb-3 group-hover:text-[#1877F2] transition-colors">{parsed.subtitle}</h4>
+      <h4 className="text-xl font-bold text-white mb-1 group-hover:text-[#1877F2] transition-colors">{parsed.subtitle}</h4>
+      
+      {parsed.smm_average_time && parsed.smm_average_time !== "Not enough data" ? (
+        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[9px] font-black uppercase tracking-wider mb-4 select-none">
+          ⏱️ Avg Delivery: {parsed.smm_average_time}
+        </span>
+      ) : (
+        iconType !== "pisowifi" && !parsed.redirect_url && (
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#1ed760]/10 text-[#1ed760] border border-[#1ed760]/20 text-[9px] font-black uppercase tracking-wider mb-4 select-none">
+            ⚡ Instant start queue
+          </span>
+        )
+      )}
       
       <p className="text-slate-400 text-sm leading-relaxed mb-8 flex-grow whitespace-pre-line">
         {parsed.description}
