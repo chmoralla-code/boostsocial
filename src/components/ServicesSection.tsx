@@ -98,6 +98,12 @@ export function ServicesSection({ services }: ServicesSectionProps) {
   // Core services are those that are not classified as other services
   const coreServices = services.filter((s) => !otherServices.some((o) => o.id === s.id));
 
+  // Cheapest SMM followers candidates for each major platform to show separately
+  const fbFollowers = services.find(s => s.id === "6ef1e136-c2c8-4719-8c12-b0f20504d15e") || services.find(s => s.title.toLowerCase() === "fb followers" || s.title.toLowerCase() === "facebook followers");
+  const igFollowers = services.find(s => s.id === "46a89c42-2d12-40e9-b5fc-112f45ea2e88") || services.find(s => s.title.toLowerCase() === "ig followers" || s.title.toLowerCase() === "instagram followers");
+  const tiktokFollowers = services.find(s => s.id === "2a98f123-1d42-45e3-82ef-fb347cda6541") || services.find(s => s.title.toLowerCase() === "tiktok followers");
+  const ytSubscribers = services.find(s => s.id === "ab348d21-f123-45c1-bd76-e137fab62aa1") || services.find(s => s.title.toLowerCase() === "yt subscribers" || s.title.toLowerCase() === "youtube subscribers");
+
   return (
     <>
       {/* 1. SMM Price Calculator Widget */}
@@ -121,35 +127,70 @@ export function ServicesSection({ services }: ServicesSectionProps) {
         </div>
 
         {/* Premium Consolidated Homepage Grid (Mobile-First responsive grids) */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 justify-center max-w-4xl mx-auto">
-            {/* 1. Unified "SOCIAL MEDIA BOOST" Card */}
-            <div className="bg-[#121212]/50 hover:bg-[#161616]/90 backdrop-blur-md rounded-3xl p-8 flex flex-col items-start text-left w-full border border-white/[0.04] shadow-[0_12px_40px_rgba(0,0,0,0.4)] transition-all duration-500 transform hover:-translate-y-2 group hover:shadow-[0_0_35px_rgba(29,185,84,0.18)] hover:border-[#1DB954]/30">
-              <div className="h-16 flex items-center justify-center group-hover:scale-115 group-hover:rotate-6 transition-transform duration-500 ease-out">
-                <Layers size={40} className="text-[#1DB954] drop-shadow-[0_0_15px_rgba(29,185,84,0.3)] mb-4" />
-              </div>
-              
-              <h3 className="uppercase text-xs font-black tracking-widest text-[#1DB954] mb-2">Platform Boost</h3>
-              <h4 className="text-xl font-bold text-white mb-3 group-hover:text-[#1DB954] transition-colors">SOCIAL MEDIA BOOST</h4>
-              
-              <p className="text-slate-400 text-sm leading-relaxed mb-8 flex-grow">
-                Instantly amplify your social media channels with high-fidelity, high-retention boosts. Curated SMM plans for Facebook likes, views, organic targeted profile growth, and more!
-              </p>
-              
-              <div className="flex justify-between items-end w-full mb-6 pt-4 border-t border-slate-800/60">
-                <div className="w-full text-left">
-                  <span className="block text-slate-500 text-[10px] font-extrabold uppercase tracking-wider line-clamp-2 leading-tight">
-                    Facebook Likes & Page Growth, organic targeted campaigns, custom reaction bundles
-                  </span>
-                </div>
-              </div>
-              
-              <button 
-                onClick={() => setIsSmmCatalogModalOpen(true)}
-                className="w-full bg-[#1DB954] hover:bg-[#1ed760] text-black font-extrabold py-3.5 rounded-full transition-all duration-300 uppercase text-xs tracking-wider transform group-hover:scale-[1.02] shadow-lg shadow-[#1DB954]/5 cursor-pointer text-center"
-              >
-                VIEW
-              </button>
-            </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 justify-center max-w-6xl mx-auto">
+            {/* 1. Facebook Followers */}
+            {fbFollowers && (
+              <ServiceCard 
+                key={fbFollowers.id}
+                id={fbFollowers.id}
+                title={fbFollowers.title}
+                description={fbFollowers.description}
+                startingPrice={fbFollowers.starting_price}
+                iconType={fbFollowers.icon_type}
+                onOrder={(id, title, price) => {
+                  setSelectedService(fbFollowers);
+                  handleOrder(id, title, price, fbFollowers.description);
+                }}
+              />
+            )}
+
+            {/* 2. Instagram Followers */}
+            {igFollowers && (
+              <ServiceCard 
+                key={igFollowers.id}
+                id={igFollowers.id}
+                title={igFollowers.title}
+                description={igFollowers.description}
+                startingPrice={igFollowers.starting_price}
+                iconType={igFollowers.icon_type}
+                onOrder={(id, title, price) => {
+                  setSelectedService(igFollowers);
+                  handleOrder(id, title, price, igFollowers.description);
+                }}
+              />
+            )}
+
+            {/* 3. TikTok Followers */}
+            {tiktokFollowers && (
+              <ServiceCard 
+                key={tiktokFollowers.id}
+                id={tiktokFollowers.id}
+                title={tiktokFollowers.title}
+                description={tiktokFollowers.description}
+                startingPrice={tiktokFollowers.starting_price}
+                iconType={tiktokFollowers.icon_type}
+                onOrder={(id, title, price) => {
+                  setSelectedService(tiktokFollowers);
+                  handleOrder(id, title, price, tiktokFollowers.description);
+                }}
+              />
+            )}
+
+            {/* 4. YouTube Subscribers */}
+            {ytSubscribers && (
+              <ServiceCard 
+                key={ytSubscribers.id}
+                id={ytSubscribers.id}
+                title={ytSubscribers.title}
+                description={ytSubscribers.description}
+                startingPrice={ytSubscribers.starting_price}
+                iconType={ytSubscribers.icon_type}
+                onOrder={(id, title, price) => {
+                  setSelectedService(ytSubscribers);
+                  handleOrder(id, title, price, ytSubscribers.description);
+                }}
+              />
+            )}
 
             {/* 2. Single Unified "OTHER SERVICES" Card */}
             {otherServices.length > 0 && (
