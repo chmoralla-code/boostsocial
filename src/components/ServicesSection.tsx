@@ -37,34 +37,10 @@ export function ServicesSection({ services }: ServicesSectionProps) {
   // New state for "RixeySMM Catalog" explorer modal
   const [isSmmCatalogModalOpen, setIsSmmCatalogModalOpen] = useState(false);
 
-  // Puter AI Search States
-  const [puterLoaded, setPuterLoaded] = useState(false);
+  // Pollinations Free AI Search States
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [aiRecommend, setAiRecommend] = useState<any>(null);
   const [catalogPrefill, setCatalogPrefill] = useState("");
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      if ((window as any).puter) {
-        setPuterLoaded(true);
-        return;
-      }
-      const script = document.createElement("script");
-      script.src = "https://js.puter.com/v2/";
-      script.async = true;
-      script.onload = () => {
-        setPuterLoaded(true);
-        console.log("Puter.js loaded successfully!");
-      };
-      document.body.appendChild(script);
-      return () => {
-        const scriptElement = document.querySelector('script[src="https://js.puter.com/v2/"]');
-        if (scriptElement && scriptElement.parentNode) {
-          scriptElement.parentNode.removeChild(scriptElement);
-        }
-      };
-    }
-  }, []);
 
   const handleAiSearch = async () => {
     if (!sectionSearchQuery.trim()) return;
@@ -72,11 +48,6 @@ export function ServicesSection({ services }: ServicesSectionProps) {
     setAiRecommend(null);
 
     try {
-      const puter = (window as any).puter;
-      if (!puter) {
-        throw new Error("Puter.js is not loaded yet. Please try again in a second!");
-      }
-
       const systemPrompt = `You are the CYNETWORK Smart Search AI Assistant.
 Analyze the user's search query for digital services and map it to one of these services:
 - "smm": Social Media Boosts (followers, likes, views, shares on Facebook, Instagram, TikTok, YouTube, Twitter, Telegram).
@@ -94,11 +65,24 @@ You MUST respond ONLY in the following JSON format:
 
 No other text, markdown formatting or symbols around the JSON. Just the raw JSON object.`;
 
-      const responseText = await puter.ai.chat(
-        `${systemPrompt}\n\nUser Query: "${sectionSearchQuery}"`
-      );
+      const response = await fetch("https://text.pollinations.ai/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: `User Query: "${sectionSearchQuery}"` }
+          ],
+          model: "openai",
+          jsonMode: true
+        })
+      });
 
-      // Clean response text to ensure safe JSON parsing
+      if (!response.ok) {
+        throw new Error(`Pollinations API error: ${response.status}`);
+      }
+
+      const responseText = await response.text();
       const cleanText = responseText
         .replace(/```json/g, "")
         .replace(/```/g, "")
@@ -109,7 +93,7 @@ No other text, markdown formatting or symbols around the JSON. Just the raw JSON
     } catch (err: any) {
       console.error("AI Search failed:", err);
       
-      // Local keywords fallback if Puter AI fails
+      // Local keywords fallback if Pollinations AI fails
       const q = sectionSearchQuery.toLowerCase();
       let fallbackService = "none";
       let keyword = "";
@@ -233,22 +217,20 @@ No other text, markdown formatting or symbols around the JSON. Just the raw JSON
       {/* 3. Choose Your Boost Tier Grid */}
       <section id="services" className="w-full max-w-6xl mx-auto px-4 mt-12 mb-20 relative z-10">
         <div className="flex flex-col items-center mb-10">
-          <h2 className="text-3xl md:text-4xl font-black text-center text-white tracking-tight">
-            Choose Your <span className="text-[#1877F2]">Boost Tier</span>
-          </h2>
-          <p className="text-slate-400 text-xs mt-2 text-center max-w-md">
-            Premium growth bundles, high-speed reseller SMM boosts, and smart local hardware integration setups.
-          </p>
+          {/* Question Prompt Label (Moved to the absolute top of the section) */}
+          <span className="bg-[#1DB954]/10 text-[#1DB954] border border-[#1DB954]/25 font-black text-[9px] sm:text-[10px] tracking-widest uppercase px-4 py-2 rounded-full inline-flex items-center gap-1.5 mb-4 shadow-sm select-none">
+            ⚡ Which social media platform would you like to boost today?
+          </span>
 
-          {/* Search Button/Input with Puter AI Smart Search Integration */}
-          <div className="mt-8 w-full max-w-xl flex flex-col sm:flex-row gap-3 items-center px-2">
+          {/* Search Button/Input with Pollinations AI Smart Search Integration */}
+          <div className="w-full max-w-xl flex flex-col sm:flex-row gap-3 items-center px-2 mb-8">
             <div className="relative flex-grow w-full">
               <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 flex items-center">
                 <span className="text-base">🔍</span>
               </div>
               <input
                 type="text"
-                placeholder="Ask AI or Search services (e.g. grow my TikTok, need SketchUp)..."
+                placeholder="Ask AI or search: e.g. grow my Instagram, SketchUp license, TikTok views..."
                 value={sectionSearchQuery}
                 onChange={(e) => {
                   setSectionSearchQuery(e.target.value);
@@ -287,9 +269,16 @@ No other text, markdown formatting or symbols around the JSON. Just the raw JSON
               )}
             </button>
           </div>
+
+          <h2 className="text-3xl md:text-4xl font-black text-center text-white tracking-tight">
+            Choose Your <span className="text-[#1877F2]">Boost Tier</span>
+          </h2>
+          <p className="text-slate-400 text-xs mt-2 text-center max-w-md">
+            Premium growth bundles, high-speed reseller SMM boosts, and smart local hardware integration setups.
+          </p>
         </div>
 
-        {/* Puter AI Glowing Smart Recommendation Box */}
+        {/* CYNETWORK AI Glowing Smart Recommendation Box */}
         {aiRecommend && (
           <div className="mb-12 max-w-xl mx-auto bg-[#121212]/95 border border-[#1DB954]/30 rounded-3xl p-6 sm:p-7 shadow-[0_15px_40px_rgba(29,185,84,0.12)] backdrop-blur-md animate-in slide-in-from-top-4 duration-300 text-left relative overflow-hidden group">
             <div className="absolute -right-16 -top-16 w-32 h-32 bg-[#1DB954]/5 rounded-full blur-2xl group-hover:bg-[#1DB954]/10 transition-all duration-500" />
@@ -304,8 +293,8 @@ No other text, markdown formatting or symbols around the JSON. Just the raw JSON
 
             <div className="flex items-center gap-2 mb-3">
               <span className="text-base animate-bounce">🤖</span>
-              <span className="text-[10px] font-black uppercase tracking-widest text-[#1DB954] flex items-center gap-1">
-                Puter AI Curation Recommendation
+              <span className="text-[10px] font-black uppercase tracking-widest text-[#1DB954] flex items-center gap-1 font-mono">
+                CYNETWORK AI Smart Recommendation
               </span>
             </div>
 
