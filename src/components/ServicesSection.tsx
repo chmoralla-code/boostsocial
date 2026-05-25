@@ -8,7 +8,7 @@ import { StatCounters } from "./StatCounters";
 import { FaqSection } from "./FaqSection";
 import { ReviewsSection } from "./ReviewsSection";
 import { SmmCatalogModal } from "./SmmCatalogModal";
-import { Layers, X } from "lucide-react";
+import { Layers, X, Loader2 } from "lucide-react";
 import { parseDescription } from "@/utils/serviceHelpers";
 
 interface Service {
@@ -36,6 +36,137 @@ export function ServicesSection({ services }: ServicesSectionProps) {
   
   // New state for "RixeySMM Catalog" explorer modal
   const [isSmmCatalogModalOpen, setIsSmmCatalogModalOpen] = useState(false);
+
+  // Real-time SMM catalog caching states
+  const [smmServices, setSmmServices] = useState<any[]>([]);
+  const [loadingSmm, setLoadingSmm] = useState(false);
+
+  // Prefilled search & custom platform sub-modals states
+  const [smmPrefilledSearch, setSmmPrefilledSearch] = useState("");
+  const [platformSubModalOpen, setPlatformSubModalOpen] = useState(false);
+  const [platformSubModalType, setPlatformSubModalType] = useState<"facebook" | "instagram" | "tiktok" | "youtube" | null>(null);
+
+  useEffect(() => {
+    setLoadingSmm(true);
+    fetch("/api/smm/services")
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setSmmServices(data);
+        }
+      })
+      .catch((err) => console.error("Error loading direct SMM services:", err))
+      .finally(() => setLoadingSmm(false));
+  }, []);
+
+  const getPlatformSmmCandidates = (platform: "facebook" | "instagram" | "tiktok" | "youtube") => {
+    if (!smmServices || smmServices.length === 0) return { follower: null, like: null, view: null };
+
+    // Filter for all services matching this platform
+    const platformServices = smmServices.filter(s => {
+      const cat = s.category.toLowerCase();
+      const name = s.name.toLowerCase();
+      
+      if (platform === "facebook") {
+        return cat.includes("facebook") || cat.includes("fb") || name.includes("facebook") || name.includes("fb");
+      }
+      return cat.includes(platform) || name.includes(platform);
+    });
+
+    if (platformServices.length === 0) return { follower: null, like: null, view: null };
+
+    // Helper to find cheapest service matching keywords, and avoiding unwanted ones
+    const findCheapestMatching = (keywords: string[], excludeKeywords: string[] = []) => {
+      const matches = platformServices.filter(s => {
+        const nameLower = s.name.toLowerCase();
+        const matchesKeywords = keywords.some(kw => nameLower.includes(kw));
+        const matchesExclude = excludeKeywords.some(ex => nameLower.includes(ex));
+        return matchesKeywords && !matchesExclude;
+      });
+      if (matches.length === 0) return null;
+      matches.sort((a, b) => a.startingPrice - b.startingPrice);
+      return matches[0];
+    };
+
+    let follower = null;
+    let like = null;
+    let view = null;
+
+    if (platform === "facebook") {
+      follower = findCheapestMatching(["follower", "profile", "page like", "page follower", "classic page"]);
+      like = findCheapestMatching(["like", "reaction", "react", "photo like", "post like", "love", "haha", "wow", "sad", "angry"], ["follower", "view", "share"]);
+      view = findCheapestMatching(["view", "video", "play", "reach"], ["follower", "like", "reaction"]);
+    } else if (platform === "instagram") {
+      follower = findCheapestMatching(["follower"]);
+      like = findCheapestMatching(["like", "heart"], ["follower", "view", "comment"]);
+      view = findCheapestMatching(["view", "play", "reel", "video", "impression"], ["follower", "like"]);
+    } else if (platform === "tiktok") {
+      follower = findCheapestMatching(["follower"]);
+      like = findCheapestMatching(["like", "heart"], ["follower", "view", "comment"]);
+      view = findCheapestMatching(["view", "play", "video", "share"], ["follower", "like"]);
+    } else if (platform === "youtube") {
+      follower = findCheapestMatching(["subscriber", "subscribers", "sub"]);
+      like = findCheapestMatching(["like"], ["subscriber", "view", "comment"]);
+      view = findCheapestMatching(["view", "watch", "play"], ["subscriber", "like"]);
+    }
+
+    if (!follower) follower = findCheapestMatching(["follower"]) || platformServices[0];
+    if (!like) like = findCheapestMatching(["like", "heart", "react"]) || platformServices[Math.min(1, platformServices.length - 1)];
+    if (!view) view = findCheapestMatching(["view", "play", "video"]) || platformServices[Math.min(2, platformServices.length - 1)];
+
+    return { follower, like, view };
+  };
+
+  function parseServiceIndicators(name: string, desc: string = "") {
+    const combined = `${name} ${desc}`.toLowerCase();
+    let start = "⚡ Instant";
+    if (combined.includes("instant") || combined.includes("auto-start") || combined.includes("auto start")) {
+      start = "⚡ Instant";
+    } else if (combined.includes("0-1h") || combined.includes("0-1 hour") || combined.includes("within 1 hour")) {
+      start = "⏱️ < 1 Hour";
+    } else if (combined.includes("0-12h") || combined.includes("0-12 hour") || combined.includes("within 12 hours")) {
+      start = "⏱️ < 12 Hours";
+    } else if (combined.includes("0-24h") || combined.includes("within 24h") || combined.includes("24 hours")) {
+      start = "⏱️ < 24 Hours";
+    } else if (combined.includes("1-12h") || combined.includes("1-24h")) {
+      start = "⏱️ 1-24 Hours";
+    } else if (combined.includes("slow") || combined.includes("gradual")) {
+      start = "⏱️ Gradual Start";
+    }
+
+    let speed = "⚡ Auto-Speed";
+    const speedMatch = combined.match(/(\d+(?:k|m))\s*\/\s*day/i) || combined.match(/speed:\s*(\d+(?:k|m))\b/i) || combined.match(/(\d+(?:k|m))\s*speed/i);
+    if (speedMatch && speedMatch[1]) {
+      speed = `🚀 Speed: ${speedMatch[1].toUpperCase()}/day`;
+    } else if (combined.includes("50k/day") || combined.includes("50k")) {
+      speed = "🚀 Speed: 50K/day";
+    } else if (combined.includes("10k/day") || combined.includes("10k")) {
+      speed = "🚀 Speed: 10K/day";
+    } else if (combined.includes("5k/day") || combined.includes("5k")) {
+      speed = "🚀 Speed: 5K/day";
+    } else if (combined.includes("1k/day") || combined.includes("1k")) {
+      speed = "🚀 Speed: 1K/day";
+    } else if (combined.includes("instant delivery") || combined.includes("super fast")) {
+      speed = "🚀 Speed: Super Fast";
+    }
+
+    let refill = "🛡️ Stable";
+    if (combined.includes("no refill") || combined.includes("no drop guarantee") || combined.includes("r0")) {
+      refill = "⚠️ No Refill";
+    } else if (combined.includes("30d refill") || combined.includes("30 days refill") || combined.includes("30 day refill") || combined.includes("r30")) {
+      refill = "♻️ 30-Day Refill";
+    } else if (combined.includes("60d refill") || combined.includes("60 days refill") || combined.includes("r60")) {
+      refill = "♻️ 60-Day Refill";
+    } else if (combined.includes("90d refill") || combined.includes("90 days refill") || combined.includes("r90")) {
+      refill = "♻️ 90-Day Refill";
+    } else if (combined.includes("lifetime refill") || combined.includes("lifetime drop guarantee") || combined.includes("auto-refill") || combined.includes("non drop") || combined.includes("non-drop")) {
+      refill = "♾️ Lifetime Refill";
+    } else if (combined.includes("refill")) {
+      refill = "♻️ Refill Guaranteed";
+    }
+
+    return { start, speed, refill };
+  }
 
   const handleOrder = (id: string, title: string, price: number, description?: any) => {
     // Check if this service has a redirect URL
@@ -128,69 +259,113 @@ export function ServicesSection({ services }: ServicesSectionProps) {
 
         {/* Premium Consolidated Homepage Grid (Mobile-First responsive grids) */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 justify-center max-w-6xl mx-auto">
-            {/* 1. Facebook Followers */}
-            {fbFollowers && (
-              <ServiceCard 
-                key={fbFollowers.id}
-                id={fbFollowers.id}
-                title={fbFollowers.title}
-                description={fbFollowers.description}
-                startingPrice={fbFollowers.starting_price}
-                iconType={fbFollowers.icon_type}
-                onOrder={(id, title, price) => {
-                  setSelectedService(fbFollowers);
-                  handleOrder(id, title, price, fbFollowers.description);
+            {/* 1. Facebook Services */}
+            <div className="bg-[#121212]/50 hover:bg-[#161616]/90 backdrop-blur-md rounded-3xl p-8 flex flex-col items-start text-left w-full border border-white/[0.04] shadow-[0_12px_40px_rgba(0,0,0,0.4)] transition-all duration-500 transform hover:-translate-y-2 group hover:shadow-[0_0_35px_rgba(24,119,242,0.18)] hover:border-[#1877F2]/30">
+              <div className="h-16 flex items-center justify-center group-hover:scale-115 group-hover:rotate-6 transition-transform duration-500 ease-out">
+                <span className="text-4xl filter drop-shadow-[0_0_12px_rgba(24,119,242,0.45)] mb-4">📘</span>
+              </div>
+              <h3 className="uppercase text-xs font-black tracking-widest text-[#1877F2] mb-2">Facebook Boosts</h3>
+              <h4 className="text-xl font-bold text-white mb-3 group-hover:text-[#1877F2] transition-colors">Page & Post Services</h4>
+              <p className="text-slate-400 text-sm leading-relaxed mb-8 flex-grow">
+                Scale your Facebook pages and posts using compliant local PH-base followers, post likes/reactions, custom-emoji comments, and targeted post reach.
+              </p>
+              <div className="flex justify-between items-end w-full mb-6 pt-4 border-t border-slate-800/60">
+                <div>
+                  <span className="block text-slate-550 text-[10px] font-bold uppercase tracking-wider mb-1">Starting Rate</span>
+                  <span className="text-2xl font-black text-white">₱25.18 <span className="text-xs text-slate-400 font-normal">per 1k boosts</span></span>
+                </div>
+              </div>
+              <button 
+                onClick={() => {
+                  setPlatformSubModalType("facebook");
+                  setPlatformSubModalOpen(true);
                 }}
-              />
-            )}
+                className="w-full bg-[#1877F2] hover:bg-[#4e8df5] text-white font-extrabold py-3.5 rounded-full transition-all duration-300 uppercase text-xs tracking-wider transform group-hover:scale-[1.02] shadow-lg shadow-blue-500/5 cursor-pointer text-center"
+              >
+                VIEW
+              </button>
+            </div>
 
-            {/* 2. Instagram Followers */}
-            {igFollowers && (
-              <ServiceCard 
-                key={igFollowers.id}
-                id={igFollowers.id}
-                title={igFollowers.title}
-                description={igFollowers.description}
-                startingPrice={igFollowers.starting_price}
-                iconType={igFollowers.icon_type}
-                onOrder={(id, title, price) => {
-                  setSelectedService(igFollowers);
-                  handleOrder(id, title, price, igFollowers.description);
+            {/* 2. Instagram Services */}
+            <div className="bg-[#121212]/50 hover:bg-[#161616]/90 backdrop-blur-md rounded-3xl p-8 flex flex-col items-start text-left w-full border border-white/[0.04] shadow-[0_12px_40px_rgba(0,0,0,0.4)] transition-all duration-500 transform hover:-translate-y-2 group hover:shadow-[0_0_35px_rgba(225,48,108,0.18)] hover:border-[#E1306C]/30">
+              <div className="h-16 flex items-center justify-center group-hover:scale-115 group-hover:rotate-6 transition-transform duration-500 ease-out">
+                <span className="text-4xl filter drop-shadow-[0_0_12px_rgba(225,48,108,0.45)] mb-4">📸</span>
+              </div>
+              <h3 className="uppercase text-xs font-black tracking-widest text-[#E1306C] mb-2">Instagram Boosts</h3>
+              <h4 className="text-xl font-bold text-white mb-3 group-hover:text-[#E1306C] transition-colors">Engagement & Growth</h4>
+              <p className="text-slate-400 text-sm leading-relaxed mb-8 flex-grow">
+                Build authority on Instagram using rapid reel views, high-quality targeted followers, instant photo likes, and automated profile impressions.
+              </p>
+              <div className="flex justify-between items-end w-full mb-6 pt-4 border-t border-slate-800/60">
+                <div>
+                  <span className="block text-slate-555 text-[10px] font-bold uppercase tracking-wider mb-1">Starting Rate</span>
+                  <span className="text-2xl font-black text-white">₱24.98 <span className="text-xs text-slate-400 font-normal">per 1k boosts</span></span>
+                </div>
+              </div>
+              <button 
+                onClick={() => {
+                  setPlatformSubModalType("instagram");
+                  setPlatformSubModalOpen(true);
                 }}
-              />
-            )}
+                className="w-full bg-[#E1306C] hover:bg-[#eb5286] text-white font-extrabold py-3.5 rounded-full transition-all duration-300 uppercase text-xs tracking-wider transform group-hover:scale-[1.02] shadow-lg shadow-pink-500/5 cursor-pointer text-center"
+              >
+                VIEW
+              </button>
+            </div>
 
-            {/* 3. TikTok Followers */}
-            {tiktokFollowers && (
-              <ServiceCard 
-                key={tiktokFollowers.id}
-                id={tiktokFollowers.id}
-                title={tiktokFollowers.title}
-                description={tiktokFollowers.description}
-                startingPrice={tiktokFollowers.starting_price}
-                iconType={tiktokFollowers.icon_type}
-                onOrder={(id, title, price) => {
-                  setSelectedService(tiktokFollowers);
-                  handleOrder(id, title, price, tiktokFollowers.description);
+            {/* 3. TikTok Services */}
+            <div className="bg-[#121212]/50 hover:bg-[#161616]/90 backdrop-blur-md rounded-3xl p-8 flex flex-col items-start text-left w-full border border-white/[0.04] shadow-[0_12px_40px_rgba(0,0,0,0.4)] transition-all duration-500 transform hover:-translate-y-2 group hover:shadow-[0_0_35px_rgba(0,242,254,0.18)] hover:border-[#00F2FE]/30">
+              <div className="h-16 flex items-center justify-center group-hover:scale-115 group-hover:rotate-6 transition-transform duration-500 ease-out">
+                <span className="text-4xl filter drop-shadow-[0_0_12px_rgba(0,242,254,0.45)] mb-4">🎵</span>
+              </div>
+              <h3 className="uppercase text-xs font-black tracking-widest text-[#00F2FE] mb-2">TikTok Boosts</h3>
+              <h4 className="text-xl font-bold text-white mb-3 group-hover:text-[#00F2FE] transition-colors">Viral Video Packs</h4>
+              <p className="text-slate-400 text-sm leading-relaxed mb-8 flex-grow">
+                Amplify your TikTok influence with high-speed video views, organic-retention video likes, targeted followers, and instant profile shares.
+              </p>
+              <div className="flex justify-between items-end w-full mb-6 pt-4 border-t border-slate-800/60">
+                <div>
+                  <span className="block text-slate-555 text-[10px] font-bold uppercase tracking-wider mb-1">Starting Rate</span>
+                  <span className="text-2xl font-black text-white">₱30.00 <span className="text-xs text-slate-400 font-normal">per 1k boosts</span></span>
+                </div>
+              </div>
+              <button 
+                onClick={() => {
+                  setPlatformSubModalType("tiktok");
+                  setPlatformSubModalOpen(true);
                 }}
-              />
-            )}
+                className="w-full bg-[#00F2FE] hover:bg-[#3bf5fe] text-black font-extrabold py-3.5 rounded-full transition-all duration-300 uppercase text-xs tracking-wider transform group-hover:scale-[1.02] shadow-lg shadow-cyan-500/5 cursor-pointer text-center"
+              >
+                VIEW
+              </button>
+            </div>
 
-            {/* 4. YouTube Subscribers */}
-            {ytSubscribers && (
-              <ServiceCard 
-                key={ytSubscribers.id}
-                id={ytSubscribers.id}
-                title={ytSubscribers.title}
-                description={ytSubscribers.description}
-                startingPrice={ytSubscribers.starting_price}
-                iconType={ytSubscribers.icon_type}
-                onOrder={(id, title, price) => {
-                  setSelectedService(ytSubscribers);
-                  handleOrder(id, title, price, ytSubscribers.description);
+            {/* 4. YouTube Services */}
+            <div className="bg-[#121212]/50 hover:bg-[#161616]/90 backdrop-blur-md rounded-3xl p-8 flex flex-col items-start text-left w-full border border-white/[0.04] shadow-[0_12px_40px_rgba(0,0,0,0.4)] transition-all duration-500 transform hover:-translate-y-2 group hover:shadow-[0_0_35px_rgba(255,0,0,0.18)] hover:border-[#FF0000]/30">
+              <div className="h-16 flex items-center justify-center group-hover:scale-115 group-hover:rotate-6 transition-transform duration-500 ease-out">
+                <span className="text-4xl filter drop-shadow-[0_0_12px_rgba(255,0,0,0.45)] mb-4">🎥</span>
+              </div>
+              <h3 className="uppercase text-xs font-black tracking-widest text-[#FF0000] mb-2">YouTube Boosts</h3>
+              <h4 className="text-xl font-bold text-white mb-3 group-hover:text-[#FF0000] transition-colors">Monetization Helpers</h4>
+              <p className="text-slate-400 text-sm leading-relaxed mb-8 flex-grow">
+                Unlock monetization and scale authority using ad-compliant YouTube subscribers, watch hours, organic views, and post likes.
+              </p>
+              <div className="flex justify-between items-end w-full mb-6 pt-4 border-t border-slate-800/60">
+                <div>
+                  <span className="block text-slate-555 text-[10px] font-bold uppercase tracking-wider mb-1">Starting Rate</span>
+                  <span className="text-2xl font-black text-white">₱132.21 <span className="text-xs text-slate-400 font-normal">per 1k boosts</span></span>
+                </div>
+              </div>
+              <button 
+                onClick={() => {
+                  setPlatformSubModalType("youtube");
+                  setPlatformSubModalOpen(true);
                 }}
-              />
-            )}
+                className="w-full bg-[#FF0000] hover:bg-[#ff3b3b] text-white font-extrabold py-3.5 rounded-full transition-all duration-300 uppercase text-xs tracking-wider transform group-hover:scale-[1.02] shadow-lg shadow-red-500/5 cursor-pointer text-center"
+              >
+                VIEW
+              </button>
+            </div>
 
             {/* 2. Single Unified "OTHER SERVICES" Card */}
             {otherServices.length > 0 && (
@@ -436,10 +611,158 @@ export function ServicesSection({ services }: ServicesSectionProps) {
       {/* 8. SMM Panel Catalog Modal */}
       <SmmCatalogModal 
         isOpen={isSmmCatalogModalOpen}
+        prefilledSearch={smmPrefilledSearch}
         onClose={() => {
           setIsSmmCatalogModalOpen(false);
+          setSmmPrefilledSearch("");
         }}
       />
+
+      {/* 9. Platform-Specific SMM Timing Candidates Sub-Modal */}
+      {platformSubModalOpen && platformSubModalType && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#090909]/90 backdrop-blur-md p-4 animate-in fade-in duration-300">
+          <div className="bg-[#121212]/95 border border-slate-800/80 rounded-3xl w-full max-w-5xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] overflow-hidden relative transform transition-all animate-in zoom-in-95 duration-300 max-h-[90vh] flex flex-col">
+            
+            {/* Close Button */}
+            <button 
+              onClick={() => {
+                setPlatformSubModalOpen(false);
+                setPlatformSubModalType(null);
+              }}
+              className="absolute top-6 right-6 text-slate-400 hover:text-white transition-colors p-1.5 hover:bg-slate-850 rounded-xl z-20 cursor-pointer"
+              title="Close"
+            >
+              <X size={20} />
+            </button>
+            
+            {/* Header */}
+            <div className="p-8 sm:p-10 border-b border-slate-850/60 bg-[#161616]/40 flex-shrink-0">
+              <div className="flex items-center gap-3">
+                <span className="text-3xl sm:text-4xl">
+                  {platformSubModalType === "facebook" ? "📘" : platformSubModalType === "instagram" ? "📸" : platformSubModalType === "tiktok" ? "🎵" : "🎥"}
+                </span>
+                <div>
+                  <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+                    {platformSubModalType.toUpperCase()} <span className="text-[#1DB954]">CHEAPEST BOOSTS</span>
+                  </h2>
+                  <p className="text-slate-400 text-xs sm:text-sm mt-1">Direct reseller pricing on the absolute lowest, organic-timing candidate packages.</p>
+                </div>
+              </div>
+            </div>
+            
+            {/* Body */}
+            <div className="overflow-y-auto p-8 sm:p-10 flex-grow">
+              {loadingSmm ? (
+                <div className="flex flex-col justify-center items-center py-20 gap-3">
+                  <Loader2 size={36} className="text-[#1DB954] animate-spin" />
+                  <span className="text-xs font-bold text-slate-400 uppercase tracking-widest animate-pulse">Filtering cheapest timing candidates...</span>
+                </div>
+              ) : (() => {
+                const candidates = getPlatformSmmCandidates(platformSubModalType);
+                if (!candidates.follower && !candidates.like && !candidates.view) {
+                  return (
+                    <div className="text-center py-16 bg-[#161616]/30 border border-slate-800 border-dashed rounded-2xl">
+                      <p className="text-slate-500 font-extrabold uppercase tracking-wider text-sm">Reseller catalog timing list loading...</p>
+                      <p className="text-xs text-slate-650 mt-1">If this persists, click 'View Other Services' below to browse the backup database.</p>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="space-y-8">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+                      {[
+                        { title: "👥 FOLLOWER / SUBSCRIBER PACK", item: candidates.follower },
+                        { title: "❤️ POST LIKE / REACTION PACK", item: candidates.like },
+                        { title: "▶️ DIRECT VIEWS / PLAYS PACK", item: candidates.view }
+                      ].map((slot, index) => {
+                        const s = slot.item;
+                        if (!s) return null;
+                        const indicators = parseServiceIndicators(s.name, s.desc);
+                        return (
+                          <div 
+                            key={index}
+                            className="bg-[#181818]/60 border border-slate-800 p-6 rounded-2xl flex flex-col justify-between hover:border-[#1DB954]/30 hover:bg-[#1a1a1a] transition-all duration-350 hover:-translate-y-1 hover:shadow-[0_4px_25px_rgba(29,185,84,0.08)]"
+                          >
+                            <div>
+                              <h4 className="text-[10px] font-black uppercase tracking-wider text-[#1DB954] mb-2">{slot.title}</h4>
+                              <h5 className="text-sm font-bold text-white line-clamp-2 leading-snug mb-3">{s.name}</h5>
+                              
+                              {/* Timing Indicators */}
+                              <div className="flex flex-col gap-1.5 mb-4 select-none">
+                                <span className="inline-flex items-center text-[9px] font-extrabold px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/15 backdrop-blur-sm self-start">
+                                  {indicators.start}
+                                </span>
+                                <span className="inline-flex items-center text-[9px] font-extrabold px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-400 border border-blue-500/15 backdrop-blur-sm self-start">
+                                  {indicators.speed}
+                                </span>
+                                <span className={`inline-flex items-center text-[9px] font-extrabold px-2 py-0.5 rounded-md backdrop-blur-sm self-start ${
+                                  indicators.refill.includes("No Refill")
+                                    ? "bg-amber-500/10 text-amber-400 border border-amber-500/15"
+                                    : "bg-cyan-500/10 text-cyan-400 border border-cyan-500/15"
+                                }`}>
+                                  {indicators.refill}
+                                </span>
+                              </div>
+                              
+                              <p className="text-[10px] text-slate-500 font-extrabold uppercase tracking-wide">
+                                Reseller ID: #{s.id}
+                              </p>
+                              {s.desc && (
+                                <p className="text-[10px] text-slate-400 mt-2 bg-black/20 p-2.5 rounded-xl border border-slate-900/60 line-clamp-2 leading-relaxed">
+                                  {s.desc}
+                                </p>
+                              )}
+                            </div>
+                            
+                            <div className="mt-6 pt-4 border-t border-slate-850/60">
+                              <div className="flex justify-between items-baseline mb-4">
+                                <span className="text-[9px] text-slate-500 font-extrabold uppercase tracking-wider">Rate per 1k:</span>
+                                <span className="text-base font-black text-white">₱{(s.startingPrice * 1000).toFixed(2)}</span>
+                              </div>
+                              
+                              <button
+                                onClick={() => {
+                                  // Auto-checkout flow: Close this modal and open SMM Modal prefilled with the service ID
+                                  setPlatformSubModalOpen(false);
+                                  setPlatformSubModalType(null);
+                                  setSmmPrefilledSearch(s.id);
+                                  setIsSmmCatalogModalOpen(true);
+                                }}
+                                type="button"
+                                className="w-full bg-[#1DB954]/10 hover:bg-[#1DB954] text-[#1DB954] hover:text-black border border-[#1DB954]/30 hover:border-[#1DB954] font-extrabold py-2 rounded-xl transition-all text-xs uppercase tracking-widest cursor-pointer text-center"
+                              >
+                                Order Boost →
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    
+                    {/* Bottom Gateway to complete Catalog */}
+                    <div className="text-center pt-4 max-w-sm mx-auto">
+                      <button
+                        onClick={() => {
+                          setPlatformSubModalOpen(false);
+                          setPlatformSubModalType(null);
+                          setSmmPrefilledSearch(platformSubModalType); // Prefill search with platform name
+                          setIsSmmCatalogModalOpen(true);
+                        }}
+                        type="button"
+                        className="w-full bg-slate-850 hover:bg-slate-800 border border-slate-800 text-slate-350 hover:text-white font-extrabold py-3.5 rounded-full transition-all duration-300 uppercase text-xs tracking-wider cursor-pointer text-center"
+                      >
+                        View Other {platformSubModalType.charAt(0).toUpperCase() + platformSubModalType.slice(1)} Services Inside
+                      </button>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+            
+          </div>
+        </div>
+      )}
     </>
   );
 }

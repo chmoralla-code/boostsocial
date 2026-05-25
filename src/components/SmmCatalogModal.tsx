@@ -165,6 +165,15 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
             const cats = Array.from(new Set(data.map((s: SmmService) => s.category))) as string[];
             cats.sort();
             setCategories(cats);
+
+            // BEYOND EXPECTATIONS: If prefilledSearch is a direct numeric service ID, auto-open its checkout form!
+            if (prefilledSearch && /^\d+$/.test(prefilledSearch)) {
+              const matched = data.find((s: SmmService) => s.id === prefilledSearch);
+              if (matched) {
+                setSelectedService(matched);
+                setCheckoutStep("form");
+              }
+            }
           } else {
             throw new Error("Invalid catalog response format");
           }
