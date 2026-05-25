@@ -19,6 +19,7 @@ interface SmmService {
 interface SmmCatalogModalProps {
   isOpen: boolean;
   onClose: () => void;
+  prefilledSearch?: string;
 }
 
 const PLATFORMS = [
@@ -31,7 +32,7 @@ const PLATFORMS = [
   { id: "telegram", name: "Telegram", icon: "✈️" }
 ];
 
-export function SmmCatalogModal({ isOpen, onClose }: SmmCatalogModalProps) {
+export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalogModalProps) {
   const [services, setServices] = useState<SmmService[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -78,6 +79,22 @@ export function SmmCatalogModal({ isOpen, onClose }: SmmCatalogModalProps) {
       setCheckoutStep("catalog");
       setSelectedService(null);
       setUrl("");
+      
+      // Auto-initialize search query and platform tab from Puter AI prefill
+      if (prefilledSearch) {
+        setSearchTerm(prefilledSearch);
+        const psLower = prefilledSearch.toLowerCase();
+        if (psLower.includes("facebook") || psLower.includes("fb")) setSelectedPlatform("facebook");
+        else if (psLower.includes("instagram") || psLower.includes("ig")) setSelectedPlatform("instagram");
+        else if (psLower.includes("tiktok") || psLower.includes("tt")) setSelectedPlatform("tiktok");
+        else if (psLower.includes("youtube") || psLower.includes("yt")) setSelectedPlatform("youtube");
+        else if (psLower.includes("twitter") || psLower.includes("x")) setSelectedPlatform("twitter");
+        else if (psLower.includes("telegram")) setSelectedPlatform("telegram");
+        else setSelectedPlatform("all");
+      } else {
+        setSearchTerm("");
+        setSelectedPlatform("all");
+      }
       
       fetch("/api/smm/services")
         .then((res) => {
