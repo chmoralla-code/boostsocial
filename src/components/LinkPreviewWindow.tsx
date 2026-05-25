@@ -161,155 +161,65 @@ export function LinkPreviewWindow({ targetUrl, orderStatus, serviceTitle }: Link
     return null;
   }
 
-  const liveUrl = preview?.finalUrl || previewUrl;
-  const checkedAt = formatCheckedAt(preview?.checkedAt);
-  const canEmbed = Boolean(preview?.reachable && preview.embeddable);
-  const serviceLabel = serviceTitle || "Target";
+  // 1. Sleek, pulsating loading state placeholder
+  if (loading) {
+    return (
+      <div className="w-full h-[140px] sm:h-[180px] rounded-2xl border border-slate-800/60 bg-[#161616]/40 flex flex-col items-center justify-center gap-2.5 animate-pulse select-none max-w-lg mx-auto">
+        <Loader2 className="animate-spin text-[#1877F2] drop-shadow-[0_0_8px_rgba(24,119,242,0.3)]" size={20} />
+        <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">Checking live preview...</span>
+      </div>
+    );
+  }
 
+  // 2. Premium Open-Graph Image Preview (The requested clean live picture card!)
+  if (preview?.image) {
+    return (
+      <div className="relative group overflow-hidden rounded-2xl border border-slate-800/85 hover:border-[#1877F2]/30 transition-all duration-300 shadow-xl max-w-lg mx-auto bg-black/40">
+        <img
+          src={preview.image}
+          alt="Target Page Preview"
+          className="w-full h-auto max-h-[220px] object-cover transition-transform duration-500 group-hover:scale-102 select-none"
+        />
+        
+        {/* Sleek verification bar overlay */}
+        <div className="absolute bottom-3 left-3 right-3 px-3.5 py-2.5 rounded-xl bg-[#090909]/80 backdrop-blur-md border border-white/[0.04] flex items-center justify-between text-left shadow-lg">
+          <div className="truncate pr-2 select-all">
+            <span className="block text-[8px] font-black uppercase text-[#1877F2] tracking-widest">Verified Target Link</span>
+            <span className="block text-[10px] font-bold text-white truncate leading-tight mt-0.5">{preview.title || "Live Target"}</span>
+          </div>
+          <span className="flex-shrink-0 text-[8px] font-black uppercase bg-[#1877F2]/10 text-[#1877F2] border border-[#1877F2]/25 px-2.5 py-1 rounded-full select-none flex items-center gap-1">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" /> Live
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  // 3. Fallback 1: Link Verified checkmark card (if reachable but no image)
+  if (preview?.reachable) {
+    return (
+      <div className="flex items-center gap-3 p-4 rounded-xl border border-emerald-500/15 bg-emerald-500/5 max-w-lg mx-auto text-left shadow-md select-none animate-in fade-in duration-300">
+        <div className="h-7 w-7 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 flex-shrink-0">
+          <span className="text-xs">✔</span>
+        </div>
+        <div className="truncate">
+          <span className="block text-[9px] font-black uppercase tracking-wider text-emerald-400">Target Link Verified</span>
+          <span className="block text-[10px] font-bold text-slate-350 truncate mt-0.5 leading-snug">{previewUrl}</span>
+        </div>
+      </div>
+    );
+  }
+
+  // 4. Fallback 2: Link Unreachable warning card
   return (
-    <section className="bg-[#181818]/60 border border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-2xl relative overflow-hidden">
-      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#1877F2]/50 to-transparent" />
-
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-5">
-        <div className="space-y-1.5">
-          <span className="text-[10px] font-black uppercase tracking-widest text-[#1877F2] flex items-center gap-1.5">
-            <MonitorUp size={13} /> Live Target Preview
-          </span>
-          <h4 className="text-lg font-black text-white leading-tight">{serviceLabel}</h4>
-          <p className="text-[11px] text-slate-450 font-mono break-all">{liveUrl}</p>
-        </div>
-
-        <div className="flex items-center gap-2 flex-shrink-0">
-          <span
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[10px] font-black uppercase tracking-wider ${
-              loading
-                ? "bg-slate-800/80 text-slate-300 border-slate-700"
-                : preview?.reachable
-                  ? "bg-[#1877F2]/10 text-[#1877F2] border-[#1877F2]/25"
-                  : "bg-red-500/10 text-red-400 border-red-500/25"
-            }`}
-          >
-            {loading ? (
-              <Loader2 size={12} className="animate-spin" />
-            ) : preview?.reachable ? (
-              <CheckCircle2 size={12} />
-            ) : (
-              <AlertCircle size={12} />
-            )}
-            {loading ? "Checking" : preview?.reachable ? "Live" : "Check"}
-          </span>
-
-          <button
-            type="button"
-            onClick={loadPreview}
-            disabled={loading}
-            className="h-9 w-9 rounded-xl bg-[#121212] border border-slate-800/80 text-slate-300 hover:text-white hover:border-[#1877F2]/50 transition-all flex items-center justify-center disabled:opacity-50"
-            title="Refresh preview"
-          >
-            <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
-          </button>
-
-          <a
-            href={liveUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="h-9 w-9 rounded-xl bg-[#1877F2] hover:bg-[#4e8df5] text-white transition-all flex items-center justify-center shadow-lg shadow-blue-500/20"
-            title="Open target"
-          >
-            <ExternalLink size={14} />
-          </a>
-        </div>
+    <div className="flex items-center gap-3 p-4 rounded-xl border border-red-500/15 bg-red-500/5 max-w-lg mx-auto text-left shadow-md select-none animate-in fade-in duration-300">
+      <div className="h-7 w-7 rounded-lg bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-400 flex-shrink-0">
+        <span className="text-xs font-bold">!</span>
       </div>
-
-      <div className="rounded-2xl border border-slate-800/80 bg-[#0f0f0f] overflow-hidden min-h-[300px] relative">
-        <div className="h-9 border-b border-slate-800/80 bg-[#151515] flex items-center justify-between px-3">
-          <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-red-500/80" />
-            <span className="w-2.5 h-2.5 rounded-full bg-[#ff9800]/80" />
-            <span className="w-2.5 h-2.5 rounded-full bg-[#1877F2]/80" />
-          </div>
-          <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">
-            {checkedAt ? `Checked ${checkedAt}` : "Target Window"}
-          </span>
-        </div>
-
-        {canEmbed ? (
-          <div className="relative h-[360px] bg-white">
-            {!frameReady && (
-              <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-[#121212] text-center px-6">
-                <Loader2 className="animate-spin text-[#1877F2] mb-3" size={26} />
-                <span className="text-xs font-black uppercase tracking-widest text-white">
-                  Loading Preview
-                </span>
-              </div>
-            )}
-
-            {frameTimedOut && (
-              <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-[#121212]/95 text-center px-6">
-                <AlertCircle className="text-[#ff9800] mb-3" size={28} />
-                <span className="text-xs font-black uppercase tracking-widest text-white">
-                  Preview Delayed
-                </span>
-                <a
-                  href={liveUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mt-4 inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-[#1877F2] hover:bg-[#4e8df5] text-white text-[10px] font-black uppercase tracking-wider transition-all"
-                >
-                  Open Target <ExternalLink size={12} />
-                </a>
-              </div>
-            )}
-
-            <iframe
-              key={frameKey}
-              src={liveUrl}
-              title="Live target preview"
-              className="w-full h-full bg-white"
-              sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
-              referrerPolicy="no-referrer-when-downgrade"
-              onLoad={() => setFrameReady(true)}
-            />
-          </div>
-        ) : (
-          <div className="min-h-[300px] flex flex-col justify-center p-5 sm:p-7 relative">
-            {preview?.image && (
-              <div
-                className="absolute inset-0 opacity-20 bg-cover bg-center"
-                style={{ backgroundImage: `url(${preview.image})` }}
-              />
-            )}
-            <div className="relative z-10 max-w-lg">
-              <span
-                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[9px] font-black uppercase tracking-widest mb-4 ${
-                  preview?.reachable
-                    ? "bg-[#1877F2]/10 text-[#1877F2] border-[#1877F2]/25"
-                    : "bg-red-500/10 text-red-400 border-red-500/25"
-                }`}
-              >
-                {preview?.reachable ? <CheckCircle2 size={11} /> : <AlertCircle size={11} />}
-                {preview?.status ? `HTTP ${preview.status}` : "Unavailable"}
-              </span>
-
-              <h5 className="text-xl font-black text-white leading-tight mb-2">
-                {preview?.title || new URL(previewUrl).hostname}
-              </h5>
-              <p className="text-xs text-slate-350 leading-relaxed font-semibold mb-5">
-                {preview?.description || preview?.reason || "Open the target link to view the live page."}
-              </p>
-
-              <a
-                href={liveUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-[#1877F2] hover:bg-[#4e8df5] text-white text-[11px] font-black uppercase tracking-wider transition-all shadow-lg shadow-blue-500/20"
-              >
-                Open Target <ExternalLink size={13} />
-              </a>
-            </div>
-          </div>
-        )}
+      <div>
+        <span className="block text-[9px] font-black uppercase tracking-wider text-red-450">Link Unreachable / Private</span>
+        <span className="block text-[10px] font-bold text-slate-400 mt-0.5 leading-tight">Please check your profile link or set it to Public.</span>
       </div>
-    </section>
+    </div>
   );
 }
