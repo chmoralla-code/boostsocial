@@ -4,6 +4,7 @@ import { StorageOptimizingPanel } from "./StorageOptimizingPanel";
 import { MaintenanceSettingsPanel } from "./MaintenanceSettingsPanel";
 import { TelegramSettingsPanel } from "./TelegramSettingsPanel";
 import { HeroVideoSettingsPanel } from "./HeroVideoSettingsPanel";
+import { HeroTextSettingsPanel } from "./HeroTextSettingsPanel";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 
@@ -310,11 +311,12 @@ export default async function AdminOverview() {
             </div>
           </div>
 
-          {/* StoragePreservationPanel, TelegramNotificationPanel, and HeroVideoSettingsPanel */}
+          {/* StoragePreservationPanel, TelegramNotificationPanel, HeroVideoSettingsPanel, and HeroTextSettingsPanel */}
           <StorageOptimizingPanel />
           <MaintenanceSettingsPanel />
           <TelegramSettingsPanel />
           <HeroVideoSettingsPanel />
+          <HeroTextSettingsPanel />
 
         </div>
 

@@ -16,6 +16,73 @@ export default async function Home() {
     .select('*')
     .order('created_at', { ascending: true });
 
+  // Fetch custom hero texts
+  let heroTexts = {
+    badge: "⚡ Next-Gen Amplification Engine",
+    title: "MAS BARATO PA SA \n[FACEBOOK] {BOOSTING} SERVICES !",
+    description: "Don't worry about transparency—we deliver [50 free trial] followers,\nreactions, or views so you can test our service before paying fully!"
+  };
+  try {
+    const { data: textSetting } = await supabase
+      .from('settings')
+      .select('value')
+      .eq('key', 'hero_text')
+      .single();
+    if (textSetting && textSetting.value) {
+      heroTexts = {
+        badge: textSetting.value.badge || heroTexts.badge,
+        title: textSetting.value.title || heroTexts.title,
+        description: textSetting.value.description || heroTexts.description
+      };
+    }
+  } catch (err) {
+    console.error("Failed to load hero text settings:", err);
+  }
+
+  // Helper parser for primary title
+  const parseTitle = (text: string) => {
+    const regex = /(\[.*?\]|\{.*?\}|\\n|\n)/g;
+    const parts = text.split(regex);
+    return parts.map((part, index) => {
+      if (part.startsWith('[') && part.endsWith(']')) {
+        return (
+          <span key={index} className="fb-shimmer-text">
+            {part.slice(1, -1)}
+          </span>
+        );
+      } else if (part.startsWith('{') && part.endsWith('}')) {
+        return (
+          <span key={index} className="spotify-shimmer-text">
+            {part.slice(1, -1)}
+          </span>
+        );
+      } else if (part === '\\n' || part === '\n') {
+        return <br key={index} className="hidden md:inline" />;
+      } else {
+        return part;
+      }
+    });
+  };
+
+  // Helper parser for description paragraph
+  const parseDescriptionText = (text: string) => {
+    const regex = /(\[.*?\]|\{.*?\}|\\n|\n)/g;
+    const parts = text.split(regex);
+    return parts.map((part, index) => {
+      if ((part.startsWith('[') && part.endsWith(']')) || (part.startsWith('{') && part.endsWith('}'))) {
+        return (
+          <span key={index} className="text-white">
+            {part.slice(1, -1)}
+          </span>
+        );
+      } else if (part === '\\n' || part === '\n') {
+        return <br key={index} className="hidden sm:inline" />;
+      } else {
+        return part;
+      }
+    });
+  };
+
   // Fetch custom hero video URL and opacity from Supabase Storage config
   let videoUrl = "";
   let opacity = 0.45;
@@ -59,17 +126,15 @@ export default async function Home() {
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#1ed760] opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-[#1DB954]"></span>
             </span>
-            ⚡ Next-Gen Amplification Engine
+            {heroTexts.badge}
           </div>
 
           <h1 className="text-4xl sm:text-5xl md:text-7xl font-black leading-none mb-6 tracking-tighter uppercase animate-fade-in-up-2">
-            MAS BARATO PA SA <br className="hidden md:inline" />
-            <span className="fb-shimmer-text">FACEBOOK</span> <span className="spotify-shimmer-text">BOOSTING</span> SERVICES !
+            {parseTitle(heroTexts.title)}
           </h1>
           
           <p className="text-sm sm:text-base md:text-lg text-slate-400 mb-12 max-w-2xl mx-auto font-bold leading-relaxed animate-fade-in-up-3">
-            Don't worry about transparency—we deliver <span className="text-white">50 free trial</span> followers, <br className="hidden sm:inline" />
-            reactions, or views so you can test our service before paying fully!
+            {parseDescriptionText(heroTexts.description)}
           </p>
           
           <HeroSearch services={services || []} />
