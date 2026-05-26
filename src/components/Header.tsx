@@ -30,12 +30,23 @@ export function Header() {
       if (data.user) fetchProfile(data.user.id);
     });
 
+    const handleBalanceUpdate = () => {
+      supabase.auth.getUser().then(({ data }) => {
+        if (data.user) fetchProfile(data.user.id);
+      });
+    };
+
+    window.addEventListener("balance-update", handleBalanceUpdate);
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
       if (session?.user) fetchProfile(session.user.id);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      subscription.unsubscribe();
+      window.removeEventListener("balance-update", handleBalanceUpdate);
+    };
   }, []);
 
   const handleSignOut = async () => {

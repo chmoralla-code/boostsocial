@@ -47,6 +47,23 @@ export async function POST(req: NextRequest) {
 
     if (updateProfileError) throw updateProfileError;
 
+    const backupSupabaseUrl = process.env.BACKUP_SUPABASE_URL;
+    const backupServiceRoleKey = process.env.BACKUP_SUPABASE_SERVICE_ROLE_KEY;
+    const backupSupabase = backupSupabaseUrl && backupServiceRoleKey
+      ? createClient(backupSupabaseUrl, backupServiceRoleKey, { auth: { persistSession: false } })
+      : null;
+
+    if (backupSupabase) {
+      try {
+        await backupSupabase
+          .from("profiles")
+          .update({ balance: newBalance })
+          .eq("id", userId);
+      } catch (backupErr) {
+        console.error("Backup DB balance deduction failed:", backupErr);
+      }
+    }
+
     // 3. Create the order with 'Pending' status (admin approval required first)
     const { data: order, error: insertError } = await supabase
       .from('orders')
@@ -67,6 +84,27 @@ export async function POST(req: NextRequest) {
 
     if (insertError) throw insertError;
 
+    if (backupSupabase) {
+      try {
+        await backupSupabase
+          .from('orders')
+          .insert([
+            {
+              id: order.id, // Keep the same UUID!
+              service_id: serviceId,
+              customer_email: email.trim(),
+              target_url: url.trim(),
+              amount: cost,
+              status: 'Pending',
+              payment_method: 'Wallet',
+              quantity: quantity,
+              smm_service_id: smmServiceId || null
+            }
+          ]);
+      } catch (backupErr) {
+        console.error("Backup DB order insert failed:", backupErr);
+      }
+    }
 
     // 5. Fire Telegram notification (non-blocking)
     sendOrderNotification({

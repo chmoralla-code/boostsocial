@@ -505,9 +505,10 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
         localStorage.setItem("last_order_id", data.orderId);
         localStorage.setItem("last_order_email", user.email || "");
       }
-      // Automatically refresh the wallet balance in the header if possible 
-      // (in a real app we'd use global state, but here we update local profile state to prevent double clicking)
       setProfile({ ...profile, balance: data.newBalance });
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("balance-update"));
+      }
       
     } catch (err: any) {
       setError(err.message || "Something went wrong.");
