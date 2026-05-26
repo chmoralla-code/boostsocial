@@ -226,7 +226,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
       min_quantity: (isPageService || isEapService || isSoftwareService) ? 1 : 100,
       free_trial_amount: (isPageService || isEapService || isSoftwareService) ? 0 : 50,
       custom_fields: [] as {id: string, label: string, type?: string, options?: string[]}[],
-      smm_service_id: null as number | null
+      smm_service_id: null as string | null
     };
 
     if (service && service.description) {
@@ -237,7 +237,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
             min_quantity: (isPageService || isEapService || isSoftwareService) ? 1 : (Number(p.min_quantity) || defaults.min_quantity),
             free_trial_amount: (isPageService || isEapService || isSoftwareService) ? 0 : (Number(p.free_trial_amount) || defaults.free_trial_amount),
             custom_fields: p.custom_fields || [],
-            smm_service_id: p.smm_service_id ? Number(p.smm_service_id) : null
+            smm_service_id: p.smm_service_id ? String(p.smm_service_id) : null
           };
         }
       } catch (e) {}
@@ -373,7 +373,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
             amount: totalPrice,
             status: 'Pending',
             quantity: finalQuantity,
-            smm_service_id: isReactionService ? getFBReactionsSMMDetails(selectedReactions).smmId : parsedDetails.smm_service_id
+            smm_service_id: parsedDetails.smm_service_id ? String(parsedDetails.smm_service_id) : (isReactionService ? String(getFBReactionsSMMDetails(selectedReactions).smmId) : null)
           }
         ])
         .select('id')
@@ -467,7 +467,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
           url: tempUrl,
           quantity: finalQuantity,
           totalPrice,
-          smmServiceId: isReactionService ? getFBReactionsSMMDetails(selectedReactions).smmId : parsedDetails.smm_service_id
+          smmServiceId: parsedDetails.smm_service_id ? String(parsedDetails.smm_service_id) : (isReactionService ? String(getFBReactionsSMMDetails(selectedReactions).smmId) : null)
         })
       });
 
