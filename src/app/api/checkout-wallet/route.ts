@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 3. Create the order with 'Pending' status (admin approval required first)
+    // 3. Create the order with 'Processing' status directly since wallet payment auto-confirms
     const { data: order, error: insertError } = await supabase
       .from('orders')
       .insert([
@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
           customer_email: email.trim(),
           target_url: url.trim(),
           amount: cost,
-          status: 'Pending',
+          status: 'Processing',
           payment_method: 'Wallet',
           quantity: quantity,
           smm_service_id: smmServiceId || null
@@ -95,7 +95,7 @@ export async function POST(req: NextRequest) {
               customer_email: email.trim(),
               target_url: url.trim(),
               amount: cost,
-              status: 'Pending',
+              status: 'Processing',
               payment_method: 'Wallet',
               quantity: quantity,
               smm_service_id: smmServiceId || null
@@ -105,6 +105,11 @@ export async function POST(req: NextRequest) {
         console.error("Backup DB order insert failed:", backupErr);
       }
     }
+
+    // 4. Trigger automated SMM provider placement instantly in background
+    autoPlaceRixeyOrder(order.id, serviceId, url.trim(), quantity).catch((err) => {
+      console.error("Async auto-placement on RixeySMM from wallet checkout failed:", err);
+    });
 
     // 5. Fire Telegram notification (non-blocking)
     sendOrderNotification({
