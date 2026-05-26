@@ -28,6 +28,23 @@ export async function POST(req: NextRequest) {
       .eq("id", id);
 
     if (error) throw error;
+
+    const backupSupabaseUrl = process.env.BACKUP_SUPABASE_URL;
+    const backupServiceRoleKey = process.env.BACKUP_SUPABASE_SERVICE_ROLE_KEY;
+    if (backupSupabaseUrl && backupServiceRoleKey) {
+      try {
+        const backupSupabase = createClient(backupSupabaseUrl, backupServiceRoleKey, {
+          auth: { persistSession: false }
+        });
+        await backupSupabase
+          .from("services")
+          .delete()
+          .eq("id", id);
+      } catch (backupErr) {
+        console.error("Backup DB delete-service failed:", backupErr);
+      }
+    }
+
     return NextResponse.json({ success: true });
   } catch (err: any) {
     console.error("Delete service endpoint failed:", err);

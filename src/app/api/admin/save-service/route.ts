@@ -27,6 +27,12 @@ export async function POST(req: NextRequest) {
       auth: { persistSession: false }
     });
 
+    const backupSupabaseUrl = process.env.BACKUP_SUPABASE_URL;
+    const backupServiceRoleKey = process.env.BACKUP_SUPABASE_SERVICE_ROLE_KEY;
+    const backupSupabase = backupSupabaseUrl && backupServiceRoleKey
+      ? createClient(backupSupabaseUrl, backupServiceRoleKey, { auth: { persistSession: false } })
+      : null;
+
     const priceNum = Number(starting_price);
     if (isNaN(priceNum) || priceNum <= 0) {
       return NextResponse.json({ error: "Invalid price" }, { status: 400 });
@@ -64,7 +70,7 @@ export async function POST(req: NextRequest) {
       if (smmServiceId !== undefined) {
         const asString = String(smmServiceId).trim();
         if (asString) {
-          descriptionObj["smm_service_id"] = Number(asString);
+          descriptionObj["smm_service_id"] = asString;
         } else {
           delete descriptionObj["smm_service_id"];
         }
@@ -121,6 +127,23 @@ export async function POST(req: NextRequest) {
         .single();
 
       if (error) throw error;
+
+      if (backupSupabase) {
+        try {
+          await backupSupabase
+            .from("services")
+            .update({
+              title: title.trim(),
+              description: JSON.stringify(descriptionObj),
+              starting_price: priceNum,
+              icon_type,
+            })
+            .eq("id", id);
+        } catch (backupErr) {
+          console.error("Backup DB save-service update failed:", backupErr);
+        }
+      }
+
       return NextResponse.json({ success: true, service: data });
     } else {
       // Insert new service
@@ -138,6 +161,25 @@ export async function POST(req: NextRequest) {
         .single();
 
       if (error) throw error;
+
+      if (backupSupabase) {
+        try {
+          await backupSupabase
+            .from("services")
+            .insert([
+              {
+                id: data.id,
+                title: title.trim(),
+                description: JSON.stringify(descriptionObj),
+                starting_price: priceNum,
+                icon_type,
+              }
+            ]);
+        } catch (backupErr) {
+          console.error("Backup DB save-service insert failed:", backupErr);
+        }
+      }
+
       return NextResponse.json({ success: true, service: data });
     }
   } catch (err: any) {
