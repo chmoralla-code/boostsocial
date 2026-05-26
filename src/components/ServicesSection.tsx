@@ -22,9 +22,10 @@ interface Service {
 interface ServicesSectionProps {
   services: Service[];
   servicesBg?: { videoUrl: string; opacity: number };
+  servicesCandidates?: any[] | null;
 }
 
-export function ServicesSection({ services, servicesBg }: ServicesSectionProps) {
+export function ServicesSection({ services, servicesBg, servicesCandidates }: ServicesSectionProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
   const [selectedServiceTitle, setSelectedServiceTitle] = useState("");
@@ -279,6 +280,85 @@ export function ServicesSection({ services, servicesBg }: ServicesSectionProps) 
   const tiktokFollowers = services.find(s => s.id === "2a98f123-1d42-45e3-82ef-fb347cda6541") || services.find(s => s.title.toLowerCase() === "tiktok followers");
   const ytSubscribers = services.find(s => s.id === "ab348d21-f123-45c1-bd76-e137fab62aa1") || services.find(s => s.title.toLowerCase() === "yt subscribers" || s.title.toLowerCase() === "youtube subscribers");
 
+  const DEFAULT_CANDIDATES = [
+    {
+      id: "facebook",
+      emoji: "📘",
+      tag: "Facebook Boosts",
+      title: "Page & Post Services",
+      description: "Scale your Facebook pages and posts using compliant local PH-base followers, post likes/reactions, custom-emoji comments, and targeted post reach.",
+      rate_prefix: "Starting Rate",
+      rate_text: "₱25.18 per 1k boosts",
+      theme_color: "#1877F2",
+      btn_bg: "bg-[#1877F2] hover:bg-[#4e8df5]",
+      glow_color: "rgba(24, 119, 242, 0.45)"
+    },
+    {
+      id: "instagram",
+      emoji: "📸",
+      tag: "Instagram Boosts",
+      title: "Engagement & Growth",
+      description: "Build authority on Instagram using rapid reel views, high-quality targeted followers, instant photo likes, and automated profile impressions.",
+      rate_prefix: "Starting Rate",
+      rate_text: "₱24.98 per 1k boosts",
+      theme_color: "#E1306C",
+      btn_bg: "bg-[#E1306C] hover:bg-[#eb5286]",
+      glow_color: "rgba(225, 48, 108, 0.45)"
+    },
+    {
+      id: "tiktok",
+      emoji: "🎵",
+      tag: "TikTok Boosts",
+      title: "Viral Video Packs",
+      description: "Amplify your TikTok influence with high-speed video views, organic-retention video likes, targeted followers, and instant profile shares.",
+      rate_prefix: "Starting Rate",
+      rate_text: "₱30.00 per 1k boosts",
+      theme_color: "#00F2FE",
+      btn_bg: "bg-[#00F2FE] hover:bg-[#3bf5fe] text-black",
+      glow_color: "rgba(0, 242, 254, 0.45)"
+    },
+    {
+      id: "youtube",
+      emoji: "🎥",
+      tag: "YouTube Boosts",
+      title: "Monetization Helpers",
+      description: "Unlock monetization and scale authority using ad-compliant YouTube subscribers, watch hours, organic views, and post likes.",
+      rate_prefix: "Starting Rate",
+      rate_text: "₱132.21 per 1k boosts",
+      theme_color: "#FF0000",
+      btn_bg: "bg-[#FF0000] hover:bg-[#ff3b3b]",
+      glow_color: "rgba(255, 0, 0, 0.45)"
+    },
+    {
+      id: "other",
+      emoji: "Layers",
+      tag: "OTHER SERVICES",
+      title: "Specialty & Utilities",
+      description: "Premium digital memberships, PisoWiFi setups, network router optimizations, and pre-activated professional architectural design tools.",
+      rate_prefix: "Included services",
+      rate_text: "Gemini Subscriptions, PisoWiFi setups, EAP TP-Link routers, and Architectural Software",
+      theme_color: "#1877F2",
+      btn_bg: "bg-[#1877F2] hover:bg-[#4e8df5]",
+      glow_color: "rgba(24, 119, 242, 0.45)"
+    },
+    {
+      id: "catalog",
+      emoji: "Layers",
+      tag: "1,100+ BOOSTS",
+      title: "SMM Catalog Explorer",
+      description: "Instantly search and order premium boosts for Instagram, TikTok, YouTube, Twitter, and other platforms at direct reseller pricing.",
+      rate_prefix: "Direct Reseller Rates",
+      rate_text: "Instagram Followers, TikTok Hearts, YouTube Sub Packs, Telegram, Twitter, & more",
+      theme_color: "#1DB954",
+      btn_bg: "bg-[#1DB954] hover:bg-[#1ed760] text-black",
+      glow_color: "rgba(29, 185, 84, 0.45)"
+    }
+  ];
+
+  const activeCandidates = servicesCandidates && Array.isArray(servicesCandidates) && servicesCandidates.length > 0
+    ? servicesCandidates
+    : DEFAULT_CANDIDATES;
+
   return (
     <>
       {/* 1. SMM Price Calculator Widget */}
@@ -352,174 +432,130 @@ export function ServicesSection({ services, servicesBg }: ServicesSectionProps) 
 
         {/* Premium Consolidated Homepage Grid (Mobile-First responsive grids) */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 justify-center max-w-6xl mx-auto">
-            {/* 1. Facebook Services */}
-            <div className="bg-[#121212]/50 hover:bg-[#161616]/90 backdrop-blur-md rounded-3xl p-8 flex flex-col items-start text-left w-full border border-white/[0.04] shadow-[0_12px_40px_rgba(0,0,0,0.4)] transition-all duration-500 transform hover:-translate-y-2 group hover:shadow-[0_0_35px_rgba(24,119,242,0.18)] hover:border-[#1877F2]/30">
-              <div className="h-16 flex items-center justify-center group-hover:scale-115 group-hover:rotate-6 transition-transform duration-500 ease-out">
-                <span className="text-4xl filter drop-shadow-[0_0_12px_rgba(24,119,242,0.45)] mb-4">📘</span>
-              </div>
-              <h3 className="uppercase text-xs font-black tracking-widest text-[#1877F2] mb-2">Facebook Boosts</h3>
-              <h4 className="text-xl font-bold text-white mb-3 group-hover:text-[#1877F2] transition-colors">Page & Post Services</h4>
-              <p className="text-slate-400 text-sm leading-relaxed mb-8 flex-grow">
-                Scale your Facebook pages and posts using compliant local PH-base followers, post likes/reactions, custom-emoji comments, and targeted post reach.
-              </p>
-              <div className="flex justify-between items-end w-full mb-6 pt-4 border-t border-slate-800/60">
-                <div>
-                  <span className="block text-slate-550 text-[10px] font-bold uppercase tracking-wider mb-1">Starting Rate</span>
-                  <span className="text-2xl font-black text-white">₱25.18 <span className="text-xs text-slate-400 font-normal">per 1k boosts</span></span>
-                </div>
-              </div>
-              <button 
-                onClick={() => {
-                  setPlatformSubModalType("facebook");
-                  setPlatformSubModalOpen(true);
-                }}
-                className="w-full bg-[#1877F2] hover:bg-[#4e8df5] text-white font-extrabold py-3.5 rounded-full transition-all duration-300 uppercase text-xs tracking-wider transform group-hover:scale-[1.02] shadow-lg shadow-blue-500/5 cursor-pointer text-center"
-              >
-                VIEW
-              </button>
-            </div>
+          {activeCandidates.map((card) => {
+            // Determine button click action
+            let clickAction = () => {};
+            if (card.id === "facebook") {
+              clickAction = () => {
+                setPlatformSubModalType("facebook");
+                setPlatformSubModalOpen(true);
+              };
+            } else if (card.id === "instagram") {
+              clickAction = () => {
+                setPlatformSubModalType("instagram");
+                setPlatformSubModalOpen(true);
+              };
+            } else if (card.id === "tiktok") {
+              clickAction = () => {
+                setPlatformSubModalType("tiktok");
+                setPlatformSubModalOpen(true);
+              };
+            } else if (card.id === "youtube") {
+              clickAction = () => {
+                setPlatformSubModalType("youtube");
+                setPlatformSubModalOpen(true);
+              };
+            } else if (card.id === "other") {
+              if (otherServices.length === 0) return null;
+              clickAction = () => setIsOtherModalOpen(true);
+            } else if (card.id === "catalog") {
+              clickAction = () => setIsSmmCatalogModalOpen(true);
+            }
 
-            {/* 2. Instagram Services */}
-            <div className="bg-[#121212]/50 hover:bg-[#161616]/90 backdrop-blur-md rounded-3xl p-8 flex flex-col items-start text-left w-full border border-white/[0.04] shadow-[0_12px_40px_rgba(0,0,0,0.4)] transition-all duration-500 transform hover:-translate-y-2 group hover:shadow-[0_0_35px_rgba(225,48,108,0.18)] hover:border-[#E1306C]/30">
-              <div className="h-16 flex items-center justify-center group-hover:scale-115 group-hover:rotate-6 transition-transform duration-500 ease-out">
-                <span className="text-4xl filter drop-shadow-[0_0_12px_rgba(225,48,108,0.45)] mb-4">📸</span>
-              </div>
-              <h3 className="uppercase text-xs font-black tracking-widest text-[#E1306C] mb-2">Instagram Boosts</h3>
-              <h4 className="text-xl font-bold text-white mb-3 group-hover:text-[#E1306C] transition-colors">Engagement & Growth</h4>
-              <p className="text-slate-400 text-sm leading-relaxed mb-8 flex-grow">
-                Build authority on Instagram using rapid reel views, high-quality targeted followers, instant photo likes, and automated profile impressions.
-              </p>
-              <div className="flex justify-between items-end w-full mb-6 pt-4 border-t border-slate-800/60">
-                <div>
-                  <span className="block text-slate-555 text-[10px] font-bold uppercase tracking-wider mb-1">Starting Rate</span>
-                  <span className="text-2xl font-black text-white">₱24.98 <span className="text-xs text-slate-400 font-normal">per 1k boosts</span></span>
-                </div>
-              </div>
-              <button 
-                onClick={() => {
-                  setPlatformSubModalType("instagram");
-                  setPlatformSubModalOpen(true);
-                }}
-                className="w-full bg-[#E1306C] hover:bg-[#eb5286] text-white font-extrabold py-3.5 rounded-full transition-all duration-300 uppercase text-xs tracking-wider transform group-hover:scale-[1.02] shadow-lg shadow-pink-500/5 cursor-pointer text-center"
-              >
-                VIEW
-              </button>
-            </div>
+            // Determine button bg and text colors
+            const btnBgColor = card.theme_color;
+            const btnTextColor = card.id === "tiktok" || card.id === "catalog" ? "text-black font-extrabold" : "text-white font-extrabold";
 
-            {/* 3. TikTok Services */}
-            <div className="bg-[#121212]/50 hover:bg-[#161616]/90 backdrop-blur-md rounded-3xl p-8 flex flex-col items-start text-left w-full border border-white/[0.04] shadow-[0_12px_40px_rgba(0,0,0,0.4)] transition-all duration-500 transform hover:-translate-y-2 group hover:shadow-[0_0_35px_rgba(0,242,254,0.18)] hover:border-[#00F2FE]/30">
-              <div className="h-16 flex items-center justify-center group-hover:scale-115 group-hover:rotate-6 transition-transform duration-500 ease-out">
-                <span className="text-4xl filter drop-shadow-[0_0_12px_rgba(0,242,254,0.45)] mb-4">🎵</span>
-              </div>
-              <h3 className="uppercase text-xs font-black tracking-widest text-[#00F2FE] mb-2">TikTok Boosts</h3>
-              <h4 className="text-xl font-bold text-white mb-3 group-hover:text-[#00F2FE] transition-colors">Viral Video Packs</h4>
-              <p className="text-slate-400 text-sm leading-relaxed mb-8 flex-grow">
-                Amplify your TikTok influence with high-speed video views, organic-retention video likes, targeted followers, and instant profile shares.
-              </p>
-              <div className="flex justify-between items-end w-full mb-6 pt-4 border-t border-slate-800/60">
-                <div>
-                  <span className="block text-slate-555 text-[10px] font-bold uppercase tracking-wider mb-1">Starting Rate</span>
-                  <span className="text-2xl font-black text-white">₱30.00 <span className="text-xs text-slate-400 font-normal">per 1k boosts</span></span>
-                </div>
-              </div>
-              <button 
-                onClick={() => {
-                  setPlatformSubModalType("tiktok");
-                  setPlatformSubModalOpen(true);
+            return (
+              <div 
+                key={card.id} 
+                className="bg-[#121212]/50 hover:bg-[#161616]/90 backdrop-blur-md rounded-3xl p-8 flex flex-col items-start text-left w-full border border-white/[0.04] shadow-[0_12px_40px_rgba(0,0,0,0.4)] transition-all duration-500 transform hover:-translate-y-2 group"
+                style={{ 
+                  boxShadow: `0 12px 40px rgba(0,0,0,0.4)`
                 }}
-                className="w-full bg-[#00F2FE] hover:bg-[#3bf5fe] text-black font-extrabold py-3.5 rounded-full transition-all duration-300 uppercase text-xs tracking-wider transform group-hover:scale-[1.02] shadow-lg shadow-cyan-500/5 cursor-pointer text-center"
-              >
-                VIEW
-              </button>
-            </div>
-
-            {/* 4. YouTube Services */}
-            <div className="bg-[#121212]/50 hover:bg-[#161616]/90 backdrop-blur-md rounded-3xl p-8 flex flex-col items-start text-left w-full border border-white/[0.04] shadow-[0_12px_40px_rgba(0,0,0,0.4)] transition-all duration-500 transform hover:-translate-y-2 group hover:shadow-[0_0_35px_rgba(255,0,0,0.18)] hover:border-[#FF0000]/30">
-              <div className="h-16 flex items-center justify-center group-hover:scale-115 group-hover:rotate-6 transition-transform duration-500 ease-out">
-                <span className="text-4xl filter drop-shadow-[0_0_12px_rgba(255,0,0,0.45)] mb-4">🎥</span>
-              </div>
-              <h3 className="uppercase text-xs font-black tracking-widest text-[#FF0000] mb-2">YouTube Boosts</h3>
-              <h4 className="text-xl font-bold text-white mb-3 group-hover:text-[#FF0000] transition-colors">Monetization Helpers</h4>
-              <p className="text-slate-400 text-sm leading-relaxed mb-8 flex-grow">
-                Unlock monetization and scale authority using ad-compliant YouTube subscribers, watch hours, organic views, and post likes.
-              </p>
-              <div className="flex justify-between items-end w-full mb-6 pt-4 border-t border-slate-800/60">
-                <div>
-                  <span className="block text-slate-555 text-[10px] font-bold uppercase tracking-wider mb-1">Starting Rate</span>
-                  <span className="text-2xl font-black text-white">₱132.21 <span className="text-xs text-slate-400 font-normal">per 1k boosts</span></span>
-                </div>
-              </div>
-              <button 
-                onClick={() => {
-                  setPlatformSubModalType("youtube");
-                  setPlatformSubModalOpen(true);
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.boxShadow = `0 0 35px ${card.glow_color || 'rgba(29, 185, 84, 0.15)'}`;
+                  e.currentTarget.style.borderColor = `${card.theme_color}30`;
                 }}
-                className="w-full bg-[#FF0000] hover:bg-[#ff3b3b] text-white font-extrabold py-3.5 rounded-full transition-all duration-300 uppercase text-xs tracking-wider transform group-hover:scale-[1.02] shadow-lg shadow-red-500/5 cursor-pointer text-center"
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.boxShadow = `0 12px 40px rgba(0,0,0,0.4)`;
+                  e.currentTarget.style.borderColor = `rgba(255, 255, 255, 0.04)`;
+                }}
               >
-                VIEW
-              </button>
-            </div>
-
-            {/* 2. Single Unified "OTHER SERVICES" Card */}
-            {otherServices.length > 0 && (
-              <div className="bg-[#121212]/50 hover:bg-[#161616]/90 backdrop-blur-md rounded-3xl p-8 flex flex-col items-start text-left w-full border border-white/[0.04] shadow-[0_12px_40px_rgba(0,0,0,0.4)] transition-all duration-500 transform hover:-translate-y-2 group hover:shadow-[0_0_35px_rgba(24,119,242,0.18)] hover:border-[#1877F2]/30">
                 <div className="h-16 flex items-center justify-center group-hover:scale-115 group-hover:rotate-6 transition-transform duration-500 ease-out">
-                  <Layers size={40} className="text-[#1877F2] drop-shadow-[0_0_15px_rgba(24,119,242,0.3)] mb-4" />
+                  {card.emoji === "Layers" ? (
+                    <Layers 
+                      size={40} 
+                      className="mb-4"
+                      style={{ 
+                        color: card.theme_color,
+                        filter: `drop-shadow(0 0 12px ${card.theme_color}45)`
+                      }} 
+                    />
+                  ) : (
+                    <span 
+                      className="text-4xl mb-4 select-none"
+                      style={{ 
+                        filter: `drop-shadow(0 0 12px ${card.theme_color}45)`
+                      }}
+                    >
+                      {card.emoji}
+                    </span>
+                  )}
                 </div>
                 
-                <h3 className="uppercase text-xs font-black tracking-widest text-[#1877F2] mb-2">OTHER SERVICES</h3>
-                <h4 className="text-xl font-bold text-white mb-3 group-hover:text-[#1877F2] transition-colors">Specialty & Utilities</h4>
+                <h3 
+                  className="uppercase text-xs font-black tracking-widest mb-2"
+                  style={{ color: card.theme_color }}
+                >
+                  {card.tag}
+                </h3>
+                
+                <h4 
+                  className="text-xl font-bold text-white mb-3 transition-colors group-hover:text-white"
+                  onMouseEnter={(e) => e.currentTarget.style.color = card.theme_color}
+                  onMouseLeave={(e) => e.currentTarget.style.color = "white"}
+                >
+                  {card.title}
+                </h4>
                 
                 <p className="text-slate-400 text-sm leading-relaxed mb-8 flex-grow">
-                  Premium digital memberships, PisoWiFi setups, network router optimizations, and pre-activated professional architectural design tools.
+                  {card.description}
                 </p>
                 
                 <div className="flex justify-between items-end w-full mb-6 pt-4 border-t border-slate-800/60">
                   <div className="w-full text-left">
-                    <span className="block text-slate-500 text-[10px] font-extrabold uppercase tracking-wider line-clamp-2 leading-tight">
-                      Gemini Subscriptions, PisoWiFi setups, EAP TP-Link routers, and Architectural Software
+                    <span className="block text-slate-550 text-[10px] font-bold uppercase tracking-wider mb-1">
+                      {card.rate_prefix}
                     </span>
+                    {card.id === "facebook" || card.id === "instagram" || card.id === "tiktok" || card.id === "youtube" ? (
+                      <span className="text-2xl font-black text-white">
+                        {card.rate_text.split(" ")[0]} <span className="text-xs text-slate-400 font-normal">{card.rate_text.split(" ").slice(1).join(" ")}</span>
+                      </span>
+                    ) : (
+                      <span className="block text-slate-500 text-[10px] font-extrabold uppercase tracking-wider line-clamp-2 leading-tight">
+                        {card.rate_text}
+                      </span>
+                    )}
                   </div>
                 </div>
                 
                 <button 
-                  onClick={() => setIsOtherModalOpen(true)}
-                  className="w-full bg-[#1877F2] hover:bg-[#4e8df5] text-white font-extrabold py-3.5 rounded-full transition-all duration-300 uppercase text-xs tracking-wider transform group-hover:scale-[1.02] shadow-lg shadow-blue-500/5 cursor-pointer text-center"
+                  onClick={clickAction}
+                  className={`w-full py-3.5 rounded-full transition-all duration-300 uppercase text-xs tracking-wider transform group-hover:scale-[1.02] shadow-lg cursor-pointer text-center ${btnTextColor}`}
+                  style={{ 
+                    backgroundColor: btnBgColor,
+                    boxShadow: `0 8px 20px ${card.theme_color}20`
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.filter = "brightness(1.1)"}
+                  onMouseLeave={(e) => e.currentTarget.style.filter = "none"}
                 >
                   VIEW
                 </button>
               </div>
-            )}
-
-            {/* 3. Single Unified "SMM CATALOG EXPLORER" Card */}
-            <div className="bg-[#121212]/50 hover:bg-[#161616]/90 backdrop-blur-md rounded-3xl p-8 flex flex-col items-start text-left w-full border border-white/[0.04] shadow-[0_12px_40px_rgba(0,0,0,0.4)] transition-all duration-500 transform hover:-translate-y-2 group hover:shadow-[0_0_35px_rgba(29,185,84,0.18)] hover:border-[#1DB954]/30">
-              <div className="h-16 flex items-center justify-center group-hover:scale-115 group-hover:rotate-6 transition-transform duration-500 ease-out">
-                <Layers size={40} className="text-[#1DB954] drop-shadow-[0_0_15px_rgba(29,185,84,0.3)] mb-4" />
-              </div>
-              
-              <h3 className="uppercase text-xs font-black tracking-widest text-[#1DB954] mb-2">1,100+ BOOSTS</h3>
-              <h4 className="text-xl font-bold text-white mb-3 group-hover:text-[#1DB954] transition-colors">SMM Catalog Explorer</h4>
-              
-              <p className="text-slate-400 text-sm leading-relaxed mb-8 flex-grow">
-                Instantly search and order premium boosts for Instagram, TikTok, YouTube, Twitter, and other platforms at direct reseller pricing.
-              </p>
-              
-              <div className="flex justify-between items-end w-full mb-6 pt-4 border-t border-slate-800/60">
-                <div className="w-full text-left">
-                  <span className="block text-slate-500 text-[10px] font-extrabold uppercase tracking-wider line-clamp-2 leading-tight">
-                    Instagram followers, TikTok hearts, YouTube sub packs, Telegram, Twitter, & More
-                  </span>
-                </div>
-              </div>
-              
-              <button 
-                onClick={() => setIsSmmCatalogModalOpen(true)}
-                className="w-full bg-[#1DB954] hover:bg-[#1ed760] text-black font-extrabold py-3.5 rounded-full transition-all duration-300 uppercase text-xs tracking-wider transform group-hover:scale-[1.02] shadow-lg shadow-[#1DB954]/5 cursor-pointer text-center"
-              >
-                VIEW
-              </button>
-            </div>
-          </div>
+            );
+          })}
+        </div>
       </section>
 
       {/* 4. Customer reviews Grid & Form */}

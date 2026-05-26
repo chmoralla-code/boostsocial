@@ -57,6 +57,21 @@ export default async function Home() {
     console.error("Failed to load services background settings:", err);
   }
 
+  // Fetch custom service candidates
+  let servicesCandidates = null;
+  try {
+    const { data: candidatesSetting } = await supabase
+      .from("settings")
+      .select("value")
+      .eq("key", "services_candidates")
+      .single();
+    if (candidatesSetting && candidatesSetting.value) {
+      servicesCandidates = candidatesSetting.value;
+    }
+  } catch (err) {
+    console.error("Failed to load services candidates settings:", err);
+  }
+
   // Helper parser for primary title
   const parseTitle = (text: string) => {
     const regex = /(\[.*?\]|\{.*?\}|\\n|\n)/g;
@@ -182,7 +197,7 @@ export default async function Home() {
           </div>
         </div>
 
-        <ServicesSection services={services || []} servicesBg={servicesBg} />
+        <ServicesSection services={services || []} servicesBg={servicesBg} servicesCandidates={servicesCandidates} />
       </main>
 
       <Footer />
