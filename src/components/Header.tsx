@@ -115,16 +115,20 @@ export function Header() {
 
               <button 
                 onClick={() => setShowReferralsModal(true)}
-                className="flex items-center gap-2 bg-[#282828] hover:bg-[#333] border border-slate-800/80 text-[#1877F2] font-extrabold py-2 px-4 rounded-full transition-all text-xs uppercase tracking-wider cursor-pointer hidden sm:flex"
+                className="flex items-center gap-1.5 bg-[#282828] hover:bg-[#333] border border-slate-800/80 text-[#1877F2] font-extrabold py-2 px-3 sm:px-4 rounded-full transition-all text-xs uppercase tracking-wider cursor-pointer"
+                title="Invite & Earn"
               >
-                <Gift size={14} /> Invite & Earn
+                <Gift size={14} /> 
+                <span className="hidden sm:inline">Invite & Earn</span>
               </button>
 
               <button 
                 onClick={() => setShowOrdersModal(true)}
-                className="flex items-center gap-2 bg-[#282828] hover:bg-[#333] border border-slate-800/80 text-[#1877F2] font-extrabold py-2 px-4 rounded-full transition-all text-xs uppercase tracking-wider cursor-pointer hidden sm:flex"
+                className="flex items-center gap-1.5 bg-[#282828] hover:bg-[#333] border border-slate-800/80 text-[#1877F2] font-extrabold py-2 px-3 sm:px-4 rounded-full transition-all text-xs uppercase tracking-wider cursor-pointer"
+                title="My Orders"
               >
-                <ClipboardList size={14} /> My Orders
+                <ClipboardList size={14} /> 
+                <span className="hidden sm:inline">My Orders</span>
               </button>
               
               <span className="hidden md:inline text-xs font-semibold text-slate-400 max-w-[120px] truncate">
