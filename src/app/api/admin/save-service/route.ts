@@ -3,7 +3,14 @@ import { createClient } from "@supabase/supabase-js";
 
 export async function POST(req: NextRequest) {
   try {
-    const { id, title, description, starting_price, icon_type } = await req.json();
+    const {
+      id,
+      title,
+      description,
+      starting_price,
+      icon_type,
+      smmMetadata,
+    } = await req.json();
 
     if (!title || !description || starting_price === undefined || !icon_type) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -25,13 +32,87 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid price" }, { status: 400 });
     }
 
+    const buildDescriptionObject = (input: unknown) => {
+      if (input && typeof input === "object") {
+        return { ...(input as Record<string, unknown>) };
+      }
+
+      if (typeof input === "string") {
+        const trimmed = input.trim();
+        if (trimmed.startsWith("{")) {
+          try {
+            const parsed = JSON.parse(trimmed);
+            if (parsed && typeof parsed === "object") {
+              return { ...(parsed as Record<string, unknown>) };
+            }
+          } catch {
+            // Fall through to plain text wrapper
+          }
+        }
+        return { description: trimmed };
+      }
+
+      return { description: "" };
+    };
+
+    const descriptionObj: Record<string, unknown> = buildDescriptionObject(description);
+
+    if (smmMetadata && typeof smmMetadata === "object") {
+      const meta = smmMetadata as Record<string, unknown>;
+
+      const smmServiceId = meta.smm_service_id;
+      if (smmServiceId !== undefined) {
+        const asString = String(smmServiceId).trim();
+        if (asString) {
+          descriptionObj["smm_service_id"] = Number(asString);
+        } else {
+          delete descriptionObj["smm_service_id"];
+        }
+      }
+
+      const smmOriginalRate = meta.smm_original_rate;
+      if (smmOriginalRate !== undefined && smmOriginalRate !== null && smmOriginalRate !== "") {
+        descriptionObj["smm_original_rate"] = Number(smmOriginalRate);
+      } else {
+        delete descriptionObj["smm_original_rate"];
+      }
+
+      const smmMarkupPercent = meta.smm_markup_percent;
+      if (smmMarkupPercent !== undefined && smmMarkupPercent !== null && smmMarkupPercent !== "") {
+        descriptionObj["smm_markup_percent"] = Number(smmMarkupPercent);
+      } else {
+        delete descriptionObj["smm_markup_percent"];
+      }
+
+      const smmOriginalName = meta.smm_original_name;
+      if (typeof smmOriginalName === "string" && smmOriginalName.trim()) {
+        descriptionObj["smm_original_name"] = smmOriginalName.trim();
+      } else {
+        delete descriptionObj["smm_original_name"];
+      }
+
+      const smmMin = meta.smm_min;
+      if (smmMin !== undefined && smmMin !== null && smmMin !== "") {
+        descriptionObj["smm_min"] = Number(smmMin);
+      } else {
+        delete descriptionObj["smm_min"];
+      }
+
+      const smmMax = meta.smm_max;
+      if (smmMax !== undefined && smmMax !== null && smmMax !== "") {
+        descriptionObj["smm_max"] = Number(smmMax);
+      } else {
+        delete descriptionObj["smm_max"];
+      }
+    }
+
     if (id) {
       // Update existing service
       const { data, error } = await supabase
         .from("services")
         .update({
           title: title.trim(),
-          description: description.trim(),
+          description: JSON.stringify(descriptionObj),
           starting_price: priceNum,
           icon_type,
         })
@@ -48,7 +129,7 @@ export async function POST(req: NextRequest) {
         .insert([
           {
             title: title.trim(),
-            description: description.trim(),
+            description: JSON.stringify(descriptionObj),
             starting_price: priceNum,
             icon_type,
           }

@@ -294,6 +294,15 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
       smm_max: smmMax ? Number(smmMax) : undefined,
     });
 
+    const smmMetadata = {
+      smm_service_id: smmServiceId ? smmServiceId.trim() : "",
+      smm_original_rate: smmOriginalRate ? Number(smmOriginalRate) : undefined,
+      smm_markup_percent: smmMarkupPercent ? Number(smmMarkupPercent) : undefined,
+      smm_original_name: smmOriginalName ? smmOriginalName.trim() : "",
+      smm_min: smmMin ? Number(smmMin) : undefined,
+      smm_max: smmMax ? Number(smmMax) : undefined,
+    };
+
     try {
       const res = await fetch("/api/admin/save-service", {
         method: "POST",
@@ -304,6 +313,7 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
           description: packedDescription,
           starting_price: priceNum,
           icon_type: finalIconType,
+          smmMetadata,
         }),
       });
 
