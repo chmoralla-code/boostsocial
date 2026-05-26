@@ -706,7 +706,7 @@ export function ServicesSection({ services }: ServicesSectionProps) {
                               </div>
                               
                               <p className="text-[10px] text-slate-500 font-extrabold uppercase tracking-wide">
-                                Reseller ID: #{s.id}
+                                SMM ID: #{s.id}
                               </p>
                               {s.desc && (
                                 <p className="text-[10px] text-slate-400 mt-2 bg-black/20 p-2.5 rounded-xl border border-slate-900/60 line-clamp-2 leading-relaxed">

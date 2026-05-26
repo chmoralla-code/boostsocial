@@ -602,7 +602,7 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
                       <div>
                         <div className="flex justify-between items-start gap-2 mb-2">
                           <span className="text-[9px] bg-slate-850 text-slate-400 border border-slate-800 px-2 py-0.5 rounded-full font-mono">
-                            ID: #{service.id}
+                            SMM ID: #{service.id}
                           </span>
                           <span className="text-[9px] bg-[#1DB954]/10 text-[#1DB954] border border-[#1DB954]/20 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
                             ₱{service.startingPrice.toFixed(2)} / pc
@@ -670,7 +670,7 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
                 </button>
                 <div>
                   <span className="text-[9px] bg-slate-850 text-slate-400 border border-slate-800 px-2.5 py-0.5 rounded-full font-mono">
-                    Service ID: #{selectedService.id}
+                    SMM ID: #{selectedService.id}
                   </span>
                   <h3 className="text-base font-black text-white mt-1 leading-snug">{selectedService.name}</h3>
                 </div>
