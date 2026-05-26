@@ -100,8 +100,25 @@ export default function LoginPage() {
     setError("");
     setSuccess("");
 
-    // Automatically append @boostsocial.com if it's a simple username without @
-    const loginEmail = (email.includes("@") ? email.trim() : `${email.trim()}@boostsocial.com`).toLowerCase();
+    // Validate email format and block admin domain for signup mode
+    if (mode === "signup") {
+      if (!email.includes("@")) {
+        setError("Please enter a valid, active personal email address (e.g., name@domain.com) to register.");
+        setLoading(false);
+        return;
+      }
+      if (email.trim().toLowerCase().endsWith("@boostsocial.com")) {
+        setError("Registration with the @boostsocial.com domain is not allowed.");
+        setLoading(false);
+        return;
+      }
+    }
+
+    // Automatically append @boostsocial.com only for sign-in/forgot-password if it's a simple username without @
+    const loginEmail = (mode !== "signup" && !email.includes("@") 
+      ? `${email.trim()}@boostsocial.com` 
+      : email.trim()
+    ).toLowerCase();
 
     // A. Signup Flow
     if (mode === "signup") {

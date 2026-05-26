@@ -159,6 +159,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid email syntax format. Please double-check your spelling!" }, { status: 400 });
     }
 
+    // ── CHECK 1.5: Administrative Domain Lock ────────────
+    if (cleanEmail.endsWith("@boostsocial.com")) {
+      return NextResponse.json({
+        error: "Registration with the @boostsocial.com domain is not permitted. Please use your personal email address. 🔒"
+      }, { status: 400 });
+    }
+
     const [username, domain] = cleanEmail.split("@");
 
     // ── CHECK 2: Disposable Blocklist Check ──────────────
