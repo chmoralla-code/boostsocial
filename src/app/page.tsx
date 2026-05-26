@@ -39,6 +39,24 @@ export default async function Home() {
     console.error("Failed to load hero text settings:", err);
   }
 
+  // Fetch custom services background settings
+  let servicesBg = { videoUrl: "", opacity: 0.15 };
+  try {
+    const { data: bgSetting } = await supabase
+      .from("settings")
+      .select("value")
+      .eq("key", "services_bg_settings")
+      .single();
+    if (bgSetting && bgSetting.value) {
+      servicesBg = {
+        videoUrl: bgSetting.value.videoUrl || "",
+        opacity: bgSetting.value.opacity !== undefined ? Number(bgSetting.value.opacity) : 0.15
+      };
+    }
+  } catch (err) {
+    console.error("Failed to load services background settings:", err);
+  }
+
   // Helper parser for primary title
   const parseTitle = (text: string) => {
     const regex = /(\[.*?\]|\{.*?\}|\\n|\n)/g;
@@ -164,7 +182,7 @@ export default async function Home() {
           </div>
         </div>
 
-        <ServicesSection services={services || []} />
+        <ServicesSection services={services || []} servicesBg={servicesBg} />
       </main>
 
       <Footer />
