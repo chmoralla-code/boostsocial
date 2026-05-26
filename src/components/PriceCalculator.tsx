@@ -129,6 +129,8 @@ export function PriceCalculator({ services, onOrder }: PriceCalculatorProps) {
   const activeBg = getBrandBg(selectedService.icon_type);
   const activeText = getBrandText(selectedService.icon_type);
   const activeBadge = getBrandBadge(selectedService.icon_type);
+  const selectedSmmId = parsedDetails.smm_service_id ? String(parsedDetails.smm_service_id) : "";
+  const selectedSmmName = parsedDetails.smm_original_name ? String(parsedDetails.smm_original_name) : "";
 
   const handleSliderChange = (val: number) => {
     // Align with dynamic min quantity constraints
@@ -159,6 +161,20 @@ export function PriceCalculator({ services, onOrder }: PriceCalculatorProps) {
           <h3 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
             Estimate Your <span style={{ color: activeColor }}>Amplification Package</span>
           </h3>
+          {(selectedSmmId || selectedSmmName) && (
+            <div className="flex flex-wrap justify-center gap-2 mt-3">
+              {selectedSmmId && (
+                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-[#1877F2]/10 text-[#1877F2] border border-[#1877F2]/20 text-[9px] font-black uppercase tracking-wider">
+                  SMM ID: {selectedSmmId}
+                </span>
+              )}
+              {selectedSmmName && (
+                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-slate-800/80 text-slate-300 border border-slate-700 text-[9px] font-black uppercase tracking-wider max-w-[280px] truncate" title={selectedSmmName}>
+                  {selectedSmmName}
+                </span>
+              )}
+            </div>
+          )}
           <p className="text-xs sm:text-sm text-slate-400 mt-2 font-medium">
             Drag the slider to customize quantities and view real-time estimates
           </p>

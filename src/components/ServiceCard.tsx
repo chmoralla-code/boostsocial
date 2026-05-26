@@ -74,10 +74,20 @@ export function ServiceCard({ id, title, description, startingPrice, iconType, o
           redirect_url: p.redirect_url || null,
           custom_caption: p.custom_caption || null,
           smm_average_time: p.smm_average_time || null,
+          smm_service_id: p.smm_service_id ?? null,
+          smm_original_name: p.smm_original_name || "",
         };
       }
     } catch (e) {}
-    return { ...defaults, min_quantity: 1000, redirect_url: null, custom_caption: null, smm_average_time: null };
+    return {
+      ...defaults,
+      min_quantity: 1000,
+      redirect_url: null,
+      custom_caption: null,
+      smm_average_time: null,
+      smm_service_id: null,
+      smm_original_name: "",
+    };
   })();
 
   const getGlowClass = () => {
@@ -112,6 +122,21 @@ export function ServiceCard({ id, title, description, startingPrice, iconType, o
             ⚡ Instant start queue
           </span>
         )
+      )}
+
+      {(parsed.smm_service_id || parsed.smm_original_name) && (
+        <div className="flex flex-wrap gap-1.5 mb-4">
+          {parsed.smm_service_id && (
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#1877F2]/10 text-[#1877F2] border border-[#1877F2]/20 text-[9px] font-black uppercase tracking-wider">
+              SMM ID: {parsed.smm_service_id}
+            </span>
+          )}
+          {parsed.smm_original_name && (
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-800/80 text-slate-300 border border-slate-700 text-[9px] font-black uppercase tracking-wider max-w-[220px] truncate" title={parsed.smm_original_name}>
+              {parsed.smm_original_name}
+            </span>
+          )}
+        </div>
       )}
       
       <p className="text-slate-400 text-sm leading-relaxed mb-8 flex-grow whitespace-pre-line">
