@@ -62,6 +62,41 @@ export function ServicesSection({ services }: ServicesSectionProps) {
   const getPlatformSmmCandidates = (platform: "facebook" | "instagram" | "tiktok" | "youtube") => {
     if (!smmServices || smmServices.length === 0) return { follower: null, like: null, view: null };
 
+    // Resolve configured SMM IDs from the active database services prop
+    let targetFollowerSmmId: string | null = null;
+    let targetLikeSmmId: string | null = null;
+    let targetViewSmmId: string | null = null;
+
+    services.forEach(srv => {
+      const titleLower = srv.title.toLowerCase();
+      const parsed = parseDescription(srv.description);
+      const smmId = parsed?.smm_service_id ? String(parsed.smm_service_id) : null;
+      if (!smmId) return;
+
+      const isFB = titleLower.includes("fb followers") || titleLower.includes("facebook followers") || titleLower.includes("fb reactions") || titleLower.includes("facebook reactions") || titleLower.includes("fb views") || titleLower.includes("facebook views");
+      const isIG = titleLower.includes("ig followers") || titleLower.includes("instagram followers") || titleLower.includes("ig likes") || titleLower.includes("instagram likes") || titleLower.includes("ig views") || titleLower.includes("instagram views");
+      const isTT = titleLower.includes("tiktok followers") || titleLower.includes("tiktok likes") || titleLower.includes("tiktok views");
+      const isYT = titleLower.includes("yt subscribers") || titleLower.includes("youtube subscribers") || titleLower.includes("yt likes") || titleLower.includes("youtube likes") || titleLower.includes("yt views") || titleLower.includes("youtube views");
+
+      if (platform === "facebook" && isFB) {
+        if (titleLower.includes("follower")) targetFollowerSmmId = smmId;
+        if (titleLower.includes("reaction") || titleLower.includes("like")) targetLikeSmmId = smmId;
+        if (titleLower.includes("view")) targetViewSmmId = smmId;
+      } else if (platform === "instagram" && isIG) {
+        if (titleLower.includes("follower")) targetFollowerSmmId = smmId;
+        if (titleLower.includes("like")) targetLikeSmmId = smmId;
+        if (titleLower.includes("view")) targetViewSmmId = smmId;
+      } else if (platform === "tiktok" && isTT) {
+        if (titleLower.includes("follower")) targetFollowerSmmId = smmId;
+        if (titleLower.includes("like") || titleLower.includes("heart")) targetLikeSmmId = smmId;
+        if (titleLower.includes("view")) targetViewSmmId = smmId;
+      } else if (platform === "youtube" && isYT) {
+        if (titleLower.includes("subscriber") || titleLower.includes("sub")) targetFollowerSmmId = smmId;
+        if (titleLower.includes("like")) targetLikeSmmId = smmId;
+        if (titleLower.includes("view")) targetViewSmmId = smmId;
+      }
+    });
+
     // Filter for all services matching this platform
     const platformServices = smmServices.filter(s => {
       const cat = s.category.toLowerCase();
@@ -88,26 +123,34 @@ export function ServicesSection({ services }: ServicesSectionProps) {
       return matches[0];
     };
 
+    const findSmmServiceByIdOrFallback = (configuredId: string | null, keywords: string[], exclude: string[] = []) => {
+      if (configuredId) {
+        const found = smmServices.find(s => String(s.id) === String(configuredId));
+        if (found) return found;
+      }
+      return findCheapestMatching(keywords, exclude);
+    };
+
     let follower = null;
     let like = null;
     let view = null;
 
     if (platform === "facebook") {
-      follower = findCheapestMatching(["follower", "profile", "page like", "page follower", "classic page"]);
-      like = findCheapestMatching(["like", "reaction", "react", "photo like", "post like", "love", "haha", "wow", "sad", "angry"], ["follower", "view", "share"]);
-      view = findCheapestMatching(["view", "video", "play", "reach"], ["follower", "like", "reaction"]);
+      follower = findSmmServiceByIdOrFallback(targetFollowerSmmId, ["follower", "profile", "page like", "page follower", "classic page"]);
+      like = findSmmServiceByIdOrFallback(targetLikeSmmId, ["like", "reaction", "react", "photo like", "post like", "love", "haha", "wow", "sad", "angry"], ["follower", "view", "share"]);
+      view = findSmmServiceByIdOrFallback(targetViewSmmId, ["view", "video", "play", "reach"], ["follower", "like", "reaction"]);
     } else if (platform === "instagram") {
-      follower = findCheapestMatching(["follower"]);
-      like = findCheapestMatching(["like", "heart"], ["follower", "view", "comment"]);
-      view = findCheapestMatching(["view", "play", "reel", "video", "impression"], ["follower", "like"]);
+      follower = findSmmServiceByIdOrFallback(targetFollowerSmmId, ["follower"]);
+      like = findSmmServiceByIdOrFallback(targetLikeSmmId, ["like", "heart"], ["follower", "view", "comment"]);
+      view = findSmmServiceByIdOrFallback(targetViewSmmId, ["view", "play", "reel", "video", "impression"], ["follower", "like"]);
     } else if (platform === "tiktok") {
-      follower = findCheapestMatching(["follower"]);
-      like = findCheapestMatching(["like", "heart"], ["follower", "view", "comment"]);
-      view = findCheapestMatching(["view", "play", "video", "share"], ["follower", "like"]);
+      follower = findSmmServiceByIdOrFallback(targetFollowerSmmId, ["follower"]);
+      like = findSmmServiceByIdOrFallback(targetLikeSmmId, ["like", "heart"], ["follower", "view", "comment"]);
+      view = findSmmServiceByIdOrFallback(targetViewSmmId, ["view", "play", "video", "share"], ["follower", "like"]);
     } else if (platform === "youtube") {
-      follower = findCheapestMatching(["subscriber", "subscribers", "sub"]);
-      like = findCheapestMatching(["like"], ["subscriber", "view", "comment"]);
-      view = findCheapestMatching(["view", "watch", "play"], ["subscriber", "like"]);
+      follower = findSmmServiceByIdOrFallback(targetFollowerSmmId, ["subscriber", "subscribers", "sub"]);
+      like = findSmmServiceByIdOrFallback(targetLikeSmmId, ["like"], ["subscriber", "view", "comment"]);
+      view = findSmmServiceByIdOrFallback(targetViewSmmId, ["view", "watch", "play"], ["subscriber", "like"]);
     }
 
     if (!follower) follower = findCheapestMatching(["follower"]) || platformServices[0];
