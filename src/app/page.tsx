@@ -72,6 +72,24 @@ export default async function Home() {
     console.error("Failed to load services candidates settings:", err);
   }
 
+  // Fetch custom service showcase video
+  let showcaseSettings = { videoUrl: "/hero-bg.mp4", posterUrl: "" };
+  try {
+    const { data: showcaseSetting } = await supabase
+      .from("settings")
+      .select("value")
+      .eq("key", "service_showcase")
+      .single();
+    if (showcaseSetting && showcaseSetting.value) {
+      showcaseSettings = {
+        videoUrl: showcaseSetting.value.videoUrl || "/hero-bg.mp4",
+        posterUrl: showcaseSetting.value.posterUrl || ""
+      };
+    }
+  } catch (err) {
+    console.error("Failed to load service showcase settings:", err);
+  }
+
   // Helper parser for primary title
   const parseTitle = (text: string) => {
     const regex = /(\[.*?\]|\{.*?\}|\\n|\n)/g;
@@ -152,47 +170,88 @@ export default async function Home() {
           <div className="absolute top-[35%] left-[-15%] w-[600px] h-[600px] rounded-full spotify-glow-blob opacity-80"></div>
         </div>
 
-        <div className="text-center px-4 max-w-4xl mx-auto z-10 flex flex-col items-center">
-          {/* Animated Tech Badge */}
-          <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-white/[0.03] border border-white/[0.08] text-[10px] sm:text-xs font-black tracking-widest text-[#1DB954] mb-8 uppercase shadow-xl shadow-emerald-500/5 backdrop-blur-md animate-fade-in-up-1">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#1ed760] opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-[#1DB954]"></span>
-            </span>
-            {heroTexts.badge}
+        <div className="max-w-7xl w-full mx-auto px-6 md:px-8 z-10 grid grid-cols-1 lg:grid-cols-12 gap-12 items-center pt-8 pb-16">
+          {/* Left Column (Content & Search) */}
+          <div className="lg:col-span-7 flex flex-col items-center lg:items-start text-center lg:text-left">
+            {/* Animated Tech Badge */}
+            <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-white/[0.03] border border-white/[0.08] text-[10px] sm:text-xs font-black tracking-widest text-[#1DB954] mb-6 uppercase shadow-xl shadow-emerald-500/5 backdrop-blur-md animate-fade-in-up-1">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#1ed760] opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-[#1DB954]"></span>
+              </span>
+              {heroTexts.badge}
+            </div>
+
+            <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black leading-[1.05] mb-6 tracking-tighter uppercase animate-fade-in-up-2">
+              {parseTitle(heroTexts.title)}
+            </h1>
+            
+            <p className="text-sm sm:text-base md:text-lg text-slate-400 mb-10 max-w-xl font-bold leading-relaxed animate-fade-in-up-3">
+              {parseDescriptionText(heroTexts.description)}
+            </p>
+            
+            <div className="w-full max-w-xl animate-fade-in-up-3 mb-10">
+              <HeroSearch services={services || []} />
+            </div>
+
+            {/* Value Propositions / Trust Highlights */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 max-w-2xl w-full mt-2 animate-fade-in-up-3">
+              <div className="bg-white/[0.02] border border-white/[0.04] backdrop-blur-md rounded-2xl p-4 flex flex-col items-center text-center justify-center group hover:border-[#1DB954]/25 transition-all duration-300 transform hover:scale-[1.02] cursor-default">
+                <span className="text-xl sm:text-2xl mb-1.5 group-hover:scale-110 transition-transform duration-300">🛡️</span>
+                <span className="text-[10px] sm:text-xs font-black text-white uppercase tracking-wider">Monetization Safe</span>
+                <span className="text-[9px] text-slate-400 mt-1 leading-normal font-semibold">Filtered Ad-compliant pools</span>
+              </div>
+              <div className="bg-white/[0.02] border border-white/[0.04] backdrop-blur-md rounded-2xl p-4 flex flex-col items-center text-center justify-center group hover:border-[#1877F2]/25 transition-all duration-300 transform hover:scale-[1.02] cursor-default">
+                <span className="text-xl sm:text-2xl mb-1.5 group-hover:scale-110 transition-transform duration-300">🇵🇭</span>
+                <span className="text-[10px] sm:text-xs font-black text-white uppercase tracking-wider">PH Base Curation</span>
+                <span className="text-[9px] text-slate-400 mt-1 leading-normal font-semibold">Organic local profiles</span>
+              </div>
+              <div className="bg-white/[0.02] border border-white/[0.04] backdrop-blur-md rounded-2xl p-4 flex flex-col items-center text-center justify-center group hover:border-[#1DB954]/25 transition-all duration-300 transform hover:scale-[1.02] cursor-default">
+                <span className="text-xl sm:text-2xl mb-1.5 group-hover:scale-110 transition-transform duration-300">💬</span>
+                <span className="text-[10px] sm:text-xs font-black text-white uppercase tracking-wider">Taglish Handshake</span>
+                <span className="text-[9px] text-slate-400 mt-1 leading-normal font-semibold">24h developer-direct assistance</span>
+              </div>
+              <div className="bg-white/[0.02] border border-white/[0.04] backdrop-blur-md rounded-2xl p-4 flex flex-col items-center text-center justify-center group hover:border-[#1877F2]/25 transition-all duration-300 transform hover:scale-[1.02] cursor-default">
+                <span className="text-xl sm:text-2xl mb-1.5 group-hover:scale-110 transition-transform duration-300">📲</span>
+                <span className="text-[10px] sm:text-xs font-black text-white uppercase tracking-wider">GCash Auto-Verify</span>
+                <span className="text-[9px] text-slate-400 mt-1 leading-normal font-semibold">No crypto payment hassle</span>
+              </div>
+            </div>
           </div>
 
-          <h1 className="text-4xl sm:text-5xl md:text-7xl font-black leading-none mb-6 tracking-tighter uppercase animate-fade-in-up-2">
-            {parseTitle(heroTexts.title)}
-          </h1>
-          
-          <p className="text-sm sm:text-base md:text-lg text-slate-400 mb-12 max-w-2xl mx-auto font-bold leading-relaxed animate-fade-in-up-3">
-            {parseDescriptionText(heroTexts.description)}
-          </p>
-          
-          <HeroSearch services={services || []} />
+          {/* Right Column (Premium Glassmorphic Video Showcase Player) */}
+          <div className="lg:col-span-5 flex justify-center items-center relative animate-fade-in-up-3 w-full">
+            {/* Ambient background glow for the showcase player */}
+            <div className="absolute inset-0 bg-[#1DB954]/10 rounded-full blur-[80px] pointer-events-none scale-75 animate-pulse"></div>
+            
+            <div className="relative w-full max-w-[460px] rounded-[2.5rem] bg-gradient-to-br from-white/[0.04] to-white/[0.01] border border-white/[0.08] p-5 backdrop-blur-xl shadow-2xl hover:border-[#1DB954]/25 transition-all duration-500 overflow-hidden transform hover:-translate-y-1">
+              {/* Glassmorphic border shimmer */}
+              <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-[#1DB954]/5 to-transparent opacity-50"></div>
+              
+              {/* Video Player wrapper */}
+              <div className="relative rounded-[2rem] overflow-hidden aspect-video border border-white/[0.06] bg-[#0c0c0c] shadow-inner group">
+                <video 
+                  src={showcaseSettings.videoUrl} 
+                  poster={showcaseSettings.posterUrl || "/gcash-qr.png"} // defaults to poster image if supplied
+                  controls
+                  loop
+                  playsInline
+                  className="w-full h-full object-cover rounded-[2rem]"
+                />
+              </div>
 
-          {/* Value Propositions / Trust Highlights to beat automated faceless panels */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 max-w-3xl w-full mt-2 animate-fade-in-up-3">
-            <div className="bg-white/[0.02] border border-white/[0.04] backdrop-blur-md rounded-2xl p-4 flex flex-col items-center text-center justify-center group hover:border-[#1DB954]/20 transition-all duration-300">
-              <span className="text-xl sm:text-2xl mb-1.5 group-hover:scale-110 transition-transform duration-300">🛡️</span>
-              <span className="text-[10px] sm:text-xs font-black text-white uppercase tracking-wider">Monetization Safe</span>
-              <span className="text-[9px] text-slate-400 mt-1 leading-normal font-semibold">Filtered Ad-compliant pools</span>
-            </div>
-            <div className="bg-white/[0.02] border border-white/[0.04] backdrop-blur-md rounded-2xl p-4 flex flex-col items-center text-center justify-center group hover:border-[#1877F2]/20 transition-all duration-300">
-              <span className="text-xl sm:text-2xl mb-1.5 group-hover:scale-110 transition-transform duration-300">🇵🇭</span>
-              <span className="text-[10px] sm:text-xs font-black text-white uppercase tracking-wider">PH Base Curation</span>
-              <span className="text-[9px] text-slate-400 mt-1 leading-normal font-semibold">Organic local profiles</span>
-            </div>
-            <div className="bg-white/[0.02] border border-white/[0.04] backdrop-blur-md rounded-2xl p-4 flex flex-col items-center text-center justify-center group hover:border-[#1DB954]/20 transition-all duration-300">
-              <span className="text-xl sm:text-2xl mb-1.5 group-hover:scale-110 transition-transform duration-300">💬</span>
-              <span className="text-[10px] sm:text-xs font-black text-white uppercase tracking-wider">Taglish Handshake</span>
-              <span className="text-[9px] text-slate-400 mt-1 leading-normal font-semibold">24h developer-direct assistance</span>
-            </div>
-            <div className="bg-white/[0.02] border border-white/[0.04] backdrop-blur-md rounded-2xl p-4 flex flex-col items-center text-center justify-center group hover:border-[#1877F2]/20 transition-all duration-300">
-              <span className="text-xl sm:text-2xl mb-1.5 group-hover:scale-110 transition-transform duration-300">📲</span>
-              <span className="text-[10px] sm:text-xs font-black text-white uppercase tracking-wider">GCash Auto-Verify</span>
-              <span className="text-[9px] text-slate-400 mt-1 leading-normal font-semibold">No crypto payment hassle</span>
+              {/* Showcase title bar */}
+              <div className="mt-4 flex items-center justify-between px-2">
+                <div className="text-left">
+                  <div className="text-[9px] font-black text-[#1DB954] uppercase tracking-[0.2em] mb-0.5">🎥 Showcase Proof</div>
+                  <h3 className="text-xs font-black text-white uppercase tracking-tight">Real Service Delivery Samples</h3>
+                </div>
+                <div className="text-right">
+                  <span className="text-[9px] font-extrabold text-slate-500 uppercase tracking-wider bg-white/[0.03] px-2.5 py-1 rounded-md border border-white/[0.05]">
+                    Legit & Fast
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
