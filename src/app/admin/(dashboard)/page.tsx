@@ -10,6 +10,7 @@ import { ServicesCandidatesPanel } from "./ServicesCandidatesPanel";
 import { ShowcaseVideoSettingsPanel } from "./ShowcaseVideoSettingsPanel";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
+import { InstallAppButton } from "./InstallAppButton";
 
 export default async function AdminOverview() {
   const supabase = await createClient();
@@ -117,6 +118,9 @@ export default async function AdminOverview() {
           </div>
         </div>
       </div>
+
+      {/* PWA App Downloader Widget */}
+      <InstallAppButton />
 
       {/* Analytics Metric Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-5">
