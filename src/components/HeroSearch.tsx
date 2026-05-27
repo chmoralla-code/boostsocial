@@ -200,9 +200,9 @@ No other text, markdown formatting, or symbols around the JSON. Just the raw JSO
   const isSearchActive = sectionSearchQuery.trim().length > 0;
 
   return (
-    <div className="w-full max-w-xl mx-auto z-20 flex flex-col items-center px-4 relative mt-2 mb-10">
+    <div className="w-full max-w-xl mx-auto z-20 flex flex-col items-center px-0 sm:px-4 relative mt-0 sm:mt-2 mb-8 sm:mb-10">
       {/* 1. Improved Question Prompt */}
-      <span className="bg-[#1DB954]/10 text-[#1DB954] border border-[#1DB954]/25 font-black text-[9px] sm:text-[10px] tracking-widest uppercase px-4.5 py-2 rounded-full inline-flex items-center gap-1.5 mb-5 shadow-sm select-none animate-pulse">
+      <span className="w-full justify-center text-center leading-relaxed bg-[#1DB954]/10 text-[#1DB954] border border-[#1DB954]/25 font-black text-[9px] sm:text-[10px] tracking-widest uppercase px-4 py-2 rounded-full inline-flex items-center gap-1.5 mb-4 sm:mb-5 shadow-sm select-none animate-pulse">
         ⚡ Which social media platform do you want to boost today?
       </span>
 
@@ -214,7 +214,7 @@ No other text, markdown formatting, or symbols around the JSON. Just the raw JSO
           </div>
           <input
             type="text"
-            placeholder="Ask AI or search: e.g. grow my Instagram, SketchUp license, TikTok views..."
+            placeholder="Ask AI or search services..."
             value={sectionSearchQuery}
             onChange={(e) => {
               setSectionSearchQuery(e.target.value);
@@ -223,7 +223,7 @@ No other text, markdown formatting, or symbols around the JSON. Just the raw JSO
             onKeyDown={(e) => {
               if (e.key === "Enter") handleAiSearch();
             }}
-            className="w-full pl-10 pr-16 py-3.5 rounded-full bg-[#121212]/95 border border-slate-800 hover:border-[#1DB954]/40 focus:outline-none focus:border-[#1DB954] focus:ring-2 focus:ring-[#1DB954]/15 transition-all text-slate-200 font-extrabold placeholder-slate-600 text-xs sm:text-sm tracking-wide shadow-2xl"
+            className="w-full pl-10 pr-14 py-3.5 rounded-full bg-[#121212]/95 border border-slate-800 hover:border-[#1DB954]/40 focus:outline-none focus:border-[#1DB954] focus:ring-2 focus:ring-[#1DB954]/15 transition-all text-slate-200 font-extrabold placeholder-slate-600 text-xs sm:text-sm tracking-wide shadow-2xl"
           />
           {isSearchActive && (
             <button

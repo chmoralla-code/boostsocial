@@ -538,8 +538,7 @@ Format list items on separate lines with simple bullets (e.g. * **Item:** text).
       {/* Floating Button */}
       <button 
         onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-6 right-6 z-50 rounded-full shadow-[0_0_20px_rgba(24,119,242,0.4)] transition-all duration-300 hover:scale-110 hover:shadow-[0_0_25px_rgba(24,119,242,0.6)] focus:outline-none flex items-center justify-center group overflow-visible"
-        style={{ width: "60px", height: "60px" }}
+        className="fixed bottom-[calc(env(safe-area-inset-bottom)+0.75rem)] right-3 z-50 flex h-12 w-12 items-center justify-center overflow-visible rounded-full shadow-[0_0_20px_rgba(24,119,242,0.4)] transition-all duration-300 hover:scale-110 hover:shadow-[0_0_25px_rgba(24,119,242,0.6)] focus:outline-none group sm:bottom-6 sm:right-6 sm:h-[60px] sm:w-[60px]"
       >
         {isOpen ? (
           <div className="bg-[#1877F2] hover:bg-[#4e8df5] text-white w-full h-full rounded-full flex items-center justify-center transition-all duration-300">
@@ -565,7 +564,7 @@ Format list items on separate lines with simple bullets (e.g. * **Item:** text).
 
       {/* Chat Window */}
       {isOpen && (
-        <div className="fixed bottom-24 right-6 z-50 w-80 sm:w-96 bg-[#181818] border border-slate-800/80 rounded-2xl shadow-2xl flex flex-col overflow-hidden h-[500px] max-h-[80vh]">
+        <div className="fixed bottom-[calc(env(safe-area-inset-bottom)+4.25rem)] left-3 right-3 z-50 h-[500px] max-h-[78vh] bg-[#181818] border border-slate-800/80 rounded-2xl shadow-2xl flex flex-col overflow-hidden sm:left-auto sm:bottom-24 sm:right-6 sm:w-96 sm:max-h-[80vh]">
           {/* Header */}
           <div className="bg-[#121212] border-b border-slate-800 p-4 text-white flex items-center justify-between">
             <div>
