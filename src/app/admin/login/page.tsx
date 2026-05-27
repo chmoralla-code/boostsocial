@@ -65,7 +65,7 @@ export default function AdminLoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#0a0a0a] p-4 relative overflow-hidden">
+    <div className="min-h-screen w-full flex items-center justify-center bg-[#0a0a0a] px-4 py-6 relative overflow-hidden">
       {/* Premium Cyberpunk Glow Effects */}
       <div className="absolute top-[-20%] left-[-10%] w-[500px] h-[500px] rounded-full bg-emerald-500/10 blur-[120px] -z-10 pointer-events-none"></div>
       <div className="absolute bottom-[-20%] right-[-10%] w-[500px] h-[500px] rounded-full bg-blue-500/10 blur-[120px] -z-10 pointer-events-none"></div>
@@ -73,7 +73,7 @@ export default function AdminLoginPage() {
       {/* Technical Grid Background */}
       <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.005)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.005)_1px,transparent_1px)] bg-[size:30px_30px] pointer-events-none -z-10"></div>
 
-      <div className="bg-[#121212]/90 border border-slate-800/80 p-8 rounded-2xl w-full max-w-md shadow-2xl relative transition-all duration-300 backdrop-blur-md">
+      <div className="bg-[#121212]/90 border border-slate-800/80 p-5 sm:p-8 rounded-2xl w-full max-w-[18rem] md:max-w-md shadow-2xl relative transition-all duration-300 backdrop-blur-md overflow-hidden">
         {/* Back Link */}
         <Link 
           href="/" 
@@ -104,7 +104,7 @@ export default function AdminLoginPage() {
           </div>
         </div>
 
-        <form onSubmit={handleSignIn} className="space-y-5">
+        <form onSubmit={handleSignIn} className="space-y-5 min-w-0">
           <div>
             <label className="block text-xs font-black uppercase tracking-widest text-slate-400 mb-1.5 pl-1">Admin Username / Email</label>
             <div className="relative">
@@ -117,7 +117,7 @@ export default function AdminLoginPage() {
                 placeholder="e.g. admin"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-[#0a0a0a] border border-slate-800/80 pl-11 pr-4 py-3 rounded-xl focus:outline-none focus:border-[#1DB954] text-white text-sm transition-all"
+                className="w-full min-w-0 bg-[#0a0a0a] border border-slate-800/80 pl-11 pr-4 py-3 rounded-xl focus:outline-none focus:border-[#1DB954] text-white text-sm transition-all"
               />
             </div>
           </div>
@@ -134,7 +134,7 @@ export default function AdminLoginPage() {
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-[#0a0a0a] border border-slate-800/80 pl-11 pr-10 py-3 rounded-xl focus:outline-none focus:border-[#1DB954] text-white text-sm transition-all"
+                className="w-full min-w-0 bg-[#0a0a0a] border border-slate-800/80 pl-11 pr-10 py-3 rounded-xl focus:outline-none focus:border-[#1DB954] text-white text-sm transition-all"
               />
               <button
                 type="button"
@@ -157,7 +157,7 @@ export default function AdminLoginPage() {
           <button 
             type="submit" 
             disabled={loading}
-            className="w-full bg-[#1DB954] hover:bg-[#1ed760] text-black font-black py-4 rounded-full transition-all duration-300 transform hover:scale-[1.02] flex justify-center items-center gap-2 mt-6 uppercase tracking-wider text-xs shadow-lg shadow-emerald-500/10 cursor-pointer"
+            className="w-full max-w-full bg-[#1DB954] hover:bg-[#1ed760] text-black font-black py-4 rounded-full transition-all duration-300 transform hover:scale-[1.02] flex justify-center items-center gap-2 mt-6 uppercase tracking-wider text-xs shadow-lg shadow-emerald-500/10 cursor-pointer"
           >
             {loading ? (
               <Loader2 className="animate-spin text-black" size={16} />
