@@ -73,7 +73,12 @@ export default async function Home() {
   }
 
   // Fetch custom service showcase video
-  let showcaseSettings = { videoUrl: "/hero-bg.mp4", posterUrl: "" };
+  let showcaseSettings = {
+    videoUrl: "/hero-bg.mp4",
+    posterUrl: "",
+    title: "Real Service Delivery Samples",
+    badge: "Legit & Fast"
+  };
   try {
     const { data: showcaseSetting } = await supabase
       .from("settings")
@@ -83,7 +88,9 @@ export default async function Home() {
     if (showcaseSetting && showcaseSetting.value) {
       showcaseSettings = {
         videoUrl: showcaseSetting.value.videoUrl || "/hero-bg.mp4",
-        posterUrl: showcaseSetting.value.posterUrl || ""
+        posterUrl: showcaseSetting.value.posterUrl || "",
+        title: showcaseSetting.value.title || showcaseSettings.title,
+        badge: showcaseSetting.value.badge || showcaseSettings.badge
       };
     }
   } catch (err) {
@@ -231,7 +238,7 @@ export default async function Home() {
               {/* Video Player wrapper */}
               <div className="relative rounded-[2rem] overflow-hidden aspect-video border border-white/[0.06] bg-[#0c0c0c] shadow-inner group">
                 <video 
-                  src={showcaseSettings.videoUrl} 
+                  src={showcaseSettings.videoUrl || "/hero-bg.mp4"} 
                   poster={showcaseSettings.posterUrl || "/gcash-qr.png"} // defaults to poster image if supplied
                   controls
                   loop
@@ -244,11 +251,11 @@ export default async function Home() {
               <div className="mt-4 flex items-center justify-between px-2">
                 <div className="text-left">
                   <div className="text-[9px] font-black text-[#1DB954] uppercase tracking-[0.2em] mb-0.5">🎥 Showcase Proof</div>
-                  <h3 className="text-xs font-black text-white uppercase tracking-tight">Real Service Delivery Samples</h3>
+                  <h3 className="text-xs font-black text-white uppercase tracking-tight">{showcaseSettings.title}</h3>
                 </div>
                 <div className="text-right">
                   <span className="text-[9px] font-extrabold text-slate-500 uppercase tracking-wider bg-white/[0.03] px-2.5 py-1 rounded-md border border-white/[0.05]">
-                    Legit & Fast
+                    {showcaseSettings.badge}
                   </span>
                 </div>
               </div>
