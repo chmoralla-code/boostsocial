@@ -1,8 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
-import Script from "next/script";
-import { Chathead } from "@/components/Chathead";
-import { LiveOrderTicker } from "@/components/LiveOrderTicker";
+import { FloatingSiteWidgets } from "@/components/FloatingSiteWidgets";
 import { PWARegister } from "@/components/PWARegister";
 import "./globals.css";
 
@@ -45,10 +43,8 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${inter.className} min-h-screen bg-[#0a0a0a] text-slate-100 flex flex-col antialiased`}>
         <PWARegister />
-        <Script src="https://js.puter.com/v2/" strategy="afterInteractive" />
         {children}
-        <Chathead />
-        <LiveOrderTicker />
+        <FloatingSiteWidgets />
       </body>
     </html>
   );
