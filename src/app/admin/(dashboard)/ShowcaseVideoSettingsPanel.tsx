@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createClient } from "@supabase/supabase-js";
 import { CheckCircle, Loader2, RotateCcw, Save, Upload, Video, XCircle } from "lucide-react";
 
 const DEFAULT_VIDEO_URL = "/hero-bg.mp4";
@@ -93,39 +94,36 @@ export function ShowcaseVideoSettingsPanel() {
         throw new Error(signData.error || "Failed to generate signed upload URL.");
       }
 
-      const xhr = new XMLHttpRequest();
-      xhr.open("PUT", signData.signedUrl);
-      xhr.setRequestHeader("Content-Type", file.type);
+      if (!signData.path || !signData.token) {
+        throw new Error("Storage upload token was not returned.");
+      }
 
-      xhr.upload.addEventListener("progress", (event) => {
-        if (event.lengthComputable) {
-          setUploadProgress(Math.round((event.loaded / event.total) * 100));
-        }
-      });
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+      if (!supabaseUrl || !supabaseAnonKey) {
+        throw new Error("Supabase public upload settings are missing.");
+      }
 
-      xhr.addEventListener("load", async () => {
-        try {
-          if (xhr.status < 200 || xhr.status >= 300) {
-            throw new Error(`Upload to storage failed with status code ${xhr.status}.`);
-          }
+      setUploadProgress(35);
 
-          await saveSettings(signData.publicUrl);
-          setResult({ success: true, message: "Showcase video uploaded and saved." });
-        } catch (err: any) {
-          setResult({ success: false, message: err.message || "Failed to finalize showcase video." });
-        } finally {
-          setIsUploading(false);
-        }
-      });
+      const supabase = createClient(supabaseUrl, supabaseAnonKey);
+      const { error: uploadError } = await supabase.storage
+        .from("receipts")
+        .uploadToSignedUrl(signData.path, signData.token, file, {
+          contentType: file.type
+        });
 
-      xhr.addEventListener("error", () => {
-        setResult({ success: false, message: "Connection error during direct storage upload." });
-        setIsUploading(false);
-      });
+      if (uploadError) {
+        throw uploadError;
+      }
 
-      xhr.send(file);
+      setUploadProgress(85);
+      await saveSettings(signData.publicUrl);
+      setUploadProgress(100);
+      setResult({ success: true, message: "Showcase video uploaded and saved." });
     } catch (err: any) {
       setResult({ success: false, message: err.message || "Failed to upload showcase video." });
+    } finally {
       setIsUploading(false);
     }
   };

@@ -152,6 +152,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({
         success: true,
         signedUrl: data.signedUrl,
+        path: data.path,
+        token: data.token,
         publicUrl
       });
     }
