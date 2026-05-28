@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import { X, Search, Loader2, Globe, ArrowLeft, ShieldCheck, Check, Copy, AlertCircle, ShoppingBag, Wallet } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { LinkPreviewWindow } from "./LinkPreviewWindow";
+import { isOrganic } from "@/utils/serviceHelpers";
+
 
 interface SmmService {
   id: string; // RixeySMM service ID (e.g. "2983")
@@ -99,6 +101,8 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [categories, setCategories] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState<"cheapest" | "expensive" | "alpha" | "id">("cheapest");
+  const [isOrganicFilter, setIsOrganicFilter] = useState(true);
+
   
   // Checkout flow state
   const [selectedService, setSelectedService] = useState<SmmService | null>(null);
@@ -250,8 +254,14 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
       nameLower.includes(selectedPlatform);
 
     const matchesCategory = selectedCategory === "all" || s.category === selectedCategory;
-    return matchesSearch && matchesPlatform && matchesCategory;
+
+    // Organic vs Non-Organic quality category filter
+    const isSrvOrganic = isOrganic(s.name, s.desc || "");
+    const matchesQuality = isOrganicFilter ? isSrvOrganic : !isSrvOrganic;
+
+    return matchesSearch && matchesPlatform && matchesCategory && matchesQuality;
   });
+
 
   // Dynamic sorting for catalog Explorer matching user demands (defaults to Cheapest First)
   const sortedServices = [...filteredServices].sort((a, b) => {
@@ -463,7 +473,7 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
             </div>
             <div>
               <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
-                SMM <span className="text-[#1DB954]">Catalog Explorer</span>
+                ALL <span className="text-[#1DB954]">SERVICES</span>
               </h2>
               <p className="text-slate-400 text-xs mt-0.5">Direct reseller pricing on 1,100+ services with a 60% ROI markup.</p>
             </div>
@@ -495,6 +505,41 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
                   );
                 })}
               </div>
+
+              {/* Organic & Non-Organic Quality Filter Toggle */}
+              <div className="flex justify-center select-none">
+                <div className="relative flex p-0.5 bg-[#0a0a0a] border border-slate-800/80 rounded-full w-full max-w-[280px] shadow-inner">
+                  {/* Sliding indicator */}
+                  <div
+                    className={`absolute top-0.5 bottom-0.5 rounded-full bg-gradient-to-r transition-all duration-300 ease-out pointer-events-none ${
+                      isOrganicFilter
+                        ? "left-0.5 w-[48%] from-[#1DB954]/20 to-[#1ed760]/20 border border-[#1DB954]/30"
+                        : "left-[51%] w-[48%] from-indigo-500/20 to-purple-500/20 border border-indigo-500/30"
+                    }`}
+                  ></div>
+                  
+                  <button
+                    onClick={() => setIsOrganicFilter(true)}
+                    type="button"
+                    className={`flex-1 py-2 text-[10px] font-black uppercase tracking-wider rounded-full transition-all duration-200 z-10 cursor-pointer flex items-center justify-center gap-1.5 ${
+                      isOrganicFilter ? "text-[#1DB954]" : "text-slate-400 hover:text-slate-200"
+                    }`}
+                  >
+                    🌿 Organic
+                  </button>
+                  
+                  <button
+                    onClick={() => setIsOrganicFilter(false)}
+                    type="button"
+                    className={`flex-1 py-2 text-[10px] font-black uppercase tracking-wider rounded-full transition-all duration-200 z-10 cursor-pointer flex items-center justify-center gap-1.5 ${
+                      !isOrganicFilter ? "text-indigo-400" : "text-slate-400 hover:text-slate-200"
+                    }`}
+                  >
+                    🤖 Non-Organic
+                  </button>
+                </div>
+              </div>
+
 
               {/* Premium Interactive New User Discovery Banner */}
               <div className="bg-[#1DB954]/5 border border-[#1DB954]/25 rounded-2xl p-4 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 animate-in slide-in-from-top-2 duration-300">

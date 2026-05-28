@@ -449,15 +449,16 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
     {
       id: "catalog",
       emoji: "Layers",
-      tag: "1,100+ BOOSTS",
-      title: "SMM Catalog Explorer",
-      description: "Instantly search and order premium boosts for Instagram, TikTok, YouTube, Twitter, and other platforms at direct reseller pricing.",
+      tag: "ALL SERVICES",
+      title: "ALL SERVICES",
+      description: "Instantly search and order from 1,100+ premium boosts and custom digital services at direct reseller pricing.",
       rate_prefix: "Direct Reseller Rates",
       rate_text: "Instagram Followers, TikTok Hearts, YouTube Sub Packs, Telegram, Twitter, & more",
       theme_color: "#1DB954",
       btn_bg: "bg-[#1DB954] hover:bg-[#1ed760] text-black",
       glow_color: "rgba(29, 185, 84, 0.45)"
     }
+
   ];
 
   const baseCandidates = servicesCandidates && Array.isArray(servicesCandidates) && servicesCandidates.length > 0
