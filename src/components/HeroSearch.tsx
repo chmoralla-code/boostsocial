@@ -286,7 +286,7 @@ No other text, markdown formatting, or symbols around the JSON. Just the raw JSO
             <div className="bg-[#161616] border border-slate-800 p-4 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:border-[#1DB954]/30 transition-all">
               <div className="text-left">
                 <h4 className="text-xs font-black text-[#1DB954] uppercase tracking-wider">Social Media Platform Boost</h4>
-                <h5 className="text-sm font-bold text-white mt-0.5">SMM CATALOG RESELLER EXPLORER</h5>
+                <h5 className="text-sm font-bold text-white mt-0.5">ALL SERVICES</h5>
                 <p className="text-[10px] text-slate-500 mt-1 leading-normal font-semibold">Reseller API access to 1,100+ bulk boosts for Facebook, Instagram, TikTok, YouTube, & more.</p>
               </div>
               <button
@@ -296,8 +296,9 @@ No other text, markdown formatting, or symbols around the JSON. Just the raw JSO
                 }}
                 className="w-full sm:w-auto bg-[#1DB954] hover:bg-[#1ed760] text-black font-extrabold px-5 py-2.5 rounded-full text-xs uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap text-center shadow-md shadow-[#1DB954]/10"
               >
-                Open SMM Catalog
+                Open All Services
               </button>
+
             </div>
           )}
 
@@ -408,7 +409,8 @@ No other text, markdown formatting, or symbols around the JSON. Just the raw JSO
                   }}
                   className="w-full sm:w-auto bg-slate-850 hover:bg-slate-800 border border-slate-800 text-slate-350 hover:text-white font-extrabold px-4 py-2 rounded-xl text-[10px] uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap text-center shadow-sm"
                 >
-                  Browse Catalog Explorer
+                  Browse All Services
+
                 </button>
               </div>
             </div>
