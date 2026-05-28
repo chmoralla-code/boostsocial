@@ -19,11 +19,95 @@ interface Service {
   icon_type: string;
 }
 
+type PlatformType = "facebook" | "instagram" | "tiktok" | "youtube";
+
+interface SmmService {
+  id: string;
+  name: string;
+  category: string;
+  originalRate: number;
+  ratePer1k: number;
+  startingPrice: number;
+  min: number;
+  max: number;
+  desc: string;
+}
+
+interface ReactionVariantConfig {
+  label: string;
+  icon: string;
+  search: string;
+  keywords: string[];
+  exclude?: string[];
+}
+
+interface ReactionVariant extends ReactionVariantConfig {
+  item: SmmService | null;
+}
+
 interface ServicesSectionProps {
   services: Service[];
   servicesBg?: { videoUrl: string; opacity: number };
   servicesCandidates?: any[] | null;
 }
+
+const PLATFORM_SERVICE_CHIPS: Record<PlatformType, string[]> = {
+  facebook: ["Like", "Heart/Love", "Care", "Haha", "Wow", "Sad", "Angry"],
+  instagram: ["Post Likes", "Reel Likes", "Story Likes", "Saves", "Shares"],
+  tiktok: ["Hearts", "Favorites", "Shares", "Comments", "Live Likes"],
+  youtube: ["Video Likes", "Shorts Likes", "Comment Likes", "Live Likes"]
+};
+
+const PLATFORM_CARD_COPY: Record<PlatformType, { title: string; description: string }> = {
+  facebook: {
+    title: "Page & Reaction Menu",
+    description: "Scale pages and posts with followers, views, comments, and exact Facebook reactions like Like, Heart/Love, Care, Haha, Wow, Sad, and Angry."
+  },
+  instagram: {
+    title: "Likes, Reels & Growth",
+    description: "Build authority with targeted followers, post likes, reel likes, story likes, saves, shares, views, and profile impressions."
+  },
+  tiktok: {
+    title: "Hearts, Shares & Views",
+    description: "Amplify TikTok videos with followers, video hearts, live likes, favorites, comments, shares, and high-speed views."
+  },
+  youtube: {
+    title: "Subscribers & Likes",
+    description: "Unlock monetization support with subscribers, watch hours, views, video likes, Shorts likes, comment likes, and live likes."
+  }
+};
+
+const PLATFORM_REACTION_VARIANTS: Record<PlatformType, ReactionVariantConfig[]> = {
+  facebook: [
+    { label: "Like", icon: "👍", search: "facebook post like", keywords: ["post like", "photo like", "like"], exclude: ["page like", "follower", "view", "share"] },
+    { label: "Love / Heart", icon: "❤️", search: "facebook love reaction", keywords: ["love", "heart"], exclude: ["follower", "view", "share"] },
+    { label: "Care", icon: "🤗", search: "facebook care reaction", keywords: ["care"], exclude: ["follower", "view", "share"] },
+    { label: "Haha", icon: "😆", search: "facebook haha reaction", keywords: ["haha"], exclude: ["follower", "view", "share"] },
+    { label: "Wow", icon: "😮", search: "facebook wow reaction", keywords: ["wow"], exclude: ["follower", "view", "share"] },
+    { label: "Sad", icon: "😢", search: "facebook sad reaction", keywords: ["sad"], exclude: ["follower", "view", "share"] },
+    { label: "Angry", icon: "😡", search: "facebook angry reaction", keywords: ["angry"], exclude: ["follower", "view", "share"] }
+  ],
+  instagram: [
+    { label: "Post Likes", icon: "❤️", search: "instagram post likes", keywords: ["post like", "photo like", "like"], exclude: ["follower", "view", "comment"] },
+    { label: "Reel Likes", icon: "🎬", search: "instagram reel likes", keywords: ["reel like", "reels like", "video like"], exclude: ["follower", "view"] },
+    { label: "Story Likes", icon: "✨", search: "instagram story likes", keywords: ["story like"], exclude: ["follower", "view"] },
+    { label: "Saves", icon: "🔖", search: "instagram saves", keywords: ["save", "saves"], exclude: ["follower", "view"] },
+    { label: "Shares", icon: "↗️", search: "instagram shares", keywords: ["share", "shares"], exclude: ["follower", "view"] }
+  ],
+  tiktok: [
+    { label: "Video Hearts", icon: "❤️", search: "tiktok hearts", keywords: ["heart", "hearts", "like", "likes"], exclude: ["follower", "view", "comment"] },
+    { label: "Live Likes", icon: "📡", search: "tiktok live likes", keywords: ["live like", "live likes"], exclude: ["follower", "view"] },
+    { label: "Favorites", icon: "⭐", search: "tiktok favorites", keywords: ["favorite", "favorites", "save", "saves"], exclude: ["follower", "view"] },
+    { label: "Shares", icon: "↗️", search: "tiktok shares", keywords: ["share", "shares"], exclude: ["follower", "view"] },
+    { label: "Comments", icon: "💬", search: "tiktok comments", keywords: ["comment", "comments"], exclude: ["follower", "view"] }
+  ],
+  youtube: [
+    { label: "Video Likes", icon: "👍", search: "youtube video likes", keywords: ["video like", "like", "likes"], exclude: ["subscriber", "view", "comment"] },
+    { label: "Shorts Likes", icon: "▶️", search: "youtube shorts likes", keywords: ["shorts like", "short like"], exclude: ["subscriber", "view"] },
+    { label: "Comment Likes", icon: "💬", search: "youtube comment likes", keywords: ["comment like", "comment likes"], exclude: ["subscriber", "view"] },
+    { label: "Live Likes", icon: "📡", search: "youtube live likes", keywords: ["live like", "stream like"], exclude: ["subscriber", "view"] }
+  ]
+};
 
 export function ServicesSection({ services, servicesBg, servicesCandidates }: ServicesSectionProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -40,13 +124,13 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
   const [isSmmCatalogModalOpen, setIsSmmCatalogModalOpen] = useState(false);
 
   // Real-time SMM catalog caching states
-  const [smmServices, setSmmServices] = useState<any[]>([]);
+  const [smmServices, setSmmServices] = useState<SmmService[]>([]);
   const [loadingSmm, setLoadingSmm] = useState(false);
 
   // Prefilled search & custom platform sub-modals states
   const [smmPrefilledSearch, setSmmPrefilledSearch] = useState("");
   const [platformSubModalOpen, setPlatformSubModalOpen] = useState(false);
-  const [platformSubModalType, setPlatformSubModalType] = useState<"facebook" | "instagram" | "tiktok" | "youtube" | null>(null);
+  const [platformSubModalType, setPlatformSubModalType] = useState<PlatformType | null>(null);
 
   useEffect(() => {
     setLoadingSmm(true);
@@ -61,8 +145,15 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
       .finally(() => setLoadingSmm(false));
   }, []);
 
-  const getPlatformSmmCandidates = (platform: "facebook" | "instagram" | "tiktok" | "youtube") => {
-    if (!smmServices || smmServices.length === 0) return { follower: null, like: null, view: null };
+  const getPlatformSmmCandidates = (platform: PlatformType) => {
+    const reactionFallbacks = PLATFORM_REACTION_VARIANTS[platform].map((variant) => ({
+      ...variant,
+      item: null
+    }));
+
+    if (!smmServices || smmServices.length === 0) {
+      return { follower: null, like: null, view: null, reactions: reactionFallbacks };
+    }
 
     // Resolve configured SMM IDs from the active database services prop
     let targetFollowerSmmId: string | null = null;
@@ -110,15 +201,17 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
       return cat.includes(platform) || name.includes(platform);
     });
 
-    if (platformServices.length === 0) return { follower: null, like: null, view: null };
+    if (platformServices.length === 0) {
+      return { follower: null, like: null, view: null, reactions: reactionFallbacks };
+    }
 
     // Helper to find cheapest service matching keywords, and avoiding unwanted ones
-    const findCheapestMatching = (keywords: string[], excludeKeywords: string[] = []) => {
+    const findCheapestMatching = (keywords: string[], excludeKeywords: string[] = [], usedIds: Set<string> = new Set()) => {
       const matches = platformServices.filter(s => {
         const nameLower = s.name.toLowerCase();
         const matchesKeywords = keywords.some(kw => nameLower.includes(kw));
         const matchesExclude = excludeKeywords.some(ex => nameLower.includes(ex));
-        return matchesKeywords && !matchesExclude;
+        return matchesKeywords && !matchesExclude && !usedIds.has(String(s.id));
       });
       if (matches.length === 0) return null;
       matches.sort((a, b) => a.startingPrice - b.startingPrice);
@@ -159,7 +252,14 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
     if (!like) like = findCheapestMatching(["like", "heart", "react"]) || platformServices[Math.min(1, platformServices.length - 1)];
     if (!view) view = findCheapestMatching(["view", "play", "video"]) || platformServices[Math.min(2, platformServices.length - 1)];
 
-    return { follower, like, view };
+    const usedReactionIds = new Set<string>();
+    const reactions = PLATFORM_REACTION_VARIANTS[platform].map((variant) => {
+      const item = findCheapestMatching(variant.keywords, variant.exclude || [], usedReactionIds);
+      if (item) usedReactionIds.add(String(item.id));
+      return { ...variant, item };
+    });
+
+    return { follower, like, view, reactions };
   };
 
   function parseServiceIndicators(name: string, desc: string = "") {
@@ -285,8 +385,8 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
       id: "facebook",
       emoji: "📘",
       tag: "Facebook Boosts",
-      title: "Page & Post Services",
-      description: "Scale your Facebook pages and posts using compliant local PH-base followers, post likes/reactions, custom-emoji comments, and targeted post reach.",
+      title: PLATFORM_CARD_COPY.facebook.title,
+      description: PLATFORM_CARD_COPY.facebook.description,
       rate_prefix: "Starting Rate",
       rate_text: "₱25.18 per 1k boosts",
       theme_color: "#1877F2",
@@ -297,8 +397,8 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
       id: "instagram",
       emoji: "📸",
       tag: "Instagram Boosts",
-      title: "Engagement & Growth",
-      description: "Build authority on Instagram using rapid reel views, high-quality targeted followers, instant photo likes, and automated profile impressions.",
+      title: PLATFORM_CARD_COPY.instagram.title,
+      description: PLATFORM_CARD_COPY.instagram.description,
       rate_prefix: "Starting Rate",
       rate_text: "₱24.98 per 1k boosts",
       theme_color: "#E1306C",
@@ -309,8 +409,8 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
       id: "tiktok",
       emoji: "🎵",
       tag: "TikTok Boosts",
-      title: "Viral Video Packs",
-      description: "Amplify your TikTok influence with high-speed video views, organic-retention video likes, targeted followers, and instant profile shares.",
+      title: PLATFORM_CARD_COPY.tiktok.title,
+      description: PLATFORM_CARD_COPY.tiktok.description,
       rate_prefix: "Starting Rate",
       rate_text: "₱30.00 per 1k boosts",
       theme_color: "#00F2FE",
@@ -321,8 +421,8 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
       id: "youtube",
       emoji: "🎥",
       tag: "YouTube Boosts",
-      title: "Monetization Helpers",
-      description: "Unlock monetization and scale authority using ad-compliant YouTube subscribers, watch hours, organic views, and post likes.",
+      title: PLATFORM_CARD_COPY.youtube.title,
+      description: PLATFORM_CARD_COPY.youtube.description,
       rate_prefix: "Starting Rate",
       rate_text: "₱132.21 per 1k boosts",
       theme_color: "#FF0000",
@@ -355,9 +455,19 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
     }
   ];
 
-  const activeCandidates = servicesCandidates && Array.isArray(servicesCandidates) && servicesCandidates.length > 0
+  const baseCandidates = servicesCandidates && Array.isArray(servicesCandidates) && servicesCandidates.length > 0
     ? servicesCandidates
     : DEFAULT_CANDIDATES;
+
+  const activeCandidates = baseCandidates.map((card) => {
+    if (card.id === "facebook" || card.id === "instagram" || card.id === "tiktok" || card.id === "youtube") {
+      return {
+        ...card,
+        ...PLATFORM_CARD_COPY[card.id as PlatformType]
+      };
+    }
+    return card;
+  });
 
   return (
     <>
@@ -465,6 +575,9 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
             // Determine button bg and text colors
             const btnBgColor = card.theme_color;
             const btnTextColor = card.id === "tiktok" || card.id === "catalog" ? "text-black font-extrabold" : "text-white font-extrabold";
+            const platformChips = card.id === "facebook" || card.id === "instagram" || card.id === "tiktok" || card.id === "youtube"
+              ? PLATFORM_SERVICE_CHIPS[card.id as PlatformType]
+              : null;
 
             return (
               <div 
@@ -522,6 +635,28 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
                 <p className="text-slate-400 text-sm leading-relaxed mb-8 flex-grow">
                   {card.description}
                 </p>
+
+                {platformChips && (
+                  <div className="w-full mb-6">
+                    <span className="block text-slate-500 text-[9px] font-black uppercase tracking-wider mb-2">
+                      Reaction Services Inside
+                    </span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {platformChips.map((chip) => (
+                        <span
+                          key={chip}
+                          className="px-2.5 py-1 rounded-full border text-[10px] font-extrabold leading-none bg-black/25"
+                          style={{
+                            borderColor: `${card.theme_color}30`,
+                            color: card.theme_color
+                          }}
+                        >
+                          {chip}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 
                 <div className="flex justify-between items-end w-full mb-6 pt-4 border-t border-slate-800/60">
                   <div className="w-full text-left">
@@ -788,7 +923,8 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
                 </div>
               ) : (() => {
                 const candidates = getPlatformSmmCandidates(platformSubModalType);
-                if (!candidates.follower && !candidates.like && !candidates.view) {
+                const hasReactionOptions = candidates.reactions.length > 0;
+                if (!candidates.follower && !candidates.like && !candidates.view && !hasReactionOptions) {
                   return (
                     <div className="text-center py-16 bg-[#161616]/30 border border-slate-800 border-dashed rounded-2xl">
                       <p className="text-slate-500 font-extrabold uppercase tracking-wider text-sm">Reseller catalog timing list loading...</p>
@@ -867,6 +1003,57 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
                           </div>
                         );
                       })}
+                    </div>
+
+                    <div className="max-w-4xl mx-auto bg-[#161616]/35 border border-slate-850/80 rounded-3xl p-5 sm:p-6">
+                      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2 mb-4">
+                        <div>
+                          <h3 className="text-sm font-black text-white uppercase tracking-widest">
+                            Reaction Services Inside
+                          </h3>
+                          <p className="text-xs text-slate-450 mt-1">
+                            Pick the exact engagement type before checkout.
+                          </p>
+                        </div>
+                        <span className="text-[10px] font-black text-[#1DB954] uppercase tracking-widest">
+                          {platformSubModalType} variants
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        {candidates.reactions.map((reaction) => {
+                          const service = reaction.item;
+                          return (
+                            <button
+                              key={reaction.label}
+                              type="button"
+                              onClick={() => {
+                                setPlatformSubModalOpen(false);
+                                setPlatformSubModalType(null);
+                                setSmmPrefilledSearch(service ? String(service.id) : `${platformSubModalType} ${reaction.search}`);
+                                setIsSmmCatalogModalOpen(true);
+                              }}
+                              className="group/reaction text-left rounded-2xl border border-slate-800 bg-black/25 hover:bg-black/45 hover:border-[#1DB954]/35 p-3.5 transition-all duration-300 cursor-pointer min-h-[138px] flex flex-col"
+                            >
+                              <div className="flex items-center justify-between gap-2 mb-3">
+                                <span className="text-2xl leading-none">{reaction.icon}</span>
+                                <span className="text-[9px] text-slate-600 group-hover/reaction:text-[#1DB954] font-black uppercase tracking-widest">
+                                  {service ? `#${service.id}` : "Browse"}
+                                </span>
+                              </div>
+                              <span className="text-xs font-black text-white leading-tight">
+                                {reaction.label}
+                              </span>
+                              <span className="text-[10px] text-slate-450 leading-snug line-clamp-2 mt-1 flex-grow">
+                                {service ? service.name : `Open catalog search for ${reaction.search}.`}
+                              </span>
+                              <span className="text-[10px] font-black text-[#1DB954] mt-3">
+                                {service ? `₱${(service.startingPrice * 1000).toFixed(2)} / 1k` : "Search Catalog"}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
                     
                     {/* Bottom Gateway to complete Catalog */}
