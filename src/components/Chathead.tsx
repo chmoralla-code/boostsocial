@@ -1,19 +1,43 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { MessageCircle, X, Send, Loader2, Image } from "lucide-react";
+import { useState, useRef, useEffect, useCallback, type ReactNode } from "react";
+import { X, Send, Loader2, Image } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { parseDescription } from "@/utils/serviceHelpers";
 
 declare global {
   interface Window {
-    puter?: any;
+    puter?: {
+      ai?: {
+        chat: (messages: unknown[], options?: Record<string, string>) => Promise<PuterChatResponse>;
+      };
+    };
   }
 }
+
+type PuterChatResponse = { message?: { content?: string } } | string | null | undefined;
 
 interface Message {
   role: 'user' | 'assistant' | 'system';
   content: string;
+}
+
+interface DbService {
+  id: string;
+  title: string;
+  description?: string | null;
+  starting_price: number | string;
+}
+
+interface ChatDbMessage {
+  id: string;
+  sender: "customer" | "admin" | "system";
+  message: string;
+  is_read?: boolean;
+}
+
+function getErrorMessage(err: unknown) {
+  return err instanceof Error ? err.message : String(err);
 }
 
 const parseMorallaName = (text: string, isUser: boolean) => {
@@ -55,10 +79,10 @@ const renderMessageContent = (content: string, isUser: boolean) => {
   return lines.map((line, lineIdx) => {
     const trimmed = line.trim();
     const isListItem = trimmed.startsWith('* ') || trimmed.startsWith('- ') || trimmed.startsWith('• ');
-    let cleanLine = isListItem ? trimmed.replace(/^[\*\-•]\s*/, '') : line;
+    const cleanLine = isListItem ? trimmed.replace(/^[\*\-•]\s*/, '') : line;
 
     // Parse bold markdown **text**
-    const parts: any[] = [];
+    const parts: ReactNode[] = [];
     const regex = /\*\*([^*]+)\*\*/g;
     let match;
     let lastIndex = 0;
@@ -112,15 +136,37 @@ export function Chathead() {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [unreadAdminCount, setUnreadAdminCount] = useState(0);
+  const [adminNotice, setAdminNotice] = useState("");
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const supabase = createClient();
-  const [dbServices, setDbServices] = useState<any[]>([]);
+  const [dbServices, setDbServices] = useState<DbService[]>([]);
 
   // Real-time Support Chat Session
   const [customerEmail, setCustomerEmail] = useState("");
   const [emailInput, setEmailInput] = useState("");
+
+  const markAdminRepliesRead = useCallback((emailToMark: string) => {
+    fetch("/api/chat/messages", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: emailToMark, reader: "customer" })
+    }).catch((err) => console.error("Error marking admin replies as read:", err));
+  }, []);
+
+  const openSupportChat = useCallback((prefillMessage?: string) => {
+    setIsOpen(true);
+    setUnreadAdminCount(0);
+    setAdminNotice("");
+    if (prefillMessage) {
+      setInput(prefillMessage);
+    }
+    if (customerEmail) {
+      markAdminRepliesRead(customerEmail);
+    }
+  }, [customerEmail, markAdminRepliesRead]);
 
   useEffect(() => {
     supabase
@@ -128,7 +174,7 @@ export function Chathead() {
       .select('*')
       .order('created_at', { ascending: true })
       .then(({ data }) => {
-        if (data) setDbServices(data);
+        if (data) setDbServices(data as DbService[]);
       });
   }, []);
 
@@ -136,12 +182,12 @@ export function Chathead() {
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
       if (data?.user?.email) {
-        setCustomerEmail(data.user.email);
+        setCustomerEmail(data.user.email.trim().toLowerCase());
       } else {
         if (typeof window !== "undefined") {
           const stored = localStorage.getItem("last_order_email");
           if (stored) {
-            setCustomerEmail(stored);
+            setCustomerEmail(stored.trim().toLowerCase());
           }
         }
       }
@@ -157,13 +203,29 @@ export function Chathead() {
         const res = await fetch(`/api/chat/messages?email=${encodeURIComponent(customerEmail)}`);
         if (res.ok) {
           const data = await res.json();
-          const dbMsgs = data.messages || [];
+          const dbMsgs = (data.messages || []) as ChatDbMessage[];
           if (dbMsgs.length > 0) {
-            const mapped = dbMsgs.map((m: any) => ({
+            const mapped: Message[] = dbMsgs.map((m) => ({
               role: m.sender === 'customer' ? 'user' : 'assistant',
               content: m.message
             }));
             setMessages(mapped);
+          }
+
+          const unreadAdminMessages = dbMsgs.filter((m) => m.sender === "admin" && !m.is_read);
+          if (isOpen) {
+            if (unreadAdminMessages.length > 0) {
+              markAdminRepliesRead(customerEmail);
+            }
+            setUnreadAdminCount(0);
+            setAdminNotice("");
+          } else if (unreadAdminMessages.length > 0) {
+            const latestAdminMessage = unreadAdminMessages[unreadAdminMessages.length - 1];
+            setUnreadAdminCount(unreadAdminMessages.length);
+            setAdminNotice(latestAdminMessage?.message || "Admin sent you a message.");
+          } else {
+            setUnreadAdminCount(0);
+            setAdminNotice("");
           }
         }
       } catch (err) {
@@ -173,27 +235,22 @@ export function Chathead() {
 
     fetchDBChat();
 
-    const interval = setInterval(async () => {
-      try {
-        const res = await fetch(`/api/chat/messages?email=${encodeURIComponent(customerEmail)}`);
-        if (res.ok) {
-          const data = await res.json();
-          const dbMsgs = data.messages || [];
-          if (dbMsgs.length > 0) {
-            const mapped = dbMsgs.map((m: any) => ({
-              role: m.sender === 'customer' ? 'user' : 'assistant',
-              content: m.message
-            }));
-            setMessages(mapped);
-          }
-        }
-      } catch (err) {
-        console.error("Error polling chat history:", err);
-      }
-    }, 4000);
+    const interval = setInterval(fetchDBChat, 4000);
 
     return () => clearInterval(interval);
-  }, [customerEmail]);
+  }, [customerEmail, isOpen, markAdminRepliesRead]);
+
+  useEffect(() => {
+    const handleOpenSupportChat = (event: Event) => {
+      const detail = (event as CustomEvent<{ message?: string }>).detail;
+      openSupportChat(detail?.message);
+    };
+
+    window.addEventListener("open-support-chat", handleOpenSupportChat);
+    return () => {
+      window.removeEventListener("open-support-chat", handleOpenSupportChat);
+    };
+  }, [openSupportChat]);
 
   const uploadReceiptFile = async (file: File) => {
     const uuidRegex = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
@@ -272,11 +329,11 @@ export function Chathead() {
         content: `🎉 **Receipt screenshot successfully received!**\n\nIt has been automatically linked to **Tracking ID: ${displayId}** and is now visible on the Admin Dashboard.\n\nOur operations team will verify the payment and begin your full package delivery shortly! Thank you for your payment! 🙏` 
       }]);
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
       setMessages(prev => [...prev, { 
         role: 'assistant', 
-        content: `❌ **Failed to upload screenshot:** ${err.message || err.toString()}. Please try again or contact support.` 
+        content: `❌ **Failed to upload screenshot:** ${getErrorMessage(err)}. Please try again or contact support.`
       }]);
     } finally {
       setUploading(false);
@@ -470,11 +527,11 @@ Format list items on separate lines with simple bullets (e.g. * **Item:** text).
       }
 
       // Puter AI Claude 3.5 Client-side Fallback
-      if (!responseText && typeof window !== "undefined" && window.puter) {
+      if (!responseText && typeof window !== "undefined" && window.puter?.ai?.chat) {
         try {
           console.log("Attempting Puter AI Claude 3.5 fallback...");
           const response = await window.puter.ai.chat(apiMessages, { model: 'claude-3.5-sonnet' });
-          responseText = response?.message?.content ?? response?.toString() ?? "";
+          responseText = typeof response === "string" ? response : response?.message?.content ?? "";
         } catch (puterErr) {
           console.error("Puter Claude 3.5 fallback failed:", puterErr);
         }
@@ -509,9 +566,9 @@ Format list items on separate lines with simple bullets (e.g. * **Item:** text).
         }).catch(err => console.error("Error saving system message:", err));
       }
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setMessages(prev => [...prev, { role: 'assistant', content: `Error connecting to AI: ${err.message || err.toString()}` }]);
+      setMessages(prev => [...prev, { role: 'assistant', content: `Error connecting to AI: ${getErrorMessage(err)}` }]);
     } finally {
       setIsLoading(false);
     }
@@ -535,10 +592,32 @@ Format list items on separate lines with simple bullets (e.g. * **Item:** text).
 
   return (
     <>
+      {!isOpen && unreadAdminCount > 0 && (
+        <button
+          type="button"
+          onClick={() => openSupportChat()}
+          className="fixed bottom-[calc(env(safe-area-inset-bottom)+4.25rem)] right-3 z-50 max-w-[250px] rounded-2xl border border-red-400/25 bg-[#181818] px-4 py-3 text-left shadow-2xl shadow-red-500/10 transition-all hover:border-red-400/45 hover:bg-[#1f1f1f] sm:bottom-24 sm:right-6"
+        >
+          <span className="block text-[10px] font-black uppercase tracking-widest text-red-300">
+            Admin replied
+          </span>
+          <span className="mt-1 block truncate text-xs font-semibold text-slate-200">
+            {adminNotice || "Open chat to read the message."}
+          </span>
+        </button>
+      )}
+
       {/* Floating Button */}
       <button 
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => {
+          if (isOpen) {
+            setIsOpen(false);
+          } else {
+            openSupportChat();
+          }
+        }}
         className="fixed bottom-[calc(env(safe-area-inset-bottom)+0.75rem)] right-3 z-50 flex h-12 w-12 items-center justify-center overflow-visible rounded-full shadow-[0_0_20px_rgba(24,119,242,0.4)] transition-all duration-300 hover:scale-110 hover:shadow-[0_0_25px_rgba(24,119,242,0.6)] focus:outline-none group sm:bottom-6 sm:right-6 sm:h-[60px] sm:w-[60px]"
+        aria-label={isOpen ? "Close support chat" : "Open support chat"}
       >
         {isOpen ? (
           <div className="bg-[#1877F2] hover:bg-[#4e8df5] text-white w-full h-full rounded-full flex items-center justify-center transition-all duration-300">
@@ -547,10 +626,16 @@ Format list items on separate lines with simple bullets (e.g. * **Item:** text).
         ) : (
           <div className="relative w-full h-full rounded-full p-0.5 bg-gradient-to-tr from-[#1877F2] via-blue-500 to-[#4e8df5] flex items-center justify-center">
             {/* Online Indicator Badge */}
-            <span className="absolute -top-0.5 -right-0.5 flex h-3.5 w-3.5 z-10">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#1877F2] opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-[#1877F2] border-2 border-[#121212]"></span>
-            </span>
+            {unreadAdminCount > 0 ? (
+              <span className="absolute -top-1.5 -right-1.5 z-20 flex min-h-6 min-w-6 items-center justify-center rounded-full border-2 border-[#121212] bg-red-500 px-1 text-[10px] font-black text-white shadow-lg">
+                {unreadAdminCount > 9 ? "9+" : unreadAdminCount}
+              </span>
+            ) : (
+              <span className="absolute -top-0.5 -right-0.5 flex h-3.5 w-3.5 z-10">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#1877F2] opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-[#1877F2] border-2 border-[#121212]"></span>
+              </span>
+            )}
             <div className="w-full h-full rounded-full overflow-hidden bg-[#181818] flex items-center justify-center">
               <img 
                 src="/chathead-face.png" 
@@ -595,7 +680,7 @@ Format list items on separate lines with simple bullets (e.g. * **Item:** text).
                 <button
                   type="button"
                   onClick={() => {
-                    const trimmed = emailInput.trim();
+                    const trimmed = emailInput.trim().toLowerCase();
                     if (!trimmed || !trimmed.includes("@")) {
                       alert("Please enter a valid email address.");
                       return;
@@ -624,6 +709,8 @@ Format list items on separate lines with simple bullets (e.g. * **Item:** text).
                 onClick={() => {
                   if (confirm("Disconnect support session? You can reconnect using your email anytime.")) {
                     setCustomerEmail("");
+                    setUnreadAdminCount(0);
+                    setAdminNotice("");
                     if (typeof window !== "undefined") {
                       localStorage.removeItem("last_order_email");
                     }

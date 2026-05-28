@@ -4,7 +4,7 @@ import { ServicesSection } from "@/components/ServicesSection";
 import { HeroVideoBackground } from "@/components/HeroVideoBackground";
 import { createClient } from "@/utils/supabase/server";
 import { HeroSearch } from "@/components/HeroSearch";
-import { parseDescription } from "@/utils/serviceHelpers";
+import { PendingOrderBanner } from "@/components/PendingOrderBanner";
 
 export const dynamic = "force-dynamic";
 
@@ -262,6 +262,8 @@ export default async function Home() {
             </div>
           </div>
         </div>
+
+        <PendingOrderBanner />
 
         <ServicesSection services={services || []} servicesBg={servicesBg} servicesCandidates={servicesCandidates} />
       </main>

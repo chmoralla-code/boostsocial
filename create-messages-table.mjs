@@ -1,6 +1,11 @@
 import postgres from 'postgres';
 
-const databaseUrl = 'postgresql://postgres.bhunvginzhgnwjkprnxc:Baholobot12345@aws-1-ap-southeast-2.pooler.supabase.com:6543/postgres';
+const databaseUrl = process.env.DATABASE_URL || process.env.POSTGRES_URL || process.env.SUPABASE_DB_URL;
+
+if (!databaseUrl) {
+  throw new Error('Missing DATABASE_URL, POSTGRES_URL, or SUPABASE_DB_URL environment variable.');
+}
+
 const sql = postgres(databaseUrl, { ssl: 'require' });
 
 async function createMessagesTable() {
@@ -20,6 +25,12 @@ async function createMessagesTable() {
     console.log('Creating index on customer_email for fast queries...');
     await sql`
       CREATE INDEX IF NOT EXISTS idx_customer_messages_email ON customer_messages(customer_email);
+    `;
+
+    console.log('Creating unread lookup index...');
+    await sql`
+      CREATE INDEX IF NOT EXISTS idx_customer_messages_unread
+      ON customer_messages(customer_email, sender, is_read);
     `;
 
     console.log('✅ customer_messages table created successfully.');

@@ -1,6 +1,12 @@
 import postgres from 'postgres';
 
-const sql = postgres('postgresql://postgres.bhunvginzhgnwjkprnxc:Baholobot12345@aws-1-ap-southeast-2.pooler.supabase.com:6543/postgres', { ssl: 'require' });
+const databaseUrl = process.env.DATABASE_URL || process.env.POSTGRES_URL || process.env.SUPABASE_DB_URL;
+
+if (!databaseUrl) {
+  throw new Error('Missing DATABASE_URL, POSTGRES_URL, or SUPABASE_DB_URL environment variable.');
+}
+
+const sql = postgres(databaseUrl, { ssl: 'require' });
 
 async function init() {
   try {

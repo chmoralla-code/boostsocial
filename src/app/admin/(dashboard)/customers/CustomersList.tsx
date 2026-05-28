@@ -12,12 +12,23 @@ interface Customer {
   balance: number;
   lastActive: string;
   hasProfile: boolean;
+  unreadCustomerMessages: number;
+  lastMessageAt?: string;
   statuses: {
     pending: number;
     processing: number;
     completed: number;
     cancelled: number;
   };
+}
+
+interface ChatMessage {
+  id: string;
+  customer_email: string;
+  sender: "admin" | "customer" | "system";
+  message: string;
+  is_read: boolean;
+  created_at: string;
 }
 
 export function CustomersList({ 
@@ -36,6 +47,7 @@ export function CustomersList({
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState<"spent" | "orders" | "active" | "balance">("spent");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+  const [customers, setCustomers] = useState<Customer[]>(() => initialCustomers);
 
   // Edit Balance States
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
@@ -48,7 +60,7 @@ export function CustomersList({
 
   // Real-time Chatbox States
   const [chatCustomer, setChatCustomer] = useState<Customer | null>(null);
-  const [chatMessages, setChatMessages] = useState<any[]>([]);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState("");
   const [isSendingMessage, setIsSendingMessage] = useState(false);
   const [isLoadingChat, setIsLoadingChat] = useState(false);
@@ -57,7 +69,6 @@ export function CustomersList({
 
   useEffect(() => {
     if (!chatCustomer) {
-      setChatMessages([]);
       return;
     }
 
@@ -66,14 +77,30 @@ export function CustomersList({
         const res = await fetch(`/api/chat/messages?email=${encodeURIComponent(chatCustomer.email)}`);
         if (res.ok) {
           const data = await res.json();
-          setChatMessages(data.messages || []);
+          const messages = (data.messages || []) as ChatMessage[];
+          setChatMessages(messages);
+
+          const hasUnreadCustomerMessages = messages.some((msg) => msg.sender === "customer" && !msg.is_read);
+          if (hasUnreadCustomerMessages) {
+            fetch("/api/chat/messages", {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ email: chatCustomer.email, reader: "admin" })
+            }).catch((err) => console.error("Error marking admin chat as read:", err));
+            setCustomers((prev) =>
+              prev.map((customer) =>
+                customer.email.toLowerCase() === chatCustomer.email.toLowerCase()
+                  ? { ...customer, unreadCustomerMessages: 0 }
+                  : customer
+              )
+            );
+          }
         }
       } catch (err) {
         console.error("Error fetching chat messages:", err);
       }
     };
 
-    setIsLoadingChat(true);
     fetchMessages().finally(() => setIsLoadingChat(false));
 
     const interval = setInterval(fetchMessages, 4000);
@@ -109,15 +136,34 @@ export function CustomersList({
     }
   };
 
+  const openChatCustomer = (customer: Customer) => {
+    setChatMessages([]);
+    setIsLoadingChat(true);
+    setChatCustomer(customer);
+    setCustomers((prev) =>
+      prev.map((item) =>
+        item.email.toLowerCase() === customer.email.toLowerCase()
+          ? { ...item, unreadCustomerMessages: 0 }
+          : item
+      )
+    );
+
+    fetch("/api/chat/messages", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: customer.email, reader: "admin" })
+    }).catch((err) => console.error("Error marking admin chat as read:", err));
+  };
+
   // Search Filter
-  const filteredCustomers = initialCustomers.filter((c) =>
+  const filteredCustomers = customers.filter((c) =>
     c.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   // Sorting
   const sortedCustomers = [...filteredCustomers].sort((a, b) => {
-    let valA: any = 0;
-    let valB: any = 0;
+    let valA = 0;
+    let valB = 0;
 
     if (sortBy === "spent") {
       valA = a.totalSpent;
@@ -236,7 +282,7 @@ export function CustomersList({
               Search
             </button>
           </div>
-          {initialCustomers.length > 0 && (
+          {customers.length > 0 && (
             <button
               onClick={handleDeleteAllAccounts}
               disabled={isDeletingAll}
@@ -358,14 +404,24 @@ export function CustomersList({
                           {customer.statuses.cancelled} Cancel
                         </span>
                       )}
+                      {customer.totalOrders === 0 && customer.lastMessageAt && (
+                        <span className="bg-blue-500/10 text-blue-400 text-[10px] font-extrabold px-2 py-0.5 rounded-full border border-blue-500/20 uppercase tracking-wide">
+                          Chat only
+                        </span>
+                      )}
                     </div>
                   </td>
                   <td className="py-4 px-6 text-sm text-right whitespace-nowrap space-x-2">
                     <button
-                      onClick={() => setChatCustomer(customer)}
-                      className="px-3 py-1.5 bg-blue-500/10 border border-blue-500/20 text-blue-400 hover:bg-blue-500/20 rounded-lg text-xs font-bold transition-all shadow-sm"
+                      onClick={() => openChatCustomer(customer)}
+                      className="relative px-3 py-1.5 bg-blue-500/10 border border-blue-500/20 text-blue-400 hover:bg-blue-500/20 rounded-lg text-xs font-bold transition-all shadow-sm"
                     >
                       Chat
+                      {customer.unreadCustomerMessages > 0 && (
+                        <span className="absolute -top-2 -right-2 min-w-5 h-5 rounded-full bg-red-500 text-white border border-red-300/40 text-[9px] font-black flex items-center justify-center px-1 shadow-lg">
+                          {customer.unreadCustomerMessages > 9 ? "9+" : customer.unreadCustomerMessages}
+                        </span>
+                      )}
                     </button>
                     {customer.hasProfile && (
                       <button
@@ -508,7 +564,7 @@ export function CustomersList({
                       </label>
                       <select
                         value={adjType}
-                        onChange={(e) => setAdjType(e.target.value as any)}
+                        onChange={(e) => setAdjType(e.target.value as "add" | "deduct")}
                         className="w-full px-4 py-3 rounded-xl bg-[#121212] border border-slate-850/60 focus:outline-none focus:border-[#1DB954]/55 text-white font-extrabold cursor-pointer text-xs uppercase tracking-wider"
                       >
                         <option value="add">Add (+)</option>
@@ -623,7 +679,11 @@ export function CustomersList({
               </div>
             </div>
             <button 
-              onClick={() => setChatCustomer(null)}
+              onClick={() => {
+                setChatCustomer(null);
+                setChatMessages([]);
+                setIsLoadingChat(false);
+              }}
               className="text-slate-400 hover:text-white p-1.5 hover:bg-slate-800/50 rounded-lg transition-colors"
             >
               <X size={20} />
@@ -644,7 +704,7 @@ export function CustomersList({
                 <p className="text-[10px] text-slate-500 max-w-xs">Start a real-time conversation by typing a message below. The customer will see it instantly in their Support Chathead!</p>
               </div>
             ) : (
-              chatMessages.map((msg: any) => {
+              chatMessages.map((msg) => {
                 const isAdmin = msg.sender === 'admin';
                 const isSystem = msg.sender === 'system';
                 return (

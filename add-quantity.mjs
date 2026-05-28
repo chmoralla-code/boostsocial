@@ -1,6 +1,11 @@
 import postgres from 'postgres';
 
-const dbUrl = 'postgresql://postgres.bhunvginzhgnwjkprnxc:Baholobot12345@aws-1-ap-southeast-2.pooler.supabase.com:6543/postgres';
+const dbUrl = process.env.DATABASE_URL || process.env.POSTGRES_URL || process.env.SUPABASE_DB_URL;
+
+if (!dbUrl) {
+  throw new Error('Missing DATABASE_URL, POSTGRES_URL, or SUPABASE_DB_URL environment variable.');
+}
+
 const sql = postgres(dbUrl, { ssl: 'require' });
 
 async function migrate() {

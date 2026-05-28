@@ -9,6 +9,8 @@ interface AggregatedCustomer {
   balance: number;
   lastActive: string;
   hasProfile: boolean;
+  unreadCustomerMessages: number;
+  lastMessageAt?: string;
   statuses: {
     pending: number;
     processing: number;
@@ -31,6 +33,16 @@ export default async function CustomersPage() {
     .from("profiles")
     .select("id, email, balance");
 
+  // Fetch live-support contacts too so chat-only customers still appear in admin.
+  const { data: chatMessages, error: chatMessagesError } = await supabase
+    .from("customer_messages")
+    .select("customer_email, sender, is_read, created_at")
+    .order("created_at", { ascending: false });
+
+  if (chatMessagesError) {
+    console.error("Failed to load customer chat directory:", chatMessagesError);
+  }
+
   // Aggregate in-memory group-by email
   const customersMap = new Map<string, AggregatedCustomer>();
 
@@ -50,6 +62,7 @@ export default async function CustomersPage() {
         balance: Number(p.balance) || 0,
         lastActive: new Date().toISOString(),
         hasProfile: true,
+        unreadCustomerMessages: 0,
         statuses: { pending: 0, processing: 0, completed: 0, cancelled: 0 },
       });
     });
@@ -75,6 +88,7 @@ export default async function CustomersPage() {
           balance: 0,
           lastActive: date,
           hasProfile: false,
+          unreadCustomerMessages: 0,
           statuses: { pending: 0, processing: 0, completed: 0, cancelled: 0 },
         });
       }
@@ -92,6 +106,42 @@ export default async function CustomersPage() {
       else if (status === "processing") cust.statuses.processing += 1;
       else if (status === "completed") cust.statuses.completed += 1;
       else if (status === "cancelled") cust.statuses.cancelled += 1;
+    });
+  }
+
+  // 3. Merge live-support message activity and unread customer replies.
+  if (chatMessages) {
+    chatMessages.forEach((message) => {
+      if (!message.customer_email) return;
+
+      const email = message.customer_email.trim();
+      const emailLower = email.toLowerCase();
+      if (emailLower === "[deleted user]" || emailLower === "deleted user") return;
+
+      const messageDate = message.created_at || new Date().toISOString();
+      if (!customersMap.has(emailLower)) {
+        customersMap.set(emailLower, {
+          email,
+          totalOrders: 0,
+          totalSpent: 0,
+          balance: 0,
+          lastActive: messageDate,
+          hasProfile: false,
+          unreadCustomerMessages: 0,
+          statuses: { pending: 0, processing: 0, completed: 0, cancelled: 0 },
+        });
+      }
+
+      const cust = customersMap.get(emailLower)!;
+      if (!cust.lastMessageAt || new Date(messageDate) > new Date(cust.lastMessageAt)) {
+        cust.lastMessageAt = messageDate;
+      }
+      if (new Date(messageDate) > new Date(cust.lastActive)) {
+        cust.lastActive = messageDate;
+      }
+      if (message.sender === "customer" && !message.is_read) {
+        cust.unreadCustomerMessages += 1;
+      }
     });
   }
 

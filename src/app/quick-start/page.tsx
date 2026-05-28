@@ -1,11 +1,26 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, ArrowLeft, ArrowRight, Check, Eye, HelpCircle, AlertCircle, ShoppingBag, ShieldCheck, Mail, Lock, UserPlus, Image, PlusCircle, CheckCircle, Search, Sparkles } from "lucide-react";
+import { Loader2, ArrowLeft, ArrowRight, Check, AlertCircle, ShieldCheck, Mail, Lock, UserPlus, Search } from "lucide-react";
+import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/utils/supabase/client";
 import { formatSmmServiceName, isSocialBoostService, isUtilityService } from "@/utils/serviceHelpers";
 import { compressImage } from "@/utils/imageCompressor";
+
+interface SmmService {
+  id: string | number;
+  name: string;
+  category?: string | null;
+  desc?: string | null;
+  min: number;
+  max: number;
+  startingPrice: number;
+}
+
+function getErrorMessage(err: unknown) {
+  return err instanceof Error ? err.message : String(err);
+}
 
 const PLATFORMS = [
   { id: "facebook", name: "Facebook", icon: "📘", color: "#1877F2", glow: "rgba(24, 119, 242, 0.45)" },
@@ -14,7 +29,7 @@ const PLATFORMS = [
   { id: "youtube", name: "YouTube", icon: "🎥", color: "#FF0000", glow: "rgba(255, 0, 0, 0.45)" }
 ];
 
-function matchesPlatformName(service: any, platformId: string) {
+function matchesPlatformName(service: SmmService, platformId: string) {
   const combined = `${service.name || ""} ${service.category || ""}`.toLowerCase();
   if (platformId === "facebook") return combined.includes("facebook") || /\bfb\b/.test(combined);
   if (platformId === "instagram") return combined.includes("instagram") || /\big\b/.test(combined);
@@ -24,7 +39,7 @@ function matchesPlatformName(service: any, platformId: string) {
 
 export default function QuickStartPage() {
   const router = useRouter();
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   // Wizard Flow Step State
   const [step, setStep] = useState(1);
@@ -35,14 +50,13 @@ export default function QuickStartPage() {
   const [authTab, setAuthTab] = useState<"register" | "login">("register");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [user, setUser] = useState<any>(null);
-  const [profile, setProfile] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
 
   // Step 2 states (Service Selection)
   const [selectedPlatform, setSelectedPlatform] = useState<string>("facebook");
-  const [services, setServices] = useState<any[]>([]);
+  const [services, setServices] = useState<SmmService[]>([]);
   const [catalogLoading, setCatalogLoading] = useState(false);
-  const [selectedService, setSelectedService] = useState<any>(null);
+  const [selectedService, setSelectedService] = useState<SmmService | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [availablePlatformIds, setAvailablePlatformIds] = useState<string[]>(PLATFORMS.map((platform) => platform.id));
 
@@ -54,62 +68,78 @@ export default function QuickStartPage() {
 
   // Check auth session
   useEffect(() => {
+    let isMounted = true;
+
     supabase.auth.getUser().then(({ data }) => {
+      if (!isMounted) return;
       if (data?.user) {
         setUser(data.user);
         setEmail(data.user.email || "");
-        supabase.from("profiles").select("*").eq("id", data.user.id).single().then(({ data: pData }) => {
-          if (pData) setProfile(pData);
-        });
         // Auto advance to Step 2 if user already authenticated
-        if (step === 1) {
-          setStep(2);
-        }
+        setStep((currentStep) => currentStep === 1 ? 2 : currentStep);
       }
     });
-  }, []);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [supabase]);
 
   // Fetch reseller services when selectedPlatform changes
   useEffect(() => {
-    if (step === 2) {
+    if (step !== 2) return;
+
+    let isMounted = true;
+
+    const loadCatalog = async () => {
       setCatalogLoading(true);
       setError("");
-      fetch("/api/smm/services")
-        .then((res) => {
-          if (!res.ok) throw new Error("Failed to load catalog");
-          return res.json();
-        })
-        .then((data) => {
-          if (Array.isArray(data)) {
-            const socialServices = data.filter((s: any) => {
-              return isSocialBoostService(s.name, s.desc || "", s.category) && !isUtilityService(s.name, s.desc || "", s.category);
-            });
-            const activePlatforms = PLATFORMS
-              .filter((platform) => socialServices.some((s: any) => matchesPlatformName(s, platform.id)))
-              .map((platform) => platform.id);
 
-            setAvailablePlatformIds(activePlatforms);
-            if (activePlatforms.length > 0 && !activePlatforms.includes(selectedPlatform)) {
-              setSelectedPlatform(activePlatforms[0]);
-            }
+      try {
+        const res = await fetch("/api/smm/services");
+        if (!res.ok) throw new Error("Failed to load catalog");
 
-            const platFilter = selectedPlatform.toLowerCase();
-            const filtered = socialServices.filter((s: any) => {
-              return matchesPlatformName(s, platFilter);
-            });
-            setServices(filtered);
-          } else {
-            throw new Error("Invalid response format");
-          }
-        })
-        .catch((err) => {
-          setError("Failed to fetch available direct reseller services. Please try again.");
-          console.error(err);
-        })
-        .finally(() => {
-          setCatalogLoading(false);
+        const data: unknown = await res.json();
+        if (!Array.isArray(data)) {
+          throw new Error("Invalid response format");
+        }
+
+        const socialServices = (data as SmmService[]).filter((service) => {
+          const category = service.category || undefined;
+          return isSocialBoostService(service.name, service.desc || "", category) && !isUtilityService(service.name, service.desc || "", category);
         });
-    }
+        const activePlatforms = PLATFORMS
+          .filter((platform) => socialServices.some((service) => matchesPlatformName(service, platform.id)))
+          .map((platform) => platform.id);
+
+        if (!isMounted) return;
+
+        setAvailablePlatformIds(activePlatforms);
+        if (activePlatforms.length > 0 && !activePlatforms.includes(selectedPlatform)) {
+          setSelectedPlatform(activePlatforms[0]);
+          setSelectedService(null);
+          setServices([]);
+          return;
+        }
+
+        const platFilter = selectedPlatform.toLowerCase();
+        setServices(socialServices.filter((service) => matchesPlatformName(service, platFilter)));
+      } catch (err) {
+        if (!isMounted) return;
+        setError("Failed to fetch available direct reseller services. Please try again.");
+        console.error(err);
+      } finally {
+        if (isMounted) {
+          setCatalogLoading(false);
+        }
+      }
+    };
+
+    void loadCatalog();
+
+    return () => {
+      isMounted = false;
+    };
   }, [step, selectedPlatform]);
 
   useEffect(() => {
@@ -121,12 +151,6 @@ export default function QuickStartPage() {
 
     return () => window.clearTimeout(redirectTimer);
   }, [step, orderId, router]);
-
-  useEffect(() => {
-    if (selectedService) {
-      setQuantity(selectedService.min);
-    }
-  }, [selectedService]);
 
   // Auth Handler
   const handleAuthSubmit = async (e: React.FormEvent) => {
@@ -145,9 +169,6 @@ export default function QuickStartPage() {
         if (data.user) {
           setUser(data.user);
           alert("Account created successfully! Check your email to verify if needed, or proceed to the next step.");
-          // Fetch created profile
-          const { data: pData } = await supabase.from("profiles").select("*").eq("id", data.user.id).single();
-          if (pData) setProfile(pData);
           setStep(2);
         }
       } else {
@@ -158,13 +179,11 @@ export default function QuickStartPage() {
         if (signInError) throw signInError;
         if (data.user) {
           setUser(data.user);
-          const { data: pData } = await supabase.from("profiles").select("*").eq("id", data.user.id).single();
-          if (pData) setProfile(pData);
           setStep(2);
         }
       }
-    } catch (err: any) {
-      setError(err.message || "Authentication failed. Check your inputs.");
+    } catch (err: unknown) {
+      setError(getErrorMessage(err) || "Authentication failed. Check your inputs.");
     } finally {
       setLoading(false);
     }
@@ -235,9 +254,9 @@ export default function QuickStartPage() {
           const errData = await uploadRes.json();
           throw new Error(errData.error || "Receipt upload request failed.");
         }
-      } catch (uploadReceiptErr: any) {
+      } catch (uploadReceiptErr: unknown) {
         console.error("Receipt upload failed:", uploadReceiptErr);
-        throw new Error(uploadReceiptErr.message || "Failed to upload payment receipt screenshot.");
+        throw new Error(getErrorMessage(uploadReceiptErr) || "Failed to upload payment receipt screenshot.");
       }
 
       setOrderId(insertData.id);
@@ -263,8 +282,8 @@ export default function QuickStartPage() {
       }
 
       setStep(4);
-    } catch (err: any) {
-      setError(err.message || "Something went wrong while placing order.");
+    } catch (err: unknown) {
+      setError(getErrorMessage(err) || "Something went wrong while placing order.");
     } finally {
       setLoading(false);
     }
@@ -275,7 +294,7 @@ export default function QuickStartPage() {
   // SMM service lists matched search term
   const searchedServices = services.filter((s) => {
     const nameLower = s.name.toLowerCase();
-    const idLower = s.id.toLowerCase();
+    const idLower = String(s.id).toLowerCase();
     const searchLower = searchTerm.toLowerCase();
     return nameLower.includes(searchLower) || idLower.includes(searchLower);
   });
@@ -288,15 +307,17 @@ export default function QuickStartPage() {
         <div className="absolute top-[20%] right-[-10%] w-[500px] h-[500px] rounded-full spotify-glow-blob opacity-30"></div>
       </div>
 
-      <div className="max-w-3xl w-full mx-auto px-4 z-10 space-y-8 pb-20">
+      <div
+        className="w-full max-w-xs mx-auto z-10 space-y-8 pb-20 sm:max-w-3xl sm:px-4"
+      >
         
         {/* Header Title */}
         <div className="text-center space-y-2.5">
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#1DB954]/10 text-[#1DB954] border border-[#1DB954]/25 text-[10px] font-black uppercase tracking-widest animate-pulse">
             ✨ Quick Start Guide
           </span>
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-white uppercase tracking-tight">
-            Launch Your <span className="text-[#1DB954]">Boost Campaign</span>
+          <h1 className="px-2 text-2xl sm:text-4xl md:text-5xl font-black text-white uppercase tracking-tight leading-tight">
+            Launch Your <span className="block sm:inline text-[#1DB954]">Boost Campaign</span>
           </h1>
           <p className="text-slate-400 text-xs font-semibold max-w-md mx-auto leading-relaxed">
             Fast, secure direct reseller-rate boosting packages. Set up your campaign in 4 easy steps.
@@ -304,7 +325,7 @@ export default function QuickStartPage() {
         </div>
 
         {/* Dynamic Multi-Step Stepper Bar */}
-        <div className="relative flex justify-between items-center max-w-lg mx-auto select-none bg-[#121212]/90 border border-slate-800/80 p-4.5 rounded-full shadow-lg">
+        <div className="relative grid grid-cols-4 items-center w-full max-w-xs sm:max-w-lg mx-auto select-none bg-[#121212]/90 border border-slate-800/80 p-3 sm:p-4.5 rounded-full shadow-lg overflow-hidden">
           <div className="absolute left-6 right-6 top-1/2 -translate-y-1/2 h-[1px] bg-slate-800 z-0"></div>
           <div 
             className="absolute left-6 top-1/2 -translate-y-1/2 h-[1.5px] bg-[#1DB954] z-0 transition-all duration-300 ease-out"
@@ -344,7 +365,7 @@ export default function QuickStartPage() {
 
         {/* STEP 1: Strict User Setup / Register */}
         {step === 1 && (
-          <div className="max-w-md mx-auto bg-[#121212]/95 border border-slate-800/85 p-6 sm:p-8 rounded-3xl shadow-2xl relative overflow-hidden animate-in slide-in-from-bottom-6 duration-300">
+          <div className="w-full max-w-xs sm:max-w-md mx-auto bg-[#121212]/95 border border-slate-800/85 p-6 sm:p-8 rounded-3xl shadow-2xl relative overflow-hidden animate-in slide-in-from-bottom-6 duration-300">
             <div className="absolute top-0 right-0 w-24 h-24 bg-[#1DB954]/5 rounded-full blur-xl pointer-events-none"></div>
             
             <div className="flex border-b border-slate-850/60 pb-1 mb-6 select-none">
@@ -481,7 +502,10 @@ export default function QuickStartPage() {
                     return (
                       <div
                         key={srv.id}
-                        onClick={() => setSelectedService(srv)}
+                        onClick={() => {
+                          setSelectedService(srv);
+                          setQuantity(srv.min);
+                        }}
                         className={`bg-[#181818]/50 hover:bg-[#1a1a1a] border p-4.5 rounded-2xl cursor-pointer text-left transition-all duration-300 flex flex-col justify-between group transform ${
                           isSelected 
                             ? "border-[#1DB954]/55 bg-[#1DB954]/5 shadow-[0_0_15px_rgba(29,185,84,0.06)]"
@@ -499,7 +523,7 @@ export default function QuickStartPage() {
                           </div>
 
                           <h4 className="text-xs font-extrabold text-white group-hover:text-[#1DB954] transition-colors leading-snug line-clamp-2">
-                            {formatSmmServiceName(srv.name, srv.id, srv.desc)}
+                            {formatSmmServiceName(srv.name, srv.id, srv.desc || undefined)}
                           </h4>
                           {srv.desc && (
                             <p className="text-[9px] text-slate-400 mt-2 line-clamp-2 bg-black/20 p-2 rounded-lg leading-normal">
@@ -536,7 +560,7 @@ export default function QuickStartPage() {
 
         {/* STEP 3: Order details & mandatory GCash receipt uploader */}
         {step === 3 && selectedService && (
-          <div className="max-w-xl mx-auto bg-[#121212]/95 border border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-2xl relative overflow-hidden animate-in slide-in-from-right-6 duration-300">
+          <div className="w-full max-w-xs sm:max-w-xl mx-auto bg-[#121212]/95 border border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-2xl relative overflow-hidden animate-in slide-in-from-right-6 duration-300">
             <div className="absolute top-0 right-0 w-24 h-24 bg-[#1ed760]/5 rounded-full blur-xl pointer-events-none"></div>
 
             <div className="flex items-center gap-3 border-b border-slate-850/60 pb-4 mb-6">
@@ -676,7 +700,7 @@ export default function QuickStartPage() {
 
         {/* STEP 4: Success & Live tracking guidelines */}
         {step === 4 && (
-          <div className="max-w-md mx-auto bg-[#121212]/95 border border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-2xl text-center space-y-6 animate-in zoom-in duration-300">
+          <div className="w-full max-w-xs sm:max-w-md mx-auto bg-[#121212]/95 border border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-2xl text-center space-y-6 animate-in zoom-in duration-300">
             <div className="w-14 h-14 bg-green-500/10 border border-green-500/25 text-[#1DB954] rounded-full flex items-center justify-center mx-auto shadow-lg shadow-emerald-500/5">
               <ShieldCheck size={32} />
             </div>
@@ -697,7 +721,7 @@ export default function QuickStartPage() {
                 ⚙️ Real-time Order Tracking Guide
               </span>
               <p>
-                1. You can track your pending campaign's status directly in the **Support Chatbot** located at the bottom-right corner of our site.
+                1. You can track your pending campaign status directly in the **Support Chatbot** located at the bottom-right corner of our site.
               </p>
               <p>
                 2. Simply paste your **Tracking ID** into the chatbot to instantly query live delivery progress!
@@ -708,7 +732,7 @@ export default function QuickStartPage() {
             </div>
 
             <button
-              onClick={() => router.push("/")}
+              onClick={() => router.push(`/?track=${orderId}`)}
               className="w-full bg-[#1DB954] hover:bg-[#1ed760] text-black font-black py-3.5 rounded-full transition-all duration-300 uppercase text-xs tracking-wider cursor-pointer active:scale-95"
             >
               Return to Website homepage

@@ -1,10 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const VALID_SENDERS = new Set(["customer", "admin", "system"]);
+const VALID_READERS = new Set(["customer", "admin"]);
+
+function normalizeEmail(email: string) {
+  return email.trim().toLowerCase();
+}
+
+function getErrorMessage(err: unknown) {
+  return err instanceof Error ? err.message : String(err);
+}
 
 function getSupabase() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
   if (!supabaseUrl || !serviceRoleKey) {
     throw new Error("Supabase credentials missing in env");
   }
@@ -32,9 +43,9 @@ export async function GET(req: NextRequest) {
     if (error) throw error;
 
     return NextResponse.json({ messages: messages || [] });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("GET customer messages failed:", err);
-    return NextResponse.json({ error: err.message || err.toString() }, { status: 500 });
+    return NextResponse.json({ error: getErrorMessage(err) }, { status: 500 });
   }
 }
 
@@ -46,15 +57,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
+    const normalizedSender = String(sender).trim().toLowerCase();
+    if (!VALID_SENDERS.has(normalizedSender)) {
+      return NextResponse.json({ error: "Invalid message sender" }, { status: 400 });
+    }
+
     const supabase = getSupabase();
     const { data, error } = await supabase
       .from("customer_messages")
       .insert([
         {
-          customer_email: email.trim().toLowerCase(),
-          message: message.trim(),
-          sender: sender,
-          is_read: false
+          customer_email: normalizeEmail(email),
+          message: String(message).trim(),
+          sender: normalizedSender,
+          is_read: normalizedSender === "system"
         }
       ])
       .select()
@@ -63,8 +79,39 @@ export async function POST(req: NextRequest) {
     if (error) throw error;
 
     return NextResponse.json({ success: true, message: data });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("POST customer message failed:", err);
-    return NextResponse.json({ error: err.message || err.toString() }, { status: 500 });
+    return NextResponse.json({ error: getErrorMessage(err) }, { status: 500 });
+  }
+}
+
+export async function PATCH(req: NextRequest) {
+  try {
+    const { email, reader } = await req.json();
+
+    if (!email || !reader) {
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    }
+
+    const normalizedReader = String(reader).trim().toLowerCase();
+    if (!VALID_READERS.has(normalizedReader)) {
+      return NextResponse.json({ error: "Invalid message reader" }, { status: 400 });
+    }
+
+    const senderToMark = normalizedReader === "customer" ? "admin" : "customer";
+    const supabase = getSupabase();
+    const { error } = await supabase
+      .from("customer_messages")
+      .update({ is_read: true })
+      .eq("customer_email", normalizeEmail(email))
+      .eq("sender", senderToMark)
+      .eq("is_read", false);
+
+    if (error) throw error;
+
+    return NextResponse.json({ success: true });
+  } catch (err: unknown) {
+    console.error("PATCH customer messages failed:", err);
+    return NextResponse.json({ error: getErrorMessage(err) }, { status: 500 });
   }
 }

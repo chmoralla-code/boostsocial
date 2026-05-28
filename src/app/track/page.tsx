@@ -44,7 +44,7 @@ export default function TrackPage() {
   useEffect(() => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
-      const queryId = params.get("id") || params.get("orderId") || "";
+      const queryId = params.get("id") || params.get("track") || params.get("orderId") || "";
       if (queryId) {
         setTrackingInput(queryId);
         handleTrackOrder(queryId);
