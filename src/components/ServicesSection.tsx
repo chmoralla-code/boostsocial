@@ -9,7 +9,8 @@ import { FaqSection } from "./FaqSection";
 import { ReviewsSection } from "./ReviewsSection";
 import { SmmCatalogModal } from "./SmmCatalogModal";
 import { Layers, X, Loader2 } from "lucide-react";
-import { parseDescription } from "@/utils/serviceHelpers";
+import { parseDescription, isOrganic } from "@/utils/serviceHelpers";
+
 
 interface Service {
   id: string;
@@ -48,6 +49,8 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
   const [platformSubModalOpen, setPlatformSubModalOpen] = useState(false);
   const [platformSubModalType, setPlatformSubModalType] = useState<"facebook" | "instagram" | "tiktok" | "youtube" | null>(null);
   const [showCalculator, setShowCalculator] = useState(false);
+  const [isOrganicFilter, setIsOrganicFilter] = useState(true);
+
 
 
   useEffect(() => {
@@ -361,10 +364,50 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
     ? servicesCandidates
     : DEFAULT_CANDIDATES;
 
+  const filteredServicesForCalculator = services.filter((srv) => {
+    const isSrvOrganic = isOrganic(srv.title, srv.description?.description || srv.description || "");
+    return isOrganicFilter ? isSrvOrganic : !isSrvOrganic;
+  });
+
   return (
     <>
       {/* 1. SMM Price Calculator Widget Toggle */}
       <div className="w-full max-w-4xl mx-auto px-4 mt-6 relative z-10 flex flex-col items-center">
+        {/* Organic & Non-Organic Filter Toggle */}
+        <div className="w-full max-w-xs mx-auto mb-6 flex flex-col items-center">
+          <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[#1DB954] mb-2 select-none">
+            🌱 Service Quality Filter
+          </span>
+          <div className="relative flex p-1 bg-[#121212] border border-slate-800/80 rounded-full w-full shadow-inner select-none">
+            {/* Sliding indicator */}
+            <div
+              className={`absolute top-1 bottom-1 rounded-full bg-gradient-to-r transition-all duration-300 ease-out pointer-events-none ${
+                isOrganicFilter
+                  ? "left-1 w-[48%] from-[#1DB954]/20 to-[#1ed760]/20 border border-[#1DB954]/30"
+                  : "left-[51%] w-[48%] from-indigo-500/20 to-purple-500/20 border border-indigo-500/30"
+              }`}
+            ></div>
+            
+            <button
+              onClick={() => setIsOrganicFilter(true)}
+              className={`flex-1 py-2.5 text-[11px] font-black uppercase tracking-wider rounded-full transition-all duration-200 z-10 cursor-pointer flex items-center justify-center gap-1.5 ${
+                isOrganicFilter ? "text-[#1DB954]" : "text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              🌿 Organic
+            </button>
+            
+            <button
+              onClick={() => setIsOrganicFilter(false)}
+              className={`flex-1 py-2.5 text-[11px] font-black uppercase tracking-wider rounded-full transition-all duration-200 z-10 cursor-pointer flex items-center justify-center gap-1.5 ${
+                !isOrganicFilter ? "text-indigo-400" : "text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              🤖 Non-Organic
+            </button>
+          </div>
+        </div>
+
         {!showCalculator ? (
           <button
             onClick={() => setShowCalculator(true)}
@@ -375,7 +418,7 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
         ) : (
           <div className="w-full relative animate-in fade-in slide-in-from-top-4 duration-500">
             <PriceCalculator 
-              services={services} 
+              services={filteredServicesForCalculator} 
               onOrder={handleCalculatorOrder} 
             />
             <div className="flex justify-center -mt-10 mb-16">
@@ -389,6 +432,7 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
           </div>
         )}
       </div>
+
 
 
       {/* 2. Brand Stat Counters */}

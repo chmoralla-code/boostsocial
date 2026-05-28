@@ -23,10 +23,14 @@ export function PriceCalculator({ services, onOrder }: PriceCalculatorProps) {
   const [animatedPrice, setAnimatedPrice] = useState(0);
 
   useEffect(() => {
-    if (services.length > 0 && !selectedService) {
-      setSelectedService(services[0]);
+    if (services.length > 0) {
+      const stillExists = selectedService && services.some(s => s.id === selectedService.id);
+      if (!stillExists) {
+        setSelectedService(services[0]);
+      }
     }
   }, [services]);
+
 
   const parsedDetails = (() => {
     if (selectedService && selectedService.description) {
