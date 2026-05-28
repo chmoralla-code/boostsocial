@@ -50,6 +50,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
   const [selectedReactions, setSelectedReactions] = useState<string[]>(["Like"]);
   const [eapDeviceCount, setEapDeviceCount] = useState<number>(1);
   const [smmBalance, setSmmBalance] = useState<number>(100);
+  const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const toggleReaction = (name: string) => {
     if (selectedReactions.includes(name)) {
       if (selectedReactions.length > 1) {
@@ -271,6 +272,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
       setError("");
       setSuccess(false);
       setCustomFieldValues({});
+      setReceiptFile(null);
       
       setSelectedReactions(["Like"]);
       setEapDeviceCount(1);
@@ -348,6 +350,11 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
     e.preventDefault();
     if (!serviceId) return;
 
+    if (!receiptFile) {
+      setError("Please attach your GCash transaction receipt screenshot first.");
+      return;
+    }
+
     const finalQuantity = Math.max(quantity, minQty);
 
     setIsSubmitting(true);
@@ -380,6 +387,27 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
         .single();
 
       if (insertError) throw insertError;
+
+      // Compress and upload receipt
+      try {
+        const compressedReceipt = await compressImage(receiptFile);
+        const receiptFormData = new FormData();
+        receiptFormData.append("file", compressedReceipt);
+        receiptFormData.append("orderId", insertData.id);
+        
+        const uploadRes = await fetch("/api/upload-receipt", {
+          method: "POST",
+          body: receiptFormData
+        });
+        
+        if (!uploadRes.ok) {
+          const errData = await uploadRes.json();
+          throw new Error(errData.error || "Failed to upload payment receipt file.");
+        }
+      } catch (uploadReceiptErr: any) {
+        console.error("Receipt upload failed:", uploadReceiptErr);
+        throw new Error(uploadReceiptErr.message || "Failed to upload payment receipt screenshot.");
+      }
 
       // Upload Profile/Cover pictures if page service
       let profileUrl = "N/A";
@@ -436,6 +464,11 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
     e.preventDefault();
     if (!serviceId || !user) return;
 
+    if (!receiptFile) {
+      setError("Please attach a transaction receipt screenshot first to verify this wallet payment transaction.");
+      return;
+    }
+
     const finalQuantity = Math.max(quantity, minQty);
 
     if (Number(profile?.balance || 0) < totalPrice) {
@@ -474,6 +507,27 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
       const data = await res.json();
       if (!res.ok) {
         throw new Error(data.error || "Wallet checkout failed");
+      }
+
+      // Compress and upload receipt for wallet audit
+      try {
+        const compressedReceipt = await compressImage(receiptFile);
+        const receiptFormData = new FormData();
+        receiptFormData.append("file", compressedReceipt);
+        receiptFormData.append("orderId", data.orderId);
+        
+        const uploadRes = await fetch("/api/upload-receipt", {
+          method: "POST",
+          body: receiptFormData
+        });
+        
+        if (!uploadRes.ok) {
+          const errData = await uploadRes.json();
+          throw new Error(errData.error || "Failed to upload transaction receipt for this wallet order.");
+        }
+      } catch (uploadReceiptErr: any) {
+        console.error("Receipt upload failed:", uploadReceiptErr);
+        throw new Error(uploadReceiptErr.message || "Failed to upload transaction receipt file.");
       }
 
       // Upload Profile/Cover pictures if page service
@@ -1308,6 +1362,35 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                     <span className="text-[#1DB954] uppercase tracking-wider block mb-0.5">🔒 100% Monetization Safe Guarantee</span>
                     Your campaign passes through CYNETWORK's proprietary filters to exclude toxic bot pools that trigger restrictions. Safe for Facebook Adsense & organic page growth.
                   </p>
+                </div>
+
+                {/* Mandated GCash Payment Receipt Upload */}
+                <div className="space-y-2 bg-[#121212] border border-slate-800 p-4 rounded-xl mt-3 text-left">
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest flex justify-between items-center">
+                    <span>GCash Payment Receipt Screenshot <span className="text-red-500">*</span></span>
+                    <span className="text-[8px] font-black uppercase text-red-500">Strictly Required</span>
+                  </label>
+                  <div className="relative">
+                    <input 
+                      type="file" 
+                      accept="image/*"
+                      required
+                      onChange={(e) => setReceiptFile(e.target.files?.[0] || null)}
+                      className="hidden"
+                      id="checkout-receipt-upload"
+                    />
+                    <label 
+                      htmlFor="checkout-receipt-upload"
+                      className="w-full flex items-center justify-center gap-2.5 px-4 py-3 rounded-xl bg-[#282828] border border-dashed border-slate-700 hover:border-[#1877F2]/50 text-slate-305 hover:text-white cursor-pointer transition-all text-xs font-black uppercase tracking-wider active:scale-95"
+                    >
+                      <span>📁</span> {receiptFile ? `Receipt: ${receiptFile.name}` : "Attach Payment Screenshot"}
+                    </label>
+                    {receiptFile && (
+                      <div className="text-[9px] text-[#1877F2] font-black uppercase tracking-wider text-center mt-1.5 animate-pulse">
+                        ✓ File loaded: {(receiptFile.size / 1024).toFixed(1)} KB
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {/* GCash Quick QR for all manual checkouts to ensure the GCash payment flow is easily accessible */}

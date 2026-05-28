@@ -3,7 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 
 export async function POST(req: NextRequest) {
   try {
-    const { topupId, action } = await req.json(); // action can be 'approve' or 'reject'
+    const { topupId, action, amount } = await req.json(); // action can be 'approve' or 'reject'
 
     if (!topupId || !action) {
       return NextResponse.json({ error: "Missing topupId or action" }, { status: 400 });
@@ -45,7 +45,24 @@ export async function POST(req: NextRequest) {
 
       if (profileError) throw profileError;
 
-      const newBalance = Number(profile.balance || 0) + Number(topup.amount);
+      let finalAmount = Number(topup.amount);
+      if (amount !== undefined) {
+        const numericAmount = Number(amount);
+        if (isNaN(numericAmount) || numericAmount < 0) {
+          return NextResponse.json({ error: "Amount must be a non-negative number" }, { status: 400 });
+        }
+        
+        // Update top-up amount in the database
+        const { error: amtError } = await supabase
+          .from("topups")
+          .update({ amount: numericAmount })
+          .eq("id", topupId);
+        
+        if (amtError) throw amtError;
+        finalAmount = numericAmount;
+      }
+
+      const newBalance = Number(profile.balance || 0) + finalAmount;
 
       // 3. Update profile balance
       const { error: updateProfileError } = await supabase
@@ -65,7 +82,7 @@ export async function POST(req: NextRequest) {
 
       // 5. Calculate & credit referral commission if referred
       if (profile.referred_by) {
-        const commission = Number(topup.amount) * 0.10;
+        const commission = finalAmount * 0.10;
         
         // Fetch referrer's current balance
         const { data: referrer, error: referrerError } = await supabase
@@ -92,7 +109,7 @@ export async function POST(req: NextRequest) {
                   referrer_id: profile.referred_by,
                   referee_id: topup.user_id,
                   amount: commission,
-                  description: `10% referral commission from approved GCash top-up of ₱${Number(topup.amount).toFixed(2)}`
+                  description: `10% referral commission from approved GCash top-up of ₱${finalAmount.toFixed(2)}`
                 }
               ]);
           } else {

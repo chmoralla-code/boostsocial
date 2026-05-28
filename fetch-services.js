@@ -12,7 +12,11 @@ async function main() {
   if (error) {
     console.error(error);
   } else {
-    console.log(JSON.stringify(data, null, 2));
+    data.forEach(s => {
+      let desc = {};
+      try { desc = JSON.parse(s.description); } catch(e) { desc = s.description || {}; }
+      console.log(`- ${s.title}: ${desc.custom_caption || ('₱' + (s.starting_price * 1000).toFixed(2) + ' per 1k')}`);
+    });
   }
 }
 

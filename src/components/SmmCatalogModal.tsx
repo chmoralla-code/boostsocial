@@ -4,7 +4,8 @@ import { useState, useEffect } from "react";
 import { X, Search, Loader2, Globe, ArrowLeft, ShieldCheck, Check, Copy, AlertCircle, ShoppingBag, Wallet } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { LinkPreviewWindow } from "./LinkPreviewWindow";
-import { isOrganic } from "@/utils/serviceHelpers";
+import { isOrganic, formatSmmServiceName } from "@/utils/serviceHelpers";
+import { compressImage } from "@/utils/imageCompressor";
 
 
 interface SmmService {
@@ -119,6 +120,7 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
   const [isWalletPayment, setIsWalletPayment] = useState(false);
   const [copied, setCopied] = useState(false);
   const [smmBalance, setSmmBalance] = useState<number>(100);
+  const [receiptFile, setReceiptFile] = useState<File | null>(null);
 
   useEffect(() => {
     if (checkoutStep === "success") {
@@ -140,6 +142,7 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
       setCheckoutStep("catalog");
       setSelectedService(null);
       setUrl("");
+      setReceiptFile(null);
       
       // Auto-initialize search query and platform tab from Puter AI prefill
       if (prefilledSearch) {
@@ -324,6 +327,11 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
     e.preventDefault();
     if (!selectedService) return;
 
+    if (!receiptFile) {
+      setError("Please attach your GCash transaction receipt screenshot first.");
+      return;
+    }
+
     if (quantity > selectedService.max) {
       setError(`Quantity cannot exceed ${selectedService.max.toLocaleString()}.`);
       return;
@@ -356,6 +364,27 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
         .single();
 
       if (insertError) throw insertError;
+
+      // Compress and upload receipt
+      try {
+        const compressedReceipt = await compressImage(receiptFile);
+        const receiptFormData = new FormData();
+        receiptFormData.append("file", compressedReceipt);
+        receiptFormData.append("orderId", insertData.id);
+        
+        const uploadRes = await fetch("/api/upload-receipt", {
+          method: "POST",
+          body: receiptFormData
+        });
+        
+        if (!uploadRes.ok) {
+          const errData = await uploadRes.json();
+          throw new Error(errData.error || "Failed to upload payment receipt screenshot.");
+        }
+      } catch (uploadReceiptErr: any) {
+        console.error("Receipt upload failed:", uploadReceiptErr);
+        throw new Error(uploadReceiptErr.message || "Failed to upload payment receipt file.");
+      }
 
       setOrderId(insertData.id);
       setIsWalletPayment(false);
@@ -392,6 +421,11 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
   const handleWalletCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedService || !user) return;
+
+    if (!receiptFile) {
+      setError("Please attach a transaction receipt screenshot first to verify this wallet payment transaction.");
+      return;
+    }
 
     if (quantity > selectedService.max) {
       setError(`Quantity cannot exceed ${selectedService.max.toLocaleString()}.`);
@@ -431,6 +465,27 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
       const data = await res.json();
       if (!res.ok) {
         throw new Error(data.error || "Wallet checkout failed");
+      }
+
+      // Compress and upload receipt for wallet audit
+      try {
+        const compressedReceipt = await compressImage(receiptFile);
+        const receiptFormData = new FormData();
+        receiptFormData.append("file", compressedReceipt);
+        receiptFormData.append("orderId", data.orderId);
+        
+        const uploadRes = await fetch("/api/upload-receipt", {
+          method: "POST",
+          body: receiptFormData
+        });
+        
+        if (!uploadRes.ok) {
+          const errData = await uploadRes.json();
+          throw new Error(errData.error || "Failed to upload transaction receipt for this wallet order.");
+        }
+      } catch (uploadReceiptErr: any) {
+        console.error("Receipt upload failed:", uploadReceiptErr);
+        throw new Error(uploadReceiptErr.message || "Failed to upload transaction receipt file.");
       }
 
       setOrderId(data.orderId);
@@ -654,7 +709,7 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
                           </span>
                         </div>
                         <h4 className="text-sm font-black text-white group-hover:text-[#1DB954] transition-colors line-clamp-2 leading-snug">
-                          {service.name}
+                          {formatSmmServiceName(service.name, service.id, service.desc)}
                         </h4>
                         
                         {/* Premium Glassmorphic Metadata Badges */}
@@ -819,6 +874,35 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
                       <span className="text-[9px] font-extrabold text-slate-500 uppercase tracking-wider">Estimator cost:</span>
                       <span className="text-sm font-black text-white">₱{formatPrice(calculatedTotal)} PHP</span>
                     </div>
+                  </div>
+                </div>
+
+                {/* Mandated GCash Payment Receipt Upload */}
+                <div className="space-y-2 bg-[#121212]/95 border border-slate-800/80 p-4 rounded-xl mt-3 text-left">
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest flex justify-between items-center">
+                    <span>GCash Payment Receipt Screenshot <span className="text-red-500">*</span></span>
+                    <span className="text-[8px] font-black uppercase text-red-500">Strictly Required</span>
+                  </label>
+                  <div className="relative">
+                    <input 
+                      type="file" 
+                      accept="image/*"
+                      required
+                      onChange={(e) => setReceiptFile(e.target.files?.[0] || null)}
+                      className="hidden"
+                      id="catalog-receipt-upload"
+                    />
+                    <label 
+                      htmlFor="catalog-receipt-upload"
+                      className="w-full flex items-center justify-center gap-2.5 px-4 py-3 rounded-xl bg-[#181818] border border-dashed border-slate-700 hover:border-[#1DB954]/50 text-slate-300 hover:text-white cursor-pointer transition-all text-xs font-black uppercase tracking-wider active:scale-95"
+                    >
+                      <span>📁</span> {receiptFile ? `Receipt: ${receiptFile.name}` : "Attach Payment Screenshot"}
+                    </label>
+                    {receiptFile && (
+                      <div className="text-[9px] text-[#1DB954] font-black uppercase tracking-wider text-center mt-1.5 animate-pulse">
+                        ✓ File loaded: {(receiptFile.size / 1024).toFixed(1)} KB
+                      </div>
+                    )}
                   </div>
                 </div>
 

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Zap, HelpCircle } from "lucide-react";
-import { parseDescription } from "@/utils/serviceHelpers";
+import { parseDescription, formatSmmServiceName } from "@/utils/serviceHelpers";
 
 interface Service {
   id: string;
@@ -174,7 +174,7 @@ export function PriceCalculator({ services, onOrder }: PriceCalculatorProps) {
               )}
               {selectedSmmName && (
                 <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-slate-800/80 text-slate-300 border border-slate-700 text-[9px] font-black uppercase tracking-wider max-w-[280px] truncate" title={selectedSmmName}>
-                  {selectedSmmName}
+                  {formatSmmServiceName(selectedSmmName, selectedSmmId, selectedService.description?.description || selectedService.description || "")}
                 </span>
               )}
             </div>

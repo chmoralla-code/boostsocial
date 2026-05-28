@@ -12,21 +12,38 @@ export function TopupsList({ initialTopups }: { initialTopups: any[] }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "approved" | "rejected">("all");
 
-  const handleAction = async (id: string, action: 'approve' | 'reject') => {
-    if (!confirm(`Are you sure you want to ${action} this top-up?`)) return;
+  const handleAction = async (id: string, action: 'approve' | 'reject', currentAmount?: number) => {
+    let amountToSend = undefined;
+    if (action === 'approve' && currentAmount !== undefined) {
+      const userAmount = prompt(`Confirm or adjust the approved wallet top-up deposit amount (₱):`, currentAmount.toString());
+      if (userAmount === null) return; // User cancelled
+      
+      const parsedAmount = parseFloat(userAmount);
+      if (isNaN(parsedAmount) || parsedAmount < 0) {
+        alert("Please enter a valid non-negative number.");
+        return;
+      }
+      amountToSend = parsedAmount;
+    } else {
+      if (!confirm(`Are you sure you want to reject this top-up request?`)) return;
+    }
     
     setProcessingId(id);
     try {
       const res = await fetch("/api/admin/approve-topup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ topupId: id, action })
+        body: JSON.stringify({ topupId: id, action, amount: amountToSend })
       });
       
       const data = await res.json();
       if (res.ok) {
-        setTopups(topups.map(t => t.id === id ? { ...t, status: action === 'approve' ? 'approved' : 'rejected' } : t));
-        alert(`Top-up successfully ${action}d!`);
+        setTopups(topups.map(t => t.id === id ? { 
+          ...t, 
+          status: action === 'approve' ? 'approved' : 'rejected',
+          amount: amountToSend !== undefined ? amountToSend : t.amount
+        } : t));
+        alert(`Top-up successfully ${action === 'approve' ? 'approved' : 'rejected'}!`);
       } else {
         alert(data.error || "Action failed");
       }
@@ -139,7 +156,7 @@ export function TopupsList({ initialTopups }: { initialTopups: any[] }) {
                     {topup.status === 'pending' ? (
                       <div className="flex items-center justify-end gap-2">
                         <button
-                          onClick={() => handleAction(topup.id, 'approve')}
+                          onClick={() => handleAction(topup.id, 'approve', topup.amount)}
                           disabled={processingId === topup.id}
                           className="p-2 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/25 border border-emerald-500/20 hover:border-emerald-500/40 rounded-xl transition-all shadow-md cursor-pointer disabled:opacity-50"
                           title="Approve & Add Balance"

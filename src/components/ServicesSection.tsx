@@ -461,22 +461,14 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
 
   ];
 
-  const baseCandidates = servicesCandidates && Array.isArray(servicesCandidates) && servicesCandidates.length > 0
+  const activeCandidates = servicesCandidates && Array.isArray(servicesCandidates) && servicesCandidates.length > 0
     ? servicesCandidates
     : DEFAULT_CANDIDATES;
 
-  const activeCandidates = baseCandidates.map((card) => {
-    if (card.id === "facebook" || card.id === "instagram" || card.id === "tiktok" || card.id === "youtube") {
-      return {
-        ...card,
-        ...PLATFORM_CARD_COPY[card.id as PlatformType]
-      };
-    }
-    return card;
-  });
-
-
   const filteredServicesForCalculator = services.filter((srv) => {
+    const isOther = otherServices.some((o) => o.id === srv.id);
+    if (isOther) return false;
+
     const isSrvOrganic = isOrganic(srv.title, srv.description?.description || srv.description || "");
     return isOrganicFilter ? isSrvOrganic : !isSrvOrganic;
   });

@@ -98,7 +98,8 @@ export function Header() {
           </span>
         </Link>
         
-        <nav className="hidden md:flex gap-8 font-bold text-slate-400 text-sm">
+        <nav className="hidden md:flex gap-8 font-bold text-slate-400 text-sm items-center">
+          <Link href="/quick-start" className="text-[#1DB954] hover:text-[#1ed760] font-extrabold uppercase text-xs tracking-wider flex items-center gap-1 transition-colors animate-pulse">🚀 Quick Start</Link>
           <Link href="#services" className="hover:text-white transition-colors">Services</Link>
           <Link href="/track" className="hover:text-white transition-colors">Status Tracker</Link>
         </nav>

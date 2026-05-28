@@ -40,6 +40,9 @@ export function CustomersList({
   // Edit Balance States
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [newBalanceValue, setNewBalanceValue] = useState("");
+  const [balanceEditMode, setBalanceEditMode] = useState<"set" | "adjust">("adjust");
+  const [balanceDeltaValue, setBalanceDeltaValue] = useState("");
+  const [adjType, setAdjType] = useState<"add" | "deduct">("add");
   const [isUpdatingBalance, setIsUpdatingBalance] = useState(false);
   const [isDeletingAll, setIsDeletingAll] = useState(false);
 
@@ -369,6 +372,9 @@ export function CustomersList({
                         onClick={() => {
                           setEditingCustomer(customer);
                           setNewBalanceValue(customer.balance.toString());
+                          setBalanceDeltaValue("");
+                          setBalanceEditMode("adjust");
+                          setAdjType("add");
                         }}
                         className="px-3 py-1.5 bg-[#1DB954]/10 border border-[#1DB954]/20 text-[#1DB954] hover:bg-[#1DB954]/20 rounded-lg text-xs font-bold transition-colors shadow-sm"
                       >
@@ -427,16 +433,55 @@ export function CustomersList({
               Update the balance for <strong className="text-slate-200">{editingCustomer.email}</strong>.
             </p>
 
+            {/* Toggle Adjustment Mode Tabs */}
+            <div className="flex bg-[#121212] p-1 border border-slate-850 rounded-xl mb-4 select-none">
+              <button
+                type="button"
+                onClick={() => setBalanceEditMode("adjust")}
+                className={`flex-1 py-2 text-xs font-black uppercase tracking-wider rounded-lg transition-all duration-200 cursor-pointer ${
+                  balanceEditMode === "adjust" ? "bg-[#1DB954]/15 text-[#1DB954] border border-[#1DB954]/25" : "text-slate-400 hover:text-slate-200"
+                }`}
+              >
+                ➕ Add / Deduct Delta
+              </button>
+              <button
+                type="button"
+                onClick={() => setBalanceEditMode("set")}
+                className={`flex-1 py-2 text-xs font-black uppercase tracking-wider rounded-lg transition-all duration-200 cursor-pointer ${
+                  balanceEditMode === "set" ? "bg-purple-500/15 text-purple-400 border border-purple-500/25" : "text-slate-400 hover:text-slate-200"
+                }`}
+              >
+                🎯 Set Explicit Total
+              </button>
+            </div>
+
             <form onSubmit={async (e) => {
               e.preventDefault();
               if (!editingCustomer.id) return;
               
               setIsUpdatingBalance(true);
+              
+              let finalBalance = editingCustomer.balance;
+              if (balanceEditMode === "adjust") {
+                const deltaNum = parseFloat(balanceDeltaValue) || 0;
+                finalBalance = adjType === "add" 
+                  ? editingCustomer.balance + deltaNum 
+                  : editingCustomer.balance - deltaNum;
+              } else {
+                finalBalance = parseFloat(newBalanceValue) || 0;
+              }
+
+              if (finalBalance < 0) {
+                alert("Balance cannot be negative.");
+                setIsUpdatingBalance(false);
+                return;
+              }
+
               try {
                 const res = await fetch("/api/admin/update-balance", {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ userId: editingCustomer.id, balance: parseFloat(newBalanceValue) })
+                  body: JSON.stringify({ userId: editingCustomer.id, balance: finalBalance })
                 });
 
                 if (res.ok) {
@@ -453,21 +498,89 @@ export function CustomersList({
                 setEditingCustomer(null);
               }
             }} className="space-y-4">
-              <div>
-                <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-1.5">
-                  Wallet Balance (₱)
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  required
-                  value={newBalanceValue}
-                  onChange={(e) => setNewBalanceValue(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl bg-[#121212] border border-slate-850/60 focus:outline-none focus:border-[#1DB954]/55 focus:ring-1 focus:ring-[#1DB954]/25 text-white font-black transition-all text-sm"
-                  placeholder="0.00"
-                />
-              </div>
+              
+              {balanceEditMode === "adjust" ? (
+                <>
+                  <div className="grid grid-cols-2 gap-3 text-left">
+                    <div>
+                      <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-1.5">
+                        Adjustment Type
+                      </label>
+                      <select
+                        value={adjType}
+                        onChange={(e) => setAdjType(e.target.value as any)}
+                        className="w-full px-4 py-3 rounded-xl bg-[#121212] border border-slate-850/60 focus:outline-none focus:border-[#1DB954]/55 text-white font-extrabold cursor-pointer text-xs uppercase tracking-wider"
+                      >
+                        <option value="add">Add (+)</option>
+                        <option value="deduct">Deduct (-)</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-1.5">
+                        Delta Amount (₱)
+                      </label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        required
+                        value={balanceDeltaValue}
+                        onChange={(e) => setBalanceDeltaValue(e.target.value)}
+                        className="w-full px-4 py-3 rounded-xl bg-[#121212] border border-slate-850/60 focus:outline-none focus:border-[#1DB954]/55 focus:ring-1 focus:ring-[#1DB954]/25 text-white font-black transition-all text-sm"
+                        placeholder="0.00"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Live adjustment preview */}
+                  <div className="bg-[#121212] border border-slate-850 p-4.5 rounded-xl text-left space-y-1">
+                    <span className="text-[9px] font-black uppercase text-slate-550 tracking-wider">Adjustment Preview:</span>
+                    <div className="flex items-center justify-between font-mono text-xs font-black">
+                      <span className="text-slate-400">Current: ₱{editingCustomer.balance.toFixed(2)}</span>
+                      <span className="text-slate-500">➔</span>
+                      <span className={adjType === "add" ? "text-emerald-400 animate-pulse" : "text-red-400 animate-pulse"}>
+                        New: ₱{(() => {
+                          const deltaNum = parseFloat(balanceDeltaValue) || 0;
+                          const newTot = adjType === "add" 
+                            ? editingCustomer.balance + deltaNum 
+                            : editingCustomer.balance - deltaNum;
+                          return Math.max(newTot, 0).toFixed(2);
+                        })()}
+                      </span>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="text-left">
+                    <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-1.5">
+                      New Total Balance (₱)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      required
+                      value={newBalanceValue}
+                      onChange={(e) => setNewBalanceValue(e.target.value)}
+                      className="w-full px-4 py-3 rounded-xl bg-[#121212] border border-slate-850/60 focus:outline-none focus:border-[#1DB954]/55 focus:ring-1 focus:ring-[#1DB954]/25 text-white font-black transition-all text-sm"
+                      placeholder="0.00"
+                    />
+                  </div>
+
+                  {/* Live set preview */}
+                  <div className="bg-[#121212] border border-slate-850 p-4.5 rounded-xl text-left space-y-1">
+                    <span className="text-[9px] font-black uppercase text-slate-550 tracking-wider">Balance Preview:</span>
+                    <div className="flex items-center justify-between font-mono text-xs font-black">
+                      <span className="text-slate-400">Current: ₱{editingCustomer.balance.toFixed(2)}</span>
+                      <span className="text-slate-500">➔</span>
+                      <span className="text-purple-400 animate-pulse">
+                        New: ₱{parseFloat(newBalanceValue || "0").toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+                </>
+              )}
 
               <div className="flex gap-3 justify-end pt-2">
                 <button
@@ -481,7 +594,11 @@ export function CustomersList({
                 <button
                   type="submit"
                   disabled={isUpdatingBalance}
-                  className="px-4 py-2 bg-[#1DB954] hover:bg-[#1ed760] disabled:opacity-50 text-black font-extrabold rounded-xl text-xs uppercase tracking-wider transition-colors flex items-center gap-1.5"
+                  className={`px-4 py-2 text-black font-black rounded-xl text-xs uppercase tracking-wider transition-colors flex items-center gap-1.5 shadow-md ${
+                    balanceEditMode === "adjust" 
+                      ? "bg-[#1DB954] hover:bg-[#1ed760] shadow-emerald-500/10" 
+                      : "bg-purple-500 hover:bg-purple-400 text-white shadow-purple-500/10"
+                  }`}
                 >
                   {isUpdatingBalance ? "Saving..." : "Save Changes"}
                 </button>
