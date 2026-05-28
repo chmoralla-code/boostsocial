@@ -47,6 +47,8 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
   const [smmPrefilledSearch, setSmmPrefilledSearch] = useState("");
   const [platformSubModalOpen, setPlatformSubModalOpen] = useState(false);
   const [platformSubModalType, setPlatformSubModalType] = useState<"facebook" | "instagram" | "tiktok" | "youtube" | null>(null);
+  const [showCalculator, setShowCalculator] = useState(false);
+
 
   useEffect(() => {
     setLoadingSmm(true);
@@ -361,11 +363,33 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
 
   return (
     <>
-      {/* 1. SMM Price Calculator Widget */}
-      <PriceCalculator 
-        services={services} 
-        onOrder={handleCalculatorOrder} 
-      />
+      {/* 1. SMM Price Calculator Widget Toggle */}
+      <div className="w-full max-w-4xl mx-auto px-4 mt-6 relative z-10 flex flex-col items-center">
+        {!showCalculator ? (
+          <button
+            onClick={() => setShowCalculator(true)}
+            className="px-10 py-5 rounded-full bg-gradient-to-r from-[#1DB954] to-[#1ed760] hover:from-[#1ed760] hover:to-[#1DB954] text-black font-black uppercase tracking-widest text-sm shadow-xl shadow-emerald-500/20 hover:shadow-emerald-500/35 transition-all duration-300 transform hover:scale-[1.03] flex items-center gap-3 cursor-pointer border border-[#1DB954]/30"
+          >
+            <span className="text-base">📊</span> ESTIMATE
+          </button>
+        ) : (
+          <div className="w-full relative animate-in fade-in slide-in-from-top-4 duration-500">
+            <PriceCalculator 
+              services={services} 
+              onOrder={handleCalculatorOrder} 
+            />
+            <div className="flex justify-center -mt-10 mb-16">
+              <button
+                onClick={() => setShowCalculator(false)}
+                className="px-6 py-2.5 rounded-full border border-slate-800 hover:border-slate-700 bg-slate-900/90 text-slate-400 hover:text-white transition-all duration-300 text-xs font-black uppercase tracking-wider cursor-pointer shadow-lg"
+              >
+                Hide Calculator
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
 
       {/* 2. Brand Stat Counters */}
       <StatCounters />
