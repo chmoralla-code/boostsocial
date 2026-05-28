@@ -77,12 +77,13 @@ export function Header() {
 
   return (
     <>
-      <header className="w-full py-6 px-8 flex justify-between items-center max-w-7xl mx-auto border-b border-slate-800/40 relative z-50">
-        <Link href="/" className="flex items-center gap-2.5 group">
-          <div className="text-[#1DB954] drop-shadow-[0_0_10px_rgba(29,185,84,0.3)] group-hover:scale-110 transition-transform duration-300">
+      <header className="w-full border-b border-slate-800/40 relative z-50 overflow-hidden">
+        <div className={user ? "mx-auto flex max-w-7xl flex-col gap-3 px-4 py-4 sm:px-6 md:flex-row md:items-center md:justify-between md:px-8 md:py-6" : "mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-4 sm:px-6 md:px-8 md:py-6"}>
+        <Link href="/" className="flex min-w-0 items-center gap-2 group">
+          <div className="shrink-0 text-[#1DB954] drop-shadow-[0_0_10px_rgba(29,185,84,0.3)] group-hover:scale-110 transition-transform duration-300">
             <Rocket size={28} strokeWidth={2.5} />
           </div>
-          <span className="text-2xl font-black tracking-tight text-white flex items-center">
+          <span className="min-w-0 text-xl sm:text-2xl font-black tracking-normal text-white flex items-center whitespace-nowrap">
             {"CYNETWORK".split("").map((letter, idx) => (
               <span
                 key={idx}
@@ -102,12 +103,12 @@ export function Header() {
           <Link href="/track" className="hover:text-white transition-colors">Status Tracker</Link>
         </nav>
 
-        <div className="flex items-center gap-4">
+        <div className={user ? "grid w-full grid-cols-[minmax(0,1fr)_44px_44px_44px] items-center gap-2 md:flex md:w-auto md:gap-4" : "flex w-full items-center justify-end md:w-auto"}>
           {user ? (
             <>
               <button 
                 onClick={() => setShowTopUpModal(true)}
-                className="flex items-center gap-1.5 bg-[#1877F2]/10 hover:bg-[#1877F2]/20 border border-[#1877F2]/30 text-[#1877F2] font-extrabold py-2 px-3 rounded-full transition-all text-xs uppercase tracking-wider cursor-pointer"
+                className="flex h-11 min-w-0 items-center justify-center gap-1.5 rounded-full border border-[#1877F2]/30 bg-[#1877F2]/10 px-3 py-2 text-[11px] font-extrabold uppercase tracking-wider text-[#1877F2] transition-all hover:bg-[#1877F2]/20 md:h-auto md:py-2 md:text-xs cursor-pointer"
               >
                 <Wallet size={14} /> 
                 ₱{profile?.balance ? Number(profile.balance).toFixed(0) : "0"}
@@ -115,20 +116,20 @@ export function Header() {
 
               <button 
                 onClick={() => setShowReferralsModal(true)}
-                className="flex items-center gap-1.5 bg-[#282828] hover:bg-[#333] border border-slate-800/80 text-[#1877F2] font-extrabold py-2 px-3 sm:px-4 rounded-full transition-all text-xs uppercase tracking-wider cursor-pointer"
+                className="flex h-11 w-11 items-center justify-center gap-1.5 rounded-full border border-slate-800/80 bg-[#282828] px-0 py-2 text-xs font-extrabold uppercase tracking-wider text-[#1877F2] transition-all hover:bg-[#333] md:w-auto md:px-4 cursor-pointer"
                 title="Invite & Earn"
               >
                 <Gift size={14} /> 
-                <span className="hidden sm:inline">Invite & Earn</span>
+                <span className="hidden lg:inline">Invite & Earn</span>
               </button>
 
               <button 
                 onClick={() => setShowOrdersModal(true)}
-                className="flex items-center gap-1.5 bg-[#282828] hover:bg-[#333] border border-slate-800/80 text-[#1877F2] font-extrabold py-2 px-3 sm:px-4 rounded-full transition-all text-xs uppercase tracking-wider cursor-pointer"
+                className="flex h-11 w-11 items-center justify-center gap-1.5 rounded-full border border-slate-800/80 bg-[#282828] px-0 py-2 text-xs font-extrabold uppercase tracking-wider text-[#1877F2] transition-all hover:bg-[#333] md:w-auto md:px-4 cursor-pointer"
                 title="My Orders"
               >
                 <ClipboardList size={14} /> 
-                <span className="hidden sm:inline">My Orders</span>
+                <span className="hidden lg:inline">My Orders</span>
               </button>
               
               <span className="hidden md:inline text-xs font-semibold text-slate-400 max-w-[120px] truncate">
@@ -137,7 +138,7 @@ export function Header() {
 
               <button 
                 onClick={handleSignOut}
-                className="text-slate-400 hover:text-red-500 transition-colors p-1.5 rounded-lg hover:bg-red-500/10 cursor-pointer"
+                className="flex h-11 w-11 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-red-500/10 hover:text-red-500 md:h-auto md:w-auto md:p-1.5 md:rounded-lg cursor-pointer"
                 title="Sign Out"
               >
                 <LogOut size={16} />
@@ -146,11 +147,12 @@ export function Header() {
           ) : (
             <Link 
               href="/login"
-              className="bg-[#1877F2] hover:bg-[#4e8df5] text-white font-extrabold py-2.5 px-6 rounded-full transition-all duration-300 transform hover:scale-[1.03] shadow-md shadow-blue-500/10 text-xs uppercase tracking-wider"
+              className="bg-[#1877F2] hover:bg-[#4e8df5] text-white font-extrabold py-2.5 px-5 sm:px-6 rounded-full transition-all duration-300 transform hover:scale-[1.03] shadow-md shadow-blue-500/10 text-xs uppercase tracking-wider"
             >
               Sign In
             </Link>
           )}
+        </div>
         </div>
       </header>
 

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Sun, Moon } from "lucide-react";
 
-export function ThemeToggle() {
+export function ThemeToggle({ compact = false }: { compact?: boolean }) {
   const [theme, setTheme] = useState<"dark" | "light">("dark");
 
   useEffect(() => {
@@ -40,6 +40,27 @@ export function ThemeToggle() {
     }
   };
 
+  const icon =
+    theme === "dark" ? (
+      <Sun size={18} className="text-amber-500 group-hover:rotate-12 transition-transform duration-300" />
+    ) : (
+      <Moon size={18} className="text-indigo-400 group-hover:-rotate-12 transition-transform duration-300" />
+    );
+
+  if (compact) {
+    return (
+      <button
+        onClick={toggleTheme}
+        type="button"
+        className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-800/80 bg-[#181818]/80 text-slate-400 transition-all duration-300 hover:border-[#1DB954]/40 hover:text-white"
+        title={theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
+        aria-label={theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
+      >
+        {icon}
+      </button>
+    );
+  }
+
   return (
     <button
       onClick={toggleTheme}
@@ -47,17 +68,10 @@ export function ThemeToggle() {
       className="flex items-center gap-3 px-4 py-3 w-full rounded-xl hover:bg-slate-800/40 text-slate-400 hover:text-white transition-all duration-300 text-left cursor-pointer group"
       title={theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
     >
-      {theme === "dark" ? (
-        <>
-          <Sun size={18} className="text-amber-500 group-hover:rotate-12 transition-transform duration-300" />
-          <span className="font-semibold text-xs uppercase tracking-wider">Light Mode</span>
-        </>
-      ) : (
-        <>
-          <Moon size={18} className="text-indigo-400 group-hover:-rotate-12 transition-transform duration-300" />
-          <span className="font-semibold text-xs uppercase tracking-wider">Dark Mode</span>
-        </>
-      )}
+      {icon}
+      <span className="font-semibold text-xs uppercase tracking-wider">
+        {theme === "dark" ? "Light Mode" : "Dark Mode"}
+      </span>
     </button>
   );
 }

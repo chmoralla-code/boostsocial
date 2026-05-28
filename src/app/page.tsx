@@ -163,7 +163,7 @@ export default async function Home() {
     <>
       <Header />
       
-      <main className="flex-grow flex flex-col items-center pt-24 relative overflow-hidden bg-[#0a0a0a] min-h-screen">
+      <main className="flex-grow flex flex-col items-center pt-8 sm:pt-14 md:pt-24 relative overflow-hidden bg-[#0a0a0a] min-h-screen">
         {/* Video Background */}
         <HeroVideoBackground videoUrl={videoUrl} opacity={opacity} />
         
@@ -177,11 +177,11 @@ export default async function Home() {
           <div className="absolute top-[35%] left-[-15%] w-[600px] h-[600px] rounded-full spotify-glow-blob opacity-80"></div>
         </div>
 
-        <div className="max-w-7xl w-full mx-auto px-6 md:px-8 z-10 grid grid-cols-1 lg:grid-cols-12 gap-12 items-center pt-8 pb-16">
+        <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 md:px-8 z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center pt-5 sm:pt-8 pb-12 sm:pb-16">
           {/* Left Column (Content & Search) */}
           <div className="lg:col-span-7 flex flex-col items-center lg:items-start text-center lg:text-left">
             {/* Animated Tech Badge */}
-            <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-white/[0.03] border border-white/[0.08] text-[10px] sm:text-xs font-black tracking-widest text-[#1DB954] mb-6 uppercase shadow-xl shadow-emerald-500/5 backdrop-blur-md animate-fade-in-up-1">
+            <div className="inline-flex items-center gap-2 px-4 sm:px-5 py-2 rounded-full bg-white/[0.03] border border-white/[0.08] text-[10px] sm:text-xs font-black tracking-widest text-[#1DB954] mb-5 sm:mb-6 uppercase shadow-xl shadow-emerald-500/5 backdrop-blur-md animate-fade-in-up-1 text-center">
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#1ed760] opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-[#1DB954]"></span>
@@ -189,15 +189,15 @@ export default async function Home() {
               {heroTexts.badge}
             </div>
 
-            <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black leading-[1.05] mb-6 tracking-tighter uppercase animate-fade-in-up-2">
+            <h1 className="text-[2rem] sm:text-5xl md:text-6xl lg:text-7xl font-black leading-[1.02] sm:leading-[1.05] mb-5 sm:mb-6 tracking-normal uppercase animate-fade-in-up-2">
               {parseTitle(heroTexts.title)}
             </h1>
             
-            <p className="text-sm sm:text-base md:text-lg text-slate-400 mb-10 max-w-xl font-bold leading-relaxed animate-fade-in-up-3">
+            <p className="text-sm sm:text-base md:text-lg text-slate-400 mb-7 sm:mb-10 max-w-xl font-bold leading-relaxed animate-fade-in-up-3">
               {parseDescriptionText(heroTexts.description)}
             </p>
             
-            <div className="w-full max-w-xl animate-fade-in-up-3 mb-10">
+            <div className="w-full max-w-xl animate-fade-in-up-3 mb-8 sm:mb-10">
               <HeroSearch services={services || []} />
             </div>
 

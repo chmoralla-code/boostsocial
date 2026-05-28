@@ -16,10 +16,11 @@ export async function middleware(request: NextRequest) {
   })
 
   const pathname = request.nextUrl.pathname
+  const isAdminArea = pathname === '/admin' || pathname.startsWith('/admin/')
 
   // 1. Determine if this request is on a path that MUST bypass maintenance mode
   const isBypassPath =
-    pathname.startsWith('/admin') ||
+    isAdminArea ||
     pathname.startsWith('/login') ||
     pathname.startsWith('/reset-password') ||
     pathname.startsWith('/auth') ||
@@ -342,10 +343,10 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  if (request.nextUrl.pathname.startsWith('/admin')) {
+  if (isAdminArea && request.nextUrl.pathname !== '/admin/login') {
     if (!user) {
       const url = request.nextUrl.clone()
-      url.pathname = '/login'
+      url.pathname = '/admin/login'
       return NextResponse.redirect(url)
     }
 
