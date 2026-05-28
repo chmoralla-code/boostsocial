@@ -20,6 +20,12 @@ export async function POST(req: NextRequest) {
       auth: { persistSession: false }
     });
 
+    const backupSupabaseUrl = process.env.BACKUP_SUPABASE_URL;
+    const backupServiceRoleKey = process.env.BACKUP_SUPABASE_SERVICE_ROLE_KEY;
+    const backupSupabase = backupSupabaseUrl && backupServiceRoleKey
+      ? createClient(backupSupabaseUrl, backupServiceRoleKey, { auth: { persistSession: false } })
+      : null;
+
     // 1. Fetch the topup record
     const { data: topup, error: topupError } = await supabase
       .from("topups")
@@ -36,6 +42,10 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === 'approve') {
+      if (!topup.receipt_url) {
+        return NextResponse.json({ error: "Cannot approve a top-up without a receipt proof." }, { status: 400 });
+      }
+
       // 2. Fetch current profile including who referred them
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
@@ -72,6 +82,17 @@ export async function POST(req: NextRequest) {
 
       if (updateProfileError) throw updateProfileError;
 
+      if (backupSupabase) {
+        try {
+          await backupSupabase
+            .from("profiles")
+            .update({ balance: newBalance })
+            .eq("id", topup.user_id);
+        } catch (backupErr) {
+          console.error("Backup DB top-up profile balance sync failed:", backupErr);
+        }
+      }
+
       // 4. Update topup status
       const { error: updateTopupError } = await supabase
         .from("topups")
@@ -79,6 +100,17 @@ export async function POST(req: NextRequest) {
         .eq("id", topupId);
 
       if (updateTopupError) throw updateTopupError;
+
+      if (backupSupabase) {
+        try {
+          await backupSupabase
+            .from("topups")
+            .update({ status: 'approved', amount: finalAmount })
+            .eq("id", topupId);
+        } catch (backupErr) {
+          console.error("Backup DB top-up approval sync failed:", backupErr);
+        }
+      }
 
       // 5. Calculate & credit referral commission if referred
       if (profile.referred_by) {
@@ -127,6 +159,17 @@ export async function POST(req: NextRequest) {
         .eq("id", topupId);
 
       if (updateTopupError) throw updateTopupError;
+
+      if (backupSupabase) {
+        try {
+          await backupSupabase
+            .from("topups")
+            .update({ status: 'rejected' })
+            .eq("id", topupId);
+        } catch (backupErr) {
+          console.error("Backup DB top-up rejection sync failed:", backupErr);
+        }
+      }
 
       return NextResponse.json({ success: true });
     } else {

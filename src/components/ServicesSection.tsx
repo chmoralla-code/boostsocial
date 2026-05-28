@@ -9,7 +9,7 @@ import { FaqSection } from "./FaqSection";
 import { ReviewsSection } from "./ReviewsSection";
 import { SmmCatalogModal } from "./SmmCatalogModal";
 import { Layers, X, Loader2 } from "lucide-react";
-import { parseDescription, isOrganic } from "@/utils/serviceHelpers";
+import { parseDescription, matchesServiceQualityFilter } from "@/utils/serviceHelpers";
 
 
 interface Service {
@@ -469,8 +469,8 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
     const isOther = otherServices.some((o) => o.id === srv.id);
     if (isOther) return false;
 
-    const isSrvOrganic = isOrganic(srv.title, srv.description?.description || srv.description || "");
-    return isOrganicFilter ? isSrvOrganic : !isSrvOrganic;
+    const desc = typeof srv.description === "string" ? srv.description : (srv.description?.description || "");
+    return matchesServiceQualityFilter(srv.title, desc, "", isOrganicFilter);
   });
 
   return (
@@ -640,11 +640,14 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
             const platformChips = card.id === "facebook" || card.id === "instagram" || card.id === "tiktok" || card.id === "youtube"
               ? PLATFORM_SERVICE_CHIPS[card.id as PlatformType]
               : null;
+            const cardLayout = card.layout || "standard";
+            const cardLayoutClass = cardLayout === "wide" ? "lg:col-span-2" : "";
+            const cardPaddingClass = cardLayout === "compact" ? "p-6" : "p-8";
 
             return (
               <div 
                 key={card.id} 
-                className="bg-[#121212]/50 hover:bg-[#161616]/90 backdrop-blur-md rounded-3xl p-8 flex flex-col items-start text-left w-full border border-white/[0.04] shadow-[0_12px_40px_rgba(0,0,0,0.4)] transition-all duration-500 transform hover:-translate-y-2 group"
+                className={`bg-[#121212]/50 hover:bg-[#161616]/90 backdrop-blur-md rounded-3xl ${cardPaddingClass} ${cardLayoutClass} flex flex-col items-start text-left w-full border border-white/[0.04] shadow-[0_12px_40px_rgba(0,0,0,0.4)] transition-all duration-500 transform hover:-translate-y-2 group`}
                 style={{ 
                   boxShadow: `0 12px 40px rgba(0,0,0,0.4)`
                 }}
@@ -693,6 +696,15 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
                 >
                   {card.title}
                 </h4>
+
+                {card.caption && (
+                  <p
+                    className="text-[11px] font-black uppercase tracking-wider mb-3"
+                    style={{ color: card.theme_color }}
+                  >
+                    {card.caption}
+                  </p>
+                )}
                 
                 <p className="text-slate-400 text-sm leading-relaxed mb-8 flex-grow">
                   {card.description}

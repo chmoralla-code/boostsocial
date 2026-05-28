@@ -8,9 +8,11 @@ interface Candidate {
   emoji: string;
   tag: string;
   title: string;
+  caption?: string;
   description: string;
   rate_prefix: string;
   rate_text: string;
+  layout?: "standard" | "compact" | "wide";
   theme_color: string;
   btn_bg: string;
   glow_color: string;
@@ -27,12 +29,19 @@ export function ServicesCandidatesPanel() {
     fetchCandidates();
   }, []);
 
+  const normalizeCandidates = (items: Candidate[]) =>
+    items.map((item) => ({
+      ...item,
+      caption: item.caption || "",
+      layout: item.layout || "standard"
+    }));
+
   const fetchCandidates = async () => {
     try {
       const res = await fetch("/api/admin/services-candidates");
       const data = await res.json();
       if (res.ok) {
-        setCandidates(data);
+        setCandidates(normalizeCandidates(data));
       } else {
         throw new Error(data.error || "Failed to load candidates");
       }
@@ -126,7 +135,7 @@ export function ServicesCandidatesPanel() {
         </div>
         <div>
           <h2 className="text-base font-bold text-white flex items-center gap-2">
-            Service Candidates Cards
+            Service Candidates Cards <Sparkles size={14} className="text-emerald-400" />
           </h2>
           <p className="text-xs text-slate-400 mt-0.5 font-semibold">
             Customize the copywriting text, pricing starting rate, icons, and theme colors of the 6 main service tier cards shown on your homepage.
@@ -199,6 +208,31 @@ export function ServicesCandidatesPanel() {
                         placeholder="e.g. Page & Post Services"
                         className="w-full bg-[#181818] border border-slate-850 rounded-xl px-4.5 py-2.5 text-xs font-bold text-white placeholder-slate-650 focus:outline-none focus:border-[#1DB954]"
                       />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="space-y-1 md:col-span-2">
+                      <label className="text-[9px] font-black uppercase text-slate-500 tracking-wider">Caption / Short Line</label>
+                      <input
+                        type="text"
+                        value={card.caption || ""}
+                        onChange={(e) => handleFieldChange(idx, "caption", e.target.value)}
+                        placeholder="e.g. Local PH-base growth with fast review"
+                        className="w-full bg-[#181818] border border-slate-850 rounded-xl px-4.5 py-2.5 text-xs font-bold text-white placeholder-slate-650 focus:outline-none focus:border-[#1DB954]"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-black uppercase text-slate-500 tracking-wider">Homepage Card Layout</label>
+                      <select
+                        value={card.layout || "standard"}
+                        onChange={(e) => handleFieldChange(idx, "layout", e.target.value)}
+                        className="w-full bg-[#181818] border border-slate-850 rounded-xl px-4.5 py-2.5 text-xs font-bold text-white focus:outline-none focus:border-[#1DB954]"
+                      >
+                        <option value="standard">Standard</option>
+                        <option value="compact">Compact</option>
+                        <option value="wide">Wide</option>
+                      </select>
                     </div>
                   </div>
 

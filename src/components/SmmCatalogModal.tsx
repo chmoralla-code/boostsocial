@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { X, Search, Loader2, Globe, ArrowLeft, ShieldCheck, Check, Copy, AlertCircle, ShoppingBag, Wallet } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { LinkPreviewWindow } from "./LinkPreviewWindow";
-import { isOrganic, formatSmmServiceName } from "@/utils/serviceHelpers";
+import { isOrganic, formatSmmServiceName, matchesServiceQualityFilter } from "@/utils/serviceHelpers";
 import { compressImage } from "@/utils/imageCompressor";
 
 
@@ -258,9 +258,7 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
 
     const matchesCategory = selectedCategory === "all" || s.category === selectedCategory;
 
-    // Organic vs Non-Organic quality category filter
-    const isSrvOrganic = isOrganic(s.name, s.desc || "");
-    const matchesQuality = isOrganicFilter ? isSrvOrganic : !isSrvOrganic;
+    const matchesQuality = matchesServiceQualityFilter(s.name, s.desc || "", s.category, isOrganicFilter);
 
     return matchesSearch && matchesPlatform && matchesCategory && matchesQuality;
   });
@@ -447,10 +445,45 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
     setError("");
 
     try {
+      const { data: pendingOrder, error: pendingOrderError } = await supabase
+        .from("orders")
+        .insert([
+          {
+            service_id: CUSTOM_SMM_SERVICE_ID,
+            customer_email: user.email,
+            target_url: url.trim(),
+            amount: calculatedTotal,
+            status: "Pending",
+            payment_method: "Wallet",
+            quantity: finalQuantity,
+            smm_service_id: selectedService.id
+          }
+        ])
+        .select("id")
+        .single();
+
+      if (pendingOrderError) throw pendingOrderError;
+
+      const compressedReceipt = await compressImage(receiptFile);
+      const receiptFormData = new FormData();
+      receiptFormData.append("file", compressedReceipt);
+      receiptFormData.append("orderId", pendingOrder.id);
+
+      const uploadRes = await fetch("/api/upload-receipt", {
+        method: "POST",
+        body: receiptFormData
+      });
+
+      if (!uploadRes.ok) {
+        const errData = await uploadRes.json();
+        throw new Error(errData.error || "Failed to upload transaction receipt for this wallet order.");
+      }
+
       const res = await fetch("/api/checkout-wallet", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          existingOrderId: pendingOrder.id,
           userId: user.id,
           serviceId: CUSTOM_SMM_SERVICE_ID,
           serviceTitle: `[SMM #${selectedService.id}] ${selectedService.name}`,
@@ -465,27 +498,6 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
       const data = await res.json();
       if (!res.ok) {
         throw new Error(data.error || "Wallet checkout failed");
-      }
-
-      // Compress and upload receipt for wallet audit
-      try {
-        const compressedReceipt = await compressImage(receiptFile);
-        const receiptFormData = new FormData();
-        receiptFormData.append("file", compressedReceipt);
-        receiptFormData.append("orderId", data.orderId);
-        
-        const uploadRes = await fetch("/api/upload-receipt", {
-          method: "POST",
-          body: receiptFormData
-        });
-        
-        if (!uploadRes.ok) {
-          const errData = await uploadRes.json();
-          throw new Error(errData.error || "Failed to upload transaction receipt for this wallet order.");
-        }
-      } catch (uploadReceiptErr: any) {
-        console.error("Receipt upload failed:", uploadReceiptErr);
-        throw new Error(uploadReceiptErr.message || "Failed to upload transaction receipt file.");
       }
 
       setOrderId(data.orderId);
@@ -937,7 +949,7 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
                   {user && profile && Number(profile.balance) >= calculatedTotal && (
                     <button
                       type="button"
-                      disabled={isSubmitting}
+                      disabled={isSubmitting || !receiptFile}
                       onClick={handleWalletCheckout}
                       className="flex-1 bg-[#1DB954]/10 hover:bg-[#1DB954]/20 border border-[#1DB954]/30 hover:border-[#1DB954]/50 disabled:opacity-50 text-[#1DB954] font-extrabold py-3 rounded-xl transition-all flex items-center justify-center gap-2 text-xs uppercase tracking-wider"
                     >
@@ -947,7 +959,7 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
                   
                   <button
                     type="submit"
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || !receiptFile}
                     className="flex-1 bg-[#1DB954] hover:bg-[#1ed760] disabled:bg-slate-800 text-black font-extrabold py-3 rounded-xl transition-all flex items-center justify-center gap-2 text-xs uppercase tracking-wider shadow-md"
                   >
                     {isSubmitting ? (
@@ -1002,7 +1014,7 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
                     </p>
                   ) : (
                     <p className="text-[10px] text-slate-500 italic mt-1.5">
-                      Your order is queued in Pending status. Once the administrator reviews the order details, delivery will initiate automatically!
+                      Your receipt is attached and the order is queued for verified processing. You can monitor it from the chatbot or Track Order button.
                     </p>
                   )}
                 </div>

@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, ArrowLeft, ArrowRight, Check, Eye, HelpCircle, AlertCircle, ShoppingBag, ShieldCheck, Mail, Lock, UserPlus, Image, PlusCircle, CheckCircle, Search, Sparkles } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
-import { formatSmmServiceName } from "@/utils/serviceHelpers";
+import { formatSmmServiceName, isSocialBoostService, isUtilityService } from "@/utils/serviceHelpers";
 import { compressImage } from "@/utils/imageCompressor";
 
 const PLATFORMS = [
@@ -13,6 +13,14 @@ const PLATFORMS = [
   { id: "tiktok", name: "TikTok", icon: "🎵", color: "#00F2FE", glow: "rgba(0, 242, 254, 0.45)" },
   { id: "youtube", name: "YouTube", icon: "🎥", color: "#FF0000", glow: "rgba(255, 0, 0, 0.45)" }
 ];
+
+function matchesPlatformName(service: any, platformId: string) {
+  const combined = `${service.name || ""} ${service.category || ""}`.toLowerCase();
+  if (platformId === "facebook") return combined.includes("facebook") || /\bfb\b/.test(combined);
+  if (platformId === "instagram") return combined.includes("instagram") || /\big\b/.test(combined);
+  if (platformId === "youtube") return combined.includes("youtube") || /\byt\b/.test(combined);
+  return combined.includes(platformId);
+}
 
 export default function QuickStartPage() {
   const router = useRouter();
@@ -36,6 +44,7 @@ export default function QuickStartPage() {
   const [catalogLoading, setCatalogLoading] = useState(false);
   const [selectedService, setSelectedService] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [availablePlatformIds, setAvailablePlatformIds] = useState<string[]>(PLATFORMS.map((platform) => platform.id));
 
   // Step 3 states (Order details & GCash receipt)
   const [targetUrl, setTargetUrl] = useState("");
@@ -72,12 +81,21 @@ export default function QuickStartPage() {
         })
         .then((data) => {
           if (Array.isArray(data)) {
-            // Filter SMM reseller catalog matches selected platform
+            const socialServices = data.filter((s: any) => {
+              return isSocialBoostService(s.name, s.desc || "", s.category) && !isUtilityService(s.name, s.desc || "", s.category);
+            });
+            const activePlatforms = PLATFORMS
+              .filter((platform) => socialServices.some((s: any) => matchesPlatformName(s, platform.id)))
+              .map((platform) => platform.id);
+
+            setAvailablePlatformIds(activePlatforms);
+            if (activePlatforms.length > 0 && !activePlatforms.includes(selectedPlatform)) {
+              setSelectedPlatform(activePlatforms[0]);
+            }
+
             const platFilter = selectedPlatform.toLowerCase();
-            const filtered = data.filter((s: any) => {
-              const nameLower = s.name.toLowerCase();
-              const categoryLower = s.category.toLowerCase();
-              return nameLower.includes(platFilter) || categoryLower.includes(platFilter);
+            const filtered = socialServices.filter((s: any) => {
+              return matchesPlatformName(s, platFilter);
             });
             setServices(filtered);
           } else {
@@ -93,6 +111,16 @@ export default function QuickStartPage() {
         });
     }
   }, [step, selectedPlatform]);
+
+  useEffect(() => {
+    if (step !== 4 || !orderId) return;
+
+    const redirectTimer = window.setTimeout(() => {
+      router.push(`/?track=${orderId}`);
+    }, 6500);
+
+    return () => window.clearTimeout(redirectTimer);
+  }, [step, orderId, router]);
 
   useEffect(() => {
     if (selectedService) {
@@ -388,7 +416,7 @@ export default function QuickStartPage() {
           <div className="space-y-6 animate-in slide-in-from-right-6 duration-300">
             {/* Pick platform tab chips */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 select-none">
-              {PLATFORMS.map((plat) => {
+              {PLATFORMS.filter((plat) => availablePlatformIds.includes(plat.id)).map((plat) => {
                 const isActive = selectedPlatform === plat.id;
                 return (
                   <button

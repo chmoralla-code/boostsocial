@@ -489,10 +489,49 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
         tempUrl = `Reactions: [${selectedReactions.join(", ")}] Link: ${url.trim()}`;
       }
 
+      const resolvedSmmServiceId = parsedDetails.smm_service_id
+        ? String(parsedDetails.smm_service_id)
+        : (isReactionService ? String(getFBReactionsSMMDetails(selectedReactions).smmId) : null);
+
+      const { data: pendingOrder, error: pendingOrderError } = await supabase
+        .from('orders')
+        .insert([
+          {
+            service_id: serviceId,
+            customer_email: user.email,
+            target_url: tempUrl,
+            amount: totalPrice,
+            status: 'Pending',
+            payment_method: 'Wallet',
+            quantity: finalQuantity,
+            smm_service_id: resolvedSmmServiceId
+          }
+        ])
+        .select('id')
+        .single();
+
+      if (pendingOrderError) throw pendingOrderError;
+
+      const compressedReceipt = await compressImage(receiptFile);
+      const receiptFormData = new FormData();
+      receiptFormData.append("file", compressedReceipt);
+      receiptFormData.append("orderId", pendingOrder.id);
+
+      const uploadRes = await fetch("/api/upload-receipt", {
+        method: "POST",
+        body: receiptFormData
+      });
+
+      if (!uploadRes.ok) {
+        const errData = await uploadRes.json();
+        throw new Error(errData.error || "Failed to upload transaction receipt for this wallet order.");
+      }
+
       const res = await fetch("/api/checkout-wallet", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          existingOrderId: pendingOrder.id,
           userId: user.id,
           serviceId,
           serviceTitle,
@@ -500,34 +539,13 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
           url: tempUrl,
           quantity: finalQuantity,
           totalPrice,
-          smmServiceId: parsedDetails.smm_service_id ? String(parsedDetails.smm_service_id) : (isReactionService ? String(getFBReactionsSMMDetails(selectedReactions).smmId) : null)
+          smmServiceId: resolvedSmmServiceId
         })
       });
 
       const data = await res.json();
       if (!res.ok) {
         throw new Error(data.error || "Wallet checkout failed");
-      }
-
-      // Compress and upload receipt for wallet audit
-      try {
-        const compressedReceipt = await compressImage(receiptFile);
-        const receiptFormData = new FormData();
-        receiptFormData.append("file", compressedReceipt);
-        receiptFormData.append("orderId", data.orderId);
-        
-        const uploadRes = await fetch("/api/upload-receipt", {
-          method: "POST",
-          body: receiptFormData
-        });
-        
-        if (!uploadRes.ok) {
-          const errData = await uploadRes.json();
-          throw new Error(errData.error || "Failed to upload transaction receipt for this wallet order.");
-        }
-      } catch (uploadReceiptErr: any) {
-        console.error("Receipt upload failed:", uploadReceiptErr);
-        throw new Error(uploadReceiptErr.message || "Failed to upload transaction receipt file.");
       }
 
       // Upload Profile/Cover pictures if page service
@@ -690,7 +708,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                     ) : (
                       <>
                         <p className="text-xs text-slate-300 leading-relaxed font-semibold">
-                          We deducted <strong className="text-white">₱{formatPrice(totalPrice)} PHP</strong> directly from your account wallet balance. Your boost has been automatically approved and is already set to **Processing**!
+                          We deducted <strong className="text-white">₱{formatPrice(totalPrice)} PHP</strong> directly from your account wallet balance. Your uploaded receipt is attached and your boost is queued for verified processing.
                         </p>
                         <div className="bg-[#121212] border border-slate-800/80 p-3.5 rounded-lg text-xs space-y-1 text-center">
                           <span className="text-[9px] text-slate-500 font-black uppercase tracking-widest block">Amplification Flow Status</span>
@@ -699,7 +717,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                           </span>
                         </div>
                         <p className="text-[9px] text-slate-450 leading-relaxed font-bold">
-                          No further actions or manual GCash receipt verification are required. Our system will deliver your complete boost package shortly!
+                          Keep your Tracking ID handy. You can monitor this wallet order from the chatbot or Track Order button while verification finishes.
                         </p>
                       </>
                     )}
@@ -1438,7 +1456,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                   <button 
                     type="button" 
                     onClick={handleWalletCheckout}
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || !receiptFile}
                     className="w-full bg-[#1877F2]/20 hover:bg-[#1877F2]/30 border border-[#1877F2]/50 disabled:opacity-50 text-[#1877F2] font-extrabold py-3.5 rounded-full transition-all duration-300 flex justify-center items-center gap-2 tracking-wider uppercase text-xs"
                   >
                     {isSubmitting ? <Loader2 className="animate-spin text-[#1877F2]" size={18} /> : `Pay with Wallet (₱${formatPrice(totalPrice)})`}
@@ -1447,7 +1465,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                 
                 <button 
                   type="submit" 
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || !receiptFile}
                   className="w-full bg-[#1877F2] hover:bg-[#4e8df5] disabled:bg-slate-700 text-white font-extrabold py-3.5 rounded-full transition-all duration-300 flex justify-center items-center gap-2 tracking-wider uppercase text-xs shadow-[0_0_15px_rgba(24,119,242,0.35)]"
                 >
                   {isSubmitting ? <Loader2 className="animate-spin text-black" size={18} /> : (user && profile && Number(profile.balance) >= totalPrice ? 'Pay via GCash Instead' : 'Place Order')}

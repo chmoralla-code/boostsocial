@@ -5,9 +5,19 @@ import { autoPlaceRixeyOrder } from "@/lib/rixeysmm";
 
 export async function POST(req: NextRequest) {
   try {
-    const { userId, serviceId, email, url, quantity, totalPrice, serviceTitle, smmServiceId } = await req.json();
+    const {
+      existingOrderId,
+      userId,
+      serviceId,
+      email,
+      url,
+      quantity,
+      totalPrice,
+      serviceTitle,
+      smmServiceId
+    } = await req.json();
 
-    if (!userId || !serviceId || !email || !url || !quantity || !totalPrice) {
+    if (!existingOrderId || !userId || !serviceId || !email || !url || !quantity || totalPrice === undefined) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
@@ -22,7 +32,34 @@ export async function POST(req: NextRequest) {
       auth: { persistSession: false }
     });
 
-    // 1. Fetch current profile
+    const { data: pendingOrder, error: pendingOrderError } = await supabase
+      .from("orders")
+      .select("id, customer_email, payment_method")
+      .eq("id", existingOrderId)
+      .single();
+
+    if (pendingOrderError || !pendingOrder) {
+      return NextResponse.json({ error: "Pending order was not found" }, { status: 404 });
+    }
+
+    if (String(pendingOrder.customer_email || "").trim().toLowerCase() !== String(email).trim().toLowerCase()) {
+      return NextResponse.json({ error: "Wallet order email does not match the pending order" }, { status: 403 });
+    }
+
+    const { data: receiptFiles, error: receiptListError } = await supabase.storage
+      .from("receipts")
+      .list("", { limit: 20, search: `${existingOrderId}_` });
+
+    if (receiptListError) throw receiptListError;
+
+    const hasReceipt = Array.isArray(receiptFiles) && receiptFiles.some((file) => file.name.startsWith(existingOrderId));
+    if (!hasReceipt) {
+      return NextResponse.json(
+        { error: "Upload a receipt screenshot before paying with wallet balance." },
+        { status: 400 }
+      );
+    }
+
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
       .select("balance")
@@ -32,13 +69,17 @@ export async function POST(req: NextRequest) {
     if (profileError) throw profileError;
 
     const currentBalance = Number(profile.balance || 0);
-    const cost = Math.max(Number(totalPrice), 5.00); // Enforce minimum cost of ₱5.00 on the server side
+    const parsedTotal = Number(totalPrice);
+    if (!Number.isFinite(parsedTotal) || parsedTotal <= 0) {
+      return NextResponse.json({ error: "Invalid wallet checkout amount" }, { status: 400 });
+    }
+
+    const cost = Math.max(parsedTotal, 5.00);
 
     if (currentBalance < cost) {
       return NextResponse.json({ error: "Insufficient wallet balance" }, { status: 400 });
     }
 
-    // 2. Deduct balance
     const newBalance = currentBalance - cost;
     const { error: updateProfileError } = await supabase
       .from("profiles")
@@ -46,6 +87,24 @@ export async function POST(req: NextRequest) {
       .eq("id", userId);
 
     if (updateProfileError) throw updateProfileError;
+
+    const { data: order, error: updateOrderError } = await supabase
+      .from("orders")
+      .update({
+        service_id: serviceId,
+        customer_email: String(email).trim(),
+        target_url: String(url).trim(),
+        amount: cost,
+        status: "Processing",
+        payment_method: "Wallet",
+        quantity,
+        smm_service_id: smmServiceId || null
+      })
+      .eq("id", existingOrderId)
+      .select("id")
+      .single();
+
+    if (updateOrderError) throw updateOrderError;
 
     const backupSupabaseUrl = process.env.BACKUP_SUPABASE_URL;
     const backupServiceRoleKey = process.env.BACKUP_SUPABASE_SERVICE_ROLE_KEY;
@@ -59,71 +118,40 @@ export async function POST(req: NextRequest) {
           .from("profiles")
           .update({ balance: newBalance })
           .eq("id", userId);
-      } catch (backupErr) {
-        console.error("Backup DB balance deduction failed:", backupErr);
-      }
-    }
 
-    // 3. Create the order with 'Processing' status directly since wallet payment auto-confirms
-    const { data: order, error: insertError } = await supabase
-      .from('orders')
-      .insert([
-        {
-          service_id: serviceId,
-          customer_email: email.trim(),
-          target_url: url.trim(),
-          amount: cost,
-          status: 'Processing',
-          payment_method: 'Wallet',
-          quantity: quantity,
-          smm_service_id: smmServiceId || null
-        }
-      ])
-      .select('id')
-      .single();
-
-    if (insertError) throw insertError;
-
-    if (backupSupabase) {
-      try {
         await backupSupabase
-          .from('orders')
-          .insert([
-            {
-              id: order.id, // Keep the same UUID!
-              service_id: serviceId,
-              customer_email: email.trim(),
-              target_url: url.trim(),
-              amount: cost,
-              status: 'Processing',
-              payment_method: 'Wallet',
-              quantity: quantity,
-              smm_service_id: smmServiceId || null
-            }
-          ]);
+          .from("orders")
+          .upsert({
+            id: order.id,
+            service_id: serviceId,
+            customer_email: String(email).trim(),
+            target_url: String(url).trim(),
+            amount: cost,
+            status: "Processing",
+            payment_method: "Wallet",
+            quantity,
+            smm_service_id: smmServiceId || null
+          });
       } catch (backupErr) {
-        console.error("Backup DB order insert failed:", backupErr);
+        console.error("Backup DB wallet checkout sync failed:", backupErr);
       }
     }
 
-    // 4. Trigger automated SMM provider placement instantly in background
-    autoPlaceRixeyOrder(order.id, serviceId, url.trim(), quantity).catch((err) => {
-      console.error("Async auto-placement on RixeySMM from wallet checkout failed:", err);
+    autoPlaceRixeyOrder(order.id, serviceId, String(url).trim(), quantity).catch((err) => {
+      console.error("Async auto-placement on RixeySMM from verified wallet checkout failed:", err);
     });
 
-    // 5. Fire Telegram notification (non-blocking)
     sendOrderNotification({
       trackingId: `BS-${order.id.slice(0, 8).toUpperCase()}`,
       service: serviceTitle || serviceId,
-      email: email.trim(),
+      email: String(email).trim(),
       quantity,
       amount: cost,
-      paymentMethod: "💳 Wallet",
-      details: url.trim(),
+      paymentMethod: "Wallet",
+      details: String(url).trim(),
     });
 
     return NextResponse.json({ success: true, orderId: order.id, newBalance });
-
   } catch (err: any) {
     console.error("Wallet checkout endpoint failed:", err);
     return NextResponse.json({ error: err.message || err.toString() }, { status: 500 });

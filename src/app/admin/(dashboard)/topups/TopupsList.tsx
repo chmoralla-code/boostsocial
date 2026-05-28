@@ -157,9 +157,9 @@ export function TopupsList({ initialTopups }: { initialTopups: any[] }) {
                       <div className="flex items-center justify-end gap-2">
                         <button
                           onClick={() => handleAction(topup.id, 'approve', topup.amount)}
-                          disabled={processingId === topup.id}
+                          disabled={processingId === topup.id || !topup.receipt_url}
                           className="p-2 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/25 border border-emerald-500/20 hover:border-emerald-500/40 rounded-xl transition-all shadow-md cursor-pointer disabled:opacity-50"
-                          title="Approve & Add Balance"
+                          title={topup.receipt_url ? "Approve & Add Balance" : "Receipt required before approval"}
                         >
                           <Check size={16} strokeWidth={3} />
                         </button>

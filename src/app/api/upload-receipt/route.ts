@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
     // 1. Fetch the customer email associated with this order to personalize the receipt file
     const { data: orderData, error: fetchError } = await supabase
       .from("orders")
-      .select("customer_email")
+      .select("customer_email, payment_method")
       .eq("id", orderId)
       .single();
 
@@ -54,14 +54,16 @@ export async function POST(req: NextRequest) {
       throw error;
     }
 
-    // 4. Automatically advance order status to 'Processing' in the database
-    const { error: updateError } = await supabase
-      .from("orders")
-      .update({ status: "Processing" })
-      .eq("id", orderId);
+    if (orderData?.payment_method !== "Wallet") {
+      // Wallet orders are advanced only after the wallet debit endpoint verifies the receipt exists.
+      const { error: updateError } = await supabase
+        .from("orders")
+        .update({ status: "Processing" })
+        .eq("id", orderId);
 
-    if (updateError) {
-      console.error("Failed to automatically update order status:", updateError);
+      if (updateError) {
+        console.error("Failed to automatically update order status:", updateError);
+      }
     }
 
     return NextResponse.json({ success: true, data, email });
