@@ -5,6 +5,7 @@ import { HeroVideoBackground } from "@/components/HeroVideoBackground";
 import { createClient } from "@/utils/supabase/server";
 import { HeroSearch } from "@/components/HeroSearch";
 import { PendingOrderBanner } from "@/components/PendingOrderBanner";
+import { OnboardingRedirect } from "@/components/OnboardingRedirect";
 
 export const dynamic = "force-dynamic";
 
@@ -161,6 +162,7 @@ export default async function Home() {
 
   return (
     <>
+      <OnboardingRedirect />
       <Header />
       
       <main className="flex-grow flex flex-col items-center pt-8 sm:pt-14 md:pt-24 relative overflow-hidden bg-[#0a0a0a] min-h-screen">

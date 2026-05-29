@@ -429,6 +429,21 @@ export default function QuickStartPage() {
                 {authTab === "register" ? "Create Account & Proceed" : "Sign In & Proceed"}
               </button>
             </form>
+
+            <div className="mt-5 text-center select-none">
+              <button
+                type="button"
+                onClick={() => {
+                  if (typeof window !== "undefined") {
+                    localStorage.setItem("onboarded", "true");
+                  }
+                  router.push("/");
+                }}
+                className="text-[10px] font-black text-slate-500 hover:text-[#1DB954] uppercase tracking-widest transition-colors cursor-pointer"
+              >
+                Skip & Proceed to Main Website →
+              </button>
+            </div>
           </div>
         )}
 
@@ -732,7 +747,12 @@ export default function QuickStartPage() {
             </div>
 
             <button
-              onClick={() => router.push(`/?track=${orderId}`)}
+              onClick={() => {
+                if (typeof window !== "undefined") {
+                  localStorage.setItem("onboarded", "true");
+                }
+                router.push(`/?track=${orderId}`);
+              }}
               className="w-full bg-[#1DB954] hover:bg-[#1ed760] text-black font-black py-3.5 rounded-full transition-all duration-300 uppercase text-xs tracking-wider cursor-pointer active:scale-95"
             >
               Return to Website homepage
