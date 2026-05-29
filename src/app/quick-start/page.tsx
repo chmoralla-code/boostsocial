@@ -237,7 +237,7 @@ export default function QuickStartPage() {
     };
   }, [step, selectedPlatform]);
 
-  // Auth Handler (Registration strictly for new users)
+  // Auth Handler (Registration strictly for new users - utilizing dual-db auto-confirm signup API)
   const handleAuthSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) return;
@@ -245,14 +245,28 @@ export default function QuickStartPage() {
     setError("");
 
     try {
-      const { data, error: signUpError } = await supabase.auth.signUp({
+      // 1. Create the account via auto-confirm Admin signup API endpoint
+      const signupRes = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim(), password })
+      });
+
+      const signupData = await signupRes.json();
+      if (!signupRes.ok) {
+        throw new Error(signupData.error || "Registration failed.");
+      }
+
+      // 2. Perform direct sign in immediately to capture the active session in client
+      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password
       });
-      if (signUpError) throw signUpError;
-      if (data.user) {
-        setUser(data.user);
-        alert("Account created successfully! Check your email to verify if needed, or proceed to the next step.");
+
+      if (signInError) throw signInError;
+
+      if (signInData.user) {
+        setUser(signInData.user);
         setStep(2);
       }
     } catch (err: unknown) {
