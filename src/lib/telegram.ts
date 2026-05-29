@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 
 const CONFIG_BUCKET = "receipts";
 const CONFIG_PATH = "admin-config/telegram.png";
+const TOPUP_CONFIG_PATH = "admin-config/telegram-topup.png";
 
 const getSupabase = () =>
   createClient(
@@ -16,6 +17,21 @@ async function getTelegramConfig(): Promise<{ bot_token: string; chat_id: string
     const { data, error } = await supabase.storage
       .from(CONFIG_BUCKET)
       .download(CONFIG_PATH);
+
+    if (error || !data) return null;
+    const text = await data.text();
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+}
+
+export async function getTopupTelegramConfig(): Promise<{ bot_token: string; chat_id: string } | null> {
+  try {
+    const supabase = getSupabase();
+    const { data, error } = await supabase.storage
+      .from(CONFIG_BUCKET)
+      .download(TOPUP_CONFIG_PATH);
 
     if (error || !data) return null;
     const text = await data.text();
@@ -118,7 +134,7 @@ export async function sendTopupNotification(topup: {
   receiptUrl: string;
 }) {
   try {
-    const config = await getTelegramConfig();
+    const config = await getTopupTelegramConfig();
     if (!config?.bot_token || !config?.chat_id) return;
 
     const phTime = new Date().toLocaleString("en-PH", { timeZone: "Asia/Manila" });

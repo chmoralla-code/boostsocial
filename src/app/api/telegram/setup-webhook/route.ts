@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
 const CONFIG_BUCKET = "receipts";
-const CONFIG_PATH = "admin-config/telegram.png";
+const TOPUP_CONFIG_PATH = "admin-config/telegram-topup.png";
 
 export async function POST(req: NextRequest) {
   try {
@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
 
     const { data, error } = await supabase.storage
       .from(CONFIG_BUCKET)
-      .download(CONFIG_PATH);
+      .download(TOPUP_CONFIG_PATH);
 
     if (error || !data) {
       return NextResponse.json({ error: "Telegram bot not configured. Set bot token and chat ID in admin settings first." }, { status: 400 });
@@ -69,7 +69,7 @@ export async function GET() {
 
     const { data, error } = await supabase.storage
       .from(CONFIG_BUCKET)
-      .download(CONFIG_PATH);
+      .download(TOPUP_CONFIG_PATH);
 
     if (error || !data) {
       return NextResponse.json({ error: "Telegram not configured" }, { status: 400 });
