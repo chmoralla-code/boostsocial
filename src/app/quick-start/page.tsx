@@ -415,46 +415,47 @@ export default function QuickStartPage() {
             }
           `}} />
 
-          <h1 className="px-2 text-2xl sm:text-4xl md:text-5xl font-black text-white uppercase tracking-tight leading-tight select-none">
-            {"WELCOME TO ".split("").map((letter, idx) => (
-              <span
-                key={idx}
-                className="inline-block animate-fade-in-up"
-                style={{
-                  animationDelay: `${idx * 20}ms`,
-                  animationFillMode: "both"
-                }}
-              >
-                {letter === " " ? "\u00A0" : letter}
+          {/* Helper to render word-wrapped animated text */}
+          {(() => {
+            const renderWord = (word: string, startIdx: number, isFloat = false) => (
+              <span className="inline-block whitespace-nowrap">
+                {word.split("").map((letter, i) => {
+                  const idx = startIdx + i;
+                  return (
+                    <span
+                      key={i}
+                      className={isFloat ? "inline-block animate-letter-float" : "inline-block animate-fade-in-up"}
+                      style={{
+                        animationDelay: isFloat ? `${idx * 120}ms` : `${idx * 20}ms`,
+                        animationFillMode: isFloat ? undefined : "both"
+                      }}
+                    >
+                      {letter}
+                    </span>
+                  );
+                })}
               </span>
-            ))}
-            <span className="block sm:inline text-[#1DB954] animate-neon">
-              {"PINOY MADE ".split("").map((letter, idx) => (
-                <span
-                  key={idx}
-                  className="inline-block animate-letter-float"
-                  style={{
-                    animationDelay: `${(idx + 11) * 120}ms`
-                  }}
-                >
-                  {letter === " " ? "\u00A0" : letter}
+            );
+
+            return (
+              <h1 className="px-2 text-2xl sm:text-4xl md:text-5xl font-black text-white uppercase tracking-tight leading-tight select-none">
+                {renderWord("WELCOME", 0)}
+                {" "}
+                {renderWord("TO", 8)}
+                {" "}
+                <span className="block sm:inline text-[#1DB954] animate-neon">
+                  {renderWord("PINOY", 11, true)}
+                  {" "}
+                  {renderWord("MADE", 17, true)}
                 </span>
-              ))}
-            </span>
-            <br className="sm:hidden" />
-            {"BOOSTING SERVICES.".split("").map((letter, idx) => (
-              <span
-                key={idx}
-                className="inline-block animate-fade-in-up"
-                style={{
-                  animationDelay: `${(idx + 22) * 20}ms`,
-                  animationFillMode: "both"
-                }}
-              >
-                {letter === " " ? "\u00A0" : letter}
-              </span>
-            ))}
-          </h1>
+                <br className="sm:hidden" />
+                {" "}
+                {renderWord("BOOSTING", 22)}
+                {" "}
+                {renderWord("SERVICES.", 31)}
+              </h1>
+            );
+          })()}
           <p className="text-slate-400 text-xs font-semibold max-w-md mx-auto leading-relaxed">
             Fast, secure direct reseller-rate boosting packages. Set up your campaign in 4 easy steps.
           </p>
