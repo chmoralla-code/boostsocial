@@ -35,6 +35,84 @@ export function PendingOrderBanner() {
   const [trackingId, setTrackingId] = useState("");
   const [isDismissed, setIsDismissed] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [statusToast, setStatusToast] = useState<{ id: string; status: string; visible: boolean } | null>(null);
+
+  // Web Audio API synthesized chimes for campaign status updates
+  const playChime = (statusStr: string) => {
+    if (typeof window === "undefined") return;
+    try {
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContextClass) return;
+      const ctx = new AudioContextClass();
+      
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      
+      if (statusStr === "Completed") {
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+        gain.gain.setValueAtTime(0, ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.2, ctx.currentTime + 0.05);
+        gain.gain.linearRampToValueAtTime(0.01, ctx.currentTime + 0.15);
+        
+        const osc2 = ctx.createOscillator();
+        const gain2 = ctx.createGain();
+        osc2.type = "sine";
+        osc2.frequency.setValueAtTime(880.00, ctx.currentTime + 0.1);
+        osc2.connect(gain2);
+        gain2.connect(ctx.destination);
+        gain2.gain.setValueAtTime(0, ctx.currentTime + 0.1);
+        gain2.gain.linearRampToValueAtTime(0.25, ctx.currentTime + 0.15);
+        gain2.gain.linearRampToValueAtTime(0.001, ctx.currentTime + 0.45);
+        
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 0.2);
+        osc2.start(ctx.currentTime + 0.1);
+        osc2.stop(ctx.currentTime + 0.5);
+      } else if (statusStr === "Cancelled") {
+        osc.type = "triangle";
+        osc.frequency.setValueAtTime(220.00, ctx.currentTime);
+        osc.frequency.linearRampToValueAtTime(146.83, ctx.currentTime + 0.3);
+        gain.gain.setValueAtTime(0, ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.3, ctx.currentTime + 0.05);
+        gain.gain.linearRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+        
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 0.45);
+      } else {
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(440.00, ctx.currentTime);
+        osc.frequency.setValueAtTime(659.25, ctx.currentTime + 0.08);
+        gain.gain.setValueAtTime(0, ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.2, ctx.currentTime + 0.03);
+        gain.gain.linearRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+        
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 0.4);
+      }
+    } catch (e) {
+      console.warn("Audio Context failed:", e);
+    }
+  };
+
+  const triggerBrowserNotification = (idStr: string, statusStr: string) => {
+    if (typeof window === "undefined" || !("Notification" in window)) return;
+    const trackingLabel = `BS-${idStr.slice(0, 8).toUpperCase()}`;
+    const title = `⚡ Boost Status: ${statusStr}!`;
+    const body = `Your campaign order ${trackingLabel} is now marked as ${statusStr}.`;
+
+    if (Notification.permission === "granted") {
+      new Notification(title, { body, icon: "/icon.svg" });
+    } else if (Notification.permission !== "denied") {
+      Notification.requestPermission().then((permission) => {
+        if (permission === "granted") {
+          new Notification(title, { body, icon: "/icon.svg" });
+        }
+      });
+    }
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -89,6 +167,59 @@ export function PendingOrderBanner() {
     };
   }, [supabase]);
 
+  // Subscribe to real-time status updates for the homepage banner order
+  useEffect(() => {
+    if (!order?.id) return;
+
+    // Request desktop notification permission proactively
+    if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission().catch(() => {});
+    }
+
+    const channel = supabase
+      .channel(`order-banner-status-${order.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "orders",
+          filter: `id=eq.${order.id}`,
+        },
+        (payload) => {
+          console.log("Real-time order banner update received:", payload.new);
+          
+          const newStatus = payload.new.status || "Pending";
+          const prevStatus = order.status || "Pending";
+
+          if (newStatus !== prevStatus) {
+            playChime(newStatus);
+            triggerBrowserNotification(order.id, newStatus);
+            setStatusToast({ id: order.id, status: newStatus, visible: true });
+            
+            // Dismiss toast automatically after 6 seconds
+            setTimeout(() => {
+              setStatusToast(prev => prev && prev.id === order.id ? { ...prev, visible: false } : prev);
+            }, 6000);
+          }
+
+          setOrder((prevOrder: any) => {
+            if (!prevOrder) return null;
+            return {
+              ...prevOrder,
+              ...payload.new,
+              services: prevOrder.services // retain joined services relation metadata
+            };
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [order?.id, order?.status, supabase]);
+
   if (!order || isDismissed) return null;
 
   const status = order.status || "Pending";
@@ -105,7 +236,37 @@ export function PendingOrderBanner() {
   };
 
   return (
-    <section className="relative z-10 w-full max-w-7xl px-4 sm:px-6 md:px-8 -mt-4 mb-10">
+    <>
+      {/* Real-time Order Status Float Toast */}
+      {statusToast && statusToast.visible && (
+        <div className="fixed top-24 right-6 z-[99999] max-w-sm w-full bg-[#161616]/92 border border-slate-800/90 p-5 rounded-2xl shadow-[0_12px_45px_rgba(0,0,0,0.5)] backdrop-blur-xl animate-in slide-in-from-right-5 duration-300 flex items-start gap-4 select-none">
+          <div className={`p-2.5 rounded-xl flex-shrink-0 flex items-center justify-center border text-base ${
+            statusToast.status === 'Pending' ? 'bg-[#ff9800]/10 border-[#ff9800]/25 text-[#ff9800]' :
+            statusToast.status === 'Processing' ? 'bg-blue-500/10 border-blue-500/25 text-blue-400' :
+            statusToast.status === 'Completed' ? 'bg-[#1DB954]/10 border-[#1DB954]/25 text-[#1DB954]' :
+            'bg-red-500/10 border-red-500/25 text-red-400'
+          }`}>
+            {statusToast.status === 'Pending' ? '⏳' :
+             statusToast.status === 'Processing' ? '⚡' :
+             statusToast.status === 'Completed' ? '🎉' : '❌'}
+          </div>
+          <div className="space-y-1 text-left flex-grow">
+            <span className="text-[10px] font-black uppercase tracking-widest text-[#1DB954] block">Campaign Status Update</span>
+            <h4 className="text-xs font-black text-white">Order {statusToast.status}!</h4>
+            <p className="text-[10px] text-slate-400 font-semibold leading-relaxed">
+              Your boost order <strong className="font-mono text-[#1DB954]">BS-{statusToast.id.slice(0, 8).toUpperCase()}</strong> is now marked as <strong className="text-white">{statusToast.status}</strong>.
+            </p>
+          </div>
+          <button 
+            onClick={() => setStatusToast(prev => prev ? { ...prev, visible: false } : null)}
+            className="text-slate-500 hover:text-white transition-colors text-xs font-bold font-sans cursor-pointer p-1 hover:bg-[#282828] rounded-md"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
+      <section className="relative z-10 w-full max-w-7xl px-4 sm:px-6 md:px-8 -mt-4 mb-10">
       <div className="overflow-hidden rounded-2xl border border-[#1DB954]/20 bg-[#101010]/92 shadow-2xl shadow-emerald-500/5 backdrop-blur-xl">
         <div className="flex flex-col gap-4 p-4 sm:p-5 md:flex-row md:items-center md:justify-between">
           <div className="flex min-w-0 gap-3 text-left">
@@ -167,5 +328,6 @@ export function PendingOrderBanner() {
         </div>
       </div>
     </section>
+    </>
   );
 }
