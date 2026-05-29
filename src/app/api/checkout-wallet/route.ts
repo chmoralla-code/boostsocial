@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
       smmServiceId
     } = await req.json();
 
-    if (!existingOrderId || !userId || !serviceId || !email || !url || !quantity || totalPrice === undefined) {
+    if (!userId || !serviceId || !email || !url || !quantity || totalPrice === undefined) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
@@ -32,21 +32,21 @@ export async function POST(req: NextRequest) {
       auth: { persistSession: false }
     });
 
-    const { data: pendingOrder, error: pendingOrderError } = await supabase
-      .from("orders")
-      .select("id, customer_email, payment_method")
-      .eq("id", existingOrderId)
-      .single();
+    if (existingOrderId) {
+      const { data: pendingOrder, error: pendingOrderError } = await supabase
+        .from("orders")
+        .select("id, customer_email, payment_method")
+        .eq("id", existingOrderId)
+        .single();
 
-    if (pendingOrderError || !pendingOrder) {
-      return NextResponse.json({ error: "Pending order was not found" }, { status: 404 });
+      if (pendingOrderError || !pendingOrder) {
+        return NextResponse.json({ error: "Pending order was not found" }, { status: 404 });
+      }
+
+      if (String(pendingOrder.customer_email || "").trim().toLowerCase() !== String(email).trim().toLowerCase()) {
+        return NextResponse.json({ error: "Wallet order email does not match the pending order" }, { status: 403 });
+      }
     }
-
-    if (String(pendingOrder.customer_email || "").trim().toLowerCase() !== String(email).trim().toLowerCase()) {
-      return NextResponse.json({ error: "Wallet order email does not match the pending order" }, { status: 403 });
-    }
-
-
 
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
@@ -76,23 +76,47 @@ export async function POST(req: NextRequest) {
 
     if (updateProfileError) throw updateProfileError;
 
-    const { data: order, error: updateOrderError } = await supabase
-      .from("orders")
-      .update({
-        service_id: serviceId,
-        customer_email: String(email).trim(),
-        target_url: String(url).trim(),
-        amount: cost,
-        status: "Processing",
-        payment_method: "Wallet",
-        quantity,
-        smm_service_id: smmServiceId || null
-      })
-      .eq("id", existingOrderId)
-      .select("id")
-      .single();
+    let order: any = null;
+    if (existingOrderId) {
+      const { data: updatedOrder, error: updateOrderError } = await supabase
+        .from("orders")
+        .update({
+          service_id: serviceId,
+          customer_email: String(email).trim(),
+          target_url: String(url).trim(),
+          amount: cost,
+          status: "Processing",
+          payment_method: "Wallet",
+          quantity,
+          smm_service_id: smmServiceId || null
+        })
+        .eq("id", existingOrderId)
+        .select("id")
+        .single();
 
-    if (updateOrderError) throw updateOrderError;
+      if (updateOrderError) throw updateOrderError;
+      order = updatedOrder;
+    } else {
+      const { data: insertedOrder, error: insertOrderError } = await supabase
+        .from("orders")
+        .insert([
+          {
+            service_id: serviceId,
+            customer_email: String(email).trim(),
+            target_url: String(url).trim(),
+            amount: cost,
+            status: "Processing",
+            payment_method: "Wallet",
+            quantity,
+            smm_service_id: smmServiceId || null
+          }
+        ])
+        .select("id")
+        .single();
+
+      if (insertOrderError) throw insertOrderError;
+      order = insertedOrder;
+    }
 
     const backupSupabaseUrl = process.env.BACKUP_SUPABASE_URL;
     const backupServiceRoleKey = process.env.BACKUP_SUPABASE_SERVICE_ROLE_KEY;

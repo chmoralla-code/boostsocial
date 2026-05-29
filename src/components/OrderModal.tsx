@@ -488,30 +488,10 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
         ? String(parsedDetails.smm_service_id)
         : (isReactionService ? String(getFBReactionsSMMDetails(selectedReactions).smmId) : null);
 
-      const { data: pendingOrder, error: pendingOrderError } = await supabase
-        .from('orders')
-        .insert([
-          {
-            service_id: serviceId,
-            customer_email: user.email,
-            target_url: tempUrl,
-            amount: totalPrice,
-            status: 'Pending',
-            payment_method: 'Wallet',
-            quantity: finalQuantity,
-            smm_service_id: resolvedSmmServiceId
-          }
-        ])
-        .select('id')
-        .single();
-
-      if (pendingOrderError) throw pendingOrderError;
-
       const res = await fetch("/api/checkout-wallet", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          existingOrderId: pendingOrder.id,
           userId: user.id,
           serviceId,
           serviceTitle,
