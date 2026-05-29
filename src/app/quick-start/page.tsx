@@ -389,8 +389,71 @@ export default function QuickStartPage() {
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#1DB954]/10 text-[#1DB954] border border-[#1DB954]/25 text-[10px] font-black uppercase tracking-widest animate-pulse">
             ✨ Quick Start Guide
           </span>
-          <h1 className="px-2 text-2xl sm:text-4xl md:text-5xl font-black text-white uppercase tracking-tight leading-tight">
-            Launch Your <span className="block sm:inline text-[#1DB954]">Boost Campaign</span>
+          
+          <style dangerouslySetInnerHTML={{__html: `
+            @keyframes neonPulse {
+              0%, 100% {
+                text-shadow: 0 0 12px rgba(29, 185, 84, 0.35), 0 0 25px rgba(29, 185, 84, 0.15);
+              }
+              50% {
+                text-shadow: 0 0 25px rgba(29, 185, 84, 0.75), 0 0 50px rgba(29, 185, 84, 0.35);
+              }
+            }
+            @keyframes letterFloat {
+              0%, 100% {
+                transform: translateY(0) rotate(0deg);
+              }
+              50% {
+                transform: translateY(-6px) rotate(2deg);
+              }
+            }
+            .animate-neon {
+              animation: neonPulse 3s infinite ease-in-out;
+            }
+            .animate-letter-float {
+              animation: letterFloat 3s infinite ease-in-out;
+            }
+          `}} />
+
+          <h1 className="px-2 text-2xl sm:text-4xl md:text-5xl font-black text-white uppercase tracking-tight leading-tight select-none">
+            {"WELCOME TO ".split("").map((letter, idx) => (
+              <span
+                key={idx}
+                className="inline-block animate-fade-in-up"
+                style={{
+                  animationDelay: `${idx * 20}ms`,
+                  animationFillMode: "both"
+                }}
+              >
+                {letter === " " ? "\u00A0" : letter}
+              </span>
+            ))}
+            <span className="block sm:inline text-[#1DB954] animate-neon">
+              {"PINOY MADE ".split("").map((letter, idx) => (
+                <span
+                  key={idx}
+                  className="inline-block animate-letter-float"
+                  style={{
+                    animationDelay: `${(idx + 11) * 120}ms`
+                  }}
+                >
+                  {letter === " " ? "\u00A0" : letter}
+                </span>
+              ))}
+            </span>
+            <br className="sm:hidden" />
+            {"BOOSTING SERVICES.".split("").map((letter, idx) => (
+              <span
+                key={idx}
+                className="inline-block animate-fade-in-up"
+                style={{
+                  animationDelay: `${(idx + 22) * 20}ms`,
+                  animationFillMode: "both"
+                }}
+              >
+                {letter === " " ? "\u00A0" : letter}
+              </span>
+            ))}
           </h1>
           <p className="text-slate-400 text-xs font-semibold max-w-md mx-auto leading-relaxed">
             Fast, secure direct reseller-rate boosting packages. Set up your campaign in 4 easy steps.
