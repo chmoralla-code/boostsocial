@@ -464,11 +464,6 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
     e.preventDefault();
     if (!serviceId || !user) return;
 
-    if (!receiptFile) {
-      setError("Please attach a transaction receipt screenshot first to verify this wallet payment transaction.");
-      return;
-    }
-
     const finalQuantity = Math.max(quantity, minQty);
 
     if (Number(profile?.balance || 0) < totalPrice) {
@@ -511,21 +506,6 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
         .single();
 
       if (pendingOrderError) throw pendingOrderError;
-
-      const compressedReceipt = await compressImage(receiptFile);
-      const receiptFormData = new FormData();
-      receiptFormData.append("file", compressedReceipt);
-      receiptFormData.append("orderId", pendingOrder.id);
-
-      const uploadRes = await fetch("/api/upload-receipt", {
-        method: "POST",
-        body: receiptFormData
-      });
-
-      if (!uploadRes.ok) {
-        const errData = await uploadRes.json();
-        throw new Error(errData.error || "Failed to upload transaction receipt for this wallet order.");
-      }
 
       const res = await fetch("/api/checkout-wallet", {
         method: "POST",
@@ -1382,17 +1362,18 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                   </p>
                 </div>
 
-                {/* Mandated GCash Payment Receipt Upload */}
+                {/* GCash Payment Receipt Upload */}
                 <div className="space-y-2 bg-[#121212] border border-slate-800 p-4 rounded-xl mt-3 text-left">
                   <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest flex justify-between items-center">
-                    <span>GCash Payment Receipt Screenshot <span className="text-red-500">*</span></span>
-                    <span className="text-[8px] font-black uppercase text-red-500">Strictly Required</span>
+                    <span>GCash Payment Receipt Screenshot {!(user && profile && Number(profile.balance) >= totalPrice) && <span className="text-red-500">*</span>}</span>
+                    <span className="text-[8px] font-black uppercase text-red-500">
+                      {user && profile && Number(profile.balance) >= totalPrice ? "Optional for Wallet" : "Strictly Required"}
+                    </span>
                   </label>
                   <div className="relative">
                     <input 
                       type="file" 
                       accept="image/*"
-                      required
                       onChange={(e) => setReceiptFile(e.target.files?.[0] || null)}
                       className="hidden"
                       id="checkout-receipt-upload"
@@ -1412,13 +1393,13 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                 </div>
 
                 {/* GCash Quick QR for all manual checkouts to ensure the GCash payment flow is easily accessible */}
-                {true && (
+                {!(user && profile && Number(profile.balance) >= totalPrice) && (
                   <div className="bg-[#121212] border border-slate-800/80 p-4 rounded-xl space-y-3 mt-3 animate-in fade-in duration-200">
                     <div className="flex justify-between items-center border-b border-slate-850 pb-2">
                       <span className="text-[10px] font-black uppercase tracking-widest text-[#1877F2] flex items-center gap-1.5">
                         📱 Instant GCash Checkout QR
                       </span>
-                      <span className="text-[9px] text-slate-500 font-bold tracking-wider">Account: HE***Y S.</span>
+                      <span className="text-[9px] text-slate-550 font-bold tracking-wider">Account: HE***Y S.</span>
                     </div>
                     <p className="text-[10px] text-slate-300 leading-relaxed font-semibold text-left">
                       {isSoftwareService ? (
@@ -1456,7 +1437,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                   <button 
                     type="button" 
                     onClick={handleWalletCheckout}
-                    disabled={isSubmitting || !receiptFile}
+                    disabled={isSubmitting}
                     className="w-full bg-[#1877F2]/20 hover:bg-[#1877F2]/30 border border-[#1877F2]/50 disabled:opacity-50 text-[#1877F2] font-extrabold py-3.5 rounded-full transition-all duration-300 flex justify-center items-center gap-2 tracking-wider uppercase text-xs"
                   >
                     {isSubmitting ? <Loader2 className="animate-spin text-[#1877F2]" size={18} /> : `Pay with Wallet (₱${formatPrice(totalPrice)})`}
@@ -1465,7 +1446,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                 
                 <button 
                   type="submit" 
-                  disabled={isSubmitting || !receiptFile}
+                  disabled={isSubmitting}
                   className="w-full bg-[#1877F2] hover:bg-[#4e8df5] disabled:bg-slate-700 text-white font-extrabold py-3.5 rounded-full transition-all duration-300 flex justify-center items-center gap-2 tracking-wider uppercase text-xs shadow-[0_0_15px_rgba(24,119,242,0.35)]"
                 >
                   {isSubmitting ? <Loader2 className="animate-spin text-black" size={18} /> : (user && profile && Number(profile.balance) >= totalPrice ? 'Pay via GCash Instead' : 'Place Order')}

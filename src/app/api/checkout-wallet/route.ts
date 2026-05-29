@@ -46,19 +46,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Wallet order email does not match the pending order" }, { status: 403 });
     }
 
-    const { data: receiptFiles, error: receiptListError } = await supabase.storage
-      .from("receipts")
-      .list("", { limit: 20, search: `${existingOrderId}_` });
 
-    if (receiptListError) throw receiptListError;
-
-    const hasReceipt = Array.isArray(receiptFiles) && receiptFiles.some((file) => file.name.startsWith(existingOrderId));
-    if (!hasReceipt) {
-      return NextResponse.json(
-        { error: "Upload a receipt screenshot before paying with wallet balance." },
-        { status: 400 }
-      );
-    }
 
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
