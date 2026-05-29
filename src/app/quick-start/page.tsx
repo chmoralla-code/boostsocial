@@ -833,6 +833,23 @@ export default function QuickStartPage() {
                     />
                   </div>
                   <p className="text-[9px] text-slate-500 font-bold mt-1.5">Account Curation Name: HE***Y S.</p>
+                  
+                  <div className="mt-2 flex items-center justify-center gap-2">
+                    <div className="bg-[#121212] border border-slate-800 rounded-md px-3 py-1 flex items-center justify-between min-w-[160px]">
+                      <span className="text-[10px] text-slate-300 font-mono tracking-wider">09505339963</span>
+                      <button 
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          navigator.clipboard.writeText('09505339963');
+                          alert('GCash number copied to clipboard!');
+                        }}
+                        className="text-[9px] text-[#1DB954] hover:text-white font-black uppercase ml-3 bg-transparent p-0 transition-colors"
+                      >
+                        Copy
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
 

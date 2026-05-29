@@ -777,6 +777,34 @@ export default function TrackPage() {
                     If you did not upload your GCash payment receipt screenshot at checkout, you can upload it here to link it directly to your order and initiate processing immediately!
                   </p>
 
+                  <div className="text-center mb-6">
+                    <div className="bg-white p-1 rounded-xl inline-block shadow-md max-w-[110px] mx-auto overflow-hidden border border-slate-700/20">
+                      <img 
+                        src="/gcash-qr.png" 
+                        alt="GCash QR Code" 
+                        className="w-full h-auto rounded-lg object-contain mx-auto"
+                      />
+                    </div>
+                    <p className="text-[9px] text-slate-500 font-bold mt-1.5">Account Curation Name: HE***Y S.</p>
+                    
+                    <div className="mt-2 flex items-center justify-center gap-2">
+                      <div className="bg-[#121212] border border-slate-800 rounded-md px-3 py-1 flex items-center justify-between min-w-[160px]">
+                        <span className="text-[10px] text-slate-300 font-mono tracking-wider">09505339963</span>
+                        <button 
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            navigator.clipboard.writeText('09505339963');
+                            alert('GCash number copied to clipboard!');
+                          }}
+                          className="text-[9px] text-[#1DB954] hover:text-white font-black uppercase ml-3 bg-transparent p-0 transition-colors"
+                        >
+                          Copy
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
                   {uploadSuccess ? (
                     <div className="flex flex-col items-center justify-center py-6 bg-[#121212]/50 border border-slate-850 p-6 rounded-2xl gap-2 text-center">
                       <div className="text-[#1877F2] animate-bounce">
