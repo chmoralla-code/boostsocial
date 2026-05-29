@@ -37,6 +37,73 @@ function matchesPlatformName(service: SmmService, platformId: string) {
   return combined.includes(platformId);
 }
 
+function getPlatformCandidates(smmCatalog: SmmService[], platform: string): SmmService[] {
+  const platformServices = smmCatalog.filter(s => matchesPlatformName(s, platform));
+
+  if (platformServices.length === 0) return [];
+
+  const findCheapestMatching = (keywords: string[], excludeKeywords: string[] = []) => {
+    const matches = platformServices.filter(s => {
+      const nameLower = (s.name || "").toLowerCase();
+      const matchesKeywords = keywords.some(kw => nameLower.includes(kw));
+      const matchesExclude = excludeKeywords.some(ex => nameLower.includes(ex));
+      return matchesKeywords && !matchesExclude;
+    });
+    if (matches.length === 0) return null;
+    matches.sort((a, b) => a.startingPrice - b.startingPrice);
+    return matches[0];
+  };
+
+  let follower = null;
+  let like = null;
+  let view = null;
+
+  if (platform === "facebook") {
+    follower = findCheapestMatching(["follower", "profile", "page follower", "classic page"]);
+    like = findCheapestMatching(["like", "reaction", "react", "photo like", "post like", "love", "haha", "wow", "sad", "angry"], ["follower", "view", "share"]);
+    view = findCheapestMatching(["view", "video", "play", "reach"], ["follower", "like", "reaction"]);
+  } else if (platform === "instagram") {
+    follower = findCheapestMatching(["follower"]);
+    like = findCheapestMatching(["like", "heart"], ["follower", "view", "comment"]);
+    view = findCheapestMatching(["view", "play", "reel", "video", "impression"], ["follower", "like"]);
+  } else if (platform === "tiktok") {
+    follower = findCheapestMatching(["follower"]);
+    like = findCheapestMatching(["like", "heart"], ["follower", "view", "comment"]);
+    view = findCheapestMatching(["view", "play", "video", "share"], ["follower", "like"]);
+  } else if (platform === "youtube") {
+    follower = findCheapestMatching(["subscriber", "subscribers", "sub"]);
+    like = findCheapestMatching(["like"], ["subscriber", "view", "comment"]);
+    view = findCheapestMatching(["view", "watch", "play"], ["subscriber", "like"]);
+  }
+
+  // Fallbacks if not found
+  if (!follower) follower = findCheapestMatching(["follower"]) || platformServices[0];
+  if (!like) like = findCheapestMatching(["like", "heart", "react"]) || platformServices[Math.min(1, platformServices.length - 1)];
+  if (!view) view = findCheapestMatching(["view", "play", "video"]) || platformServices[Math.min(2, platformServices.length - 1)];
+
+  const candidates: SmmService[] = [];
+  if (follower) {
+    candidates.push({
+      ...follower,
+      name: `👥 FOLLOWER / SUBSCRIBER PACK`
+    });
+  }
+  if (like) {
+    candidates.push({
+      ...like,
+      name: `❤️ POST LIKE / REACTION PACK`
+    });
+  }
+  if (view) {
+    candidates.push({
+      ...view,
+      name: `▶️ DIRECT VIEWS / PLAYS PACK`
+    });
+  }
+
+  return candidates;
+}
+
 export default function QuickStartPage() {
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
@@ -123,7 +190,8 @@ export default function QuickStartPage() {
         }
 
         const platFilter = selectedPlatform.toLowerCase();
-        setServices(socialServices.filter((service) => matchesPlatformName(service, platFilter)));
+        const candidates = getPlatformCandidates(socialServices, platFilter);
+        setServices(candidates);
       } catch (err) {
         if (!isMounted) return;
         setError("Failed to fetch available direct reseller services. Please try again.");
@@ -450,6 +518,16 @@ export default function QuickStartPage() {
         {/* STEP 2: Pick Platform and SMM Reseller Boost */}
         {step === 2 && (
           <div className="space-y-6 animate-in slide-in-from-right-6 duration-300">
+            {/* Highlighted Question Banner */}
+            <div className="w-full text-center py-4 px-6 rounded-3xl bg-gradient-to-br from-[#1DB954]/15 to-[#1ed760]/5 border border-[#1DB954]/25 shadow-[0_0_20px_rgba(29,185,84,0.15)] select-none">
+              <h2 className="text-sm sm:text-base font-black text-white uppercase tracking-wider flex items-center justify-center gap-2">
+                ⚡ CHOOSE WHAT SOCIAL MEDIA YOU WANT TO BOOST TODAY ⚡
+              </h2>
+              <p className="text-[10px] text-slate-400 font-semibold mt-1">
+                Select your target platform below to view our curated boost packages.
+              </p>
+            </div>
+
             {/* Pick platform tab chips */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 select-none">
               {PLATFORMS.filter((plat) => availablePlatformIds.includes(plat.id)).map((plat) => {
@@ -538,7 +616,9 @@ export default function QuickStartPage() {
                           </div>
 
                           <h4 className="text-xs font-extrabold text-white group-hover:text-[#1DB954] transition-colors leading-snug line-clamp-2">
-                            {formatSmmServiceName(srv.name, srv.id, srv.desc || undefined)}
+                            {srv.name.startsWith("👥") || srv.name.startsWith("❤️") || srv.name.startsWith("▶️") 
+                              ? `${srv.name} - ID ${srv.id}`
+                              : formatSmmServiceName(srv.name, srv.id, srv.desc || undefined)}
                           </h4>
                           {srv.desc && (
                             <p className="text-[9px] text-slate-400 mt-2 line-clamp-2 bg-black/20 p-2 rounded-lg leading-normal">
