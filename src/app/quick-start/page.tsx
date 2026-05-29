@@ -832,23 +832,11 @@ export default function QuickStartPage() {
                       className="w-full h-auto rounded-lg object-contain mx-auto"
                     />
                   </div>
-                  <p className="text-[9px] text-slate-500 font-bold mt-1.5">Account Curation Name: HE***Y S.</p>
-                  
-                  <div className="mt-2 flex items-center justify-center gap-2">
-                    <div className="bg-[#121212] border border-slate-800 rounded-md px-3 py-1 flex items-center justify-between min-w-[160px]">
-                      <span className="text-[10px] text-slate-300 font-mono tracking-wider">09505339963</span>
-                      <button 
-                        type="button"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          navigator.clipboard.writeText('09505339963');
-                          alert('GCash number copied to clipboard!');
-                        }}
-                        className="text-[9px] text-[#1DB954] hover:text-white font-black uppercase ml-3 bg-transparent p-0 transition-colors"
-                      >
-                        Copy
-                      </button>
-                    </div>
+                  <p className="text-[9px] text-slate-500 font-bold mt-1.5">Account Name: Henry S.</p>
+                  <div className="flex items-center justify-center gap-2 mt-2 bg-[#1DB954]/10 border border-[#1DB954]/20 px-3 py-1.5 rounded-lg">
+                    <span className="text-[10px] font-black text-[#1DB954] tracking-wider">📞 09505339963</span>
+                    <button type="button" onClick={() => { navigator.clipboard.writeText('09505339963'); }} className="text-[8px] bg-[#1DB954]/20 hover:bg-[#1DB954]/40 text-[#1DB954] font-black uppercase tracking-wider px-2 py-0.5 rounded-md transition-all cursor-pointer active:scale-95">Copy</button>
+
                   </div>
                 </div>
               </div>

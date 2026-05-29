@@ -902,6 +902,10 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
                         className="w-full h-auto rounded-lg object-contain mx-auto"
                       />
                     </div>
+                    <div className="flex items-center justify-center gap-2 mt-2 bg-[#1DB954]/10 border border-[#1DB954]/20 px-3 py-1.5 rounded-lg">
+                      <span className="text-[10px] font-black text-[#1DB954] tracking-wider">📞 09505339963 • Henry S.</span>
+                      <button type="button" onClick={() => { navigator.clipboard.writeText('09505339963'); }} className="text-[8px] bg-[#1DB954]/20 hover:bg-[#1DB954]/40 text-[#1DB954] font-black uppercase tracking-wider px-2 py-0.5 rounded-md transition-all cursor-pointer active:scale-95">Copy</button>
+                    </div>
                   </div>
                 </div>
 

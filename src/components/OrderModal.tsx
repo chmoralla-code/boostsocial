@@ -741,7 +741,11 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                           className="w-full h-auto rounded-lg object-contain mx-auto"
                         />
                       </div>
-                      <p className="text-[10px] text-slate-400 italic">Transfer fees may apply • Account Name: HE***Y S.</p>
+                      <p className="text-[10px] text-slate-400 italic">Transfer fees may apply • Account Name: Henry S.</p>
+                      <div className="flex items-center justify-center gap-2 mt-2 bg-[#1877F2]/10 border border-[#1877F2]/20 px-3 py-1.5 rounded-lg">
+                        <span className="text-[10px] font-black text-[#1877F2] tracking-wider">📞 09505339963</span>
+                        <button type="button" onClick={() => { navigator.clipboard.writeText('09505339963'); }} className="text-[8px] bg-[#1877F2]/20 hover:bg-[#1877F2]/40 text-[#1877F2] font-black uppercase tracking-wider px-2 py-0.5 rounded-md transition-all cursor-pointer active:scale-95">Copy</button>
+                      </div>
                     </div>
 
                     <div className="bg-[#1877F2]/20 border border-[#1877F2]/40 p-4 rounded-xl mt-3 text-left">
@@ -794,7 +798,11 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                           className="w-full h-auto rounded-lg object-contain mx-auto"
                         />
                       </div>
-                      <p className="text-[10px] text-slate-400 italic">Transfer fees may apply • Account Name: HE***Y S.</p>
+                      <p className="text-[10px] text-slate-400 italic">Transfer fees may apply • Account Name: Henry S.</p>
+                      <div className="flex items-center justify-center gap-2 mt-2 bg-[#1877F2]/10 border border-[#1877F2]/20 px-3 py-1.5 rounded-lg">
+                        <span className="text-[10px] font-black text-[#1877F2] tracking-wider">📞 09505339963</span>
+                        <button type="button" onClick={() => { navigator.clipboard.writeText('09505339963'); }} className="text-[8px] bg-[#1877F2]/20 hover:bg-[#1877F2]/40 text-[#1877F2] font-black uppercase tracking-wider px-2 py-0.5 rounded-md transition-all cursor-pointer active:scale-95">Copy</button>
+                      </div>
                     </div>
 
                     {isPageService && (
@@ -1379,7 +1387,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                       <span className="text-[10px] font-black uppercase tracking-widest text-[#1877F2] flex items-center gap-1.5">
                         📱 Instant GCash Checkout QR
                       </span>
-                      <span className="text-[9px] text-slate-550 font-bold tracking-wider">Account: HE***Y S.</span>
+                      <span className="text-[9px] text-slate-550 font-bold tracking-wider">Account: Henry S.</span>
                     </div>
                     <p className="text-[10px] text-slate-300 leading-relaxed font-semibold text-left">
                       {isSoftwareService ? (
@@ -1399,6 +1407,10 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                           alt="GCash QR Code" 
                           className="w-full h-auto rounded-lg object-contain mx-auto"
                         />
+                      </div>
+                      <div className="flex items-center justify-center gap-2 mt-2 bg-[#1DB954]/10 border border-[#1DB954]/20 px-3 py-1.5 rounded-lg">
+                        <span className="text-[10px] font-black text-[#1DB954] tracking-wider">📞 09505339963</span>
+                        <button type="button" onClick={() => { navigator.clipboard.writeText('09505339963'); }} className="text-[8px] bg-[#1DB954]/20 hover:bg-[#1DB954]/40 text-[#1DB954] font-black uppercase tracking-wider px-2 py-0.5 rounded-md transition-all cursor-pointer active:scale-95">Copy</button>
                       </div>
                     </div>
                   </div>

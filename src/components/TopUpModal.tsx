@@ -116,6 +116,10 @@ export function TopUpModal({ isOpen, onClose, user, onTopUpSuccess }: { isOpen: 
                 <div className="w-48 h-48 bg-white p-2 rounded-xl flex items-center justify-center">
                   <img src="/gcash-qr.png" alt="GCash QR" className="w-full h-full object-contain" />
                 </div>
+                <div className="flex items-center justify-center gap-2 mt-3 bg-[#1877F2]/10 border border-[#1877F2]/20 px-3 py-1.5 rounded-lg">
+                  <span className="text-[10px] font-black text-[#1877F2] tracking-wider">📞 09505339963 • Henry S.</span>
+                  <button type="button" onClick={() => { navigator.clipboard.writeText('09505339963'); }} className="text-[8px] bg-[#1877F2]/20 hover:bg-[#1877F2]/40 text-[#1877F2] font-black uppercase tracking-wider px-2 py-0.5 rounded-md transition-all cursor-pointer active:scale-95">Copy</button>
+                </div>
               </div>
 
               {/* File Upload */}
