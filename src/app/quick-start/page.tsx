@@ -470,8 +470,8 @@ export default function QuickStartPage() {
               </h1>
             );
           })()}
-          <p className="text-slate-400 text-xs font-semibold max-w-md mx-auto leading-relaxed">
-            Fast, secure direct reseller-rate boosting packages. Set up your campaign in 4 easy steps.
+          <p className="text-slate-400 text-xs font-bold uppercase tracking-wide max-w-lg mx-auto leading-relaxed animate-pulse">
+            CONGRATS, YOU HAVE ARRIVE AT DIRECT SUPPLIER BOOSTING. MEANING YOU WILL GET EVERYTHING AFFORDABLE
           </p>
         </div>
 
