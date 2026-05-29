@@ -7,6 +7,7 @@ import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/utils/supabase/client";
 import { formatSmmServiceName, isSocialBoostService, isUtilityService } from "@/utils/serviceHelpers";
 import { compressImage } from "@/utils/imageCompressor";
+import { LinkPreviewWindow } from "@/components/LinkPreviewWindow";
 
 interface SmmService {
   id: string | number;
@@ -132,6 +133,29 @@ export default function QuickStartPage() {
   const [quantity, setQuantity] = useState<number>(0);
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [orderId, setOrderId] = useState("");
+
+  // Automatic redirect countdown state & effect in Step 4
+  const [countdown, setCountdown] = useState(8);
+
+  useEffect(() => {
+    if (step === 4 && orderId) {
+      setCountdown(8);
+      const interval = setInterval(() => {
+        setCountdown((prev) => {
+          if (prev <= 1) {
+            clearInterval(interval);
+            if (typeof window !== "undefined") {
+              localStorage.setItem("onboarded", "true");
+            }
+            router.push(`/?track=${orderId}`);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+      return () => clearInterval(interval);
+    }
+  }, [step, orderId, router]);
 
   // Check auth session
   useEffect(() => {
@@ -691,17 +715,26 @@ export default function QuickStartPage() {
               </div>
 
               {/* Target Link Input */}
-              <div>
-                <label className="block text-[10px] font-black text-slate-450 uppercase tracking-widest mb-1.5">Target Channel / Post Link URL <span className="text-red-500">*</span></label>
-                <input
-                  type="url"
-                  required
-                  value={targetUrl}
-                  onChange={(e) => setTargetUrl(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl bg-[#0a0a0a] border border-slate-850 focus:outline-none focus:ring-1 focus:ring-[#1DB954] text-xs font-semibold text-white transition-all placeholder-slate-600"
-                  placeholder="https://facebook.com/your-target-url"
-                />
-                <p className="text-[9px] text-slate-500 mt-1 italic font-semibold">Verify page or post is set to Public.</p>
+              <div className="space-y-3.5">
+                <div>
+                  <label className="block text-[10px] font-black text-slate-450 uppercase tracking-widest mb-1.5">Target Channel / Post Link URL <span className="text-red-500">*</span></label>
+                  <input
+                    type="url"
+                    required
+                    value={targetUrl}
+                    onChange={(e) => setTargetUrl(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-xl bg-[#0a0a0a] border border-slate-850 focus:outline-none focus:ring-1 focus:ring-[#1DB954] text-xs font-semibold text-white transition-all placeholder-slate-650"
+                    placeholder="https://facebook.com/your-target-url"
+                  />
+                  <p className="text-[9px] text-slate-500 mt-1 italic font-semibold">Verify page or post is set to Public.</p>
+                </div>
+                
+                {/* Live Link Preview Window Component with effects */}
+                {targetUrl && (
+                  <div className="animate-in fade-in slide-in-from-top-3 duration-300">
+                    <LinkPreviewWindow targetUrl={targetUrl} />
+                  </div>
+                )}
               </div>
 
               {/* Quantity Selector input */}
@@ -824,6 +857,20 @@ export default function QuickStartPage() {
               <p>
                 3. You can also view and track all your pending and active orders by clicking the **Track Order** button in the top navigation bar.
               </p>
+            </div>
+
+            {/* Automatic Redirect Progress Indicator */}
+            <div className="pt-2 select-none max-w-xs mx-auto">
+              <div className="flex justify-between items-center text-[10px] font-black uppercase text-slate-500 tracking-wider mb-2">
+                <span>Redirecting to Homepage</span>
+                <span className="text-[#1DB954]">{countdown}s remaining</span>
+              </div>
+              <div className="w-full h-1 bg-slate-900 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-gradient-to-r from-[#1DB954] to-[#1ed760] transition-all duration-1000 ease-linear"
+                  style={{ width: `${(countdown / 8) * 100}%` }}
+                ></div>
+              </div>
             </div>
 
             <button
