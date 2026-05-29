@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { sendTopupNotification } from "@/lib/telegram";
 
 export async function POST(req: NextRequest) {
   try {
@@ -73,6 +74,18 @@ export async function POST(req: NextRequest) {
 
     if (updateError) {
       throw updateError;
+    }
+
+    // 5. Send Telegram notification with receipt photo and approve/reject buttons
+    try {
+      await sendTopupNotification({
+        topupId: topup.id,
+        email: email.trim(),
+        amount: priceNum,
+        receiptUrl: publicUrlData.publicUrl,
+      });
+    } catch (telegramErr) {
+      console.error("Telegram top-up notification failed (non-blocking):", telegramErr);
     }
 
     return NextResponse.json({ success: true, topupId: topup.id });

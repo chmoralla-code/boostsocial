@@ -111,3 +111,49 @@ export async function sendOrderCompleteNotification(order: {
   }
 }
 
+export async function sendTopupNotification(topup: {
+  topupId: string;
+  email: string;
+  amount: number;
+  receiptUrl: string;
+}) {
+  try {
+    const config = await getTelegramConfig();
+    if (!config?.bot_token || !config?.chat_id) return;
+
+    const phTime = new Date().toLocaleString("en-PH", { timeZone: "Asia/Manila" });
+
+    const caption =
+      `💰 New Wallet Top-Up Request!\n\n` +
+      `👤 Customer: ${topup.email}\n` +
+      `💵 Amount: ₱${topup.amount.toFixed(2)}\n` +
+      `🕐 Time: ${phTime} PHT\n\n` +
+      `⬇️ Tap a button below to approve or reject.`;
+
+    // Send receipt photo with inline approve/reject buttons
+    const res = await fetch(`https://api.telegram.org/bot${config.bot_token}/sendPhoto`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: config.chat_id,
+        photo: topup.receiptUrl,
+        caption: caption,
+        reply_markup: {
+          inline_keyboard: [
+            [
+              { text: "✅ Approve Top-Up", callback_data: `topup_approve_${topup.topupId}` },
+              { text: "❌ Reject", callback_data: `topup_reject_${topup.topupId}` }
+            ]
+          ]
+        }
+      }),
+    });
+
+    const data = await res.json();
+    if (!data.ok) {
+      console.error("Telegram sendPhoto failed:", data.description);
+    }
+  } catch (err) {
+    console.error("Telegram top-up notification failed:", err);
+  }
+}
