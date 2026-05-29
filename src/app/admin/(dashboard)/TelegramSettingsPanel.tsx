@@ -1,13 +1,15 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Bot, Send, CheckCircle, XCircle, Loader2, Save } from "lucide-react";
+import { Bot, Send, CheckCircle, XCircle, Loader2, Save, Wallet } from "lucide-react";
 
 export function TelegramSettingsPanel() {
   const [botToken, setBotToken] = useState("");
   const [chatId, setChatId] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
+  const [isTestingTopup, setIsTestingTopup] = useState(false);
+  const [topupTestResult, setTopupTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [saveResult, setSaveResult] = useState<{ success: boolean; message: string } | null>(null);
@@ -73,6 +75,37 @@ export function TelegramSettingsPanel() {
       setTestResult({ success: false, message: "❌ Connection error." });
     } finally {
       setIsTesting(false);
+    }
+  };
+
+  const handleTestTopup = async () => {
+    if (!botToken.trim() || !chatId.trim()) {
+      setTopupTestResult({ success: false, message: "Save your settings first before testing." });
+      return;
+    }
+    setIsTestingTopup(true);
+    setTopupTestResult(null);
+    try {
+      const res = await fetch("/api/admin/telegram-test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          bot_token: botToken.trim(),
+          chat_id: chatId.trim(),
+          test_topup: true
+        }),
+      });
+      const data = await res.json();
+      setTopupTestResult({
+        success: res.ok,
+        message: res.ok
+          ? "✅ Test top-up notification sent! Check Telegram for approve/reject buttons."
+          : `❌ ${data.error}`,
+      });
+    } catch {
+      setTopupTestResult({ success: false, message: "❌ Connection error." });
+    } finally {
+      setIsTestingTopup(false);
     }
   };
 
@@ -185,6 +218,15 @@ export function TelegramSettingsPanel() {
           {isTesting ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
           {isTesting ? "Sending Test..." : "Test Bot"}
         </button>
+
+        <button
+          onClick={handleTestTopup}
+          disabled={isTestingTopup}
+          className="flex items-center gap-2 bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-black font-extrabold px-5 py-2.5 rounded-xl text-xs uppercase tracking-wider transition-all cursor-pointer shadow-md"
+        >
+          {isTestingTopup ? <Loader2 size={14} className="animate-spin" /> : <Wallet size={14} />}
+          {isTestingTopup ? "Sending..." : "Test Top-Up"}
+        </button>
       </div>
 
       {/* Feedback */}
@@ -206,6 +248,16 @@ export function TelegramSettingsPanel() {
         }`}>
           {testResult.success ? <CheckCircle size={15} className="flex-shrink-0 mt-0.5 text-emerald-400" /> : <XCircle size={15} className="flex-shrink-0 mt-0.5 text-red-400" />}
           <span>{testResult.message}</span>
+        </div>
+      )}
+      {topupTestResult && (
+        <div className={`mt-3 border p-3.5 rounded-xl flex items-start gap-2.5 text-left text-xs font-semibold leading-relaxed animate-in fade-in duration-200 ${
+          topupTestResult.success 
+            ? "bg-green-500/10 border-green-500/20 text-emerald-400" 
+            : "bg-red-500/10 border-red-500/20 text-red-400"
+        }`}>
+          {topupTestResult.success ? <CheckCircle size={15} className="flex-shrink-0 mt-0.5 text-emerald-400" /> : <XCircle size={15} className="flex-shrink-0 mt-0.5 text-red-400" />}
+          <span>{topupTestResult.message}</span>
         </div>
       )}
     </div>
