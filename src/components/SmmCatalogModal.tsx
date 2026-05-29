@@ -415,15 +415,10 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
     }
   };
 
-  // Wallet deduction checkout
+  // Wallet deduction checkout (Server-side insertion to bypass client RLS and remove receipt screenshot upload checks)
   const handleWalletCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedService || !user) return;
-
-    if (!receiptFile) {
-      setError("Please attach a transaction receipt screenshot first to verify this wallet payment transaction.");
-      return;
-    }
 
     if (quantity > selectedService.max) {
       setError(`Quantity cannot exceed ${selectedService.max.toLocaleString()}.`);
@@ -445,45 +440,10 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
     setError("");
 
     try {
-      const { data: pendingOrder, error: pendingOrderError } = await supabase
-        .from("orders")
-        .insert([
-          {
-            service_id: CUSTOM_SMM_SERVICE_ID,
-            customer_email: user.email,
-            target_url: url.trim(),
-            amount: calculatedTotal,
-            status: "Pending",
-            payment_method: "Wallet",
-            quantity: finalQuantity,
-            smm_service_id: selectedService.id
-          }
-        ])
-        .select("id")
-        .single();
-
-      if (pendingOrderError) throw pendingOrderError;
-
-      const compressedReceipt = await compressImage(receiptFile);
-      const receiptFormData = new FormData();
-      receiptFormData.append("file", compressedReceipt);
-      receiptFormData.append("orderId", pendingOrder.id);
-
-      const uploadRes = await fetch("/api/upload-receipt", {
-        method: "POST",
-        body: receiptFormData
-      });
-
-      if (!uploadRes.ok) {
-        const errData = await uploadRes.json();
-        throw new Error(errData.error || "Failed to upload transaction receipt for this wallet order.");
-      }
-
       const res = await fetch("/api/checkout-wallet", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          existingOrderId: pendingOrder.id,
           userId: user.id,
           serviceId: CUSTOM_SMM_SERVICE_ID,
           serviceTitle: `[SMM #${selectedService.id}] ${selectedService.name}`,
@@ -892,14 +852,15 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
                 {/* Mandated GCash Payment Receipt Upload */}
                 <div className="space-y-2 bg-[#121212]/95 border border-slate-800/80 p-4 rounded-xl mt-3 text-left">
                   <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest flex justify-between items-center">
-                    <span>GCash Payment Receipt Screenshot <span className="text-red-500">*</span></span>
-                    <span className="text-[8px] font-black uppercase text-red-500">Strictly Required</span>
+                    <span>GCash Payment Receipt Screenshot {!(user && profile && Number(profile.balance) >= calculatedTotal) && <span className="text-red-500">*</span>}</span>
+                    <span className="text-[8px] font-black uppercase text-red-500">
+                      {user && profile && Number(profile.balance) >= calculatedTotal ? "Optional for Wallet" : "Strictly Required"}
+                    </span>
                   </label>
                   <div className="relative">
                     <input 
                       type="file" 
                       accept="image/*"
-                      required
                       onChange={(e) => setReceiptFile(e.target.files?.[0] || null)}
                       className="hidden"
                       id="catalog-receipt-upload"
@@ -949,7 +910,7 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
                   {user && profile && Number(profile.balance) >= calculatedTotal && (
                     <button
                       type="button"
-                      disabled={isSubmitting || !receiptFile}
+                      disabled={isSubmitting}
                       onClick={handleWalletCheckout}
                       className="flex-1 bg-[#1DB954]/10 hover:bg-[#1DB954]/20 border border-[#1DB954]/30 hover:border-[#1DB954]/50 disabled:opacity-50 text-[#1DB954] font-extrabold py-3 rounded-xl transition-all flex items-center justify-center gap-2 text-xs uppercase tracking-wider"
                     >
@@ -959,7 +920,7 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
                   
                   <button
                     type="submit"
-                    disabled={isSubmitting || !receiptFile}
+                    disabled={isSubmitting}
                     className="flex-1 bg-[#1DB954] hover:bg-[#1ed760] disabled:bg-slate-800 text-black font-extrabold py-3 rounded-xl transition-all flex items-center justify-center gap-2 text-xs uppercase tracking-wider shadow-md"
                   >
                     {isSubmitting ? (
