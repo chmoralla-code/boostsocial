@@ -2,21 +2,44 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { createClient } from "@/utils/supabase/client";
 
 export function OnboardingRedirect() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
+  const supabase = createClient();
 
   useEffect(() => {
+    let isMounted = true;
     if (typeof window !== "undefined") {
       const onboarded = localStorage.getItem("onboarded");
-      if (!onboarded) {
-        router.push("/quick-start");
-      } else {
-        setLoading(false);
+      if (onboarded === "true") {
+        if (isMounted) setLoading(false);
+        return;
       }
+
+      // Check if user is logged in
+      supabase.auth.getUser().then(({ data }) => {
+        if (!isMounted) return;
+        if (data?.user) {
+          // If they are an existing/logged in user, mark as onboarded and do not redirect
+          localStorage.setItem("onboarded", "true");
+          setLoading(false);
+        } else {
+          // No active session and not onboarded -> redirect to quick start
+          router.push("/quick-start");
+        }
+      }).catch(() => {
+        if (isMounted) {
+          router.push("/quick-start");
+        }
+      });
     }
-  }, [router]);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [router, supabase]);
 
   if (loading && typeof window !== "undefined" && !localStorage.getItem("onboarded")) {
     return (

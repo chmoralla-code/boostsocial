@@ -115,7 +115,6 @@ export default function QuickStartPage() {
   const [error, setError] = useState("");
 
   // Step 1 states (Auth)
-  const [authTab, setAuthTab] = useState<"register" | "login">("register");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [user, setUser] = useState<User | null>(null);
@@ -136,6 +135,7 @@ export default function QuickStartPage() {
 
   // Automatic redirect countdown state & effect in Step 4
   const [countdown, setCountdown] = useState(8);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (step === 4 && orderId) {
@@ -166,15 +166,18 @@ export default function QuickStartPage() {
       if (data?.user) {
         setUser(data.user);
         setEmail(data.user.email || "");
-        // Auto advance to Step 2 if user already authenticated
-        setStep((currentStep) => currentStep === 1 ? 2 : currentStep);
+        // Existing user detected! Set onboarded and redirect to homepage!
+        if (typeof window !== "undefined") {
+          localStorage.setItem("onboarded", "true");
+        }
+        router.push("/");
       }
     });
 
     return () => {
       isMounted = false;
     };
-  }, [supabase]);
+  }, [supabase, router]);
 
   // Fetch reseller services when selectedPlatform changes
   useEffect(() => {
@@ -234,17 +237,7 @@ export default function QuickStartPage() {
     };
   }, [step, selectedPlatform]);
 
-  useEffect(() => {
-    if (step !== 4 || !orderId) return;
-
-    const redirectTimer = window.setTimeout(() => {
-      router.push(`/?track=${orderId}`);
-    }, 6500);
-
-    return () => window.clearTimeout(redirectTimer);
-  }, [step, orderId, router]);
-
-  // Auth Handler
+  // Auth Handler (Registration strictly for new users)
   const handleAuthSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) return;
@@ -252,27 +245,15 @@ export default function QuickStartPage() {
     setError("");
 
     try {
-      if (authTab === "register") {
-        const { data, error: signUpError } = await supabase.auth.signUp({
-          email: email.trim(),
-          password
-        });
-        if (signUpError) throw signUpError;
-        if (data.user) {
-          setUser(data.user);
-          alert("Account created successfully! Check your email to verify if needed, or proceed to the next step.");
-          setStep(2);
-        }
-      } else {
-        const { data, error: signInError } = await supabase.auth.signInWithPassword({
-          email: email.trim(),
-          password
-        });
-        if (signInError) throw signInError;
-        if (data.user) {
-          setUser(data.user);
-          setStep(2);
-        }
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email: email.trim(),
+        password
+      });
+      if (signUpError) throw signUpError;
+      if (data.user) {
+        setUser(data.user);
+        alert("Account created successfully! Check your email to verify if needed, or proceed to the next step.");
+        setStep(2);
       }
     } catch (err: unknown) {
       setError(getErrorMessage(err) || "Authentication failed. Check your inputs.");
@@ -460,25 +441,13 @@ export default function QuickStartPage() {
           <div className="w-full max-w-xs sm:max-w-md mx-auto bg-[#121212]/95 border border-slate-800/85 p-6 sm:p-8 rounded-3xl shadow-2xl relative overflow-hidden animate-in slide-in-from-bottom-6 duration-300">
             <div className="absolute top-0 right-0 w-24 h-24 bg-[#1DB954]/5 rounded-full blur-xl pointer-events-none"></div>
             
-            <div className="flex border-b border-slate-850/60 pb-1 mb-6 select-none">
-              <button
-                type="button"
-                onClick={() => setAuthTab("register")}
-                className={`flex-1 pb-3 text-xs font-black uppercase tracking-widest transition-colors cursor-pointer ${
-                  authTab === "register" ? "text-[#1DB954] border-b-2 border-[#1DB954]" : "text-slate-550 hover:text-slate-300"
-                }`}
-              >
-                Register Account
-              </button>
-              <button
-                type="button"
-                onClick={() => setAuthTab("login")}
-                className={`flex-1 pb-3 text-xs font-black uppercase tracking-widest transition-colors cursor-pointer ${
-                  authTab === "login" ? "text-[#1DB954] border-b-2 border-[#1DB954]" : "text-slate-550 hover:text-slate-300"
-                }`}
-              >
-                Sign In
-              </button>
+            <div className="text-center pb-2 mb-6 border-b border-slate-850/60 select-none">
+              <h2 className="text-sm font-black uppercase tracking-widest text-[#1DB954]">
+                Register New Account
+              </h2>
+              <p className="text-[10px] text-slate-500 font-semibold mt-1">
+                Quickstart is strictly for new users to amplify their first campaign.
+              </p>
             </div>
 
             <form onSubmit={handleAuthSubmit} className="space-y-4 text-left">
@@ -518,11 +487,11 @@ export default function QuickStartPage() {
                 className="w-full bg-[#1DB954] hover:bg-[#1ed760] disabled:bg-slate-850 disabled:text-slate-600 text-black font-black py-3 rounded-xl transition-all duration-200 uppercase text-xs tracking-wider flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-emerald-500/10 mt-2 active:scale-[0.98]"
               >
                 {loading ? <Loader2 size={14} className="animate-spin text-black" /> : <UserPlus size={14} />}
-                {authTab === "register" ? "Create Account & Proceed" : "Sign In & Proceed"}
+                Create Account & Proceed
               </button>
             </form>
 
-            <div className="mt-5 text-center select-none">
+            <div className="mt-5 text-center flex flex-col gap-3.5 select-none border-t border-slate-850/50 pt-4">
               <button
                 type="button"
                 onClick={() => {
@@ -534,6 +503,13 @@ export default function QuickStartPage() {
                 className="text-[10px] font-black text-slate-500 hover:text-[#1DB954] uppercase tracking-widest transition-colors cursor-pointer"
               >
                 Skip & Proceed to Main Website →
+              </button>
+              <button
+                type="button"
+                onClick={() => router.push("/login")}
+                className="text-[10px] font-black text-[#1DB954] hover:text-[#1ed760] hover:underline uppercase tracking-widest transition-colors cursor-pointer"
+              >
+                Already have an account? Sign In →
               </button>
             </div>
           </div>
@@ -840,8 +816,22 @@ export default function QuickStartPage() {
               </p>
             </div>
 
-            <div className="bg-slate-900 border border-slate-850 p-3 rounded-xl font-mono text-sm sm:text-base text-[#1DB954] font-black tracking-widest text-center select-all">
-              BS-{orderId.slice(0, 8).toUpperCase()}
+            <div className="flex gap-2 items-center justify-center max-w-xs mx-auto">
+              <div className="flex-grow bg-slate-900 border border-slate-850 p-3 rounded-xl font-mono text-sm sm:text-base text-[#1DB954] font-black tracking-widest text-center select-all">
+                BS-{orderId.slice(0, 8).toUpperCase()}
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard.writeText(`BS-${orderId.slice(0, 8).toUpperCase()}`);
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 2000);
+                }}
+                className="bg-[#181818] hover:bg-slate-800 border border-slate-800 p-3 rounded-xl text-slate-400 hover:text-white transition-all cursor-pointer flex-shrink-0 active:scale-95 flex items-center justify-center min-w-[42px] h-[42px]"
+                title="Copy tracking ID"
+              >
+                {copied ? <span className="text-xs text-[#1DB954] font-black">✓</span> : <span className="text-xs">📋</span>}
+              </button>
             </div>
 
             <div className="bg-slate-900/60 border border-slate-850 p-4.5 rounded-2xl text-left space-y-2.5 text-xs text-slate-350 leading-relaxed font-semibold">
