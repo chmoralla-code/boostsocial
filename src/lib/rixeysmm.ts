@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { parseDescription } from "@/utils/serviceHelpers";
+import { syncBackupAdminClients } from "@/utils/supabase/dual-db";
 
 const RIXEYSMM_API_URL = "https://rixeysmm.shop/api/v2";
 
@@ -9,6 +10,15 @@ const getSupabase = () =>
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     { auth: { persistSession: false } }
   );
+
+const syncOrderUpdateToBackups = async (orderId: string, update: Record<string, string | null>) => {
+  await syncBackupAdminClients(async (backupClient) => {
+    return backupClient
+      .from("orders")
+      .update(update)
+      .eq("id", orderId);
+  }, "RixeySMM order update sync");
+};
 
 /**
  * Automatically places an order on RixeySMM for any mapped service.
@@ -73,6 +83,7 @@ export async function autoPlaceRixeyOrder(
         .from("orders")
         .update({ external_status: errorMsg })
         .eq("id", orderId);
+      await syncOrderUpdateToBackups(orderId, { external_status: errorMsg });
       return;
     }
 
@@ -156,6 +167,11 @@ export async function autoPlaceRixeyOrder(
           smm_service_id: smmServiceId // Save the placed SMM service ID
         })
         .eq("id", orderId);
+      await syncOrderUpdateToBackups(orderId, {
+        external_order_id: externalId,
+        external_status: "Pending",
+        smm_service_id: smmServiceId,
+      });
       console.log(`[RixeySMM] Order successfully placed! External ID: ${externalId}`);
     } else if (data.error) {
       // Panel returned a specific error (e.g. low balance, bad link)
@@ -166,6 +182,7 @@ export async function autoPlaceRixeyOrder(
           external_status: panelError,
         })
         .eq("id", orderId);
+      await syncOrderUpdateToBackups(orderId, { external_status: panelError });
       console.error(`[RixeySMM] SMM Panel returned error: ${data.error}`);
     } else {
       // Unknown response format
@@ -176,15 +193,18 @@ export async function autoPlaceRixeyOrder(
           external_status: unknownError,
         })
         .eq("id", orderId);
+      await syncOrderUpdateToBackups(orderId, { external_status: unknownError });
       console.error(`[RixeySMM] Unknown SMM response:`, data);
     }
   } catch (err: any) {
+    const externalStatus = `Failed: ${err.message || err.toString()}`;
     console.error(`[RixeySMM] Auto-placement failed for Order ${orderId}:`, err);
     await supabase
       .from("orders")
       .update({
-        external_status: `Failed: ${err.message || err.toString()}`,
+        external_status: externalStatus,
       })
       .eq("id", orderId);
+    await syncOrderUpdateToBackups(orderId, { external_status: externalStatus });
   }
 }

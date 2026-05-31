@@ -131,8 +131,18 @@ export function OrdersTable({ initialOrders, receiptFiles = [] }: { initialOrder
 
   const deleteOrder = async (id: string) => {
     if (!confirm("Delete this order? This cannot be undone.")) return;
-    const { error } = await supabase.from('orders').delete().eq('id', id);
-    if (!error) setOrders(orders.filter(o => o.id !== id));
+    const res = await fetch("/api/admin/delete-order", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orderId: id })
+    });
+
+    if (res.ok) {
+      setOrders(orders.filter(o => o.id !== id));
+    } else {
+      const data = await res.json();
+      alert(data.error || "Failed to delete order");
+    }
   };
 
   const handleDeleteAllOrders = async () => {

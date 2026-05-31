@@ -247,24 +247,24 @@ export default function OrderPage() {
     setIsSubmitting(true);
 
     try {
-      const { data: order, error: insertError } = await supabase
-        .from("orders")
-        .insert([
-          {
-            service_id: CUSTOM_PAGE_SERVICE_ID,
-            customer_email: email.trim(),
-            target_url: "Compiling custom Facebook page order assets...",
-            amount: grandTotal,
-            status: "Pending",
-            payment_method: paymentMethod,
-            quantity: normalizedQuantity,
-            smm_service_id: FACEBOOK_FOLLOWERS_SMM_ID
-          }
-        ])
-        .select("id")
-        .single();
+      const createRes = await fetch("/api/orders/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          serviceId: CUSTOM_PAGE_SERVICE_ID,
+          email: email.trim(),
+          targetUrl: "Compiling custom Facebook page order assets...",
+          amount: grandTotal,
+          paymentMethod,
+          quantity: normalizedQuantity,
+          smmServiceId: FACEBOOK_FOLLOWERS_SMM_ID
+        })
+      });
+      const createData = await createRes.json();
+      if (!createRes.ok) throw new Error(createData.error || "Failed to create page order.");
 
-      if (insertError) throw insertError;
+      const order = { id: createData.orderId || createData.data?.id };
+      if (!order.id) throw new Error("Order was created without a tracking ID.");
 
       await uploadReceipt(receiptFile, order.id);
       const [profileUrl, coverUrl] = await Promise.all([
@@ -273,12 +273,19 @@ export default function OrderPage() {
       ]);
       const finalSpecs = buildSpecs(profileUrl, coverUrl);
 
-      const { error: updateError } = await supabase
-        .from("orders")
-        .update({ target_url: finalSpecs })
-        .eq("id", order.id);
-
-      if (updateError) throw updateError;
+      const targetRes = await fetch("/api/orders/update-target", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orderId: order.id,
+          targetUrl: finalSpecs,
+          customerEmail: email.trim()
+        })
+      });
+      if (!targetRes.ok) {
+        const targetData = await targetRes.json();
+        throw new Error(targetData.error || "Failed to save page order details.");
+      }
 
       if (paymentMethod === "Wallet" && user) {
         const walletRes = await fetch("/api/checkout-wallet", {

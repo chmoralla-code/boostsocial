@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { syncBackupAdminClients } from "@/utils/supabase/dual-db";
 
 export async function POST(req: NextRequest) {
   try {
@@ -37,6 +38,13 @@ export async function POST(req: NextRequest) {
         .update({ customer_email: "[Deleted User]" })
         .in("id", matchingOrderIds);
       if (updateError) throw updateError;
+
+      await syncBackupAdminClients(async (backupClient) => {
+        return backupClient
+          .from("orders")
+          .update({ customer_email: "[Deleted User]" })
+          .in("id", matchingOrderIds);
+      }, "customer order anonymization sync");
     }
 
     // 2. Fetch auth user list to delete the user account if they exist
@@ -52,6 +60,12 @@ export async function POST(req: NextRequest) {
       
       // Delete from topups (just in case cascade isn't working)
       await supabase.from("topups").delete().eq("user_id", user.id);
+
+      await syncBackupAdminClients(async (backupClient) => {
+        const topupDelete = await backupClient.from("topups").delete().eq("user_id", user.id);
+        if (topupDelete.error) return topupDelete;
+        return backupClient.from("profiles").delete().eq("id", user.id);
+      }, "customer profile deletion sync");
 
       const { error: deleteError } = await supabase.auth.admin.deleteUser(user.id);
       if (deleteError) throw deleteError;

@@ -3,22 +3,97 @@
 import { useState, useEffect } from "react";
 import { ShieldAlert, CheckCircle, Database, RotateCw, Loader2, Server, HardDrive, ShieldCheck } from "lucide-react";
 
+type ProjectMetrics = {
+  active?: boolean;
+  usedMB?: string;
+  percentage?: string;
+  dbSizeMB?: string;
+  dbPercentage?: string;
+  totalUsers?: number;
+};
+
+type StorageStats = ProjectMetrics & {
+  success?: boolean;
+  backup?: ProjectMetrics;
+  backup3?: ProjectMetrics;
+  backup4?: ProjectMetrics;
+  backup5?: ProjectMetrics;
+};
+
+type TelemetryCardProps = {
+  title: string;
+  accent: string;
+  barAccent: string;
+  dbAccent: string;
+  active: boolean;
+  fetching: boolean;
+  metrics?: ProjectMetrics;
+  primary?: boolean;
+};
+
+const getErrorMessage = (error: unknown) => error instanceof Error ? error.message : String(error);
+
+function TelemetryCard({ title, accent, barAccent, dbAccent, active, fetching, metrics, primary }: TelemetryCardProps) {
+  const Icon = primary ? Server : HardDrive;
+  const used = metrics?.usedMB;
+  const storagePercent = metrics?.percentage ? Math.min(Number(metrics.percentage), 100) : 0;
+  const dbPercent = metrics?.dbPercentage ? Math.min(Number(metrics.dbPercentage), 100) : 0;
+
+  return (
+    <div className="bg-[#121212] border border-slate-850 p-4 rounded-xl min-w-0 space-y-3">
+      <div className="flex items-center gap-1.5">
+        <Icon size={12} className={accent} />
+        <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 truncate">{title}</span>
+        <span className={`w-1.5 h-1.5 rounded-full ml-auto ${active ? `${barAccent} animate-pulse` : "bg-red-500"}`}></span>
+      </div>
+
+      <div className="space-y-2">
+        <div className="flex justify-between items-center text-[10px] gap-3">
+          <span className="font-semibold text-slate-500">Storage Bucket</span>
+          {fetching ? (
+            <Loader2 size={10} className={`animate-spin ${accent}`} />
+          ) : (
+            <span className="font-bold text-slate-350 whitespace-nowrap">{active && used ? `${used} MB / 1 GB` : "1 GB"}</span>
+          )}
+        </div>
+        <div className="w-full bg-slate-900 rounded-full h-1.5 overflow-hidden">
+          <div
+            className={`h-full transition-all duration-500 ${barAccent}`}
+            style={{ width: `${active ? storagePercent : 0}%` }}
+          ></div>
+        </div>
+
+        <div className="flex justify-between items-center text-[10px] gap-3 pt-1">
+          <span className="font-semibold text-slate-500">Database Size</span>
+          <span className="font-bold text-slate-350 whitespace-nowrap">{active && metrics?.dbSizeMB ? `${metrics.dbSizeMB} MB / 500 MB` : "500 MB"}</span>
+        </div>
+        <div className="w-full bg-slate-900 rounded-full h-1.5 overflow-hidden">
+          <div
+            className={`h-full transition-all duration-500 ${dbAccent}`}
+            style={{ width: `${active ? dbPercent : 0}%` }}
+          ></div>
+        </div>
+
+        <div className="flex justify-between items-center text-[10px] gap-3 pt-1">
+          <span className="font-semibold text-slate-500">Auth Users</span>
+          <span className={`font-extrabold whitespace-nowrap ${accent}`}>{active && metrics?.totalUsers !== undefined ? `${metrics.totalUsers} Active` : "-"}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function StorageOptimizingPanel() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  
-  const [stats, setStats] = useState<any>(null);
+  const [stats, setStats] = useState<StorageStats | null>(null);
   const [fetchingStats, setFetchingStats] = useState(true);
-
-  useEffect(() => {
-    fetchStats();
-  }, []);
 
   const fetchStats = async () => {
     try {
       const res = await fetch("/api/admin/storage-stats");
-      const data = await res.json();
+      const data = await res.json() as StorageStats;
       if (data.success) {
         setStats(data);
       }
@@ -28,6 +103,10 @@ export function StorageOptimizingPanel() {
       setFetchingStats(false);
     }
   };
+
+  useEffect(() => {
+    fetchStats();
+  }, []);
 
   const handleOptimize = async () => {
     setLoading(true);
@@ -46,26 +125,69 @@ export function StorageOptimizingPanel() {
       }
 
       if (data.count > 0) {
-        setMessage(`🎉 Success: ${data.message}`);
-        fetchStats(); // refresh stats to show newly freed space
+        setMessage(`Success: ${data.message}`);
+        fetchStats();
       } else {
-        setMessage("✅ Storage is already optimized! No old files needed purging.");
+        setMessage("Storage is already optimized. No old files needed purging.");
       }
-    } catch (err: any) {
-      setError(err.message || "An error occurred during storage cleanup");
+    } catch (err: unknown) {
+      setError(getErrorMessage(err) || "An error occurred during storage cleanup");
     } finally {
       setLoading(false);
     }
   };
 
+  const telemetryCards = [
+    {
+      title: "Primary Database",
+      metrics: stats,
+      active: true,
+      accent: "text-[#1DB954]",
+      barAccent: "bg-[#1DB954]",
+      dbAccent: "bg-blue-400",
+      primary: true,
+    },
+    {
+      title: "Backup 2",
+      metrics: stats?.backup,
+      active: Boolean(stats?.backup?.active),
+      accent: "text-blue-400",
+      barAccent: "bg-blue-400",
+      dbAccent: "bg-purple-500",
+    },
+    {
+      title: "Backup 3",
+      metrics: stats?.backup3,
+      active: Boolean(stats?.backup3?.active),
+      accent: "text-emerald-400",
+      barAccent: "bg-emerald-400",
+      dbAccent: "bg-teal-500",
+    },
+    {
+      title: "Backup 4",
+      metrics: stats?.backup4,
+      active: Boolean(stats?.backup4?.active),
+      accent: "text-cyan-400",
+      barAccent: "bg-cyan-400",
+      dbAccent: "bg-sky-500",
+    },
+    {
+      title: "Backup 5",
+      metrics: stats?.backup5,
+      active: Boolean(stats?.backup5?.active),
+      accent: "text-amber-400",
+      barAccent: "bg-amber-400",
+      dbAccent: "bg-orange-500",
+    },
+  ];
+
   return (
     <div className="bg-[#181818] border border-slate-800 rounded-2xl p-6 shadow-md text-white mt-6 relative overflow-hidden">
       <div className="absolute top-0 right-0 w-32 h-32 bg-[#1DB954]/5 rounded-full blur-2xl pointer-events-none"></div>
       <div className="absolute bottom-0 left-0 w-32 h-32 bg-blue-500/5 rounded-full blur-2xl pointer-events-none"></div>
-      
-      <div className="flex flex-col lg:flex-row items-stretch gap-6">
-        {/* Left Side: General Optimization Action */}
-        <div className="flex-grow space-y-3.5 flex flex-col justify-between">
+
+      <div className="flex flex-col xl:flex-row items-stretch gap-6">
+        <div className="xl:w-72 space-y-3.5 flex flex-col justify-between">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <span className="bg-[#1DB954]/10 text-[#1DB954] p-1.5 rounded-lg border border-[#1DB954]/20">
@@ -81,7 +203,7 @@ export function StorageOptimizingPanel() {
           <button
             onClick={handleOptimize}
             disabled={loading}
-            className="w-full lg:w-fit bg-[#1DB954] hover:bg-[#1ed760] disabled:bg-slate-850 disabled:text-slate-500 text-black font-extrabold px-6 py-3 rounded-xl transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer text-xs uppercase tracking-wider flex-shrink-0"
+            className="w-full bg-[#1DB954] hover:bg-[#1ed760] disabled:bg-slate-850 disabled:text-slate-500 text-black font-extrabold px-6 py-3 rounded-xl transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer text-xs uppercase tracking-wider flex-shrink-0"
           >
             {loading ? (
               <RotateCw size={14} className="animate-spin text-black" />
@@ -92,143 +214,20 @@ export function StorageOptimizingPanel() {
           </button>
         </div>
 
-        {/* Right Side: Dual Telemetry Displays */}
-        <div className="flex-shrink-0 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 border-t lg:border-t-0 lg:border-l border-slate-850 pt-6 lg:pt-0 lg:pl-6 min-w-[50%]">
-          
-          {/* Main Primary Server telemetry */}
-          <div className="bg-[#121212] border border-slate-850 p-4 rounded-xl flex-1 space-y-3">
-            <div className="flex items-center gap-1.5">
-              <Server size={12} className="text-[#1DB954]" />
-              <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Primary Database</span>
-              <span className="w-1.5 h-1.5 bg-[#1DB954] rounded-full animate-pulse ml-auto"></span>
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex justify-between items-center text-[10px]">
-                <span className="font-semibold text-slate-500">Storage Bucket</span>
-                {fetchingStats ? (
-                  <Loader2 size={10} className="animate-spin text-[#1DB954]" />
-                ) : (
-                  <span className="font-bold text-slate-350">{stats ? `${stats.usedMB} MB / 1 GB` : "1 GB"}</span>
-                )}
-              </div>
-              <div className="w-full bg-slate-900 rounded-full h-1.5 overflow-hidden">
-                <div 
-                  className="bg-[#1DB954] h-full transition-all duration-500" 
-                  style={{ width: `${stats ? Math.min(Number(stats.percentage), 100) : 0}%` }}
-                ></div>
-              </div>
-
-              <div className="flex justify-between items-center text-[10px] pt-1">
-                <span className="font-semibold text-slate-500">Database Size</span>
-                <span className="font-bold text-slate-350">{stats ? `${stats.dbSizeMB} MB / 500 MB` : "500 MB"}</span>
-              </div>
-              <div className="w-full bg-slate-900 rounded-full h-1.5 overflow-hidden">
-                <div 
-                  className="bg-blue-400 h-full transition-all duration-500" 
-                  style={{ width: `${stats ? Math.min(Number(stats.dbPercentage), 100) : 0}%` }}
-                ></div>
-              </div>
-
-              <div className="flex justify-between items-center text-[10px] pt-1">
-                <span className="font-semibold text-slate-500">Auth Users</span>
-                <span className="font-extrabold text-[#1DB954]">{stats ? `${stats.totalUsers} Active` : "—"}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Backup Database telemetry */}
-          <div className="bg-[#121212] border border-slate-850 p-4 rounded-xl flex-1 space-y-3">
-            <div className="flex items-center gap-1.5">
-              <HardDrive size={12} className="text-blue-400" />
-              <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Backup (Tokyo)</span>
-              {stats?.backup?.active ? (
-                <span className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-pulse ml-auto"></span>
-              ) : (
-                <span className="w-1.5 h-1.5 bg-red-500 rounded-full ml-auto"></span>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex justify-between items-center text-[10px]">
-                <span className="font-semibold text-slate-500">Storage Bucket</span>
-                {fetchingStats ? (
-                  <Loader2 size={10} className="animate-spin text-blue-400" />
-                ) : (
-                  <span className="font-bold text-slate-350">{stats?.backup?.active ? `${stats.backup.usedMB} MB / 1 GB` : "1 GB"}</span>
-                )}
-              </div>
-              <div className="w-full bg-slate-900 rounded-full h-1.5 overflow-hidden">
-                <div 
-                  className="bg-blue-500 h-full transition-all duration-500" 
-                  style={{ width: `${stats?.backup?.active ? Math.min(Number(stats.backup.percentage), 100) : 0}%` }}
-                ></div>
-              </div>
-
-              <div className="flex justify-between items-center text-[10px] pt-1">
-                <span className="font-semibold text-slate-500">Database Size</span>
-                <span className="font-bold text-slate-350">{stats?.backup?.active ? `${stats.backup.dbSizeMB} MB / 500 MB` : "500 MB"}</span>
-              </div>
-              <div className="w-full bg-slate-900 rounded-full h-1.5 overflow-hidden">
-                <div 
-                  className="bg-purple-500 h-full transition-all duration-500" 
-                  style={{ width: `${stats?.backup?.active ? Math.min(Number(stats.backup.dbPercentage), 100) : 0}%` }}
-                ></div>
-              </div>
-
-              <div className="flex justify-between items-center text-[10px] pt-1">
-                <span className="font-semibold text-slate-500">Auth Users</span>
-                <span className="font-extrabold text-blue-400">{stats?.backup?.active ? `${stats.backup.totalUsers} Active` : "—"}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Backup 3 Database telemetry */}
-          <div className="bg-[#121212] border border-slate-850 p-4 rounded-xl flex-1 space-y-3">
-            <div className="flex items-center gap-1.5">
-              <HardDrive size={12} className="text-emerald-400" />
-              <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Backup 3</span>
-              {stats?.backup3?.active ? (
-                <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse ml-auto"></span>
-              ) : (
-                <span className="w-1.5 h-1.5 bg-red-500 rounded-full ml-auto"></span>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex justify-between items-center text-[10px]">
-                <span className="font-semibold text-slate-500">Storage Bucket</span>
-                {fetchingStats ? (
-                  <Loader2 size={10} className="animate-spin text-emerald-400" />
-                ) : (
-                  <span className="font-bold text-slate-350">{stats?.backup3?.active ? `${stats.backup3.usedMB} MB / 1 GB` : "1 GB"}</span>
-                )}
-              </div>
-              <div className="w-full bg-slate-900 rounded-full h-1.5 overflow-hidden">
-                <div
-                  className="bg-emerald-500 h-full transition-all duration-500"
-                  style={{ width: `${stats?.backup3?.active ? Math.min(Number(stats.backup3.percentage), 100) : 0}%` }}
-                ></div>
-              </div>
-
-              <div className="flex justify-between items-center text-[10px] pt-1">
-                <span className="font-semibold text-slate-500">Database Size</span>
-                <span className="font-bold text-slate-350">{stats?.backup3?.active ? `${stats.backup3.dbSizeMB} MB / 500 MB` : "500 MB"}</span>
-              </div>
-              <div className="w-full bg-slate-900 rounded-full h-1.5 overflow-hidden">
-                <div
-                  className="bg-teal-500 h-full transition-all duration-500"
-                  style={{ width: `${stats?.backup3?.active ? Math.min(Number(stats.backup3.dbPercentage), 100) : 0}%` }}
-                ></div>
-              </div>
-
-              <div className="flex justify-between items-center text-[10px] pt-1">
-                <span className="font-semibold text-slate-500">Auth Users</span>
-                <span className="font-extrabold text-emerald-400">{stats?.backup3?.active ? `${stats.backup3.totalUsers} Active` : "—"}</span>
-              </div>
-            </div>
-          </div>
-
+        <div className="flex-1 grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-5 gap-4 border-t xl:border-t-0 xl:border-l border-slate-850 pt-6 xl:pt-0 xl:pl-6">
+          {telemetryCards.map((card) => (
+            <TelemetryCard
+              key={card.title}
+              title={card.title}
+              metrics={card.metrics ?? undefined}
+              active={card.active}
+              accent={card.accent}
+              barAccent={card.barAccent}
+              dbAccent={card.dbAccent}
+              primary={card.primary}
+              fetching={fetchingStats}
+            />
+          ))}
         </div>
       </div>
 

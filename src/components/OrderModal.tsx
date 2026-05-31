@@ -370,23 +370,24 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
         tempUrl = `Reactions: [${selectedReactions.join(", ")}] Link: ${url.trim()}`;
       }
 
-      const { data: insertData, error: insertError } = await supabase
-        .from('orders')
-        .insert([
-          {
-            service_id: serviceId,
-            customer_email: email.trim(),
-            target_url: tempUrl,
-            amount: totalPrice,
-            status: 'Pending',
-            quantity: finalQuantity,
-            smm_service_id: parsedDetails.smm_service_id ? String(parsedDetails.smm_service_id) : (isReactionService ? String(getFBReactionsSMMDetails(selectedReactions).smmId) : null)
-          }
-        ])
-        .select('id')
-        .single();
+      const createRes = await fetch("/api/orders/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          serviceId,
+          email: email.trim(),
+          targetUrl: tempUrl,
+          amount: totalPrice,
+          paymentMethod: "GCash",
+          quantity: finalQuantity,
+          smmServiceId: parsedDetails.smm_service_id ? String(parsedDetails.smm_service_id) : (isReactionService ? String(getFBReactionsSMMDetails(selectedReactions).smmId) : null)
+        })
+      });
+      const createData = await createRes.json();
+      if (!createRes.ok) throw new Error(createData.error || "Failed to create order.");
 
-      if (insertError) throw insertError;
+      const insertData = { id: createData.orderId || createData.data?.id };
+      if (!insertData.id) throw new Error("Order was created without a tracking ID.");
 
       // Compress and upload receipt
       try {
@@ -424,11 +425,19 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
         // Compile final target_url
         const finalUrl = `Page Wants: [Name: ${desiredName.trim() || 'Any'}] [Category: ${pageCategory}] [Region: ${demographics}] [FB Admin: ${fbProfile.trim() || 'Any'}] [Profile Pic: ${profileUrl}] [Cover Pic: ${coverUrl}]${notes.trim() ? ` [Notes: ${notes.trim()}]` : ""}`;
 
-        // Update with fully detailed spec string
-        await supabase
-          .from('orders')
-          .update({ target_url: finalUrl })
-          .eq('id', insertData.id);
+        const targetRes = await fetch("/api/orders/update-target", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            orderId: insertData.id,
+            targetUrl: finalUrl,
+            customerEmail: email.trim()
+          })
+        });
+        if (!targetRes.ok) {
+          const targetData = await targetRes.json();
+          throw new Error(targetData.error || "Failed to save page order details.");
+        }
       }
 
       setOrderId(insertData.id);
@@ -523,11 +532,19 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
         // Compile final target_url
         const finalUrl = `Page Wants: [Name: ${desiredName.trim() || 'Any'}] [Category: ${pageCategory}] [Region: ${demographics}] [FB Admin: ${fbProfile.trim() || 'Any'}] [Profile Pic: ${profileUrl}] [Cover Pic: ${coverUrl}]${notes.trim() ? ` [Notes: ${notes.trim()}]` : ""}`;
 
-        // Update with fully detailed spec string
-        await supabase
-          .from('orders')
-          .update({ target_url: finalUrl })
-          .eq('id', data.orderId);
+        const targetRes = await fetch("/api/orders/update-target", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            orderId: data.orderId,
+            targetUrl: finalUrl,
+            customerEmail: user.email
+          })
+        });
+        if (!targetRes.ok) {
+          const targetData = await targetRes.json();
+          throw new Error(targetData.error || "Failed to save page order details.");
+        }
       }
 
       setOrderId(data.orderId);

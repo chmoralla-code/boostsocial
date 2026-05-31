@@ -120,12 +120,14 @@ export async function POST(req: NextRequest) {
     }
 
     await syncBackupAdminClients(async (backupClient) => {
-      await backupClient
+      const profileUpdate = await backupClient
         .from("profiles")
         .update({ balance: newBalance })
         .eq("id", userId);
 
-      await backupClient
+      if (profileUpdate.error) return profileUpdate;
+
+      return backupClient
         .from("orders")
         .upsert({
           id: order.id,

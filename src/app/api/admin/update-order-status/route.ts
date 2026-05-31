@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { autoPlaceRixeyOrder } from "@/lib/rixeysmm";
 import { sendOrderCompleteNotification } from "@/lib/telegram";
+import { syncBackupAdminClients } from "@/utils/supabase/dual-db";
 
 export async function POST(req: NextRequest) {
   try {
@@ -52,6 +53,13 @@ export async function POST(req: NextRequest) {
       .eq("id", orderId);
 
     if (updateError) throw updateError;
+
+    await syncBackupAdminClients(async (backupClient) => {
+      return backupClient
+        .from("orders")
+        .update({ status: newStatus })
+        .eq("id", orderId);
+    }, "admin order status sync");
 
     // 3. Trigger automated RixeySMM placement if:
     // - Order status is updated to 'Processing'

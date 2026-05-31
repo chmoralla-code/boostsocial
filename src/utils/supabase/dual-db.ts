@@ -1,6 +1,6 @@
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
-type BackupLabel = "backup" | "backup3";
+type BackupLabel = "backup" | "backup3" | "backup4" | "backup5";
 type DatabaseUsed = "primary" | BackupLabel | "both";
 
 type BackupConfig = {
@@ -31,6 +31,18 @@ const backupConfigs: BackupConfig[] = [
     displayName: "BACKUP 3",
     url: process.env.BACKUP3_SUPABASE_URL,
     key: process.env.BACKUP3_SUPABASE_SERVICE_ROLE_KEY,
+  },
+  {
+    label: "backup4",
+    displayName: "BACKUP 4",
+    url: process.env.BACKUP4_SUPABASE_URL,
+    key: process.env.BACKUP4_SUPABASE_SERVICE_ROLE_KEY,
+  },
+  {
+    label: "backup5",
+    displayName: "BACKUP 5",
+    url: process.env.BACKUP5_SUPABASE_URL,
+    key: process.env.BACKUP5_SUPABASE_SERVICE_ROLE_KEY,
   },
 ];
 
@@ -82,6 +94,14 @@ export function getBackupAdminClient(): SupabaseClient {
 
 export function getBackup3AdminClient(): SupabaseClient {
   return getConfiguredBackupClient(getBackupConfig("backup3")).client;
+}
+
+export function getBackup4AdminClient(): SupabaseClient {
+  return getConfiguredBackupClient(getBackupConfig("backup4")).client;
+}
+
+export function getBackup5AdminClient(): SupabaseClient {
+  return getConfiguredBackupClient(getBackupConfig("backup5")).client;
 }
 
 export function getBackupAdminClients(): BackupAdminClient[] {

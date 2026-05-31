@@ -135,6 +135,20 @@ export async function GET() {
       sqlClients,
     });
 
+    const backup4Metrics = await collectProjectMetrics({
+      url: process.env.BACKUP4_SUPABASE_URL,
+      key: process.env.BACKUP4_SUPABASE_SERVICE_ROLE_KEY,
+      dbUrl: process.env.BACKUP4_DATABASE_URL,
+      sqlClients,
+    });
+
+    const backup5Metrics = await collectProjectMetrics({
+      url: process.env.BACKUP5_SUPABASE_URL,
+      key: process.env.BACKUP5_SUPABASE_SERVICE_ROLE_KEY,
+      dbUrl: process.env.BACKUP5_DATABASE_URL,
+      sqlClients,
+    });
+
     return NextResponse.json({
       success: true,
       totalFiles: primaryMetrics.totalFiles,
@@ -147,6 +161,8 @@ export async function GET() {
       dbPercentage: primaryMetrics.dbPercentage,
       backup: backupMetrics,
       backup3: backup3Metrics,
+      backup4: backup4Metrics,
+      backup5: backup5Metrics,
     });
   } catch (err: any) {
     console.error("Storage stats API failed:", err);

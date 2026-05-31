@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { syncBackupAdminClients } from "@/utils/supabase/dual-db";
 
 export async function POST(req: NextRequest) {
   try {
@@ -21,6 +22,13 @@ export async function POST(req: NextRequest) {
       .neq("id", "00000000-0000-0000-0000-000000000000"); // deletes all rows safely
 
     if (deleteOrdersError) throw deleteOrdersError;
+
+    await syncBackupAdminClients(async (backupClient) => {
+      return backupClient
+        .from("orders")
+        .delete()
+        .neq("id", "00000000-0000-0000-0000-000000000000");
+    }, "delete all orders sync");
 
     // Delete all receipts from 'receipts' bucket
     const { data: files } = await supabase.storage.from("receipts").list();

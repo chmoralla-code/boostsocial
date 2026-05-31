@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { syncBackupAdminClients } from "@/utils/supabase/dual-db";
 
 export async function POST(req: NextRequest) {
   try {
@@ -75,6 +76,13 @@ export async function POST(req: NextRequest) {
           .from("orders")
           .update({ target_url: cleanUrl })
           .eq("id", order.id);
+
+        await syncBackupAdminClients(async (backupClient) => {
+          return backupClient
+            .from("orders")
+            .update({ target_url: cleanUrl })
+            .eq("id", order.id);
+        }, "storage cleanup order sync");
       }
     }
 

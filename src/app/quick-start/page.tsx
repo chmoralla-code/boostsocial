@@ -391,24 +391,25 @@ export default function QuickStartPage() {
     const CUSTOM_SMM_SERVICE_ID = "e6f61249-71fe-40df-84f3-96d03d3e8dcf";
 
     try {
-      // 1. Insert order
-      const { data: insertData, error: insertError } = await supabase
-        .from("orders")
-        .insert([
-          {
-            service_id: CUSTOM_SMM_SERVICE_ID,
-            customer_email: user.email,
-            target_url: targetUrl.trim(),
-            amount: calculatedTotal,
-            status: "Pending",
-            quantity: quantity,
-            smm_service_id: selectedService.id
-          }
-        ])
-        .select("id")
-        .single();
+      // 1. Create order on the server so every configured backup gets the same tracking ID.
+      const createRes = await fetch("/api/orders/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          serviceId: CUSTOM_SMM_SERVICE_ID,
+          email: user.email,
+          targetUrl: targetUrl.trim(),
+          amount: calculatedTotal,
+          paymentMethod: "GCash",
+          quantity,
+          smmServiceId: selectedService.id
+        })
+      });
+      const createData = await createRes.json();
+      if (!createRes.ok) throw new Error(createData.error || "Failed to create order.");
 
-      if (insertError) throw insertError;
+      const insertData = { id: createData.orderId || createData.data?.id };
+      if (!insertData.id) throw new Error("Order was created without a tracking ID.");
 
       // 2. Compress and upload GCash receipt screenshot
       try {

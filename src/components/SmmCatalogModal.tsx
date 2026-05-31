@@ -345,23 +345,24 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
     setError("");
 
     try {
-      const { data: insertData, error: insertError } = await supabase
-        .from("orders")
-        .insert([
-          {
-            service_id: CUSTOM_SMM_SERVICE_ID,
-            customer_email: email.trim(),
-            target_url: url.trim(),
-            amount: calculatedTotal,
-            status: "Pending",
-            quantity: finalQuantity,
-            smm_service_id: selectedService.id
-          }
-        ])
-        .select("id")
-        .single();
+      const createRes = await fetch("/api/orders/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          serviceId: CUSTOM_SMM_SERVICE_ID,
+          email: email.trim(),
+          targetUrl: url.trim(),
+          amount: calculatedTotal,
+          paymentMethod: "GCash",
+          quantity: finalQuantity,
+          smmServiceId: selectedService.id
+        })
+      });
+      const createData = await createRes.json();
+      if (!createRes.ok) throw new Error(createData.error || "Failed to create order.");
 
-      if (insertError) throw insertError;
+      const insertData = { id: createData.orderId || createData.data?.id };
+      if (!insertData.id) throw new Error("Order was created without a tracking ID.");
 
       // Compress and upload receipt
       try {

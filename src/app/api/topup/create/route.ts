@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { sendTopupNotification } from "@/lib/telegram";
+import { syncBackupAdminClients } from "@/utils/supabase/dual-db";
 
 export async function POST(req: NextRequest) {
   try {
@@ -75,6 +76,19 @@ export async function POST(req: NextRequest) {
     if (updateError) {
       throw updateError;
     }
+
+    await syncBackupAdminClients(async (backupClient) => {
+      return backupClient
+        .from("topups")
+        .upsert({
+          id: topup.id,
+          user_id: userId,
+          email: email.trim(),
+          amount: priceNum,
+          receipt_url: publicUrlData.publicUrl,
+          status: "pending",
+        });
+    }, "top-up creation sync");
 
     // 5. Send Telegram notification with receipt photo and approve/reject buttons
     try {

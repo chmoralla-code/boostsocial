@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { sendOrderCompleteNotification } from "@/lib/telegram";
+import { syncBackupAdminClients } from "@/utils/supabase/dual-db";
 
 const RIXEYSMM_API_URL = "https://rixeysmm.shop/api/v2";
 
@@ -110,6 +111,16 @@ export async function POST(req: NextRequest) {
             if (updateError) {
               console.error(`Failed to update order ${order.id} in DB:`, updateError);
             } else {
+              await syncBackupAdminClients(async (backupClient) => {
+                return backupClient
+                  .from("orders")
+                  .update({
+                    status: dbStatusUpdate,
+                    external_status: externalStatusUpdate,
+                  })
+                  .eq("id", order.id);
+              }, "external order status sync");
+
               updatedCount++;
               syncResults.push({
                 id: order.id,
