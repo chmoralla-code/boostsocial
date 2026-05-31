@@ -148,8 +148,8 @@ export function TelegramSettingsPanel() {
   };
 
   const handleSetupWebhook = async () => {
-    if (!topupBotToken.trim()) {
-      setWebhookResult({ success: false, message: "Please enter and save Top-up bot settings first." });
+    if (!topupBotToken.trim() && !botToken.trim()) {
+      setWebhookResult({ success: false, message: "Please enter and save at least one Telegram bot token first." });
       return;
     }
     setIsSettingWebhook(true);
@@ -426,8 +426,8 @@ export function TelegramSettingsPanel() {
         <div className="space-y-1">
           <p className="font-extrabold text-indigo-200 uppercase tracking-wide text-[10px]">⚠️ Webhook Notice</p>
           <p className="leading-relaxed">
-            The **Top-up bot** requires an active webhook mapping Telegram inline query interactions back to your server. 
-            Once you save your Top-up Bot token, click **Register Webhook** above. 
+            The approval buttons for top-ups and GCash orders require an active Telegram webhook mapping inline button taps back to your server.
+            Once you save your bot token, click **Register Webhook** above.
             This will bind the bot to the live URL: <span className="font-mono text-indigo-400">https://pinoyboosting.com/api/telegram/webhook</span>.
           </p>
         </div>

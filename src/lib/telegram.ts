@@ -84,6 +84,62 @@ export async function sendOrderNotification(order: {
   }
 }
 
+export async function sendOrderApprovalNotification(order: {
+  orderId: string;
+  trackingId: string;
+  service: string;
+  email: string;
+  quantity: number;
+  amount: number;
+  paymentMethod: string;
+  receiptUrl: string;
+  details?: string;
+}) {
+  try {
+    const config = await getTopupTelegramConfig() || await getTelegramConfig();
+    if (!config?.bot_token || !config?.chat_id) return;
+
+    const phTime = new Date().toLocaleString("en-PH", { timeZone: "Asia/Manila" });
+
+    const caption =
+      `New GCash order needs approval\n\n` +
+      `Tracking ID: ${order.trackingId}\n` +
+      `Service: ${order.service}\n` +
+      `Customer: ${order.email}\n` +
+      `Quantity: ${order.quantity}\n` +
+      `Amount: PHP ${order.amount.toFixed(2)}\n` +
+      `Payment: ${order.paymentMethod}\n` +
+      (order.details ? `Details: ${order.details.slice(0, 250)}\n` : "") +
+      `Time: ${phTime} PHT\n\n` +
+      `Review the uploaded proof of payment, then approve or reject this order.`;
+
+    const res = await fetch(`https://api.telegram.org/bot${config.bot_token}/sendPhoto`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: config.chat_id,
+        photo: order.receiptUrl,
+        caption,
+        reply_markup: {
+          inline_keyboard: [
+            [
+              { text: "Approve Order", callback_data: `order_approve_${order.orderId}` },
+              { text: "Reject Order", callback_data: `order_reject_${order.orderId}` }
+            ]
+          ]
+        }
+      }),
+    });
+
+    const data = await res.json();
+    if (!data.ok) {
+      console.error("Telegram order approval sendPhoto failed:", data.description);
+    }
+  } catch (err) {
+    console.error("Telegram order approval notification failed:", err);
+  }
+}
+
 export async function sendOrderCompleteNotification(order: {
   trackingId: string;
   service: string;

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { sendOrderApprovalNotification } from "@/lib/telegram";
 
 export async function POST(req: NextRequest) {
   try {
@@ -29,7 +30,17 @@ export async function POST(req: NextRequest) {
     // 1. Fetch the customer email associated with this order to personalize the receipt file
     const { data: orderData, error: fetchError } = await supabase
       .from("orders")
-      .select("customer_email, payment_method")
+      .select(`
+        id,
+        customer_email,
+        payment_method,
+        amount,
+        quantity,
+        target_url,
+        services (
+          title
+        )
+      `)
       .eq("id", orderId)
       .single();
 
@@ -54,19 +65,31 @@ export async function POST(req: NextRequest) {
       throw error;
     }
 
-    if (orderData?.payment_method !== "Wallet") {
-      // Wallet orders are advanced only after the wallet debit endpoint verifies the receipt exists.
-      const { error: updateError } = await supabase
-        .from("orders")
-        .update({ status: "Processing" })
-        .eq("id", orderId);
+    const { data: publicUrlData } = supabase.storage
+      .from("receipts")
+      .getPublicUrl(fileName);
 
-      if (updateError) {
-        console.error("Failed to automatically update order status:", updateError);
-      }
+    if (orderData?.payment_method !== "Wallet") {
+      const serviceTitle = Array.isArray((orderData as any)?.services)
+        ? (orderData as any).services[0]?.title
+        : (orderData as any)?.services?.title;
+
+      sendOrderApprovalNotification({
+        orderId,
+        trackingId: `BS-${orderId.slice(0, 8).toUpperCase()}`,
+        service: serviceTitle || "SMM Service",
+        email,
+        quantity: Number(orderData?.quantity || 0),
+        amount: Number(orderData?.amount || 0),
+        paymentMethod: orderData?.payment_method || "GCash",
+        receiptUrl: publicUrlData.publicUrl,
+        details: orderData?.target_url || undefined,
+      }).catch((telegramErr) => {
+        console.error("Telegram order approval notification failed (non-blocking):", telegramErr);
+      });
     }
 
-    return NextResponse.json({ success: true, data, email });
+    return NextResponse.json({ success: true, data, email, receiptUrl: publicUrlData.publicUrl });
   } catch (err: any) {
     console.error("Upload endpoint failed:", err);
     return NextResponse.json({ error: err.message || err.toString() }, { status: 500 });

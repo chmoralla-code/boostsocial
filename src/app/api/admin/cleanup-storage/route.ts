@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
     const { data: finalizedOrders, error: dbError } = await supabase
       .from("orders")
       .select("id, target_url")
-      .in("status", ["Completed", "Cancelled"])
+      .in("status", ["Completed", "Cancelled", "Rejected"])
       .lt("created_at", cutoffDate.toISOString());
 
     if (dbError) throw dbError;

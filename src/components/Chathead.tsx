@@ -412,6 +412,8 @@ export function Chathead() {
               ? 'Your order is currently **Processing** and active! Results are being delivered to your target link. ⚡' 
               : data.status === 'Completed' 
               ? 'Your order has been successfully **Completed**! All amplification quantities have been delivered. Thank you! 🎉' 
+              : data.status === 'Rejected'
+              ? 'Your order status is **Rejected**. Please contact support if you believe this is an error.'
               : 'Your order status is **Cancelled**. Please contact support if you believe this is an error.'
           }`;
           setMessages(prev => [...prev, { role: 'assistant', content: reply }]);

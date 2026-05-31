@@ -71,7 +71,7 @@ export function PendingOrderBanner() {
         osc.stop(ctx.currentTime + 0.2);
         osc2.start(ctx.currentTime + 0.1);
         osc2.stop(ctx.currentTime + 0.5);
-      } else if (statusStr === "Cancelled") {
+      } else if (statusStr === "Cancelled" || statusStr === "Rejected") {
         osc.type = "triangle";
         osc.frequency.setValueAtTime(220.00, ctx.currentTime);
         osc.frequency.linearRampToValueAtTime(146.83, ctx.currentTime + 0.3);

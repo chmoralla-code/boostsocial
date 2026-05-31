@@ -52,7 +52,7 @@ export default function TrackPage() {
         osc.stop(ctx.currentTime + 0.2);
         osc2.start(ctx.currentTime + 0.1);
         osc2.stop(ctx.currentTime + 0.5);
-      } else if (statusStr === "Cancelled") {
+      } else if (statusStr === "Cancelled" || statusStr === "Rejected") {
         osc.type = "triangle";
         osc.frequency.setValueAtTime(220.00, ctx.currentTime);
         osc.frequency.linearRampToValueAtTime(146.83, ctx.currentTime + 0.3);
@@ -286,7 +286,7 @@ export default function TrackPage() {
   };
 
   const getStepStatus = (stepName: string, orderStatus: string) => {
-    if (orderStatus === "Cancelled") return "cancelled";
+    if (orderStatus === "Cancelled" || orderStatus === "Rejected") return "cancelled";
     
     if (stepName === "placed") return "completed";
     
@@ -451,7 +451,7 @@ export default function TrackPage() {
           {order && (
             <div className="mt-8 space-y-6 text-left animate-in slide-in-from-bottom-4 duration-300">
               {/* High-Volume Queue Active Notice when SMM balance is empty */}
-              {order.status !== "Completed" && order.status !== "Cancelled" && (smmBalance <= 0 || (order.external_status && (order.external_status.toLowerCase().includes("funds") || order.external_status.toLowerCase().includes("balance")))) && (
+              {order.status !== "Completed" && order.status !== "Cancelled" && order.status !== "Rejected" && (smmBalance <= 0 || (order.external_status && (order.external_status.toLowerCase().includes("funds") || order.external_status.toLowerCase().includes("balance")))) && (
                 <div className="bg-[#ff9800]/10 border border-[#ff9800]/25 p-5 rounded-3xl text-left space-y-2.5 shadow-xl relative overflow-hidden animate-pulse">
                   <div className="absolute top-0 right-0 w-24 h-24 bg-[#ff9800]/5 rounded-full blur-xl pointer-events-none"></div>
                   <span className="text-xs font-black uppercase tracking-widest text-[#ff9800] flex items-center gap-1.5 font-extrabold">

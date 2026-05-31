@@ -204,6 +204,7 @@ export function OrdersTable({ initialOrders, receiptFiles = [] }: { initialOrder
               <option value="Pending">⏳ Pending</option>
               <option value="Processing">⚡ Processing</option>
               <option value="Completed">✅ Completed</option>
+              <option value="Rejected">Rejected</option>
               <option value="Cancelled">❌ Cancelled</option>
             </select>
           </div>
@@ -411,6 +412,7 @@ export function OrdersTable({ initialOrders, receiptFiles = [] }: { initialOrder
                         <option value="Pending">⏳ Pending</option>
                         <option value="Processing">⚡ Processing</option>
                         <option value="Completed">✅ Completed</option>
+                        <option value="Rejected">Rejected</option>
                         <option value="Cancelled">❌ Cancelled</option>
                       </select>
                     </td>
@@ -601,7 +603,7 @@ export function OrdersTable({ initialOrders, receiptFiles = [] }: { initialOrder
                 </div>
 
                 <div className="flex flex-wrap gap-2 justify-center sm:justify-end">
-                  {['Pending', 'Processing', 'Completed', 'Cancelled'].map((st) => (
+                  {['Pending', 'Processing', 'Completed', 'Rejected', 'Cancelled'].map((st) => (
                     <button
                       key={st}
                       onClick={() => updateStatus(selectedPageSpecs.orderId, st)}
