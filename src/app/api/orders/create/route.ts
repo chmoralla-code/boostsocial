@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { dualWrite } from "@/utils/supabase/dual-db";
+import { createClient as createServerClient } from "@/utils/supabase/server";
+import { enforceRateLimit } from "@/utils/security/rate-limit";
 
 const MAX_TARGET_LENGTH = 7000;
 
@@ -8,6 +10,21 @@ const getErrorMessage = (error: unknown) => error instanceof Error ? error.messa
 
 export async function POST(req: NextRequest) {
   try {
+    const rateLimitResponse = enforceRateLimit(req, {
+      key: "orders-create",
+      maxRequests: 20,
+      windowMs: 60_000,
+    });
+    if (rateLimitResponse) return rateLimitResponse;
+
+    const sessionClient = await createServerClient();
+    const {
+      data: { user },
+    } = await sessionClient.auth.getUser();
+    if (!user?.email) {
+      return NextResponse.json({ error: "Please sign in first before placing an order." }, { status: 401 });
+    }
+
     const body = await req.json();
 
     const serviceId = clean(body.serviceId);
@@ -22,6 +39,10 @@ export async function POST(req: NextRequest) {
 
     if (!serviceId || !email || !targetUrl) {
       return NextResponse.json({ error: "Missing service, email, or target details." }, { status: 400 });
+    }
+
+    if (email !== user.email.trim().toLowerCase()) {
+      return NextResponse.json({ error: "Order email does not match your account." }, { status: 403 });
     }
 
     if (!Number.isFinite(quantity) || quantity <= 0 || !Number.isInteger(quantity)) {

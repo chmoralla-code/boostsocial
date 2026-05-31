@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPrimaryAdminClient, syncBackupAdminClients } from "@/utils/supabase/dual-db";
+import { createClient as createServerClient } from "@/utils/supabase/server";
+import { isAdminEmail } from "@/utils/security/admin";
+import { enforceRateLimit } from "@/utils/security/rate-limit";
 
 const MAX_TARGET_LENGTH = 7000;
 
@@ -8,6 +11,21 @@ const getErrorMessage = (error: unknown) => error instanceof Error ? error.messa
 
 export async function POST(req: NextRequest) {
   try {
+    const rateLimitResponse = enforceRateLimit(req, {
+      key: "orders-update-target",
+      maxRequests: 30,
+      windowMs: 60_000,
+    });
+    if (rateLimitResponse) return rateLimitResponse;
+
+    const sessionClient = await createServerClient();
+    const {
+      data: { user },
+    } = await sessionClient.auth.getUser();
+    if (!user?.email) {
+      return NextResponse.json({ error: "Please sign in first." }, { status: 401 });
+    }
+
     const { orderId, targetUrl, customerEmail } = await req.json();
     const cleanOrderId = clean(orderId);
     const cleanTargetUrl = clean(targetUrl);
@@ -36,7 +54,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Order not found." }, { status: 404 });
     }
 
-    if (cleanEmail && String(order.customer_email || "").trim().toLowerCase() !== cleanEmail) {
+    const orderEmail = String(order.customer_email || "").trim().toLowerCase();
+    const requesterEmail = user.email.trim().toLowerCase();
+    const requesterIsAdmin = isAdminEmail(requesterEmail);
+
+    if (!requesterIsAdmin && requesterEmail !== orderEmail) {
+      return NextResponse.json({ error: "You can only edit your own order details." }, { status: 403 });
+    }
+
+    if (cleanEmail && orderEmail !== cleanEmail) {
       return NextResponse.json({ error: "Order email does not match." }, { status: 403 });
     }
 

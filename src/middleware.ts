@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse, type NextRequest } from 'next/server'
+import { isAdminEmail } from "@/utils/security/admin";
 
 // Service role client to perform bulletproof settings query (bypassing any client-side RLS limitations)
 const getServiceRoleClient = () =>
@@ -17,6 +18,18 @@ export async function middleware(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname
   const isAdminArea = pathname === '/admin' || pathname.startsWith('/admin/')
+  const isAdminApi = pathname === "/api/admin" || pathname.startsWith("/api/admin/");
+
+  const applySecurityHeaders = (response: NextResponse) => {
+    response.headers.set("X-Frame-Options", "DENY");
+    response.headers.set("X-Content-Type-Options", "nosniff");
+    response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+    response.headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+    response.headers.set("Cross-Origin-Opener-Policy", "same-origin");
+    response.headers.set("Cross-Origin-Resource-Policy", "same-origin");
+    response.headers.set("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload");
+    return response;
+  };
 
   // 1. Determine if this request is on a path that MUST bypass maintenance mode
   const isBypassPath =
@@ -40,7 +53,7 @@ export async function middleware(request: NextRequest) {
       const configValue = configRecord?.value as { enabled?: boolean } | null
       
       if (configValue?.enabled) {
-        return new NextResponse(
+        return applySecurityHeaders(new NextResponse(
           `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -310,7 +323,7 @@ export async function middleware(request: NextRequest) {
               'Cache-Control': 'no-store, max-age=0, must-revalidate',
             },
           }
-        )
+        ))
       }
     } catch (err) {
       console.error('Middleware maintenance check error:', err)
@@ -347,18 +360,32 @@ export async function middleware(request: NextRequest) {
     if (!user) {
       const url = request.nextUrl.clone()
       url.pathname = '/admin/login'
-      return NextResponse.redirect(url)
+      return applySecurityHeaders(NextResponse.redirect(url))
     }
 
     // Strict role-based protection: only allow emails ending in @boostsocial.com to view administrative console
-    if (!user.email?.endsWith('@boostsocial.com')) {
+    if (!isAdminEmail(user.email)) {
       const url = request.nextUrl.clone()
       url.pathname = '/'
-      return NextResponse.redirect(url)
+      return applySecurityHeaders(NextResponse.redirect(url))
     }
   }
 
-  return supabaseResponse
+  if (isAdminApi) {
+    if (!user) {
+      return applySecurityHeaders(
+        NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      );
+    }
+
+    if (!isAdminEmail(user.email)) {
+      return applySecurityHeaders(
+        NextResponse.json({ error: "Forbidden" }, { status: 403 })
+      );
+    }
+  }
+
+  return applySecurityHeaders(supabaseResponse)
 }
 
 export const config = {

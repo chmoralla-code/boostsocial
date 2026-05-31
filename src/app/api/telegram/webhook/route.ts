@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { autoPlaceRixeyOrder } from "@/lib/rixeysmm";
 import { syncBackupAdminClients } from "@/utils/supabase/dual-db";
+import { enforceRateLimit } from "@/utils/security/rate-limit";
 
 const CONFIG_BUCKET = "receipts";
 const ORDER_CONFIG_PATH = "admin-config/telegram.png";
@@ -37,6 +38,23 @@ async function getOrderActionConfig() {
 
 export async function POST(req: NextRequest) {
   try {
+    const rateLimitResponse = enforceRateLimit(req, {
+      key: "telegram-webhook",
+      maxRequests: 120,
+      windowMs: 60_000,
+    });
+    if (rateLimitResponse) return rateLimitResponse;
+
+    const configuredSecret = process.env.TELEGRAM_WEBHOOK_SECRET?.trim();
+    if (!configuredSecret) {
+      return NextResponse.json({ ok: false, error: "Webhook secret not configured." }, { status: 500 });
+    }
+
+    const receivedSecret = req.headers.get("x-telegram-bot-api-secret-token")?.trim();
+    if (receivedSecret !== configuredSecret) {
+      return NextResponse.json({ ok: false, error: "Invalid webhook signature." }, { status: 401 });
+    }
+
     const body = await req.json();
 
     if (!body.callback_query) {

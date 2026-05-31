@@ -2,9 +2,29 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { sendTopupNotification } from "@/lib/telegram";
 import { syncBackupAdminClients } from "@/utils/supabase/dual-db";
+import { createClient as createServerClient } from "@/utils/supabase/server";
+import { enforceRateLimit } from "@/utils/security/rate-limit";
+
+const MAX_RECEIPT_FILE_BYTES = 8 * 1024 * 1024;
+const ALLOWED_RECEIPT_TYPES = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp"]);
 
 export async function POST(req: NextRequest) {
   try {
+    const rateLimitResponse = enforceRateLimit(req, {
+      key: "topup-create",
+      maxRequests: 8,
+      windowMs: 10 * 60_000,
+    });
+    if (rateLimitResponse) return rateLimitResponse;
+
+    const sessionClient = await createServerClient();
+    const {
+      data: { user },
+    } = await sessionClient.auth.getUser();
+    if (!user?.id || !user.email) {
+      return NextResponse.json({ error: "Please sign in first." }, { status: 401 });
+    }
+
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
     const userId = formData.get("userId") as string | null;
@@ -13,6 +33,18 @@ export async function POST(req: NextRequest) {
 
     if (!file || !userId || !email || !amount) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    }
+
+    if (userId !== user.id || email.trim().toLowerCase() !== user.email.trim().toLowerCase()) {
+      return NextResponse.json({ error: "Top-up identity mismatch." }, { status: 403 });
+    }
+
+    if (!ALLOWED_RECEIPT_TYPES.has(file.type.toLowerCase())) {
+      return NextResponse.json({ error: "Invalid receipt file type." }, { status: 400 });
+    }
+
+    if (file.size <= 0 || file.size > MAX_RECEIPT_FILE_BYTES) {
+      return NextResponse.json({ error: "Receipt file is too large. Maximum is 8MB." }, { status: 400 });
     }
 
     const priceNum = Number(amount);

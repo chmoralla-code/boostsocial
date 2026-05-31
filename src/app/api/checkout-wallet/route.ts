@@ -3,9 +3,26 @@ import { createClient } from "@supabase/supabase-js";
 import { sendOrderNotification } from "@/lib/telegram";
 import { autoPlaceRixeyOrder } from "@/lib/rixeysmm";
 import { syncBackupAdminClients } from "@/utils/supabase/dual-db";
+import { createClient as createServerClient } from "@/utils/supabase/server";
+import { enforceRateLimit } from "@/utils/security/rate-limit";
 
 export async function POST(req: NextRequest) {
   try {
+    const rateLimitResponse = enforceRateLimit(req, {
+      key: "checkout-wallet",
+      maxRequests: 20,
+      windowMs: 60_000,
+    });
+    if (rateLimitResponse) return rateLimitResponse;
+
+    const sessionClient = await createServerClient();
+    const {
+      data: { user: sessionUser },
+    } = await sessionClient.auth.getUser();
+    if (!sessionUser?.id || !sessionUser.email) {
+      return NextResponse.json({ error: "Please sign in first." }, { status: 401 });
+    }
+
     const {
       existingOrderId,
       userId,
@@ -20,6 +37,10 @@ export async function POST(req: NextRequest) {
 
     if (!userId || !serviceId || !email || !url || !quantity || totalPrice === undefined) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    }
+
+    if (userId !== sessionUser.id || String(email).trim().toLowerCase() !== sessionUser.email.trim().toLowerCase()) {
+      return NextResponse.json({ error: "Wallet identity mismatch." }, { status: 403 });
     }
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;

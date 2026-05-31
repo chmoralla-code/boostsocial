@@ -1,11 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { createClient as createServerClient } from "@/utils/supabase/server";
+import { isAdminEmail } from "@/utils/security/admin";
+import { enforceRateLimit } from "@/utils/security/rate-limit";
 
 const CONFIG_BUCKET = "receipts";
 const ORDER_CONFIG_PATH = "admin-config/telegram.png";
 const TOPUP_CONFIG_PATH = "admin-config/telegram-topup.png";
 
 type TelegramConfig = { bot_token?: string; chat_id?: string };
+
+async function requireAdmin() {
+  const sessionClient = await createServerClient();
+  const {
+    data: { user },
+  } = await sessionClient.auth.getUser();
+
+  if (!user?.email || !isAdminEmail(user.email)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  return null;
+}
 
 const getSupabase = () =>
   createClient(
@@ -28,12 +44,13 @@ async function readTelegramConfig(path: string): Promise<TelegramConfig | null> 
   }
 }
 
-async function setWebhook(botToken: string, webhookUrl: string) {
+async function setWebhook(botToken: string, webhookUrl: string, secretToken: string) {
   const res = await fetch(`https://api.telegram.org/bot${botToken}/setWebhook`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       url: webhookUrl,
+      secret_token: secretToken,
       allowed_updates: ["callback_query"],
       drop_pending_updates: true
     }),
@@ -44,10 +61,36 @@ async function setWebhook(botToken: string, webhookUrl: string) {
 
 export async function POST(req: NextRequest) {
   try {
+    const adminResponse = await requireAdmin();
+    if (adminResponse) return adminResponse;
+
+    const rateLimitResponse = enforceRateLimit(req, {
+      key: "telegram-setup-webhook-post",
+      maxRequests: 10,
+      windowMs: 60_000,
+    });
+    if (rateLimitResponse) return rateLimitResponse;
+
     const { webhookUrl } = await req.json();
 
     if (!webhookUrl) {
       return NextResponse.json({ error: "webhookUrl is required" }, { status: 400 });
+    }
+
+    let parsedWebhookUrl: URL;
+    try {
+      parsedWebhookUrl = new URL(String(webhookUrl));
+    } catch {
+      return NextResponse.json({ error: "Invalid webhook URL." }, { status: 400 });
+    }
+
+    if (parsedWebhookUrl.protocol !== "https:") {
+      return NextResponse.json({ error: "Webhook URL must use HTTPS." }, { status: 400 });
+    }
+
+    const webhookSecret = process.env.TELEGRAM_WEBHOOK_SECRET?.trim();
+    if (!webhookSecret) {
+      return NextResponse.json({ error: "TELEGRAM_WEBHOOK_SECRET is not configured on the server." }, { status: 500 });
     }
 
     const configs = [
@@ -61,7 +104,7 @@ export async function POST(req: NextRequest) {
 
     const results = [];
     for (const item of configs) {
-      const result = await setWebhook(item.config!.bot_token!, webhookUrl);
+      const result = await setWebhook(item.config!.bot_token!, parsedWebhookUrl.toString(), webhookSecret);
       results.push({ name: item.name, result });
     }
 
@@ -82,6 +125,9 @@ export async function POST(req: NextRequest) {
 
 export async function GET() {
   try {
+    const adminResponse = await requireAdmin();
+    if (adminResponse) return adminResponse;
+
     const topupConfig = await readTelegramConfig(TOPUP_CONFIG_PATH);
     const orderConfig = await readTelegramConfig(ORDER_CONFIG_PATH);
     const config = topupConfig?.bot_token ? topupConfig : orderConfig;

@@ -1,15 +1,44 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { sendOrderApprovalNotification } from "@/lib/telegram";
+import { createClient as createServerClient } from "@/utils/supabase/server";
+import { enforceRateLimit } from "@/utils/security/rate-limit";
+import { isAdminEmail } from "@/utils/security/admin";
+
+const MAX_RECEIPT_FILE_BYTES = 8 * 1024 * 1024;
+const ALLOWED_RECEIPT_TYPES = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp"]);
 
 export async function POST(req: NextRequest) {
   try {
+    const rateLimitResponse = enforceRateLimit(req, {
+      key: "upload-receipt",
+      maxRequests: 20,
+      windowMs: 10 * 60_000,
+    });
+    if (rateLimitResponse) return rateLimitResponse;
+
+    const sessionClient = await createServerClient();
+    const {
+      data: { user },
+    } = await sessionClient.auth.getUser();
+    if (!user?.email) {
+      return NextResponse.json({ error: "Please sign in first." }, { status: 401 });
+    }
+
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
     const orderId = formData.get("orderId") as string | null;
 
     if (!file || !orderId) {
       return NextResponse.json({ error: "Missing file or orderId" }, { status: 400 });
+    }
+
+    if (!ALLOWED_RECEIPT_TYPES.has(file.type.toLowerCase())) {
+      return NextResponse.json({ error: "Invalid receipt file type." }, { status: 400 });
+    }
+
+    if (file.size <= 0 || file.size > MAX_RECEIPT_FILE_BYTES) {
+      return NextResponse.json({ error: "Receipt file is too large. Maximum is 8MB." }, { status: 400 });
     }
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -44,8 +73,14 @@ export async function POST(req: NextRequest) {
       .eq("id", orderId)
       .single();
 
-    if (fetchError) {
-      console.error("Failed to fetch order customer email:", fetchError);
+    if (fetchError || !orderData) {
+      return NextResponse.json({ error: "Order not found." }, { status: 404 });
+    }
+
+    const requesterEmail = user.email.trim().toLowerCase();
+    const orderEmail = String(orderData.customer_email || "").trim().toLowerCase();
+    if (!isAdminEmail(requesterEmail) && requesterEmail !== orderEmail) {
+      return NextResponse.json({ error: "You can only upload receipts for your own order." }, { status: 403 });
     }
 
     const email = orderData?.customer_email ? orderData.customer_email.trim() : "unknown";
