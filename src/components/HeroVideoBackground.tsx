@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { useSimpleMode } from "@/hooks/useSimpleMode";
 
 interface HeroVideoBackgroundProps {
   videoUrl?: string;
@@ -9,6 +10,7 @@ interface HeroVideoBackgroundProps {
 
 export function HeroVideoBackground({ videoUrl, opacity }: HeroVideoBackgroundProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const { simpleMode } = useSimpleMode();
 
   const activeOpacity = opacity !== undefined ? opacity : 0.45;
 
@@ -28,6 +30,11 @@ export function HeroVideoBackground({ videoUrl, opacity }: HeroVideoBackgroundPr
   const isImg = isImage(videoUrl);
 
   useEffect(() => {
+    if (simpleMode) {
+      videoRef.current?.pause();
+      return;
+    }
+
     // Reload video source and autoplay when videoUrl changes and is not an image
     if (!isImg) {
       const video = videoRef.current;
@@ -39,7 +46,11 @@ export function HeroVideoBackground({ videoUrl, opacity }: HeroVideoBackgroundPr
         });
       }
     }
-  }, [videoUrl, isImg]);
+  }, [videoUrl, isImg, simpleMode]);
+
+  if (simpleMode) {
+    return <div className="hero-video-wrapper simple-mode-static-hero" aria-hidden="true" />;
+  }
 
   return (
     <div className="hero-video-wrapper">
@@ -58,7 +69,7 @@ export function HeroVideoBackground({ videoUrl, opacity }: HeroVideoBackgroundPr
           muted
           loop
           playsInline
-          preload="auto"
+          preload="metadata"
           poster=""
           style={{ opacity: activeOpacity }}
         >

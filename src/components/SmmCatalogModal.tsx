@@ -6,6 +6,7 @@ import { createClient } from "@/utils/supabase/client";
 import { LinkPreviewWindow } from "./LinkPreviewWindow";
 import { isOrganic, formatSmmServiceName, matchesServiceQualityFilter } from "@/utils/serviceHelpers";
 import { compressImage } from "@/utils/imageCompressor";
+import { useSimpleMode } from "@/hooks/useSimpleMode";
 
 
 interface SmmService {
@@ -92,6 +93,7 @@ function parseServiceIndicators(name: string, desc: string = "") {
 }
 
 export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalogModalProps) {
+  const { simpleMode } = useSimpleMode();
   const [services, setServices] = useState<SmmService[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -308,6 +310,10 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
 
   const formatPrice = (amount: number) => {
     return amount.toFixed(2);
+  };
+
+  const getReadableServiceName = (service: SmmService) => {
+    return simpleMode ? formatSmmServiceName(service.name, service.id, service.desc) : service.name;
   };
 
   const effectiveQuantity = selectedService ? Math.max(quantity, selectedService.min) : 0;
@@ -745,7 +751,7 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
                   <span className="text-[9px] bg-slate-850 text-slate-400 border border-slate-800 px-2.5 py-0.5 rounded-full font-mono">
                     SMM ID: #{selectedService.id}
                   </span>
-                  <h3 className="text-base font-black text-white mt-1 leading-snug">{selectedService.name}</h3>
+                  <h3 className="text-base font-black text-white mt-1 leading-snug">{getReadableServiceName(selectedService)}</h3>
                 </div>
               </div>
 
@@ -803,7 +809,7 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
                     <div className="mt-4 animate-in fade-in duration-300">
                       <LinkPreviewWindow 
                         targetUrl={url} 
-                        serviceTitle={selectedService.name} 
+                        serviceTitle={getReadableServiceName(selectedService)}
                       />
                     </div>
                   )}

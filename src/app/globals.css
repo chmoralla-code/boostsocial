@@ -298,3 +298,164 @@ body {
   border-color: #e2e8f0 !important;
 }
 
+/* Simple Mode: lightweight public UI for slower devices. */
+html.simple-mode {
+  color-scheme: light;
+  --color-background: #f8fafc !important;
+  --color-foreground: #0f172a !important;
+}
+
+html.simple-mode body {
+  background: #f8fafc !important;
+  color: #0f172a !important;
+}
+
+html.simple-mode *,
+html.simple-mode *::before,
+html.simple-mode *::after {
+  animation: none !important;
+  transition-duration: 0ms !important;
+  text-shadow: none !important;
+  box-shadow: none !important;
+  filter: none !important;
+  scroll-behavior: auto !important;
+}
+
+html.simple-mode .hero-video-wrapper:not(.simple-mode-static-hero),
+html.simple-mode .simple-mode-hidden-media,
+html.simple-mode .spotify-glow-blob,
+html.simple-mode .fb-glow-blob,
+html.simple-mode [class*="blur-"],
+html.simple-mode [class*="blur["],
+html.simple-mode [class*="animate-ping"],
+html.simple-mode [class*="animate-pulse"],
+html.simple-mode [class*="animate-bounce"] {
+  display: none !important;
+}
+
+html.simple-mode .simple-mode-static-hero {
+  height: 420px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 78%, #f8fafc 100%);
+}
+
+html.simple-mode .simple-mode-hero-content {
+  grid-column: 1 / -1 !important;
+  max-width: 760px;
+  margin-left: auto;
+  margin-right: auto;
+  align-items: center !important;
+  text-align: center !important;
+}
+
+html.simple-mode main,
+html.simple-mode header,
+html.simple-mode footer,
+html.simple-mode section,
+html.simple-mode [class*="bg-[#0a0a0a]"],
+html.simple-mode [class*="bg-[#090909]"],
+html.simple-mode [class*="bg-[#10131a]"],
+html.simple-mode [class*="bg-[#121212]"],
+html.simple-mode [class*="bg-[#131313]"],
+html.simple-mode [class*="bg-[#161616]"],
+html.simple-mode [class*="bg-[#181818]"],
+html.simple-mode [class*="bg-[#1a1a1a]"],
+html.simple-mode [class*="bg-[#1c1c1c]"],
+html.simple-mode [class*="bg-[#202020]"],
+html.simple-mode [class*="bg-[#282828]"],
+html.simple-mode [class*="bg-black/"],
+html.simple-mode [class*="bg-slate-850"],
+html.simple-mode [class*="bg-slate-900"],
+html.simple-mode [class*="bg-slate-950"],
+html.simple-mode [class*="from-white"],
+html.simple-mode [class*="to-white"],
+html.simple-mode [class*="bg-white/"] {
+  background-color: #ffffff !important;
+  background-image: none !important;
+}
+
+html.simple-mode [class*="backdrop-blur"],
+html.simple-mode [class*="shadow-"],
+html.simple-mode [class*="drop-shadow"],
+html.simple-mode [class*="hover:-translate"],
+html.simple-mode [class*="hover:scale"],
+html.simple-mode [class*="group-hover:scale"],
+html.simple-mode [class*="group-hover:rotate"] {
+  backdrop-filter: none !important;
+  transform: none !important;
+}
+
+html.simple-mode [class*="rounded-3xl"],
+html.simple-mode [class*="rounded-[2"],
+html.simple-mode [class*="rounded-full"] {
+  border-radius: 12px !important;
+}
+
+html.simple-mode [class*="border-slate"],
+html.simple-mode [class*="border-white/"],
+html.simple-mode [class*="divide-slate"] > * {
+  border-color: #dbe4ee !important;
+}
+
+html.simple-mode .text-white,
+html.simple-mode [class*="text-slate-100"],
+html.simple-mode [class*="text-slate-200"],
+html.simple-mode [class*="text-slate-250"],
+html.simple-mode [class*="text-slate-300"],
+html.simple-mode [class*="text-slate-350"] {
+  color: #0f172a !important;
+}
+
+html.simple-mode [class*="text-slate-400"],
+html.simple-mode [class*="text-slate-450"],
+html.simple-mode [class*="text-slate-500"],
+html.simple-mode [class*="text-slate-550"],
+html.simple-mode [class*="text-slate-600"],
+html.simple-mode [class*="text-slate-650"] {
+  color: #475569 !important;
+}
+
+html.simple-mode .spotify-shimmer-text,
+html.simple-mode .fb-shimmer-text {
+  background: none !important;
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
+
+html.simple-mode input,
+html.simple-mode textarea,
+html.simple-mode select {
+  background: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+html.simple-mode input::placeholder,
+html.simple-mode textarea::placeholder {
+  color: #64748b !important;
+}
+
+html.simple-mode button[class*="bg-[#1877F2]"],
+html.simple-mode button[class*="bg-[#FF0000]"],
+html.simple-mode a[class*="bg-[#1877F2]"] {
+  color: #ffffff !important;
+}
+
+html.simple-mode .simple-mode-toggle {
+  background: #14532d !important;
+  border-color: #166534 !important;
+  color: #ffffff !important;
+}
+
+html.simple-mode .line-clamp-2 {
+  display: block !important;
+  overflow: visible !important;
+  -webkit-line-clamp: unset !important;
+  -webkit-box-orient: initial !important;
+}
+
+@media (max-width: 640px) {
+  html.simple-mode .simple-mode-static-hero {
+    height: 360px;
+  }
+}
+
