@@ -138,7 +138,7 @@ export function ServicesCandidatesPanel() {
             Service Candidates Cards <Sparkles size={14} className="text-emerald-400" />
           </h2>
           <p className="text-xs text-slate-400 mt-0.5 font-semibold">
-            Customize the copywriting text, pricing starting rate, icons, and theme colors of the 6 main service tier cards shown on your homepage.
+            Customize the copywriting text, pricing starting rate, icons, and theme colors of the main service tier cards shown on your homepage.
           </p>
         </div>
       </div>

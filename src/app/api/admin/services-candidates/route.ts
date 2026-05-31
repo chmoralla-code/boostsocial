@@ -53,6 +53,20 @@ const DEFAULT_CANDIDATES = [
     glow_color: "rgba(255, 0, 0, 0.45)"
   },
   {
+    id: "order-page",
+    emoji: "📄",
+    tag: "ORDER PAGE",
+    title: "Custom Facebook Page",
+    caption: "Page setup + FB followers",
+    description: "Launch a custom Facebook page with profile and cover assets, FB bio, transfer link, GCash or wallet checkout, and follower quantity priced from SMM #1141.",
+    rate_prefix: "Base Package",
+    rate_text: "₱1,999 includes 10k followers",
+    layout: "standard",
+    theme_color: "#1877F2",
+    btn_bg: "bg-[#1877F2] hover:bg-[#4e8df5]",
+    glow_color: "rgba(24, 119, 242, 0.45)"
+  },
+  {
     id: "other",
     emoji: "Layers",
     tag: "OTHER SERVICES",
@@ -78,6 +92,21 @@ const DEFAULT_CANDIDATES = [
 
   }
 ];
+
+function mergeDefaultCandidates(savedCandidates: unknown) {
+  if (!Array.isArray(savedCandidates)) {
+    return DEFAULT_CANDIDATES;
+  }
+
+  const merged = [...savedCandidates];
+  for (const candidate of DEFAULT_CANDIDATES) {
+    if (!merged.some((item) => typeof item === "object" && item !== null && "id" in item && (item as { id?: unknown }).id === candidate.id)) {
+      const insertIndex = candidate.id === "order-page" ? Math.min(4, merged.length) : merged.length;
+      merged.splice(insertIndex, 0, candidate);
+    }
+  }
+  return merged;
+}
 
 // Helper to check if the user is a logged-in administrator
 async function checkAdminAuth() {
@@ -106,7 +135,7 @@ export async function GET() {
       return NextResponse.json(DEFAULT_CANDIDATES);
     }
 
-    return NextResponse.json(data.value);
+    return NextResponse.json(mergeDefaultCandidates(data.value));
   } catch (err: any) {
     console.error("GET services candidates error:", err);
     return NextResponse.json(DEFAULT_CANDIDATES);

@@ -52,6 +52,21 @@ interface ServicesSectionProps {
   servicesCandidates?: any[] | null;
 }
 
+const ORDER_PAGE_CANDIDATE = {
+  id: "order-page",
+  emoji: "📄",
+  tag: "ORDER PAGE",
+  title: "Custom Facebook Page",
+  caption: "Page setup + FB followers",
+  description: "Launch a custom Facebook page with profile and cover assets, FB bio, transfer link, GCash or wallet checkout, and follower quantity priced from SMM #1141.",
+  rate_prefix: "Base Package",
+  rate_text: "₱1,999 includes 10k followers",
+  layout: "standard",
+  theme_color: "#1877F2",
+  btn_bg: "bg-[#1877F2] hover:bg-[#4e8df5]",
+  glow_color: "rgba(24, 119, 242, 0.45)"
+};
+
 const PLATFORM_SERVICE_CHIPS: Record<PlatformType, string[]> = {
   facebook: ["Like", "Heart/Love", "Care", "Haha", "Wow", "Sad", "Angry"],
   instagram: ["Post Likes", "Reel Likes", "Story Likes", "Saves", "Shares"],
@@ -461,9 +476,16 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
 
   ];
 
-  const activeCandidates = servicesCandidates && Array.isArray(servicesCandidates) && servicesCandidates.length > 0
+  const configuredCandidates = servicesCandidates && Array.isArray(servicesCandidates) && servicesCandidates.length > 0
     ? servicesCandidates
     : DEFAULT_CANDIDATES;
+  const activeCandidates = configuredCandidates.some((card) => card.id === ORDER_PAGE_CANDIDATE.id)
+    ? configuredCandidates
+    : [
+        ...configuredCandidates.slice(0, 4),
+        ORDER_PAGE_CANDIDATE,
+        ...configuredCandidates.slice(4)
+      ];
 
   const filteredServicesForCalculator = services.filter((srv) => {
     const isOther = otherServices.some((o) => o.id === srv.id);
@@ -627,6 +649,10 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
                 setPlatformSubModalType("youtube");
                 setPlatformSubModalOpen(true);
               };
+            } else if (card.id === "order-page") {
+              clickAction = () => {
+                window.location.href = "/order-page";
+              };
             } else if (card.id === "other") {
               if (otherServices.length === 0) return null;
               clickAction = () => setIsOtherModalOpen(true);
@@ -759,7 +785,7 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
                   onMouseEnter={(e) => e.currentTarget.style.filter = "brightness(1.1)"}
                   onMouseLeave={(e) => e.currentTarget.style.filter = "none"}
                 >
-                  VIEW
+                  {card.id === "order-page" ? "ORDER PAGE" : "VIEW"}
                 </button>
               </div>
             );
