@@ -7,6 +7,7 @@ import { createClient } from "@/utils/supabase/client";
 import { format } from "date-fns";
 import { TopUpModal } from "./TopUpModal";
 import { ReferralsModal } from "./ReferralsModal";
+import { SimpleModeToggle } from "./SimpleModeToggle";
 
 export function Header() {
   const [user, setUser] = useState<any>(null);
@@ -109,6 +110,8 @@ export function Header() {
         <div className={user ? "grid w-full grid-cols-[minmax(0,1fr)_44px_44px_44px] items-center gap-2 md:flex md:w-auto md:gap-4" : "flex w-full items-center justify-end gap-2 md:w-auto"}>
           {user ? (
             <>
+              <SimpleModeToggle className="col-span-full w-full md:w-auto" />
+
               <button 
                 onClick={() => setShowTopUpModal(true)}
                 className="flex h-11 min-w-0 items-center justify-center gap-1.5 rounded-full border border-[#1877F2]/30 bg-[#1877F2]/10 px-3 py-2 text-[11px] font-extrabold uppercase tracking-wider text-[#1877F2] transition-all hover:bg-[#1877F2]/20 md:h-auto md:py-2 md:text-xs cursor-pointer"
@@ -148,12 +151,15 @@ export function Header() {
               </button>
             </>
           ) : (
-            <Link
-              href="/login"
-              className="bg-[#1877F2] hover:bg-[#4e8df5] text-white font-extrabold py-2.5 px-5 sm:px-6 rounded-full transition-all duration-300 transform hover:scale-[1.03] shadow-md shadow-blue-500/10 text-xs uppercase tracking-wider"
-            >
-              Sign In
-            </Link>
+            <>
+              <SimpleModeToggle />
+              <Link
+                href="/login"
+                className="bg-[#1877F2] hover:bg-[#4e8df5] text-white font-extrabold py-2.5 px-5 sm:px-6 rounded-full transition-all duration-300 transform hover:scale-[1.03] shadow-md shadow-blue-500/10 text-xs uppercase tracking-wider"
+              >
+                Sign In
+              </Link>
+            </>
           )}
         </div>
         </div>
