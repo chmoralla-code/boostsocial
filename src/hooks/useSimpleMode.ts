@@ -23,7 +23,7 @@ function applySimpleMode(enabled: boolean) {
 }
 
 export function useSimpleMode() {
-  const [simpleMode, setSimpleModeState] = useState(readInitialSimpleMode);
+  const [simpleMode, setSimpleModeState] = useState(false);
 
   const setSimpleMode = useCallback((enabled: boolean) => {
     setSimpleModeState(enabled);
