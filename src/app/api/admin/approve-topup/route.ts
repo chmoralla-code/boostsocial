@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { syncBackupAdminClients } from "@/utils/supabase/dual-db";
+import { creditReferralCommission } from "@/utils/referrals";
 
 export async function POST(req: NextRequest) {
   try {
@@ -99,42 +100,16 @@ export async function POST(req: NextRequest) {
           .eq("id", topupId);
       }, "top-up approval sync");
 
-      // 5. Calculate & credit referral commission if referred
-      if (profile.referred_by) {
-        const commission = finalAmount * 0.10;
-        
-        // Fetch referrer's current balance
-        const { data: referrer, error: referrerError } = await supabase
-          .from("profiles")
-          .select("balance")
-          .eq("id", profile.referred_by)
-          .single();
-
-        if (referrer && !referrerError) {
-          const referrerNewBalance = Number(referrer.balance || 0) + commission;
-          
-          // Update referrer balance
-          const { error: updateReferrerError } = await supabase
-            .from("profiles")
-            .update({ balance: referrerNewBalance })
-            .eq("id", profile.referred_by);
-
-          if (!updateReferrerError) {
-            // Log referral transaction
-            await supabase
-              .from("referral_transactions")
-              .insert([
-                {
-                  referrer_id: profile.referred_by,
-                  referee_id: topup.user_id,
-                  amount: commission,
-                  description: `10% referral commission from approved GCash top-up of ₱${finalAmount.toFixed(2)}`
-                }
-              ]);
-          } else {
-            console.error("Failed to update referrer balance:", updateReferrerError);
-          }
-        }
+      try {
+        await creditReferralCommission({
+          primaryClient: supabase,
+          customerId: topup.user_id,
+          source: "topup",
+          amount: finalAmount,
+          referenceId: topupId,
+        });
+      } catch (commissionError) {
+        console.error("Top-up referral commission failed:", commissionError);
       }
 
       return NextResponse.json({ success: true, newBalance });

@@ -5,6 +5,7 @@ import { autoPlaceRixeyOrder } from "@/lib/rixeysmm";
 import { syncBackupAdminClients } from "@/utils/supabase/dual-db";
 import { createClient as createServerClient } from "@/utils/supabase/server";
 import { enforceRateLimit } from "@/utils/security/rate-limit";
+import { creditReferralCommission } from "@/utils/referrals";
 
 export async function POST(req: NextRequest) {
   try {
@@ -162,6 +163,17 @@ export async function POST(req: NextRequest) {
           smm_service_id: smmServiceId || null
         });
     }, "wallet checkout sync");
+
+    creditReferralCommission({
+      primaryClient: supabase,
+      customerId: userId,
+      customerEmail: String(email).trim(),
+      source: "order",
+      amount: cost,
+      referenceId: order.id,
+    }).catch((err) => {
+      console.error("Wallet referral order commission failed:", err);
+    });
 
     autoPlaceRixeyOrder(order.id, serviceId, String(url).trim(), quantity).catch((err) => {
       console.error("Async auto-placement on RixeySMM from verified wallet checkout failed:", err);

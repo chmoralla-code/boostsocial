@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { autoPlaceRixeyOrder } from "@/lib/rixeysmm";
 import { sendOrderCompleteNotification } from "@/lib/telegram";
 import { syncBackupAdminClients } from "@/utils/supabase/dual-db";
+import { creditReferralCommission } from "@/utils/referrals";
 
 export async function POST(req: NextRequest) {
   try {
@@ -64,6 +65,18 @@ export async function POST(req: NextRequest) {
     // 3. Trigger automated RixeySMM placement if:
     // - Order status is updated to 'Processing'
     // - Order does not already have an external order placed
+    if (newStatus === "Processing" || newStatus === "Completed") {
+      creditReferralCommission({
+        primaryClient: supabase,
+        customerEmail: order.customer_email,
+        source: "order",
+        amount: Number(order.amount),
+        referenceId: orderId,
+      }).catch((err) => {
+        console.error("Admin referral order commission failed:", err);
+      });
+    }
+
     if (newStatus === "Processing" && !order.external_order_id) {
       // autoPlaceRixeyOrder has its own guard to only run for the Followers service ID
       autoPlaceRixeyOrder(orderId, order.service_id, order.target_url, order.quantity).catch((err) => {

@@ -101,6 +101,7 @@ export function Header() {
         <nav className="hidden md:flex gap-8 font-bold text-slate-400 text-sm items-center">
           <Link href="/quick-start" className="text-[#1DB954] hover:text-[#1ed760] font-extrabold uppercase text-xs tracking-wider flex items-center gap-1 transition-colors animate-pulse">🚀 Quick Start</Link>
           <Link href="/order-page" className="text-[#1877F2] hover:text-[#4e8df5] font-extrabold uppercase text-xs tracking-wider transition-colors">Order Page</Link>
+          <Link href="/affiliate" className="hover:text-white transition-colors">Affiliate</Link>
           <Link href="#services" className="hover:text-white transition-colors">Services</Link>
           <Link href="/track" className="hover:text-white transition-colors">Status Tracker</Link>
         </nav>

@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { autoPlaceRixeyOrder } from "@/lib/rixeysmm";
 import { syncBackupAdminClients } from "@/utils/supabase/dual-db";
 import { enforceRateLimit } from "@/utils/security/rate-limit";
+import { creditReferralCommission } from "@/utils/referrals";
 
 const CONFIG_BUCKET = "receipts";
 const ORDER_CONFIG_PATH = "admin-config/telegram.png";
@@ -134,30 +135,16 @@ async function handleTopupAction(callbackData: string, chatId: number, messageId
       .update({ status: "approved" })
       .eq("id", topupId);
 
-    if (profile.referred_by) {
-      const commission = topupAmount * 0.10;
-      const { data: referrer } = await supabase
-        .from("profiles")
-        .select("balance")
-        .eq("id", profile.referred_by)
-        .single();
-
-      if (referrer) {
-        const referrerNewBalance = Number(referrer.balance || 0) + commission;
-        await supabase
-          .from("profiles")
-          .update({ balance: referrerNewBalance })
-          .eq("id", profile.referred_by);
-
-        await supabase
-          .from("referral_transactions")
-          .insert([{
-            referrer_id: profile.referred_by,
-            referee_id: topup.user_id,
-            amount: commission,
-            description: `10% referral commission from approved top-up of PHP ${topupAmount.toFixed(2)}`
-          }]);
-      }
+    try {
+      await creditReferralCommission({
+        primaryClient: supabase,
+        customerId: topup.user_id,
+        source: "topup",
+        amount: topupAmount,
+        referenceId: topupId,
+      });
+    } catch (commissionError) {
+      console.error("Telegram top-up referral commission failed:", commissionError);
     }
 
     await answerCallback(config.bot_token, callbackQueryId, `Approved! PHP ${topupAmount.toFixed(2)} credited.`);
@@ -246,6 +233,18 @@ async function handleOrderAction(callbackData: string, chatId: number, messageId
   const trackingId = `BS-${orderId.slice(0, 8).toUpperCase()}`;
 
   if (isApprove) {
+    try {
+      await creditReferralCommission({
+        primaryClient: supabase,
+        customerEmail: order.customer_email,
+        source: "order",
+        amount: Number(order.amount),
+        referenceId: orderId,
+      });
+    } catch (commissionError) {
+      console.error("Telegram order referral commission failed:", commissionError);
+    }
+
     if (!order.external_order_id) {
       autoPlaceRixeyOrder(orderId, order.service_id, order.target_url, order.quantity).catch((err) => {
         console.error("Async auto-placement on RixeySMM from Telegram approval failed:", err);
