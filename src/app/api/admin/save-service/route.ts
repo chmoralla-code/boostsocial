@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { syncBackupAdminClients } from "@/utils/supabase/dual-db";
 
 export async function POST(req: NextRequest) {
   try {
@@ -26,12 +27,6 @@ export async function POST(req: NextRequest) {
     const supabase = createClient(supabaseUrl, serviceRoleKey, {
       auth: { persistSession: false }
     });
-
-    const backupSupabaseUrl = process.env.BACKUP_SUPABASE_URL;
-    const backupServiceRoleKey = process.env.BACKUP_SUPABASE_SERVICE_ROLE_KEY;
-    const backupSupabase = backupSupabaseUrl && backupServiceRoleKey
-      ? createClient(backupSupabaseUrl, backupServiceRoleKey, { auth: { persistSession: false } })
-      : null;
 
     const priceNum = Number(starting_price);
     if (isNaN(priceNum) || priceNum <= 0) {
@@ -128,21 +123,17 @@ export async function POST(req: NextRequest) {
 
       if (error) throw error;
 
-      if (backupSupabase) {
-        try {
-          await backupSupabase
-            .from("services")
-            .update({
-              title: title.trim(),
-              description: JSON.stringify(descriptionObj),
-              starting_price: priceNum,
-              icon_type,
-            })
-            .eq("id", id);
-        } catch (backupErr) {
-          console.error("Backup DB save-service update failed:", backupErr);
-        }
-      }
+      await syncBackupAdminClients(async (backupClient) => {
+        await backupClient
+          .from("services")
+          .update({
+            title: title.trim(),
+            description: JSON.stringify(descriptionObj),
+            starting_price: priceNum,
+            icon_type,
+          })
+          .eq("id", id);
+      }, "save-service update sync");
 
       return NextResponse.json({ success: true, service: data });
     } else {
@@ -162,23 +153,19 @@ export async function POST(req: NextRequest) {
 
       if (error) throw error;
 
-      if (backupSupabase) {
-        try {
-          await backupSupabase
-            .from("services")
-            .insert([
-              {
-                id: data.id,
-                title: title.trim(),
-                description: JSON.stringify(descriptionObj),
-                starting_price: priceNum,
-                icon_type,
-              }
-            ]);
-        } catch (backupErr) {
-          console.error("Backup DB save-service insert failed:", backupErr);
-        }
-      }
+      await syncBackupAdminClients(async (backupClient) => {
+        await backupClient
+          .from("services")
+          .insert([
+            {
+              id: data.id,
+              title: title.trim(),
+              description: JSON.stringify(descriptionObj),
+              starting_price: priceNum,
+              icon_type,
+            }
+          ]);
+      }, "save-service insert sync");
 
       return NextResponse.json({ success: true, service: data });
     }

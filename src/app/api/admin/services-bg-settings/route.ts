@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient as createServerClient } from "@/utils/supabase/server";
 import { createClient } from "@supabase/supabase-js";
+import { syncBackupAdminClients } from "@/utils/supabase/dual-db";
 
 const CONFIG_BUCKET = "receipts";
 
@@ -65,12 +66,6 @@ export async function POST(req: NextRequest) {
       };
     }
 
-    const backupUrl = process.env.BACKUP_SUPABASE_URL;
-    const backupKey = process.env.BACKUP_SUPABASE_SERVICE_ROLE_KEY;
-    const backupSupabase = backupUrl && backupKey
-      ? createClient(backupUrl, backupKey, { auth: { persistSession: false } })
-      : null;
-
     // 1. Reset Action
     if (body.reset || body.action === "reset") {
       const resetObj = { videoUrl: "", opacity: 0.15 };
@@ -83,18 +78,14 @@ export async function POST(req: NextRequest) {
         );
       if (error) throw error;
 
-      if (backupSupabase) {
-        try {
-          await backupSupabase
-            .from("settings")
-            .upsert(
-              { key: "services_bg_settings", value: resetObj, updated_at: new Date().toISOString() },
-              { onConflict: "key" }
-            );
-        } catch (backupErr) {
-          console.error("Backup DB services bg reset failed:", backupErr);
-        }
-      }
+      await syncBackupAdminClients(async (backupClient) => {
+        await backupClient
+          .from("settings")
+          .upsert(
+            { key: "services_bg_settings", value: resetObj, updated_at: new Date().toISOString() },
+            { onConflict: "key" }
+          );
+      }, "services bg reset sync");
 
       return NextResponse.json({ success: true, ...resetObj });
     }
@@ -148,18 +139,14 @@ export async function POST(req: NextRequest) {
         );
       if (error) throw error;
 
-      if (backupSupabase) {
-        try {
-          await backupSupabase
-            .from("settings")
-            .upsert(
-              { key: "services_bg_settings", value: saveObj, updated_at: new Date().toISOString() },
-              { onConflict: "key" }
-            );
-        } catch (backupErr) {
-          console.error("Backup DB services bg save failed:", backupErr);
-        }
-      }
+      await syncBackupAdminClients(async (backupClient) => {
+        await backupClient
+          .from("settings")
+          .upsert(
+            { key: "services_bg_settings", value: saveObj, updated_at: new Date().toISOString() },
+            { onConflict: "key" }
+          );
+      }, "services bg save sync");
 
       return NextResponse.json({ success: true, ...saveObj });
     }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { syncBackupAdminClients } from "@/utils/supabase/dual-db";
 
 export async function POST(req: NextRequest) {
   try {
@@ -29,21 +30,12 @@ export async function POST(req: NextRequest) {
 
     if (error) throw error;
 
-    const backupSupabaseUrl = process.env.BACKUP_SUPABASE_URL;
-    const backupServiceRoleKey = process.env.BACKUP_SUPABASE_SERVICE_ROLE_KEY;
-    if (backupSupabaseUrl && backupServiceRoleKey) {
-      try {
-        const backupSupabase = createClient(backupSupabaseUrl, backupServiceRoleKey, {
-          auth: { persistSession: false }
-        });
-        await backupSupabase
-          .from("services")
-          .delete()
-          .eq("id", id);
-      } catch (backupErr) {
-        console.error("Backup DB delete-service failed:", backupErr);
-      }
-    }
+    await syncBackupAdminClients(async (backupClient) => {
+      await backupClient
+        .from("services")
+        .delete()
+        .eq("id", id);
+    }, "delete-service sync");
 
     return NextResponse.json({ success: true });
   } catch (err: any) {

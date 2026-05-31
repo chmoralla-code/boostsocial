@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient as createServerClient } from "@/utils/supabase/server";
-import { createClient } from "@supabase/supabase-js";
+import { syncBackupAdminClients } from "@/utils/supabase/dual-db";
 
 // Default candidates fallback structure
 const DEFAULT_CANDIDATES = [
@@ -165,22 +165,14 @@ export async function POST(req: NextRequest) {
 
     if (primaryErr) throw primaryErr;
 
-    // 2. Save to Backup Tokyo Database
-    const backupUrl = process.env.BACKUP_SUPABASE_URL;
-    const backupKey = process.env.BACKUP_SUPABASE_SERVICE_ROLE_KEY;
-    if (backupUrl && backupKey) {
-      try {
-        const backupSupabase = createClient(backupUrl, backupKey, { auth: { persistSession: false } });
-        await backupSupabase
-          .from("settings")
-          .upsert(
-            { key: "services_candidates", value: candidates, updated_at: new Date().toISOString() },
-            { onConflict: "key" }
-          );
-      } catch (backupErr) {
-        console.error("Backup DB services_candidates upsert failed:", backupErr);
-      }
-    }
+    await syncBackupAdminClients(async (backupClient) => {
+      await backupClient
+        .from("settings")
+        .upsert(
+          { key: "services_candidates", value: candidates, updated_at: new Date().toISOString() },
+          { onConflict: "key" }
+        );
+    }, "services_candidates upsert sync");
 
     return NextResponse.json({ success: true, candidates });
   } catch (err: any) {

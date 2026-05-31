@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { sendOrderNotification } from "@/lib/telegram";
 import { autoPlaceRixeyOrder } from "@/lib/rixeysmm";
+import { syncBackupAdminClients } from "@/utils/supabase/dual-db";
 
 export async function POST(req: NextRequest) {
   try {
@@ -118,36 +119,26 @@ export async function POST(req: NextRequest) {
       order = insertedOrder;
     }
 
-    const backupSupabaseUrl = process.env.BACKUP_SUPABASE_URL;
-    const backupServiceRoleKey = process.env.BACKUP_SUPABASE_SERVICE_ROLE_KEY;
-    const backupSupabase = backupSupabaseUrl && backupServiceRoleKey
-      ? createClient(backupSupabaseUrl, backupServiceRoleKey, { auth: { persistSession: false } })
-      : null;
+    await syncBackupAdminClients(async (backupClient) => {
+      await backupClient
+        .from("profiles")
+        .update({ balance: newBalance })
+        .eq("id", userId);
 
-    if (backupSupabase) {
-      try {
-        await backupSupabase
-          .from("profiles")
-          .update({ balance: newBalance })
-          .eq("id", userId);
-
-        await backupSupabase
-          .from("orders")
-          .upsert({
-            id: order.id,
-            service_id: serviceId,
-            customer_email: String(email).trim(),
-            target_url: String(url).trim(),
-            amount: cost,
-            status: "Processing",
-            payment_method: "Wallet",
-            quantity,
-            smm_service_id: smmServiceId || null
-          });
-      } catch (backupErr) {
-        console.error("Backup DB wallet checkout sync failed:", backupErr);
-      }
-    }
+      await backupClient
+        .from("orders")
+        .upsert({
+          id: order.id,
+          service_id: serviceId,
+          customer_email: String(email).trim(),
+          target_url: String(url).trim(),
+          amount: cost,
+          status: "Processing",
+          payment_method: "Wallet",
+          quantity,
+          smm_service_id: smmServiceId || null
+        });
+    }, "wallet checkout sync");
 
     autoPlaceRixeyOrder(order.id, serviceId, String(url).trim(), quantity).catch((err) => {
       console.error("Async auto-placement on RixeySMM from verified wallet checkout failed:", err);

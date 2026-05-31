@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { promises as dnsPromises } from "dns";
-import { createClient } from "@supabase/supabase-js";
-import { dualWrite, getPrimaryAdminClient, getBackupAdminClient } from "@/utils/supabase/dual-db";
+import { dualWrite, getPrimaryAdminClient, getBackupAdminClients } from "@/utils/supabase/dual-db";
 
 // ─────────────────────────────────────────────────────────────
 // 1.  MASSIVE DISPOSABLE / BURNER DOMAIN BLOCKLIST (100+)
@@ -241,7 +240,7 @@ export async function POST(req: NextRequest) {
 
     // 1. Initialize admin clients for duplicate checks
     const primaryAdmin = getPrimaryAdminClient();
-    const backupAdmin = getBackupAdminClient();
+    const backupAdmins = getBackupAdminClients();
 
     // 2. Fetch user lists to prevent duplicate registrations across primary & backup
     let existingUser = null;
@@ -252,12 +251,15 @@ export async function POST(req: NextRequest) {
       console.warn("Failed listing primary users:", e);
     }
 
-    if (!existingUser) {
+    for (const backupAdmin of backupAdmins) {
+      if (existingUser) {
+        break;
+      }
       try {
-        const { data: backupUsers } = await backupAdmin.auth.admin.listUsers();
+        const { data: backupUsers } = await backupAdmin.client.auth.admin.listUsers();
         existingUser = backupUsers?.users.find(u => u.email && u.email.toLowerCase() === cleanEmail.toLowerCase());
       } catch (e) {
-        console.warn("Failed listing backup users:", e);
+        console.warn(`Failed listing ${backupAdmin.displayName} users:`, e);
       }
     }
 
@@ -282,18 +284,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Failed to generate user ID" }, { status: 500 });
     }
 
-    // 4. Create the auth user inside the BACKUP database's auth list so the auth records match!
-    //    We also confirm their email on backup to keep the confirmation state matching.
-    try {
-      await backupAdmin.auth.admin.createUser({
-        id: newUserId, // preserve matching UUID!
-        email: cleanEmail,
-        password: password,
-        email_confirm: true // keeps confirmation state matching
-      });
-      console.log(`Successfully replicated auth user ${newUserId} to Backup Auth database.`);
-    } catch (backupAuthErr: any) {
-      console.warn("⚠️ Failed replicating auth user to Backup database:", backupAuthErr.message);
+    // 4. Create the auth user inside every configured backup auth database.
+    for (const backupAdmin of backupAdmins) {
+      try {
+        await backupAdmin.client.auth.admin.createUser({
+          id: newUserId,
+          email: cleanEmail,
+          password: password,
+          email_confirm: true
+        });
+        console.log(`Successfully replicated auth user ${newUserId} to ${backupAdmin.displayName} Auth database.`);
+      } catch (backupAuthErr: any) {
+        console.warn(`Failed replicating auth user to ${backupAdmin.displayName} database:`, backupAuthErr.message);
+      }
     }
 
     // 5. Process referrals & welcome balances
@@ -312,24 +315,27 @@ export async function POST(req: NextRequest) {
         referredById = referrer.id;
         initialBalance = 20.00; // ₱20 Welcome Balance bonus
       } else {
-        // Try looking up referrer in backup database in case primary was offline
-        try {
-          const { data: referrerB } = await backupAdmin
-            .from("profiles")
-            .select("id")
-            .eq("referral_code", referralCode.trim())
-            .maybeSingle();
-          if (referrerB) {
-            referredById = referrerB.id;
-            initialBalance = 20.00;
+        // Try looking up referrer in backup databases in case primary was offline.
+        for (const backupAdmin of backupAdmins) {
+          try {
+            const { data: referrerB } = await backupAdmin.client
+              .from("profiles")
+              .select("id")
+              .eq("referral_code", referralCode.trim())
+              .maybeSingle();
+            if (referrerB) {
+              referredById = referrerB.id;
+              initialBalance = 20.00;
+              break;
+            }
+          } catch (e) {
+            console.warn(`${backupAdmin.displayName} referrer lookup error:`, e);
           }
-        } catch (e) {
-          console.warn("Backup referrer lookup error:", e);
         }
       }
     }
 
-    // 6. Write and sync profiles to BOTH databases using our secure dualWrite system
+    // 6. Write and sync profiles to primary and all configured backup databases.
     const { error: profileUpdateError, databaseUsed } = await dualWrite(async (dbClient) => {
       // First, upsert the profile in case the trigger delay didn't finish executing yet
       return await dbClient

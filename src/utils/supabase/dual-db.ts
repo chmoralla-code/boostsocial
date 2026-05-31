@@ -1,56 +1,132 @@
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
+type BackupLabel = "backup" | "backup3";
+type DatabaseUsed = "primary" | BackupLabel | "both";
+
+type BackupConfig = {
+  label: BackupLabel;
+  displayName: string;
+  url?: string;
+  key?: string;
+};
+
+export type BackupAdminClient = {
+  label: BackupLabel;
+  displayName: string;
+  client: SupabaseClient;
+};
+
 const primaryUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const primaryKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-const backupUrl = process.env.BACKUP_SUPABASE_URL;
-const backupKey = process.env.BACKUP_SUPABASE_SERVICE_ROLE_KEY;
+const backupConfigs: BackupConfig[] = [
+  {
+    label: "backup",
+    displayName: "Backup",
+    url: process.env.BACKUP_SUPABASE_URL,
+    key: process.env.BACKUP_SUPABASE_SERVICE_ROLE_KEY,
+  },
+  {
+    label: "backup3",
+    displayName: "BACKUP 3",
+    url: process.env.BACKUP3_SUPABASE_URL,
+    key: process.env.BACKUP3_SUPABASE_SERVICE_ROLE_KEY,
+  },
+];
 
-// Cache clients for efficiency
 let cachedPrimary: SupabaseClient | null = null;
-let cachedBackup: SupabaseClient | null = null;
+const cachedBackups: Partial<Record<BackupLabel, SupabaseClient>> = {};
+
+const createAdminClient = (url: string, key: string) =>
+  createClient(url, key, {
+    auth: { persistSession: false },
+  });
+
+const getBackupConfig = (label: BackupLabel) => {
+  const config = backupConfigs.find((item) => item.label === label);
+  if (!config) {
+    throw new Error(`${label} Supabase Admin configuration is missing.`);
+  }
+  return config;
+};
+
+const getConfiguredBackupClient = (config: BackupConfig): BackupAdminClient => {
+  if (!config.url || !config.key) {
+    throw new Error(`${config.displayName} Supabase Admin configuration is missing.`);
+  }
+
+  if (!cachedBackups[config.label]) {
+    cachedBackups[config.label] = createAdminClient(config.url, config.key);
+  }
+
+  return {
+    label: config.label,
+    displayName: config.displayName,
+    client: cachedBackups[config.label]!,
+  };
+};
 
 export function getPrimaryAdminClient(): SupabaseClient {
   if (!primaryUrl || !primaryKey) {
     throw new Error("Primary Supabase Admin configuration is missing.");
   }
   if (!cachedPrimary) {
-    cachedPrimary = createClient(primaryUrl, primaryKey, {
-      auth: { persistSession: false },
-    });
+    cachedPrimary = createAdminClient(primaryUrl, primaryKey);
   }
   return cachedPrimary;
 }
 
 export function getBackupAdminClient(): SupabaseClient {
-  if (!backupUrl || !backupKey) {
-    throw new Error("Backup Supabase Admin configuration is missing.");
+  return getConfiguredBackupClient(getBackupConfig("backup")).client;
+}
+
+export function getBackup3AdminClient(): SupabaseClient {
+  return getConfiguredBackupClient(getBackupConfig("backup3")).client;
+}
+
+export function getBackupAdminClients(): BackupAdminClient[] {
+  return backupConfigs
+    .filter((config) => config.url && config.key)
+    .map((config) => getConfiguredBackupClient(config));
+}
+
+export async function syncBackupAdminClients(
+  operation: (client: SupabaseClient, label: BackupLabel) => Promise<{ error?: any } | void>,
+  context: string
+) {
+  const results: Array<{ label: BackupLabel; error: any | null }> = [];
+
+  for (const backup of getBackupAdminClients()) {
+    try {
+      const result = await operation(backup.client, backup.label);
+      const error = result && "error" in result ? result.error : null;
+      if (error) {
+        throw error;
+      }
+      results.push({ label: backup.label, error: null });
+    } catch (err) {
+      console.error(`${backup.displayName} DB ${context} failed:`, err);
+      results.push({ label: backup.label, error: err });
+    }
   }
-  if (!cachedBackup) {
-    cachedBackup = createClient(backupUrl, backupKey, {
-      auth: { persistSession: false },
-    });
-  }
-  return cachedBackup;
+
+  return results;
 }
 
 /**
- * Executes a write operation (insert/update/delete) on BOTH databases.
- * If the primary database is full, down, or fails, it writes to the backup
- * database and continues seamlessly to keep the application 100% operational!
+ * Executes a write operation on primary and every configured backup.
+ * If primary fails, the first successful backup keeps the request operational.
  */
 export async function dualWrite<T = any>(
   operation: (client: SupabaseClient) => Promise<{ data: T | null; error: any }>
-): Promise<{ data: T | null; error: any; databaseUsed: "primary" | "backup" | "both" }> {
+): Promise<{ data: T | null; error: any; databaseUsed: DatabaseUsed }> {
   const primary = getPrimaryAdminClient();
-  const backup = getBackupAdminClient();
+  const backups = getBackupAdminClients();
 
-  let primaryResult: any = null;
+  let primaryResult: T | null = null;
   let primaryError: any = null;
-  let backupResult: any = null;
-  let backupError: any = null;
+  const backupResults: Array<{ label: BackupLabel; data: T | null; error: any }> = [];
 
-  // 1. Try Primary Write
   try {
     const res = await operation(primary);
     primaryResult = res.data;
@@ -59,50 +135,48 @@ export async function dualWrite<T = any>(
     primaryError = err;
   }
 
-  // 2. Try Backup Write (dual-write to keep them in perfect sync)
-  try {
-    const res = await operation(backup);
-    backupResult = res.data;
-    backupError = res.error;
-  } catch (err: any) {
-    backupError = err;
+  for (const backup of backups) {
+    try {
+      const res = await operation(backup.client);
+      backupResults.push({ label: backup.label, data: res.data, error: res.error });
+    } catch (err: any) {
+      backupResults.push({ label: backup.label, data: null, error: err });
+    }
   }
 
-  // 3. Evaluate results
   if (!primaryError) {
+    const allBackupsSynced = backupResults.every((result) => !result.error);
     return {
       data: primaryResult,
       error: null,
-      databaseUsed: backupError ? "primary" : "both",
+      databaseUsed: backups.length > 0 && allBackupsSynced ? "both" : "primary",
     };
   }
 
-  // Primary failed! Check if backup succeeded
-  console.warn("⚠️ Primary database write failed. Falling back to Backup Database:", primaryError.message || primaryError);
+  console.warn("Primary database write failed. Falling back to a backup database:", primaryError.message || primaryError);
 
-  if (!backupError) {
+  const successfulBackup = backupResults.find((result) => !result.error);
+  if (successfulBackup) {
     return {
-      data: backupResult,
+      data: successfulBackup.data,
       error: null,
-      databaseUsed: "backup",
+      databaseUsed: successfulBackup.label,
     };
   }
 
-  // Both failed
   return {
     data: null,
-    error: primaryError || backupError,
-    databaseUsed: "primary", // fallback indicator
+    error: primaryError || backupResults[0]?.error,
+    databaseUsed: "primary",
   };
 }
 
 /**
- * Executes a read operation. Attempts to read from the primary database first.
- * If the primary database is down or fails, it seamlessly reads from the backup!
+ * Executes a read operation against primary first, then each configured backup.
  */
 export async function fallbackRead<T = any>(
   operation: (client: SupabaseClient) => Promise<{ data: T | null; error: any }>
-): Promise<{ data: T | null; error: any; databaseUsed: "primary" | "backup" }> {
+): Promise<{ data: T | null; error: any; databaseUsed: "primary" | BackupLabel }> {
   const primary = getPrimaryAdminClient();
 
   try {
@@ -110,26 +184,29 @@ export async function fallbackRead<T = any>(
     if (!res.error) {
       return { data: res.data, error: null, databaseUsed: "primary" };
     }
-    // Primary error, trigger fallback
-    console.warn("⚠️ Primary database read failed. Querying Backup Database...");
+    console.warn("Primary database read failed. Querying backup databases...");
   } catch (err) {
-    console.warn("⚠️ Primary database read network exception. Querying Backup Database...", err);
+    console.warn("Primary database read network exception. Querying backup databases...", err);
   }
 
-  // Fallback to backup
-  try {
-    const backup = getBackupAdminClient();
-    const res = await operation(backup);
-    return {
-      data: res.data,
-      error: res.error,
-      databaseUsed: "backup",
-    };
-  } catch (err: any) {
-    return {
-      data: null,
-      error: err,
-      databaseUsed: "backup",
-    };
+  for (const backup of getBackupAdminClients()) {
+    try {
+      const res = await operation(backup.client);
+      if (!res.error) {
+        return {
+          data: res.data,
+          error: null,
+          databaseUsed: backup.label,
+        };
+      }
+    } catch {
+      // Continue to the next configured backup.
+    }
   }
+
+  return {
+    data: null,
+    error: new Error("Primary and backup databases failed."),
+    databaseUsed: "backup",
+  };
 }

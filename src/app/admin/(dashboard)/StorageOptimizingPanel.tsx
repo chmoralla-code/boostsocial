@@ -93,7 +93,7 @@ export function StorageOptimizingPanel() {
         </div>
 
         {/* Right Side: Dual Telemetry Displays */}
-        <div className="flex-shrink-0 flex flex-col md:flex-row gap-4 border-t lg:border-t-0 lg:border-l border-slate-850 pt-6 lg:pt-0 lg:pl-6 min-w-[50%]">
+        <div className="flex-shrink-0 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 border-t lg:border-t-0 lg:border-l border-slate-850 pt-6 lg:pt-0 lg:pl-6 min-w-[50%]">
           
           {/* Main Primary Server telemetry */}
           <div className="bg-[#121212] border border-slate-850 p-4 rounded-xl flex-1 space-y-3">
@@ -179,6 +179,52 @@ export function StorageOptimizingPanel() {
               <div className="flex justify-between items-center text-[10px] pt-1">
                 <span className="font-semibold text-slate-500">Auth Users</span>
                 <span className="font-extrabold text-blue-400">{stats?.backup?.active ? `${stats.backup.totalUsers} Active` : "—"}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Backup 3 Database telemetry */}
+          <div className="bg-[#121212] border border-slate-850 p-4 rounded-xl flex-1 space-y-3">
+            <div className="flex items-center gap-1.5">
+              <HardDrive size={12} className="text-emerald-400" />
+              <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Backup 3</span>
+              {stats?.backup3?.active ? (
+                <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse ml-auto"></span>
+              ) : (
+                <span className="w-1.5 h-1.5 bg-red-500 rounded-full ml-auto"></span>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex justify-between items-center text-[10px]">
+                <span className="font-semibold text-slate-500">Storage Bucket</span>
+                {fetchingStats ? (
+                  <Loader2 size={10} className="animate-spin text-emerald-400" />
+                ) : (
+                  <span className="font-bold text-slate-350">{stats?.backup3?.active ? `${stats.backup3.usedMB} MB / 1 GB` : "1 GB"}</span>
+                )}
+              </div>
+              <div className="w-full bg-slate-900 rounded-full h-1.5 overflow-hidden">
+                <div
+                  className="bg-emerald-500 h-full transition-all duration-500"
+                  style={{ width: `${stats?.backup3?.active ? Math.min(Number(stats.backup3.percentage), 100) : 0}%` }}
+                ></div>
+              </div>
+
+              <div className="flex justify-between items-center text-[10px] pt-1">
+                <span className="font-semibold text-slate-500">Database Size</span>
+                <span className="font-bold text-slate-350">{stats?.backup3?.active ? `${stats.backup3.dbSizeMB} MB / 500 MB` : "500 MB"}</span>
+              </div>
+              <div className="w-full bg-slate-900 rounded-full h-1.5 overflow-hidden">
+                <div
+                  className="bg-teal-500 h-full transition-all duration-500"
+                  style={{ width: `${stats?.backup3?.active ? Math.min(Number(stats.backup3.dbPercentage), 100) : 0}%` }}
+                ></div>
+              </div>
+
+              <div className="flex justify-between items-center text-[10px] pt-1">
+                <span className="font-semibold text-slate-500">Auth Users</span>
+                <span className="font-extrabold text-emerald-400">{stats?.backup3?.active ? `${stats.backup3.totalUsers} Active` : "—"}</span>
               </div>
             </div>
           </div>

@@ -2,155 +2,158 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import postgres from "postgres";
 
-export async function GET() {
-  let primarySql: any = null;
-  let backupSql: any = null;
+const STORAGE_LIMIT_MB = 1024; // 1 GB
+const DB_LIMIT_MB = 500; // 500 MB
+
+type SqlClient = ReturnType<typeof postgres>;
+
+type Metrics = {
+  active: boolean;
+  totalFiles: number;
+  usedMB: string;
+  remainingMB: string;
+  percentage: string;
+  totalUsers: number;
+  dbSizeMB: string;
+  dbRemainingMB: string;
+  dbPercentage: string;
+};
+
+function toMetrics(sizeBytes: number, filesCount: number, users: number, dbSizeMB: number, active: boolean): Metrics {
+  const storageMB = sizeBytes / 1024 / 1024;
+  return {
+    active,
+    totalFiles: filesCount,
+    usedMB: storageMB.toFixed(2),
+    remainingMB: Math.max(STORAGE_LIMIT_MB - storageMB, 0).toFixed(2),
+    percentage: ((storageMB / STORAGE_LIMIT_MB) * 100).toFixed(2),
+    totalUsers: users,
+    dbSizeMB: dbSizeMB.toFixed(2),
+    dbRemainingMB: Math.max(DB_LIMIT_MB - dbSizeMB, 0).toFixed(2),
+    dbPercentage: ((dbSizeMB / DB_LIMIT_MB) * 100).toFixed(2),
+  };
+}
+
+async function collectProjectMetrics(
+  options: {
+    url?: string;
+    key?: string;
+    dbUrl?: string;
+    sqlClients: SqlClient[];
+    requireCredentials?: boolean;
+  }
+): Promise<Metrics> {
+  const { url, key, dbUrl, sqlClients, requireCredentials } = options;
+
+  if (!url || !key) {
+    if (requireCredentials) {
+      throw new Error("Primary server credentials missing");
+    }
+    return toMetrics(0, 0, 0, 0.05, false);
+  }
+
+  const client = createClient(url, key, {
+    auth: { persistSession: false },
+  });
+
+  let sizeBytes = 0;
+  let filesCount = 0;
+  let users = 0;
+  let dbSizeMB = 0.05;
+  let active = false;
 
   try {
-    const primaryUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const primaryKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    const primaryDbUrl = process.env.DATABASE_URL;
-
-    const backupUrl = process.env.BACKUP_SUPABASE_URL;
-    const backupKey = process.env.BACKUP_SUPABASE_SERVICE_ROLE_KEY;
-    const backupDbUrl = process.env.BACKUP_DATABASE_URL;
-
-    if (!primaryUrl || !primaryKey) {
-      return NextResponse.json({ error: "Primary server credentials missing" }, { status: 500 });
-    }
-
-    const primaryClient = createClient(primaryUrl, primaryKey, {
-      auth: { persistSession: false }
-    });
-
-    // ─────────────────────────────────────────────────────────
-    // 1. PRIMARY METRICS
-    // ─────────────────────────────────────────────────────────
-    let primarySizeBytes = 0;
-    let primaryFilesCount = 0;
-    
-    try {
-      const { data: buckets } = await primaryClient.storage.listBuckets();
-      if (buckets) {
-        for (const bucket of buckets) {
-          const { data: files } = await primaryClient.storage.from(bucket.id).list();
-          if (files) {
-            files.forEach(file => {
-              if (file.metadata && file.metadata.size) {
-                primarySizeBytes += file.metadata.size;
-              }
-              primaryFilesCount++;
-            });
+    const { data: buckets } = await client.storage.listBuckets();
+    if (buckets) {
+      active = true;
+      for (const bucket of buckets) {
+        const { data: files } = await client.storage.from(bucket.id).list();
+        if (files) {
+          for (const file of files) {
+            if (file.metadata && file.metadata.size) {
+              sizeBytes += file.metadata.size;
+            }
+            filesCount++;
           }
         }
+      }
+    }
+  } catch (err) {
+    console.error("Failed storage fetch:", err);
+  }
+
+  if (dbUrl) {
+    try {
+      const sql = postgres(dbUrl, { ssl: "require" });
+      sqlClients.push(sql);
+
+      const sizeRes = await sql`SELECT pg_database_size(current_database()) / 1024.0 / 1024.0 AS size_mb;`;
+      if (sizeRes?.[0]) {
+        dbSizeMB = parseFloat(sizeRes[0].size_mb) || 0.05;
+      }
+
+      const usersRes = await sql`SELECT count(*)::integer AS user_count FROM auth.users;`;
+      if (usersRes?.[0]) {
+        users = usersRes[0].user_count || 0;
       }
     } catch (err) {
-      console.error("Failed primary storage fetch:", err);
+      console.error("Failed direct postgres metrics fetch:", err);
+      const { count } = await client.from("profiles").select("*", { count: "exact", head: true });
+      users = count || 0;
     }
+  } else {
+    const { count } = await client.from("profiles").select("*", { count: "exact", head: true });
+    users = count || 0;
+  }
 
-    let primaryDbSizeMB = 0.05;
-    let primaryUsers = 0;
+  return toMetrics(sizeBytes, filesCount, users, dbSizeMB, active);
+}
 
-    if (primaryDbUrl) {
-      try {
-        primarySql = postgres(primaryDbUrl, { ssl: 'require' });
-        const sizeRes = await primarySql`SELECT pg_database_size(current_database()) / 1024.0 / 1024.0 AS size_mb;`;
-        if (sizeRes?.[0]) primaryDbSizeMB = parseFloat(sizeRes[0].size_mb) || 0.05;
+export async function GET() {
+  const sqlClients: SqlClient[] = [];
 
-        const usersRes = await primarySql`SELECT count(*)::integer AS user_count FROM auth.users;`;
-        if (usersRes?.[0]) primaryUsers = usersRes[0].user_count || 0;
-      } catch (err) {
-        console.error("Failed primary direct postgres, trying client:", err);
-        const { count } = await primaryClient.from('profiles').select('*', { count: 'exact', head: true });
-        primaryUsers = count || 0;
-      }
-    }
+  try {
+    const primaryMetrics = await collectProjectMetrics({
+      url: process.env.NEXT_PUBLIC_SUPABASE_URL,
+      key: process.env.SUPABASE_SERVICE_ROLE_KEY,
+      dbUrl: process.env.DATABASE_URL,
+      sqlClients,
+      requireCredentials: true,
+    });
 
-    const primaryStorageMB = primarySizeBytes / 1024 / 1024;
-    const storageLimitMB = 1024; // 1GB
-    const primaryDbLimitMB = 500; // 500MB
+    const backupMetrics = await collectProjectMetrics({
+      url: process.env.BACKUP_SUPABASE_URL,
+      key: process.env.BACKUP_SUPABASE_SERVICE_ROLE_KEY,
+      dbUrl: process.env.BACKUP_DATABASE_URL,
+      sqlClients,
+    });
 
-    // ─────────────────────────────────────────────────────────
-    // 2. BACKUP METRICS (Tokyo Secondary)
-    // ─────────────────────────────────────────────────────────
-    let backupSizeBytes = 0;
-    let backupFilesCount = 0;
-    let backupDbSizeMB = 0.05;
-    let backupUsers = 0;
-    let backupActive = false;
-
-    if (backupUrl && backupKey) {
-      try {
-        const backupClient = createClient(backupUrl, backupKey, {
-          auth: { persistSession: false }
-        });
-
-        const { data: buckets } = await backupClient.storage.listBuckets();
-        if (buckets) {
-          backupActive = true;
-          for (const bucket of buckets) {
-            const { data: files } = await backupClient.storage.from(bucket.id).list();
-            if (files) {
-              files.forEach(file => {
-                if (file.metadata && file.metadata.size) {
-                  backupSizeBytes += file.metadata.size;
-                }
-                backupFilesCount++;
-              });
-            }
-          }
-        }
-      } catch (err) {
-        console.error("Failed backup storage fetch:", err);
-      }
-
-      if (backupDbUrl) {
-        try {
-          backupSql = postgres(backupDbUrl, { ssl: 'require' });
-          const sizeRes = await backupSql`SELECT pg_database_size(current_database()) / 1024.0 / 1024.0 AS size_mb;`;
-          if (sizeRes?.[0]) backupDbSizeMB = parseFloat(sizeRes[0].size_mb) || 0.05;
-
-          const usersRes = await backupSql`SELECT count(*)::integer AS user_count FROM auth.users;`;
-          if (usersRes?.[0]) backupUsers = usersRes[0].user_count || 0;
-        } catch (err) {
-          console.error("Failed backup direct postgres:", err);
-        }
-      }
-    }
-
-    const backupStorageMB = backupSizeBytes / 1024 / 1024;
+    const backup3Metrics = await collectProjectMetrics({
+      url: process.env.BACKUP3_SUPABASE_URL,
+      key: process.env.BACKUP3_SUPABASE_SERVICE_ROLE_KEY,
+      dbUrl: process.env.BACKUP3_DATABASE_URL,
+      sqlClients,
+    });
 
     return NextResponse.json({
       success: true,
-      // Primary Data
-      totalFiles: primaryFilesCount,
-      usedMB: primaryStorageMB.toFixed(2),
-      remainingMB: (storageLimitMB - primaryStorageMB).toFixed(2),
-      percentage: ((primaryStorageMB / storageLimitMB) * 100).toFixed(2),
-      totalUsers: primaryUsers,
-      dbSizeMB: primaryDbSizeMB.toFixed(2),
-      dbRemainingMB: (primaryDbLimitMB - primaryDbSizeMB).toFixed(2),
-      dbPercentage: ((primaryDbSizeMB / primaryDbLimitMB) * 100).toFixed(2),
-
-      // Backup Data (Tokyo Secondary)
-      backup: {
-        active: backupActive,
-        totalFiles: backupFilesCount,
-        usedMB: backupStorageMB.toFixed(2),
-        remainingMB: (storageLimitMB - backupStorageMB).toFixed(2),
-        percentage: ((backupStorageMB / storageLimitMB) * 100).toFixed(2),
-        totalUsers: backupUsers,
-        dbSizeMB: backupDbSizeMB.toFixed(2),
-        dbRemainingMB: (primaryDbLimitMB - backupDbSizeMB).toFixed(2),
-        dbPercentage: ((backupDbSizeMB / primaryDbLimitMB) * 100).toFixed(2),
-      }
+      totalFiles: primaryMetrics.totalFiles,
+      usedMB: primaryMetrics.usedMB,
+      remainingMB: primaryMetrics.remainingMB,
+      percentage: primaryMetrics.percentage,
+      totalUsers: primaryMetrics.totalUsers,
+      dbSizeMB: primaryMetrics.dbSizeMB,
+      dbRemainingMB: primaryMetrics.dbRemainingMB,
+      dbPercentage: primaryMetrics.dbPercentage,
+      backup: backupMetrics,
+      backup3: backup3Metrics,
     });
-
   } catch (err: any) {
     console.error("Storage stats API failed:", err);
     return NextResponse.json({ error: err.message || err.toString() }, { status: 500 });
   } finally {
-    if (primarySql) await primarySql.end();
-    if (backupSql) await backupSql.end();
+    for (const sql of sqlClients) {
+      await sql.end();
+    }
   }
 }

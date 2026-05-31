@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient as createServerClient } from "@/utils/supabase/server";
 import { createClient } from "@supabase/supabase-js";
+import { syncBackupAdminClients } from "@/utils/supabase/dual-db";
 
 const CONFIG_BUCKET = "receipts";
 const SETTING_KEY = "service_showcase";
@@ -68,18 +69,11 @@ async function saveShowcaseConfig(supabase: any, config: ReturnType<typeof norma
 
   if (error) throw error;
 
-  const backupUrl = getEnv("BACKUP_SUPABASE_URL");
-  const backupKey = getEnv("BACKUP_SUPABASE_SERVICE_ROLE_KEY");
-  if (backupUrl && backupKey) {
-    try {
-      const backupSupabase = createClient(backupUrl, backupKey, { auth: { persistSession: false } });
-      await backupSupabase
-        .from("settings")
-        .upsert(payload, { onConflict: "key" });
-    } catch (backupErr) {
-      console.error("Backup DB service_showcase upsert failed:", backupErr);
-    }
-  }
+  await syncBackupAdminClients(async (backupClient) => {
+    await backupClient
+      .from("settings")
+      .upsert(payload, { onConflict: "key" });
+  }, "service_showcase upsert sync");
 }
 
 export async function GET() {

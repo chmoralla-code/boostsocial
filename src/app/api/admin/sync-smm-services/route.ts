@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { parseDescription } from "@/utils/serviceHelpers";
+import { syncBackupAdminClients } from "@/utils/supabase/dual-db";
 
 interface CoreServiceConfig {
   dbId: string;
@@ -219,16 +220,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Server Supabase configuration missing" }, { status: 500 });
     }
 
-    const backupSupabaseUrl = process.env.BACKUP_SUPABASE_URL;
-    const backupServiceRoleKey = process.env.BACKUP_SUPABASE_SERVICE_ROLE_KEY;
-
     const supabase = createClient(supabaseUrl, serviceRoleKey, {
       auth: { persistSession: false }
     });
-
-    const backupSupabase = backupSupabaseUrl && backupServiceRoleKey
-      ? createClient(backupSupabaseUrl, backupServiceRoleKey, { auth: { persistSession: false } })
-      : null;
 
     // 1. Fetch RixeySMM services
     const res = await fetch(RIXEYSMM_API_URL, {
@@ -371,18 +365,14 @@ export async function POST(req: NextRequest) {
             })
             .eq("id", config.dbId);
 
-          if (backupSupabase) {
-            try {
-              await backupSupabase
-                .from("services")
-                .update({
-                  description: JSON.stringify(descriptionObj)
-                })
-                .eq("id", config.dbId);
-            } catch (err) {
-              console.error("Backup DB candidate clear update failed:", err);
-            }
-          }
+          await syncBackupAdminClients(async (backupClient) => {
+            await backupClient
+              .from("services")
+              .update({
+                description: JSON.stringify(descriptionObj)
+              })
+              .eq("id", config.dbId);
+          }, "sync-smm candidate clear");
         }
 
         continue;
@@ -438,19 +428,15 @@ export async function POST(req: NextRequest) {
         })
         .eq("id", config.dbId);
 
-      if (backupSupabase) {
-        try {
-          await backupSupabase
-            .from("services")
-            .update({
-              starting_price: calculatedPerPiece,
-              description: JSON.stringify(descriptionObj)
-            })
-            .eq("id", config.dbId);
-        } catch (err) {
-          console.error("Backup DB sync update failed:", err);
-        }
-      }
+      await syncBackupAdminClients(async (backupClient) => {
+        await backupClient
+          .from("services")
+          .update({
+            starting_price: calculatedPerPiece,
+            description: JSON.stringify(descriptionObj)
+          })
+          .eq("id", config.dbId);
+      }, "sync-smm services update");
 
       if (updateErr) {
         syncResults[key] = { success: false, error: `Supabase update failed: ${updateErr.message}` };
@@ -475,16 +461,9 @@ export async function POST(req: NextRequest) {
       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
       const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
       if (supabaseUrl && serviceRoleKey) {
-        const backupSupabaseUrl = process.env.BACKUP_SUPABASE_URL;
-        const backupServiceRoleKey = process.env.BACKUP_SUPABASE_SERVICE_ROLE_KEY;
-
         const supabase = createClient(supabaseUrl, serviceRoleKey, {
           auth: { persistSession: false }
         });
-
-        const backupSupabase = backupSupabaseUrl && backupServiceRoleKey
-          ? createClient(backupSupabaseUrl, backupServiceRoleKey, { auth: { persistSession: false } })
-          : null;
 
         console.log("Clearing all SMM service IDs from database because sync failed.");
         for (const [key, config] of Object.entries(CORE_SERVICES)) {
@@ -522,18 +501,14 @@ export async function POST(req: NextRequest) {
               })
               .eq("id", config.dbId);
 
-            if (backupSupabase) {
-              try {
-                await backupSupabase
-                  .from("services")
-                  .update({
-                    description: JSON.stringify(descriptionObj)
-                  })
-                  .eq("id", config.dbId);
-              } catch (err) {
-                console.error("Backup DB catch block clear failed:", err);
-              }
-            }
+            await syncBackupAdminClients(async (backupClient) => {
+              await backupClient
+                .from("services")
+                .update({
+                  description: JSON.stringify(descriptionObj)
+                })
+                .eq("id", config.dbId);
+            }, "sync-smm catch clear");
           }
         }
         console.log("All core SMM services have been successfully marked unavailable in the DB.");

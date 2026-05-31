@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { syncBackupAdminClients } from "@/utils/supabase/dual-db";
 
 export async function POST(req: NextRequest) {
   try {
@@ -32,21 +33,12 @@ export async function POST(req: NextRequest) {
 
     if (updateError) throw updateError;
 
-    const backupSupabaseUrl = process.env.BACKUP_SUPABASE_URL;
-    const backupServiceRoleKey = process.env.BACKUP_SUPABASE_SERVICE_ROLE_KEY;
-    if (backupSupabaseUrl && backupServiceRoleKey) {
-      try {
-        const backupSupabase = createClient(backupSupabaseUrl, backupServiceRoleKey, {
-          auth: { persistSession: false }
-        });
-        await backupSupabase
-          .from("profiles")
-          .update({ balance: numericBalance })
-          .eq("id", userId);
-      } catch (backupErr) {
-        console.error("Backup DB balance update failed:", backupErr);
-      }
-    }
+    await syncBackupAdminClients(async (backupClient) => {
+      await backupClient
+        .from("profiles")
+        .update({ balance: numericBalance })
+        .eq("id", userId);
+    }, "balance update");
 
     return NextResponse.json({ success: true, balance: numericBalance });
   } catch (err: any) {
