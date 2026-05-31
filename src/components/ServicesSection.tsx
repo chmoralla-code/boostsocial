@@ -9,8 +9,7 @@ import { FaqSection } from "./FaqSection";
 import { ReviewsSection } from "./ReviewsSection";
 import { SmmCatalogModal } from "./SmmCatalogModal";
 import { Layers, X, Loader2 } from "lucide-react";
-import { formatSmmServiceName, parseDescription, matchesServiceQualityFilter } from "@/utils/serviceHelpers";
-import { useSimpleMode } from "@/hooks/useSimpleMode";
+import { parseDescription, matchesServiceQualityFilter } from "@/utils/serviceHelpers";
 
 
 interface Service {
@@ -127,7 +126,6 @@ const PLATFORM_REACTION_VARIANTS: Record<PlatformType, ReactionVariantConfig[]> 
 };
 
 export function ServicesSection({ services, servicesBg, servicesCandidates }: ServicesSectionProps) {
-  const { simpleMode } = useSimpleMode();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
   const [selectedServiceTitle, setSelectedServiceTitle] = useState("");
@@ -496,7 +494,6 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
     const desc = typeof srv.description === "string" ? srv.description : (srv.description?.description || "");
     return matchesServiceQualityFilter(srv.title, desc, "", isOrganicFilter);
   });
-  const showServicesBackground = !simpleMode && Boolean(servicesBg?.videoUrl);
 
   return (
     <>
@@ -568,16 +565,16 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
       <StatCounters />
 
       {/* 3. Choose Your Boost Tier Grid */}
-      <section 
-        id="services" 
+      <section
+        id="services"
         className={`w-full max-w-6xl mx-auto mt-12 mb-20 relative z-10 transition-all duration-300 ${
-          showServicesBackground
-            ? "px-6 py-12 md:py-16 md:px-12 rounded-3xl overflow-hidden border border-white/[0.03] bg-black/25 backdrop-blur-md shadow-2xl" 
+          servicesBg?.videoUrl
+            ? "px-6 py-12 md:py-16 md:px-12 rounded-3xl overflow-hidden border border-white/[0.03] bg-black/25 backdrop-blur-md shadow-2xl"
             : "px-4"
         }`}
       >
         {/* Services Section Background Video/Media */}
-        {showServicesBackground && servicesBg && (
+        {servicesBg && servicesBg.videoUrl && (
           <div className="absolute inset-0 overflow-hidden pointer-events-none -z-10 select-none">
             {(() => {
               const isImage = (url: string) => {
@@ -1054,9 +1051,7 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
                           >
                             <div>
                               <h4 className="text-[10px] font-black uppercase tracking-wider text-[#1DB954] mb-2">{slot.title}</h4>
-                              <h5 className="text-sm font-bold text-white line-clamp-2 leading-snug mb-3">
-                                {simpleMode ? formatSmmServiceName(s.name, s.id, s.desc) : s.name}
-                              </h5>
+                              <h5 className="text-sm font-bold text-white line-clamp-2 leading-snug mb-3">{s.name}</h5>
                               
                               {/* Timing Indicators */}
                               <div className="flex flex-col gap-1.5 mb-4 select-none">
@@ -1150,9 +1145,7 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
                                 {reaction.label}
                               </span>
                               <span className="text-[10px] text-slate-450 leading-snug line-clamp-2 mt-1 flex-grow">
-                                {service
-                                  ? (simpleMode ? formatSmmServiceName(service.name, service.id, service.desc) : service.name)
-                                  : `Open catalog search for ${reaction.search}.`}
+                                {service ? service.name : `Open catalog search for ${reaction.search}.`}
                               </span>
                               <span className="text-[10px] font-black text-[#1DB954] mt-3">
                                 {service ? `₱${(service.startingPrice * 1000).toFixed(2)} / 1k` : "Search Catalog"}

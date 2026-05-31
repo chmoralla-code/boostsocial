@@ -181,7 +181,7 @@ export default async function Home() {
 
         <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 md:px-8 z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center pt-5 sm:pt-8 pb-12 sm:pb-16">
           {/* Left Column (Content & Search) */}
-          <div className="simple-mode-hero-content lg:col-span-7 flex flex-col items-center lg:items-start text-center lg:text-left">
+          <div className="lg:col-span-7 flex flex-col items-center lg:items-start text-center lg:text-left">
             {/* Animated Tech Badge */}
             <div className="inline-flex items-center gap-2 px-4 sm:px-5 py-2 rounded-full bg-white/[0.03] border border-white/[0.08] text-[10px] sm:text-xs font-black tracking-widest text-[#1DB954] mb-5 sm:mb-6 uppercase shadow-xl shadow-emerald-500/5 backdrop-blur-md animate-fade-in-up-1 text-center">
               <span className="relative flex h-2 w-2">
@@ -229,7 +229,7 @@ export default async function Home() {
           </div>
 
           {/* Right Column (Premium Glassmorphic Video Showcase Player) */}
-          <div className="simple-mode-hidden-media lg:col-span-5 flex justify-center items-center relative animate-fade-in-up-3 w-full">
+          <div className="lg:col-span-5 flex justify-center items-center relative animate-fade-in-up-3 w-full">
             {/* Ambient background glow for the showcase player */}
             <div className="absolute inset-0 bg-[#1DB954]/10 rounded-full blur-[80px] pointer-events-none scale-75 animate-pulse"></div>
             
@@ -245,7 +245,6 @@ export default async function Home() {
                   controls
                   loop
                   playsInline
-                  preload="none"
                   className="w-full h-full object-cover rounded-[2rem]"
                 />
               </div>

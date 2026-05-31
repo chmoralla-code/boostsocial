@@ -40,14 +40,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <head>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `try{if(localStorage.getItem("pinoyboosting_simple_mode")==="1"){document.documentElement.classList.add("simple-mode")}}catch(e){}`,
-          }}
-        />
-      </head>
+    <html lang="en">
       <body className={`${inter.className} min-h-screen bg-[#0a0a0a] text-slate-100 flex flex-col antialiased`}>
         <PWARegister />
         {children}
