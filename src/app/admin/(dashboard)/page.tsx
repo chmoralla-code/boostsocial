@@ -51,6 +51,7 @@ export default async function AdminOverview() {
       created_at,
       customer_email,
       target_url,
+      quantity,
       smm_service_id,
       services ( title )
     `)
@@ -60,6 +61,8 @@ export default async function AdminOverview() {
 
   // Calculate metrics
   const totalRevenue = enrichedOrders.reduce((acc, order) => acc + Number(order.amount), 0);
+  const totalProviderCost = enrichedOrders.reduce((acc, order) => acc + Number((order as any).estimated_provider_cost || 0), 0);
+  const totalEstimatedProfit = enrichedOrders.reduce((acc, order) => acc + Number((order as any).estimated_profit || 0), 0);
   const totalOrders = enrichedOrders.length;
   const pendingOrders = enrichedOrders.filter(o => o.status === 'Pending').length;
   const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
@@ -127,7 +130,7 @@ export default async function AdminOverview() {
       <InstallAppButton />
 
       {/* Analytics Metric Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-5">
         {/* Metric: Revenue */}
         <div className="bg-[#181818]/90 border border-slate-850/80 rounded-2xl p-5 shadow-lg relative overflow-hidden group hover:border-[#1DB954]/30 transition-all hover:scale-[1.01] duration-300">
           <div className="absolute top-0 right-0 w-24 h-24 bg-[#1DB954]/5 rounded-full blur-xl pointer-events-none group-hover:bg-[#1DB954]/10 transition-colors"></div>
@@ -143,6 +146,24 @@ export default async function AdminOverview() {
           <div className="flex items-center gap-1.5 mt-4 text-[10px] font-bold text-slate-450">
             <TrendingUp size={12} className="text-[#1DB954]" />
             <span className="text-[#1DB954]">Direct SQL Live Sync</span>
+          </div>
+        </div>
+
+        {/* Metric: Estimated Profit */}
+        <div className="bg-[#181818]/90 border border-slate-850/80 rounded-2xl p-5 shadow-lg relative overflow-hidden group hover:border-emerald-500/30 transition-all hover:scale-[1.01] duration-300">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-full blur-xl pointer-events-none group-hover:bg-emerald-500/10 transition-colors"></div>
+          <div className="flex justify-between items-start">
+            <div className="space-y-1">
+              <span className="text-[10px] font-black uppercase text-slate-500 tracking-wider">Est. Profit</span>
+              <h3 className="text-2xl font-black text-white tracking-tight">â‚±{totalEstimatedProfit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</h3>
+            </div>
+            <span className="bg-emerald-500/10 text-emerald-400 p-2.5 rounded-xl border border-emerald-500/25">
+              <TrendingUp size={18} />
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5 mt-4 text-[10px] font-bold text-slate-450">
+            <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span>
+            <span>Cost est. â‚±{totalProviderCost.toFixed(2)}</span>
           </div>
         </div>
 

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { syncBackupAdminClients } from "@/utils/supabase/dual-db";
 import { creditReferralCommission } from "@/utils/referrals";
+import { notifyCustomer } from "@/lib/customerNotifications";
 
 export async function POST(req: NextRequest) {
   try {
@@ -112,6 +113,14 @@ export async function POST(req: NextRequest) {
         console.error("Top-up referral commission failed:", commissionError);
       }
 
+      notifyCustomer({
+        client: supabase,
+        email: topup.email,
+        message: `System update: Your PHP ${finalAmount.toFixed(2)} wallet top-up was approved and credited. New balance: PHP ${newBalance.toFixed(2)}.`,
+      }).catch((notificationErr) => {
+        console.error("Top-up approval customer notification failed:", notificationErr);
+      });
+
       return NextResponse.json({ success: true, newBalance });
     } else if (action === 'reject') {
       // Just update topup status
@@ -128,6 +137,14 @@ export async function POST(req: NextRequest) {
           .update({ status: 'rejected' })
           .eq("id", topupId);
       }, "top-up rejection sync");
+
+      notifyCustomer({
+        client: supabase,
+        email: topup.email,
+        message: `System update: Your PHP ${Number(topup.amount).toFixed(2)} wallet top-up was rejected. Please contact support if the receipt or amount needs correction.`,
+      }).catch((notificationErr) => {
+        console.error("Top-up rejection customer notification failed:", notificationErr);
+      });
 
       return NextResponse.json({ success: true });
     } else {

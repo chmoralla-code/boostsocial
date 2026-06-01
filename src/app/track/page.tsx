@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { LinkPreviewWindow } from "@/components/LinkPreviewWindow";
-import { Search, Loader2, ShieldCheck, CheckCircle2, AlertCircle, Copy, Check, UploadCloud, Image, ArrowRight } from "lucide-react";
+import { Search, Loader2, ShieldCheck, CheckCircle2, AlertCircle, Copy, Check, UploadCloud, Image, ArrowRight, MessageCircle } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { format } from "date-fns";
 import { compressImage } from "@/utils/imageCompressor";
@@ -17,6 +17,10 @@ export default function TrackPage() {
   const [copied, setCopied] = useState(false);
   const [showAutonomousPreview, setShowAutonomousPreview] = useState(true);
   const [statusToast, setStatusToast] = useState<{ id: string; status: string; visible: boolean } | null>(null);
+  const [issueCategory, setIssueCategory] = useState("slow_order");
+  const [issueMessage, setIssueMessage] = useState("");
+  const [issueLoading, setIssueLoading] = useState(false);
+  const [issueSuccess, setIssueSuccess] = useState("");
 
   // Web Audio API synthesized chimes for campaign status updates
   const playChime = (statusStr: string) => {
@@ -200,6 +204,7 @@ export default function TrackPage() {
     setOrder(null);
     setUploadSuccess(false);
     setSelectedFile(null);
+    setIssueSuccess("");
     setLoading(true);
 
     try {
@@ -282,6 +287,38 @@ export default function TrackPage() {
       alert(`❌ Error uploading screenshot: ${err.message || err.toString()}`);
     } finally {
       setUploading(false);
+    }
+  };
+
+  const handleReportIssue = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!order || !issueMessage.trim()) return;
+
+    setIssueLoading(true);
+    setIssueSuccess("");
+
+    try {
+      const res = await fetch("/api/orders/report-issue", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orderId: order.id,
+          category: issueCategory,
+          message: issueMessage.trim(),
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to report issue.");
+      }
+
+      setIssueMessage("");
+      setIssueSuccess("Issue sent to admin support. You will see updates in the chatbot.");
+    } catch (err: any) {
+      alert(err.message || "Failed to report issue.");
+    } finally {
+      setIssueLoading(false);
     }
   };
 
@@ -766,6 +803,51 @@ export default function TrackPage() {
                   serviceTitle={order.services?.title}
                 />
               )}
+
+              {/* Customer Issue Reporting */}
+              <div className="bg-[#181818]/60 border border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-2xl">
+                <h4 className="text-xs font-black uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-2">
+                  <MessageCircle size={16} className="text-[#1DB954]" /> Report an Order Issue
+                </h4>
+                <p className="text-xs text-slate-450 font-semibold mb-5 leading-relaxed">
+                  Use this if delivery is slow, the wrong link was submitted, or you need admin help. Your report goes straight to the support dashboard and Telegram alert.
+                </p>
+
+                {issueSuccess ? (
+                  <div className="bg-[#1DB954]/10 border border-[#1DB954]/25 text-[#1DB954] rounded-2xl p-4 text-xs font-bold">
+                    {issueSuccess}
+                  </div>
+                ) : (
+                  <form onSubmit={handleReportIssue} className="space-y-3">
+                    <select
+                      value={issueCategory}
+                      onChange={(e) => setIssueCategory(e.target.value)}
+                      className="w-full bg-[#121212] border border-slate-800 rounded-xl px-4 py-3 text-xs font-bold text-white focus:outline-none focus:ring-2 focus:ring-[#1DB954]/40"
+                    >
+                      <option value="slow_order">Slow order</option>
+                      <option value="not_delivered">Not delivered</option>
+                      <option value="wrong_link">Wrong link or details</option>
+                      <option value="refund_request">Refund request</option>
+                      <option value="other">Other issue</option>
+                    </select>
+                    <textarea
+                      value={issueMessage}
+                      onChange={(e) => setIssueMessage(e.target.value)}
+                      maxLength={1200}
+                      placeholder="Describe what happened. Example: order says completed but followers did not arrive yet."
+                      className="w-full min-h-24 bg-[#121212] border border-slate-800 rounded-xl px-4 py-3 text-xs font-semibold text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-[#1DB954]/40 resize-y"
+                    />
+                    <button
+                      type="submit"
+                      disabled={issueLoading || !issueMessage.trim()}
+                      className="w-full bg-[#1DB954] hover:bg-[#1ed760] disabled:bg-slate-850 disabled:text-slate-500 text-black font-black py-3 rounded-xl shadow-lg transition-all text-xs uppercase tracking-wider flex items-center justify-center gap-1.5"
+                    >
+                      {issueLoading ? <Loader2 size={14} className="animate-spin" /> : <MessageCircle size={14} />}
+                      Send Issue Report
+                    </button>
+                  </form>
+                )}
+              </div>
 
               {/* Uploader section (ONLY displays if status is Pending) */}
               {order.status === "Pending" && (

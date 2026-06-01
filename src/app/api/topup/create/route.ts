@@ -4,6 +4,8 @@ import { sendTopupNotification } from "@/lib/telegram";
 import { syncBackupAdminClients } from "@/utils/supabase/dual-db";
 import { createClient as createServerClient } from "@/utils/supabase/server";
 import { enforceRateLimit } from "@/utils/security/rate-limit";
+import { buildReceiptFileName, findDuplicateReceipt, hashReceiptFile } from "@/lib/receiptGuard";
+import { notifyCustomer } from "@/lib/customerNotifications";
 
 const MAX_RECEIPT_FILE_BYTES = 8 * 1024 * 1024;
 const ALLOWED_RECEIPT_TYPES = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp"]);
@@ -64,6 +66,14 @@ export async function POST(req: NextRequest) {
       auth: { persistSession: false }
     });
 
+    const receiptHash = await hashReceiptFile(file);
+    const duplicateReceipt = await findDuplicateReceipt(supabase, receiptHash);
+    if (duplicateReceipt) {
+      return NextResponse.json({
+        error: "This receipt image was already used before. Please upload a fresh GCash proof for this top-up.",
+      }, { status: 409 });
+    }
+
     // 1. Create a topup record
     const { data: topup, error: topupError } = await supabase
       .from("topups")
@@ -82,7 +92,7 @@ export async function POST(req: NextRequest) {
 
     // 2. Upload file to 'receipts' storage
     const fileExt = file.name.split(".").pop() || "png";
-    const fileName = `topup_${topup.id}_${email.trim()}.${fileExt}`;
+    const fileName = buildReceiptFileName(`topup_${topup.id}`, receiptHash, email.trim(), fileExt);
 
     const { error: uploadError } = await supabase.storage
       .from("receipts")
@@ -133,6 +143,14 @@ export async function POST(req: NextRequest) {
     } catch (telegramErr) {
       console.error("Telegram top-up notification failed (non-blocking):", telegramErr);
     }
+
+    notifyCustomer({
+      client: supabase,
+      email: email.trim(),
+      message: `System update: Your PHP ${priceNum.toFixed(2)} wallet top-up receipt was uploaded. Admin verification is now pending.`,
+    }).catch((notificationErr) => {
+      console.error("Top-up customer notification failed:", notificationErr);
+    });
 
     return NextResponse.json({ success: true, topupId: topup.id });
   } catch (err: any) {

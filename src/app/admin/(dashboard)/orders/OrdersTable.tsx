@@ -16,6 +16,7 @@ export function OrdersTable({ initialOrders, receiptFiles = [] }: { initialOrder
   const [isDeletingAll, setIsDeletingAll] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [smmServiceLabels, setSmmServiceLabels] = useState<Record<string, string>>({});
+  const [smmServiceRates, setSmmServiceRates] = useState<Record<string, number>>({});
   const supabase = createClient();
 
   useEffect(() => {
@@ -38,8 +39,15 @@ export function OrdersTable({ initialOrders, receiptFiles = [] }: { initialOrder
         }
         return acc;
       }, {});
+      const rates = services.reduce((acc: Record<string, number>, service: any) => {
+        if (service?.id) {
+          acc[String(service.id)] = Number(service.originalRate || 0);
+        }
+        return acc;
+      }, {});
 
       setSmmServiceLabels(labels);
+      setSmmServiceRates(rates);
     } catch (err) {
       console.error("Failed to load SMM service labels for admin orders:", err);
     }
@@ -55,6 +63,17 @@ export function OrdersTable({ initialOrders, receiptFiles = [] }: { initialOrder
     if (order.resolved_service_title) return order.resolved_service_title;
     if (smmServiceId) return isGenericTitle || !cleanJoinedTitle ? `SMM Service ID ${smmServiceId}` : `${cleanJoinedTitle} - SMM ID ${smmServiceId}`;
     return cleanJoinedTitle && !isGenericTitle ? cleanJoinedTitle : "Specific SMM Service";
+  };
+
+  const getOrderProfit = (order: any) => {
+    const smmServiceId = order.smm_service_id ? String(order.smm_service_id) : "";
+    const ratePer1k = smmServiceId ? Number(smmServiceRates[smmServiceId] || 0) : 0;
+    const quantity = Number(order.quantity || 0);
+    const providerCost = ratePer1k > 0 && quantity > 0
+      ? Number(((quantity / 1000) * ratePer1k).toFixed(2))
+      : Number(order.estimated_provider_cost || 0);
+    const profit = Number((Number(order.amount || 0) - providerCost).toFixed(2));
+    return { providerCost, profit };
   };
 
   const syncExternalOrders = async (silent = false) => {
@@ -309,6 +328,7 @@ export function OrdersTable({ initialOrders, receiptFiles = [] }: { initialOrder
                 <th className="py-4 px-5 font-extrabold text-slate-400 text-[10px] uppercase tracking-wider text-center">Qty</th>
                 <th className="py-4 px-5 font-extrabold text-slate-400 text-[10px] uppercase tracking-wider">Details</th>
                 <th className="py-4 px-5 font-extrabold text-slate-400 text-[10px] uppercase tracking-wider">Amount</th>
+                <th className="py-4 px-5 font-extrabold text-slate-400 text-[10px] uppercase tracking-wider">Profit</th>
                 <th className="py-4 px-5 font-extrabold text-slate-400 text-[10px] uppercase tracking-wider">Receipt</th>
                 <th className="py-4 px-5 font-extrabold text-slate-400 text-[10px] uppercase tracking-wider">Status</th>
                 <th className="py-4 px-5 font-extrabold text-slate-400 text-[10px] uppercase tracking-wider text-right">Actions</th>
@@ -318,6 +338,7 @@ export function OrdersTable({ initialOrders, receiptFiles = [] }: { initialOrder
               {filteredOrders.map((order) => {
                 const phTime = formatPHTime(order.created_at);
                 const serviceTitle = getOrderServiceTitle(order);
+                const orderProfit = getOrderProfit(order);
                 return (
                   <tr key={order.id} className="hover:bg-slate-800/20 transition-colors border-b border-slate-850/30 last:border-0">
                     {/* Date + Time PHT */}
@@ -430,6 +451,16 @@ export function OrdersTable({ initialOrders, receiptFiles = [] }: { initialOrder
                       </div>
                     </td>
 
+                    {/* Profit */}
+                    <td className="py-3.5 px-5">
+                      <div className={`text-xs font-black ${orderProfit.profit >= 0 ? "text-[#1DB954]" : "text-red-400"}`}>
+                        â‚±{orderProfit.profit.toFixed(2)}
+                      </div>
+                      <div className="text-[9px] text-slate-500 font-bold mt-0.5">
+                        Cost â‚±{orderProfit.providerCost.toFixed(2)}
+                      </div>
+                    </td>
+
                     {/* Receipt */}
                     <td className="py-3.5 px-5 text-xs">
                       {(() => {
@@ -485,7 +516,7 @@ export function OrdersTable({ initialOrders, receiptFiles = [] }: { initialOrder
               
               {filteredOrders.length === 0 && (
                 <tr>
-                  <td colSpan={10} className="py-12 text-center text-xs text-slate-550 italic font-semibold">
+                  <td colSpan={11} className="py-12 text-center text-xs text-slate-550 italic font-semibold">
                     No matching orders registered.
                   </td>
                 </tr>

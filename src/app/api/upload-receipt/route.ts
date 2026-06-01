@@ -5,6 +5,8 @@ import { createClient as createServerClient } from "@/utils/supabase/server";
 import { enforceRateLimit } from "@/utils/security/rate-limit";
 import { isAdminEmail } from "@/utils/security/admin";
 import { resolveSmmServiceTitle } from "@/lib/smmServiceResolver";
+import { buildReceiptFileName, findDuplicateReceipt, hashReceiptFile } from "@/lib/receiptGuard";
+import { notifyCustomer } from "@/lib/customerNotifications";
 
 const MAX_RECEIPT_FILE_BYTES = 8 * 1024 * 1024;
 const ALLOWED_RECEIPT_TYPES = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp"]);
@@ -87,9 +89,17 @@ export async function POST(req: NextRequest) {
 
     const email = orderData?.customer_email ? orderData.customer_email.trim() : "unknown";
     const fileExt = file.name.split('.').pop() || 'png';
+    const receiptHash = await hashReceiptFile(file);
+    const duplicateReceipt = await findDuplicateReceipt(supabase, receiptHash, orderId);
+
+    if (duplicateReceipt) {
+      return NextResponse.json({
+        error: "This receipt image was already used on another order or top-up. Please upload the correct GCash proof for this transaction.",
+      }, { status: 409 });
+    }
     
     // 2. Name the file [orderId]_[email].[ext] to instantly identify who is paying in the storage bucket
-    const fileName = `${orderId}_${email}.${fileExt}`;
+    const fileName = buildReceiptFileName(orderId, receiptHash, email, fileExt);
 
     // 3. Upload to bucket 'receipts' bypassing client-side constraints
     const { data, error } = await supabase.storage
@@ -127,6 +137,14 @@ export async function POST(req: NextRequest) {
         console.error("Telegram order approval notification failed (non-blocking):", telegramErr);
       });
     }
+
+    notifyCustomer({
+      client: supabase,
+      email,
+      message: `System update: Receipt uploaded for order BS-${orderId.slice(0, 8).toUpperCase()}. Admin will verify it shortly.`,
+    }).catch((notificationErr) => {
+      console.error("Receipt upload customer notification failed:", notificationErr);
+    });
 
     return NextResponse.json({ success: true, data, email, receiptUrl: publicUrlData.publicUrl });
   } catch (err: any) {
