@@ -2,7 +2,6 @@ import Link from "next/link";
 import {
   LayoutDashboard,
   ShoppingCart,
-  Crown,
   Settings,
   Users,
   LogOut,
@@ -59,15 +58,6 @@ const adminNavItems = [
     icon: Wallet,
     accentClass: "group-hover:text-[#1DB954]",
     linkClass: "hover:bg-emerald-950/20 hover:text-[#1DB954]",
-    chevronClass: "text-[#1DB954]",
-  },
-  {
-    href: "/admin/vip",
-    label: "VIP Subscriptions",
-    shortLabel: "VIP",
-    icon: Crown,
-    accentClass: "group-hover:text-[#1DB954]",
-    linkClass: "hover:bg-slate-900/30 hover:text-[#1DB954]",
     chevronClass: "text-[#1DB954]",
   },
 ];

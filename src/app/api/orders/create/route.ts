@@ -2,17 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { dualWrite } from "@/utils/supabase/dual-db";
 import { createClient as createServerClient } from "@/utils/supabase/server";
 import { enforceRateLimit } from "@/utils/security/rate-limit";
-import { calculateVipDiscount, getVipDiscountSummary } from "@/utils/vip";
-import { createClient } from "@supabase/supabase-js";
 
 const MAX_TARGET_LENGTH = 7000;
 
 const clean = (value: unknown) => (typeof value === "string" ? value.trim() : "");
 const getErrorMessage = (error: unknown) => error instanceof Error ? error.message : String(error);
-const looksLikeMissingVipSchema = (error: unknown) => {
-  const message = getErrorMessage(error).toLowerCase();
-  return message.includes("vip_") || message.includes("original_amount") || message.includes("schema cache");
-};
 
 export async function POST(req: NextRequest) {
   try {
@@ -64,66 +58,25 @@ export async function POST(req: NextRequest) {
     }
 
     const orderId = crypto.randomUUID();
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-    if (!supabaseUrl || !serviceRoleKey) {
-      return NextResponse.json({ error: "Server configuration missing." }, { status: 500 });
-    }
-
-    const adminClient = createClient(supabaseUrl, serviceRoleKey, {
-      auth: { persistSession: false },
-    });
-
-    const { data: profileData } = await adminClient
-      .from("profiles")
-      .select("vip_plan, vip_expires_at")
-      .eq("id", user.id)
-      .single();
-
-    const vipAmount = calculateVipDiscount(profileData || null, amount);
-    const finalAmount = Math.max(vipAmount, 5);
-    const adjustedSummary = getVipDiscountSummary(profileData || null, amount);
-
-    const basePayload = {
+    const payload = {
       id: orderId,
       service_id: serviceId,
       customer_email: email,
       target_url: targetUrl,
-      amount: finalAmount,
+      amount,
       status: "Pending",
       payment_method: paymentMethod,
       quantity,
       smm_service_id: smmServiceId || null,
     };
 
-    const vipPayload = {
-      ...basePayload,
-      original_amount: amount,
-      vip_plan: adjustedSummary.plan ? adjustedSummary.plan.id : null,
-      vip_discount_percent: adjustedSummary.discountPercent,
-      vip_discount_amount: adjustedSummary.savingsAmount,
-    };
-
-    let { error, databaseUsed } = await dualWrite(async (dbClient) => {
+    const { error, databaseUsed } = await dualWrite(async (dbClient) => {
       return dbClient
         .from("orders")
-        .insert([vipPayload])
+        .insert([payload])
         .select("id")
         .single();
     });
-
-    if (error && looksLikeMissingVipSchema(error)) {
-      const fallback = await dualWrite(async (dbClient) => {
-        return dbClient
-          .from("orders")
-          .insert([basePayload])
-          .select("id")
-          .single();
-      });
-      error = fallback.error;
-      databaseUsed = fallback.databaseUsed;
-    }
 
     if (error) {
       throw error;

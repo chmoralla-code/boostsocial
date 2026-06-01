@@ -6,23 +6,6 @@ import { syncBackupAdminClients } from "@/utils/supabase/dual-db";
 import { createClient as createServerClient } from "@/utils/supabase/server";
 import { enforceRateLimit } from "@/utils/security/rate-limit";
 import { creditReferralCommission } from "@/utils/referrals";
-import { getVipDiscountSummary } from "@/utils/vip";
-
-type WalletProfile = {
-  balance?: number | string | null;
-  vip_plan?: string | null;
-  vip_expires_at?: string | null;
-};
-
-type CheckoutOrder = {
-  id: string;
-};
-
-const getErrorMessage = (error: unknown) => error instanceof Error ? error.message : String(error);
-const looksLikeMissingVipSchema = (error: unknown) => {
-  const message = getErrorMessage(error).toLowerCase();
-  return message.includes("vip_") || message.includes("original_amount") || message.includes("schema cache");
-};
 
 export async function POST(req: NextRequest) {
   try {
@@ -88,28 +71,13 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const profileWithVip = await supabase
+    const { data: profile, error: profileError } = await supabase
       .from("profiles")
-      .select("balance, vip_plan, vip_expires_at")
+      .select("balance")
       .eq("id", userId)
       .single();
-    let profile: WalletProfile | null = profileWithVip.data as WalletProfile | null;
-    let profileError = profileWithVip.error;
-
-    if (profileError && looksLikeMissingVipSchema(profileError)) {
-      const fallbackProfile = await supabase
-        .from("profiles")
-        .select("balance")
-        .eq("id", userId)
-        .single();
-      profile = fallbackProfile.data as WalletProfile | null;
-      profileError = fallbackProfile.error;
-    }
 
     if (profileError) throw profileError;
-    if (!profile) {
-      return NextResponse.json({ error: "Customer profile was not found" }, { status: 404 });
-    }
 
     const currentBalance = Number(profile.balance || 0);
     const parsedTotal = Number(totalPrice);
@@ -117,20 +85,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid wallet checkout amount" }, { status: 400 });
     }
 
-    const discountSummary = getVipDiscountSummary(profile || null, parsedTotal);
-    const cost = Math.max(discountSummary.finalAmount, 5.00);
-    const { error: vipColumnsError } = await supabase
-      .from("orders")
-      .select("original_amount, vip_plan, vip_discount_percent, vip_discount_amount")
-      .limit(1);
-    const orderVipFields = vipColumnsError
-      ? {}
-      : {
-          original_amount: parsedTotal,
-          vip_plan: discountSummary.plan ? discountSummary.plan.id : null,
-          vip_discount_percent: discountSummary.discountPercent,
-          vip_discount_amount: discountSummary.savingsAmount,
-        };
+    const cost = Math.max(parsedTotal, 5.00);
 
     if (currentBalance < cost) {
       return NextResponse.json({ error: "Insufficient wallet balance" }, { status: 400 });
@@ -144,7 +99,7 @@ export async function POST(req: NextRequest) {
 
     if (updateProfileError) throw updateProfileError;
 
-    let order: CheckoutOrder | null = null;
+    let order: any = null;
     if (existingOrderId) {
       const { data: updatedOrder, error: updateOrderError } = await supabase
         .from("orders")
@@ -156,8 +111,7 @@ export async function POST(req: NextRequest) {
           status: "Processing",
           payment_method: "Wallet",
           quantity,
-          smm_service_id: smmServiceId || null,
-          ...orderVipFields,
+          smm_service_id: smmServiceId || null
         })
         .eq("id", existingOrderId)
         .select("id")
@@ -177,8 +131,7 @@ export async function POST(req: NextRequest) {
             status: "Processing",
             payment_method: "Wallet",
             quantity,
-            smm_service_id: smmServiceId || null,
-            ...orderVipFields,
+            smm_service_id: smmServiceId || null
           }
         ])
         .select("id")
@@ -186,10 +139,6 @@ export async function POST(req: NextRequest) {
 
       if (insertOrderError) throw insertOrderError;
       order = insertedOrder;
-    }
-
-    if (!order?.id) {
-      return NextResponse.json({ error: "Wallet order was not created" }, { status: 500 });
     }
 
     await syncBackupAdminClients(async (backupClient) => {
@@ -211,8 +160,7 @@ export async function POST(req: NextRequest) {
           status: "Processing",
           payment_method: "Wallet",
           quantity,
-          smm_service_id: smmServiceId || null,
-          ...orderVipFields,
+          smm_service_id: smmServiceId || null
         });
     }, "wallet checkout sync");
 
@@ -242,8 +190,8 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json({ success: true, orderId: order.id, newBalance });
-  } catch (err: unknown) {
+  } catch (err: any) {
     console.error("Wallet checkout endpoint failed:", err);
-    return NextResponse.json({ error: getErrorMessage(err) }, { status: 500 });
+    return NextResponse.json({ error: err.message || err.toString() }, { status: 500 });
   }
 }

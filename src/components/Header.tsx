@@ -2,46 +2,26 @@
 
 import { useState, useEffect } from "react";
 import Link from 'next/link';
-import { Rocket, LogOut, ClipboardList, X, Loader2, Wallet, Gift, Crown } from 'lucide-react';
+import { Rocket, LogOut, ClipboardList, X, Loader2, Wallet, Gift } from 'lucide-react';
 import { createClient } from "@/utils/supabase/client";
-import type { User } from "@supabase/supabase-js";
 import { format } from "date-fns";
-import { isVipActive, getVipDiscountPercent } from "@/utils/vip";
 import { TopUpModal } from "./TopUpModal";
 import { ReferralsModal } from "./ReferralsModal";
 
-type UserProfile = {
-  id: string;
-  vip_plan?: string | null;
-  vip_expires_at?: string | null;
-  balance?: number | string | null;
-  email?: string | null;
-};
-
-type UserOrder = {
-  id: string;
-  created_at: string;
-  services?: { title?: string } | null;
-  quantity: number;
-  amount: number | string;
-  target_url: string;
-  status: "Pending" | "Processing" | "Completed" | string;
-};
-
 export function Header() {
-  const [user, setUser] = useState<User | null>(null);
-  const [orders, setOrders] = useState<UserOrder[]>([]);
+  const [user, setUser] = useState<any>(null);
+  const [orders, setOrders] = useState<any[]>([]);
   const [showOrdersModal, setShowOrdersModal] = useState(false);
   const [showTopUpModal, setShowTopUpModal] = useState(false);
   const [showReferralsModal, setShowReferralsModal] = useState(false);
   const [loadingOrders, setLoadingOrders] = useState(false);
   const supabase = createClient();
 
-  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [profile, setProfile] = useState<any>(null);
 
   const fetchProfile = async (userId: string) => {
-    const { data } = await supabase.from("profiles").select("*").eq("id", userId).single();
-    if (data) setProfile(data as UserProfile);
+    const { data } = await supabase.from('profiles').select('*').eq('id', userId).single();
+    if (data) setProfile(data);
   };
 
   useEffect(() => {
@@ -122,28 +102,17 @@ export function Header() {
           <Link href="/quick-start" className="text-[#1DB954] hover:text-[#1ed760] font-extrabold uppercase text-xs tracking-wider flex items-center gap-1 transition-colors animate-pulse">🚀 Quick Start</Link>
           <Link href="/order-page" className="text-[#1877F2] hover:text-[#4e8df5] font-extrabold uppercase text-xs tracking-wider transition-colors">Order Page</Link>
           <Link href="/affiliate" className="hover:text-white transition-colors">Affiliate</Link>
-          <Link href="/vip" className="hover:text-[#1DB954] transition-colors flex items-center gap-1.5 uppercase tracking-wider text-xs font-extrabold">
-            <Crown size={14} />
-            VIP
-          </Link>
           <Link href="#services" className="hover:text-white transition-colors">Services</Link>
           <Link href="/track" className="hover:text-white transition-colors">Status Tracker</Link>
         </nav>
 
         <div className={user ? "grid w-full grid-cols-[minmax(0,1fr)_44px_44px_44px] items-center gap-2 md:flex md:w-auto md:gap-4" : "flex w-full items-center justify-end md:w-auto"}>
-              {user ? (
-                <>
-                  {profile?.vip_plan && isVipActive(profile) && (
-                    <span className="hidden lg:inline-flex items-center gap-1.5 rounded-full border border-[#1DB954]/35 bg-[#1DB954]/10 px-3 py-2 text-[10px] font-black uppercase tracking-wide text-[#1DB954]">
-                      <Crown size={12} />
-                      VIP {getVipDiscountPercent(profile)}% OFF
-                    </span>
-                  )}
-
-                  <button
-                    onClick={() => setShowTopUpModal(true)}
-                    className="flex h-11 min-w-0 items-center justify-center gap-1.5 rounded-full border border-[#1877F2]/30 bg-[#1877F2]/10 px-3 py-2 text-[11px] font-extrabold uppercase tracking-wider text-[#1877F2] transition-all hover:bg-[#1877F2]/20 md:h-auto md:py-2 md:text-xs cursor-pointer"
-                  >
+          {user ? (
+            <>
+              <button 
+                onClick={() => setShowTopUpModal(true)}
+                className="flex h-11 min-w-0 items-center justify-center gap-1.5 rounded-full border border-[#1877F2]/30 bg-[#1877F2]/10 px-3 py-2 text-[11px] font-extrabold uppercase tracking-wider text-[#1877F2] transition-all hover:bg-[#1877F2]/20 md:h-auto md:py-2 md:text-xs cursor-pointer"
+              >
                 <Wallet size={14} /> 
                 ₱{profile?.balance ? Number(profile.balance).toFixed(0) : "0"}
               </button>
