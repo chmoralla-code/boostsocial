@@ -6,6 +6,7 @@ import { createClient } from "@/utils/supabase/server";
 import { HeroSearch } from "@/components/HeroSearch";
 import { PendingOrderBanner } from "@/components/PendingOrderBanner";
 import { OnboardingRedirect } from "@/components/OnboardingRedirect";
+import { getEnv } from "@/utils/env";
 
 export const dynamic = "force-dynamic";
 
@@ -143,16 +144,16 @@ export default async function Home() {
   };
 
   // Fetch custom hero video URL and opacity from Supabase Storage config
-  let videoUrl = "";
+  let videoUrl = "/hero-bg.mp4";
   let opacity = 0.45;
   try {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseUrl = getEnv("NEXT_PUBLIC_SUPABASE_URL");
     if (supabaseUrl) {
       const configUrl = `${supabaseUrl}/storage/v1/object/public/receipts/admin-config/hero-video.png`;
       const res = await fetch(configUrl, { cache: "no-store" });
       if (res.ok) {
         const config = await res.json();
-        videoUrl = config.videoUrl || "";
+        videoUrl = config.videoUrl || "/hero-bg.mp4";
         opacity = config.opacity !== undefined ? Number(config.opacity) : 0.45;
       }
     }

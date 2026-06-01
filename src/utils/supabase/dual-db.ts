@@ -1,4 +1,5 @@
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import { getEnv } from "@/utils/env";
 
 type BackupLabel = "backup" | "backup3" | "backup4" | "backup5";
 type DatabaseUsed = "primary" | BackupLabel | "both";
@@ -16,33 +17,33 @@ export type BackupAdminClient = {
   client: SupabaseClient;
 };
 
-const primaryUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const primaryKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const primaryUrl = getEnv("NEXT_PUBLIC_SUPABASE_URL");
+const primaryKey = getEnv("SUPABASE_SERVICE_ROLE_KEY");
 
 const backupConfigs: BackupConfig[] = [
   {
     label: "backup",
     displayName: "Backup",
-    url: process.env.BACKUP_SUPABASE_URL,
-    key: process.env.BACKUP_SUPABASE_SERVICE_ROLE_KEY,
+    url: getEnv("BACKUP_SUPABASE_URL"),
+    key: getEnv("BACKUP_SUPABASE_SERVICE_ROLE_KEY"),
   },
   {
     label: "backup3",
     displayName: "BACKUP 3",
-    url: process.env.BACKUP3_SUPABASE_URL,
-    key: process.env.BACKUP3_SUPABASE_SERVICE_ROLE_KEY,
+    url: getEnv("BACKUP3_SUPABASE_URL"),
+    key: getEnv("BACKUP3_SUPABASE_SERVICE_ROLE_KEY"),
   },
   {
     label: "backup4",
     displayName: "BACKUP 4",
-    url: process.env.BACKUP4_SUPABASE_URL,
-    key: process.env.BACKUP4_SUPABASE_SERVICE_ROLE_KEY,
+    url: getEnv("BACKUP4_SUPABASE_URL"),
+    key: getEnv("BACKUP4_SUPABASE_SERVICE_ROLE_KEY"),
   },
   {
     label: "backup5",
     displayName: "BACKUP 5",
-    url: process.env.BACKUP5_SUPABASE_URL,
-    key: process.env.BACKUP5_SUPABASE_SERVICE_ROLE_KEY,
+    url: getEnv("BACKUP5_SUPABASE_URL"),
+    key: getEnv("BACKUP5_SUPABASE_SERVICE_ROLE_KEY"),
   },
 ];
 

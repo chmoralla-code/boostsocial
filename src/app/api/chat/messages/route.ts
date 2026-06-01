@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createClient as createServerClient } from "@/utils/supabase/server";
+import { getSupabaseServiceRoleKey, getSupabaseUrl } from "@/utils/env";
 import { isAdminEmail } from "@/utils/security/admin";
 import { enforceRateLimit } from "@/utils/security/rate-limit";
 
@@ -17,12 +18,9 @@ function getErrorMessage(err: unknown) {
 }
 
 function getSupabase() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const supabaseUrl = getSupabaseUrl();
+  const serviceRoleKey = getSupabaseServiceRoleKey();
 
-  if (!supabaseUrl || !serviceRoleKey) {
-    throw new Error("Supabase credentials missing in env");
-  }
   return createClient(supabaseUrl, serviceRoleKey, {
     auth: { persistSession: false }
   });

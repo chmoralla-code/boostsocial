@@ -1,13 +1,14 @@
 import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse, type NextRequest } from 'next/server'
+import { getSupabaseAnonKey, getSupabaseServiceRoleKey, getSupabaseUrl } from "@/utils/env";
 import { isAdminEmail } from "@/utils/security/admin";
 
 // Service role client to perform bulletproof settings query (bypassing any client-side RLS limitations)
 const getServiceRoleClient = () =>
   createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    getSupabaseUrl(),
+    getSupabaseServiceRoleKey(),
     { auth: { persistSession: false } }
   )
 
@@ -332,8 +333,8 @@ export async function middleware(request: NextRequest) {
 
   // 3. Perform standard administrator authentication enforcement
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    getSupabaseUrl(),
+    getSupabaseAnonKey(),
     {
       cookies: {
         getAll() {

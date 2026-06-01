@@ -1,0 +1,31 @@
+import { cleanEnvValue } from "@/utils/env";
+
+const ENV_KEYS_TO_CLEAN = [
+  "NEXT_PUBLIC_SUPABASE_URL",
+  "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+  "SUPABASE_SERVICE_ROLE_KEY",
+  "BACKUP_SUPABASE_URL",
+  "BACKUP_SUPABASE_SERVICE_ROLE_KEY",
+  "BACKUP3_SUPABASE_URL",
+  "BACKUP3_SUPABASE_SERVICE_ROLE_KEY",
+  "BACKUP4_SUPABASE_URL",
+  "BACKUP4_SUPABASE_SERVICE_ROLE_KEY",
+  "BACKUP5_SUPABASE_URL",
+  "BACKUP5_SUPABASE_SERVICE_ROLE_KEY",
+  "DATABASE_URL",
+  "BACKUP_DATABASE_URL",
+  "BACKUP3_DATABASE_URL",
+  "BACKUP4_DATABASE_URL",
+  "BACKUP5_DATABASE_URL",
+  "RIXEYSMM_API_KEY",
+  "TELEGRAM_WEBHOOK_SECRET",
+];
+
+export async function register() {
+  for (const key of ENV_KEYS_TO_CLEAN) {
+    const cleaned = cleanEnvValue(process.env[key]);
+    if (cleaned !== undefined) {
+      process.env[key] = cleaned;
+    }
+  }
+}
