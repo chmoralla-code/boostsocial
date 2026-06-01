@@ -2,7 +2,6 @@ import { createClient } from "@/utils/supabase/server";
 import { DollarSign, ShoppingCart, Activity, Users, ArrowUpRight, TrendingUp, Sparkles, Clock, Globe, Wallet } from "lucide-react";
 import { StorageOptimizingPanel } from "./StorageOptimizingPanel";
 import { MaintenanceSettingsPanel } from "./MaintenanceSettingsPanel";
-import { AnnouncementSettingsPanel } from "./AnnouncementSettingsPanel";
 import { TelegramSettingsPanel } from "./TelegramSettingsPanel";
 import { HeroVideoSettingsPanel } from "./HeroVideoSettingsPanel";
 import { HeroTextSettingsPanel } from "./HeroTextSettingsPanel";
@@ -344,7 +343,6 @@ export default async function AdminOverview() {
           {/* StoragePreservationPanel, TelegramNotificationPanel, HeroVideoSettingsPanel, HeroTextSettingsPanel, ServicesBgSettingsPanel, and ServicesCandidatesPanel */}
           <StorageOptimizingPanel />
           <MaintenanceSettingsPanel />
-          <AnnouncementSettingsPanel />
           <TelegramSettingsPanel />
           <HeroVideoSettingsPanel />
           <ShowcaseVideoSettingsPanel />

@@ -15,10 +15,6 @@ CREATE POLICY "Allow service role" ON public.settings FOR ALL USING (true) WITH 
 INSERT INTO public.settings (key, value)
 VALUES ('telegram_config', '{"bot_token": "", "chat_id": ""}')
 ON CONFLICT (key) DO NOTHING;
-
-INSERT INTO public.settings (key, value)
-VALUES ('client_announcement', '{"enabled": false, "title": "Important Announcement", "message": "Please check this announcement before continuing.", "actionLabel": "", "actionHref": "", "version": "default"}')
-ON CONFLICT (key) DO NOTHING;
 `.trim();
 
 const CUSTOMER_MESSAGES_SQL = `
