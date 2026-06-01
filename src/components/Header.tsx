@@ -188,6 +188,17 @@ export function Header() {
           )}
         </div>
         </div>
+        <div className="border-t border-slate-800/40 px-4 pb-4 pt-3 md:hidden">
+          <Link
+            href="/vip"
+            className="flex h-11 w-full items-center justify-center gap-2 rounded-full border border-[#1DB954]/30 bg-[#1DB954]/10 text-[11px] font-black uppercase tracking-wider text-[#1DB954] shadow-lg shadow-emerald-500/5 transition-all hover:bg-[#1DB954]/20"
+          >
+            <Crown size={15} />
+            {profile?.vip_plan && isVipActive(profile)
+              ? `VIP ${getVipDiscountPercent(profile)}% OFF`
+              : "VIP Account"}
+          </Link>
+        </div>
       </header>
 
       {/* Sleek Spotify-Themed User Orders Dashboard Modal */}
