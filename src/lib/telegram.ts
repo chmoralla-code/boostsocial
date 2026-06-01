@@ -53,6 +53,10 @@ export async function getTopupTelegramConfig(): Promise<{ bot_token: string; cha
   }
 }
 
+async function getOrderTelegramConfig(): Promise<{ bot_token: string; chat_id: string } | null> {
+  return await getTelegramConfig() || await getTopupTelegramConfig();
+}
+
 export async function sendOrderNotification(order: {
   trackingId: string;
   service: string;
@@ -63,7 +67,7 @@ export async function sendOrderNotification(order: {
   details?: string;
 }) {
   try {
-    const config = await getTelegramConfig();
+    const config = await getOrderTelegramConfig();
     if (!config?.bot_token || !config?.chat_id) return;
 
     const phTime = new Date().toLocaleString("en-PH", { timeZone: "Asia/Manila" });
@@ -172,7 +176,7 @@ export async function sendOrderCompleteNotification(order: {
   details?: string;
 }) {
   try {
-    const config = await getTelegramConfig();
+    const config = await getOrderTelegramConfig();
     if (!config?.bot_token || !config?.chat_id) return;
 
     const phTime = new Date().toLocaleString("en-PH", { timeZone: "Asia/Manila" });
@@ -212,7 +216,7 @@ export async function sendTopupNotification(topup: {
   receiptUrl: string;
 }) {
   try {
-    const config = await getTopupTelegramConfig();
+    const config = await getTopupTelegramConfig() || await getTelegramConfig();
     if (!config?.bot_token || !config?.chat_id) return;
 
     const phTime = new Date().toLocaleString("en-PH", { timeZone: "Asia/Manila" });

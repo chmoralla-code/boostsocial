@@ -5,6 +5,7 @@ import { enforceRateLimit } from "@/utils/security/rate-limit";
 import { syncBackupAdminClients } from "@/utils/supabase/dual-db";
 import { notifyCustomer } from "@/lib/customerNotifications";
 import { sendAdminAlert } from "@/lib/telegram";
+import { resolveSmmServiceTitle } from "@/lib/smmServiceResolver";
 
 const MAX_ISSUE_LENGTH = 1200;
 const VALID_CATEGORIES = new Set([
@@ -68,7 +69,7 @@ export async function POST(req: NextRequest) {
     const supabase = getSupabase();
     const { data: order, error: orderError } = await supabase
       .from("orders")
-      .select("id, customer_email, status, amount, quantity, target_url, services(title)")
+      .select("id, customer_email, status, amount, quantity, target_url, smm_service_id, services(title)")
       .eq("id", cleanOrderId)
       .single();
 
@@ -87,12 +88,13 @@ export async function POST(req: NextRequest) {
     const serviceTitle = Array.isArray(services)
       ? services[0]?.title
       : services?.title;
+    const resolvedServiceTitle = await resolveSmmServiceTitle((order as any).smm_service_id, serviceTitle || "SMM Service");
     const formattedIssue =
       `Order issue report\n` +
       `Tracking ID: ${trackingId}\n` +
       `Category: ${categoryLabel(cleanCategory)}\n` +
       `Status: ${order.status}\n` +
-      `Service: ${serviceTitle || "SMM Service"}\n\n` +
+      `Service: ${resolvedServiceTitle}\n\n` +
       cleanMessage;
 
     const payload = {
@@ -127,6 +129,7 @@ export async function POST(req: NextRequest) {
         `Customer: ${orderEmail}\n` +
         `Category: ${categoryLabel(cleanCategory)}\n` +
         `Status: ${order.status}\n` +
+        `Service: ${resolvedServiceTitle}\n` +
         `Amount: PHP ${Number(order.amount || 0).toFixed(2)}\n` +
         `Target: ${order.target_url || "N/A"}\n\n` +
         cleanMessage,

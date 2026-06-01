@@ -14,10 +14,11 @@ interface Service {
 
 interface PriceCalculatorProps {
   services: Service[];
+  vipDiscountPercent?: number;
   onOrder: (service: Service, quantity: number) => void;
 }
 
-export function PriceCalculator({ services, onOrder }: PriceCalculatorProps) {
+export function PriceCalculator({ services, vipDiscountPercent = 0, onOrder }: PriceCalculatorProps) {
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [quantity, setQuantity] = useState(1000);
   const [animatedPrice, setAnimatedPrice] = useState(0);
@@ -54,8 +55,13 @@ export function PriceCalculator({ services, onOrder }: PriceCalculatorProps) {
     ? (quantity >= 5 ? 20 : quantity >= 3 ? 15 : 10)
     : (quantity >= 10000 ? 25 : quantity >= 5000 ? 20 : quantity >= 3000 ? 15 : 10);
 
-  const targetPrice = baseTotal > 0 ? Math.max(baseTotal, 5.00) : 0; // Enforce minimum order price of ₱5.00 to cover overhead
-  const fakeOriginalPrice = targetPrice / (1 - fakeDiscountPercent / 105);
+  const regularTargetPrice = baseTotal > 0 ? Math.max(baseTotal, 5.00) : 0; // Enforce minimum order price of ₱5.00 to cover overhead
+  const vipTargetPrice = vipDiscountPercent > 0
+    ? Math.max(Number((regularTargetPrice * (100 - vipDiscountPercent) / 100).toFixed(2)), regularTargetPrice > 0 ? 5.00 : 0)
+    : regularTargetPrice;
+  const hasVipPrice = vipDiscountPercent > 0 && vipTargetPrice < regularTargetPrice;
+  const targetPrice = hasVipPrice ? vipTargetPrice : regularTargetPrice;
+  const fakeOriginalPrice = regularTargetPrice / (1 - fakeDiscountPercent / 105);
 
   const formatPrice = (amount: number) => {
     return amount.toFixed(2);
@@ -264,7 +270,11 @@ export function PriceCalculator({ services, onOrder }: PriceCalculatorProps) {
             <div className="text-left space-y-1">
               <span className="text-[10px] text-slate-500 font-black uppercase tracking-wider">Estimated Price</span>
               <div className="flex items-baseline gap-1.5 flex-wrap">
-                {fakeDiscountPercent > 0 && (
+                {hasVipPrice ? (
+                  <span className="text-sm text-slate-500 font-mono line-through mr-1 block">
+                    Regular ₱{formatPrice(regularTargetPrice)}
+                  </span>
+                ) : fakeDiscountPercent > 0 && (
                   <span className="text-sm text-slate-500 font-mono line-through mr-1 block">
                     ₱{formatPrice(fakeOriginalPrice)}
                   </span>
@@ -277,7 +287,11 @@ export function PriceCalculator({ services, onOrder }: PriceCalculatorProps) {
                 </span>
                 <span className="text-xs text-slate-400 font-bold">PHP</span>
               </div>
-              {fakeDiscountPercent > 0 && (
+              {hasVipPrice ? (
+                <div className="text-[10px] font-black uppercase tracking-wider mt-1 text-[#1DB954]">
+                  VIP {vipDiscountPercent}% applied. You save ₱{formatPrice(regularTargetPrice - vipTargetPrice)}.
+                </div>
+              ) : fakeDiscountPercent > 0 && (
                 <div className={`text-[10px] font-black uppercase tracking-wider mt-1 animate-pulse ${activeText}`}>
                   🔥 {fakeDiscountPercent}% Special Discount Active!
                 </div>

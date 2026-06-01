@@ -9,10 +9,11 @@ interface ServiceCardProps {
   description: any;
   startingPrice: number;
   iconType: string;
+  vipDiscountPercent?: number;
   onOrder: (serviceId: string, serviceTitle: string, startingPrice: number) => void;
 }
 
-export function ServiceCard({ id, title, description, startingPrice, iconType, onOrder }: ServiceCardProps) {
+export function ServiceCard({ id, title, description, startingPrice, iconType, vipDiscountPercent = 0, onOrder }: ServiceCardProps) {
   const getIcon = () => {
     if (iconType && (iconType.startsWith("http") || iconType.startsWith("data:image"))) {
       return (
@@ -103,6 +104,12 @@ export function ServiceCard({ id, title, description, startingPrice, iconType, o
     }
   };
 
+  const startingTotal = parsed.min_quantity * startingPrice;
+  const vipTotal = vipDiscountPercent > 0
+    ? Number((startingTotal * (100 - vipDiscountPercent) / 100).toFixed(2))
+    : startingTotal;
+  const hasVipPrice = vipDiscountPercent > 0 && vipTotal < startingTotal;
+
   return (
     <div className={`bg-[#121212]/50 hover:bg-[#161616]/90 backdrop-blur-md rounded-3xl p-8 flex flex-col items-start text-left w-full border border-white/[0.04] shadow-[0_12px_40px_rgba(0,0,0,0.4)] transition-all duration-500 transform hover:-translate-y-2 group ${getGlowClass()}`}>
       <div className="h-16 flex items-center justify-center group-hover:scale-115 group-hover:rotate-6 transition-transform duration-500 ease-out">
@@ -172,10 +179,14 @@ export function ServiceCard({ id, title, description, startingPrice, iconType, o
                 }
               </span>
               <span className="text-3xl font-black text-white">
-                ₱{(() => {
-                  const total = parsed.min_quantity * startingPrice;
-                  return total.toFixed(2);
-                })()}
+                {hasVipPrice ? (
+                  <span className="block leading-tight">
+                    <span className="block text-[11px] text-slate-500 line-through font-mono">Regular ₱{startingTotal.toFixed(2)}</span>
+                    <span className="block text-3xl text-[#1DB954]">VIP ₱{vipTotal.toFixed(2)}</span>
+                  </span>
+                ) : (
+                  <>₱{startingTotal.toFixed(2)}</>
+                )}
               </span>
             </>
           )}

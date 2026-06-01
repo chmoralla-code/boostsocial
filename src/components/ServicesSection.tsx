@@ -10,6 +10,8 @@ import { ReviewsSection } from "./ReviewsSection";
 import { SmmCatalogModal } from "./SmmCatalogModal";
 import { Layers, X, Loader2 } from "lucide-react";
 import { parseDescription, matchesServiceQualityFilter } from "@/utils/serviceHelpers";
+import { createClient } from "@/utils/supabase/client";
+import { getVipDiscountPercent, isVipActive } from "@/utils/vip";
 
 
 interface Service {
@@ -150,7 +152,12 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
 
   const [showCalculator, setShowCalculator] = useState(false);
   const [isOrganicFilter, setIsOrganicFilter] = useState(true);
+  const [vipDiscountPercent, setVipDiscountPercent] = useState(0);
 
+  const applyVipPrice = (amount: number) => {
+    if (!vipDiscountPercent || amount <= 0) return amount;
+    return Number((amount * (100 - vipDiscountPercent) / 100).toFixed(2));
+  };
 
   useEffect(() => {
     setLoadingSmm(true);
@@ -163,6 +170,29 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
       })
       .catch((err) => console.error("Error loading direct SMM services:", err))
       .finally(() => setLoadingSmm(false));
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+    const supabase = createClient();
+
+    supabase.auth.getUser().then(async ({ data }) => {
+      if (!isMounted || !data.user?.id) return;
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("vip_plan, vip_expires_at")
+        .eq("id", data.user.id)
+        .single();
+
+      if (isMounted && profile && isVipActive(profile)) {
+        setVipDiscountPercent(getVipDiscountPercent(profile));
+      }
+    }).catch(() => {});
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const getPlatformSmmCandidates = (platform: PlatformType) => {
@@ -495,6 +525,13 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
     return matchesServiceQualityFilter(srv.title, desc, "", isOrganicFilter);
   });
 
+  const getCandidateRateAmount = (rateText: string) => {
+    const match = String(rateText || "").match(/₱\s*([\d,]+(?:\.\d+)?)/);
+    if (!match) return null;
+    const amount = Number(match[1].replace(/,/g, ""));
+    return Number.isFinite(amount) ? amount : null;
+  };
+
   return (
     <>
       {/* 1. SMM Price Calculator Widget Toggle */}
@@ -545,6 +582,7 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
           <div className="w-full relative animate-in fade-in slide-in-from-top-4 duration-500">
             <PriceCalculator 
               services={filteredServicesForCalculator} 
+              vipDiscountPercent={vipDiscountPercent}
               onOrder={handleCalculatorOrder} 
             />
             <div className="flex justify-center -mt-10 mb-16">
@@ -669,6 +707,9 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
             const cardLayout = card.layout || "standard";
             const cardLayoutClass = cardLayout === "wide" ? "lg:col-span-2" : "";
             const cardPaddingClass = cardLayout === "compact" ? "p-6" : "p-8";
+            const candidateRateAmount = getCandidateRateAmount(card.rate_text);
+            const candidateVipAmount = candidateRateAmount ? applyVipPrice(candidateRateAmount) : null;
+            const hasCandidateVipPrice = Boolean(vipDiscountPercent && candidateRateAmount && candidateVipAmount && candidateVipAmount < candidateRateAmount);
 
             return (
               <div 
@@ -763,7 +804,19 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
                     <span className="block text-slate-550 text-[10px] font-bold uppercase tracking-wider mb-1">
                       {card.rate_prefix}
                     </span>
-                    {card.id === "facebook" || card.id === "instagram" || card.id === "tiktok" || card.id === "youtube" ? (
+                    {hasCandidateVipPrice && candidateRateAmount && candidateVipAmount ? (
+                      <span className="block leading-tight">
+                        <span className="block text-[11px] text-slate-500 line-through font-mono">
+                          Regular ₱{candidateRateAmount.toFixed(2)}
+                        </span>
+                        <span className="block text-2xl font-black text-[#1DB954]">
+                          VIP ₱{candidateVipAmount.toFixed(2)}
+                          <span className="text-xs text-slate-400 font-normal">
+                            {card.id === "order-page" ? " package" : " per 1k"}
+                          </span>
+                        </span>
+                      </span>
+                    ) : card.id === "facebook" || card.id === "instagram" || card.id === "tiktok" || card.id === "youtube" ? (
                       <span className="text-2xl font-black text-white">
                         {card.rate_text.split(" ")[0]} <span className="text-xs text-slate-400 font-normal">{card.rate_text.split(" ").slice(1).join(" ")}</span>
                       </span>
@@ -959,6 +1012,7 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
                     description={service.description}
                     startingPrice={service.starting_price}
                     iconType={service.icon_type}
+                    vipDiscountPercent={vipDiscountPercent}
                     onOrder={(id, title, price) => {
                       setIsOtherModalOpen(false); // Auto-close selector sub-modal
                       setSelectedService(service);
@@ -1044,6 +1098,9 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
                         const s = slot.item;
                         if (!s) return null;
                         const indicators = parseServiceIndicators(s.name, s.desc);
+                        const regularPer1k = s.startingPrice * 1000;
+                        const vipPer1k = applyVipPrice(regularPer1k);
+                        const hasVipPer1k = vipDiscountPercent > 0 && vipPer1k < regularPer1k;
                         return (
                           <div 
                             key={index}
@@ -1083,7 +1140,14 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
                             <div className="mt-6 pt-4 border-t border-slate-850/60">
                               <div className="flex justify-between items-baseline mb-4">
                                 <span className="text-[9px] text-slate-500 font-extrabold uppercase tracking-wider">Rate per 1k:</span>
-                                <span className="text-base font-black text-white">₱{(s.startingPrice * 1000).toFixed(2)}</span>
+                                {hasVipPer1k ? (
+                                  <span className="text-right leading-tight">
+                                    <span className="block text-[10px] text-slate-500 line-through font-mono">₱{regularPer1k.toFixed(2)}</span>
+                                    <span className="block text-base font-black text-[#1DB954]">VIP ₱{vipPer1k.toFixed(2)}</span>
+                                  </span>
+                                ) : (
+                                  <span className="text-base font-black text-white">₱{regularPer1k.toFixed(2)}</span>
+                                )}
                               </div>
                               
                               <button
@@ -1123,6 +1187,9 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                         {candidates.reactions.map((reaction) => {
                           const service = reaction.item;
+                          const reactionRegularPer1k = service ? service.startingPrice * 1000 : null;
+                          const reactionVipPer1k = reactionRegularPer1k ? applyVipPrice(reactionRegularPer1k) : null;
+                          const hasReactionVipPrice = Boolean(vipDiscountPercent && reactionRegularPer1k && reactionVipPer1k && reactionVipPer1k < reactionRegularPer1k);
                           return (
                             <button
                               key={reaction.label}
@@ -1147,9 +1214,16 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
                               <span className="text-[10px] text-slate-450 leading-snug line-clamp-2 mt-1 flex-grow">
                                 {service ? service.name : `Open catalog search for ${reaction.search}.`}
                               </span>
-                              <span className="text-[10px] font-black text-[#1DB954] mt-3">
-                                {service ? `₱${(service.startingPrice * 1000).toFixed(2)} / 1k` : "Search Catalog"}
-                              </span>
+                              {hasReactionVipPrice && reactionRegularPer1k && reactionVipPer1k ? (
+                                <span className="text-[10px] font-black text-[#1DB954] mt-3 leading-tight">
+                                  <span className="block text-slate-500 line-through">₱{reactionRegularPer1k.toFixed(2)}</span>
+                                  <span className="block">VIP ₱{reactionVipPer1k.toFixed(2)} / 1k</span>
+                                </span>
+                              ) : (
+                                <span className="text-[10px] font-black text-[#1DB954] mt-3">
+                                  {service ? `₱${(service.startingPrice * 1000).toFixed(2)} / 1k` : "Search Catalog"}
+                                </span>
+                              )}
                             </button>
                           );
                         })}

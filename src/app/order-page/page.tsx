@@ -20,6 +20,7 @@ import { Footer } from "@/components/Footer";
 import { TopUpModal } from "@/components/TopUpModal";
 import { createClient } from "@/utils/supabase/client";
 import { compressImage } from "@/utils/imageCompressor";
+import { getVipDiscountSummary } from "@/utils/vip";
 
 interface SmmService {
   id: string;
@@ -33,6 +34,8 @@ interface SmmService {
 interface Profile {
   id: string;
   balance?: number | string | null;
+  vip_plan?: string | null;
+  vip_expires_at?: string | null;
 }
 
 const CUSTOM_PAGE_SERVICE_ID = "e6f61249-71fe-40df-84f3-96d03d3e8dcf";
@@ -87,8 +90,11 @@ export default function OrderPage() {
   const extraFollowers = Math.max(normalizedQuantity - INCLUDED_FOLLOWERS, 0);
   const extraFollowerCost = extraFollowers * followerUnitPrice;
   const grandTotal = BASE_PAGE_PRICE + extraFollowerCost;
+  const vipSummary = getVipDiscountSummary(profile, grandTotal);
+  const payableTotal = vipSummary.discountPercent > 0 ? Math.max(vipSummary.finalAmount, 5.00) : grandTotal;
+  const hasVipDiscount = vipSummary.discountPercent > 0 && vipSummary.savingsAmount > 0;
   const walletBalance = Number(profile?.balance || 0);
-  const canUseWallet = Boolean(user && walletBalance >= grandTotal);
+  const canUseWallet = Boolean(user && walletBalance >= payableTotal);
 
   useEffect(() => {
     let isMounted = true;
@@ -100,7 +106,7 @@ export default function OrderPage() {
       if (data.user?.id) {
         supabase
           .from("profiles")
-          .select("id, balance")
+          .select("id, balance, vip_plan, vip_expires_at")
           .eq("id", data.user.id)
           .single()
           .then(({ data: profileData }) => {
@@ -145,7 +151,7 @@ export default function OrderPage() {
     if (data.user?.id) {
       const { data: profileData } = await supabase
         .from("profiles")
-        .select("id, balance")
+        .select("id, balance, vip_plan, vip_expires_at")
         .eq("id", data.user.id)
         .single();
       if (profileData) setProfile(profileData as Profile);
@@ -266,7 +272,6 @@ export default function OrderPage() {
       const order = { id: createData.orderId || createData.data?.id };
       if (!order.id) throw new Error("Order was created without a tracking ID.");
 
-      await uploadReceipt(receiptFile, order.id);
       const [profileUrl, coverUrl] = await Promise.all([
         uploadAsset(profilePhoto, order.id, "profile"),
         uploadAsset(coverPhoto, order.id, "cover")
@@ -286,6 +291,8 @@ export default function OrderPage() {
         const targetData = await targetRes.json();
         throw new Error(targetData.error || "Failed to save page order details.");
       }
+
+      await uploadReceipt(receiptFile, order.id);
 
       if (paymentMethod === "Wallet" && user) {
         const walletRes = await fetch("/api/checkout-wallet", {
@@ -328,7 +335,7 @@ export default function OrderPage() {
           service: "Custom Facebook Page + Facebook Followers SMM #1141",
           email: email.trim(),
           quantity: normalizedQuantity,
-          amount: grandTotal,
+          amount: payableTotal,
           paymentMethod,
           details: finalSpecs
         })
@@ -501,7 +508,13 @@ export default function OrderPage() {
                     <SummaryRow label="Custom page setup" value={formatPhp(BASE_PAGE_PRICE)} />
                     <SummaryRow label={`Included followers (${INCLUDED_FOLLOWERS.toLocaleString()})`} value="Included" />
                     <SummaryRow label={`Extra followers (${extraFollowers.toLocaleString()})`} value={formatPhp(extraFollowerCost)} />
-                    <SummaryRow label="Payment total" value={formatPhp(grandTotal)} strong />
+                    {hasVipDiscount && (
+                      <>
+                        <SummaryRow label="Regular total" value={formatPhp(grandTotal)} />
+                        <SummaryRow label={`VIP discount (${vipSummary.discountPercent}%)`} value={`-${formatPhp(vipSummary.savingsAmount)}`} />
+                      </>
+                    )}
+                    <SummaryRow label={hasVipDiscount ? "VIP payment total" : "Payment total"} value={formatPhp(payableTotal)} strong />
                   </div>
                   {loadingCatalog && (
                     <p className="mt-3 flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">
@@ -544,8 +557,13 @@ export default function OrderPage() {
                       <Image src="/gcash-qr.png" alt="GCash QR code" width={192} height={192} className="h-full w-full object-contain" />
                     </div>
                     <p className="mt-3 text-[11px] font-semibold leading-relaxed text-slate-500">
-                      Pay exactly {formatPhp(grandTotal)}, then upload the receipt below before submitting.
+                      Pay exactly {formatPhp(payableTotal)}, then upload the receipt below before submitting.
                     </p>
+                    {hasVipDiscount && (
+                      <p className="mt-2 rounded-xl border border-[#1DB954]/25 bg-[#1DB954]/10 px-3 py-2 text-[10px] font-black uppercase tracking-wider text-[#1DB954]">
+                        Regular {formatPhp(grandTotal)} {"->"} VIP {formatPhp(payableTotal)}
+                      </p>
+                    )}
                   </div>
 
                   <div className="mt-5 rounded-2xl border border-slate-800 bg-black/35 p-4">

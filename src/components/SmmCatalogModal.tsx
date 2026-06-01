@@ -6,6 +6,7 @@ import { createClient } from "@/utils/supabase/client";
 import { LinkPreviewWindow } from "./LinkPreviewWindow";
 import { isOrganic, formatSmmServiceName, matchesServiceQualityFilter } from "@/utils/serviceHelpers";
 import { compressImage } from "@/utils/imageCompressor";
+import { getVipDiscountSummary } from "@/utils/vip";
 
 
 interface SmmService {
@@ -312,6 +313,13 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
 
   const effectiveQuantity = selectedService ? Math.max(quantity, selectedService.min) : 0;
   const calculatedTotal = selectedService ? effectiveQuantity * selectedService.startingPrice : 0;
+  const vipTotalSummary = getVipDiscountSummary(profile, calculatedTotal);
+  const payableTotal = vipTotalSummary.discountPercent > 0 ? Math.max(vipTotalSummary.finalAmount, 5.00) : calculatedTotal;
+  const hasVipDiscount = vipTotalSummary.discountPercent > 0 && vipTotalSummary.savingsAmount > 0;
+  const getVipPrice = (amount: number) => {
+    const summary = getVipDiscountSummary(profile, amount);
+    return summary.discountPercent > 0 ? summary.finalAmount : amount;
+  };
 
   const isPhBase = selectedService
     ? (selectedService.name.toLowerCase().includes("ph base") || 
@@ -403,7 +411,7 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
           service: `[SMM #${selectedService.id}] ${selectedService.name}`,
           email: email.trim(),
           quantity: finalQuantity,
-          amount: calculatedTotal,
+          amount: payableTotal,
           paymentMethod: "📱 GCash",
           details: url.trim(),
         }),
@@ -432,7 +440,7 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
 
     const finalQuantity = Math.max(quantity, selectedService.min);
 
-    if (Number(profile?.balance || 0) < calculatedTotal) {
+    if (Number(profile?.balance || 0) < payableTotal) {
       setError("Insufficient wallet balance. Please top up first.");
       return;
     }
@@ -666,7 +674,10 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-grow overflow-y-auto max-h-[35vh] sm:max-h-[48vh] pr-1.5 custom-scrollbar">
-                  {sortedServices.map((service) => (
+                  {sortedServices.map((service) => {
+                    const vipUnitPrice = getVipPrice(service.startingPrice);
+                    const hasServiceVip = vipUnitPrice < service.startingPrice;
+                    return (
                     <div 
                       key={service.id}
                       onClick={() => handleSelectService(service)}
@@ -677,9 +688,16 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
                           <span className="text-[9px] bg-slate-850 text-slate-400 border border-slate-800 px-2 py-0.5 rounded-full font-mono">
                             SMM ID: #{service.id}
                           </span>
-                          <span className="text-[9px] bg-[#1DB954]/10 text-[#1DB954] border border-[#1DB954]/20 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
-                            ₱{service.startingPrice.toFixed(2)} / pc
-                          </span>
+                          {hasServiceVip ? (
+                            <span className="text-[9px] bg-[#1DB954]/10 text-[#1DB954] border border-[#1DB954]/20 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider text-right leading-tight">
+                              <span className="block text-slate-500 line-through">₱{service.startingPrice.toFixed(2)}</span>
+                              <span className="block">VIP ₱{vipUnitPrice.toFixed(2)} / pc</span>
+                            </span>
+                          ) : (
+                            <span className="text-[9px] bg-[#1DB954]/10 text-[#1DB954] border border-[#1DB954]/20 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
+                              ₱{service.startingPrice.toFixed(2)} / pc
+                            </span>
+                          )}
                         </div>
                         <h4 className="text-sm font-black text-white group-hover:text-[#1DB954] transition-colors line-clamp-2 leading-snug">
                           {formatSmmServiceName(service.name, service.id, service.desc)}
@@ -724,7 +742,8 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
                         </span>
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -843,19 +862,31 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
                   </div>
 
                   <div className="flex flex-col justify-end">
-                    <div className="bg-[#181818]/80 px-4 py-2.5 rounded-xl border border-slate-800 flex justify-between items-center h-[42px]">
+                    <div className="bg-[#181818]/80 px-4 py-2.5 rounded-xl border border-slate-800 flex justify-between items-center min-h-[42px]">
                       <span className="text-[9px] font-extrabold text-slate-500 uppercase tracking-wider">Estimator cost:</span>
-                      <span className="text-sm font-black text-white">₱{formatPrice(calculatedTotal)} PHP</span>
+                      {hasVipDiscount ? (
+                        <span className="text-right leading-tight">
+                          <span className="block text-[10px] font-mono text-slate-500 line-through">Regular ₱{formatPrice(calculatedTotal)}</span>
+                          <span className="block text-sm font-black text-[#1DB954]">VIP ₱{formatPrice(payableTotal)}</span>
+                        </span>
+                      ) : (
+                        <span className="text-sm font-black text-white">₱{formatPrice(calculatedTotal)} PHP</span>
+                      )}
                     </div>
+                    {hasVipDiscount && (
+                      <p className="mt-1 text-right text-[9px] font-black uppercase tracking-wider text-[#1DB954]">
+                        Save ₱{formatPrice(vipTotalSummary.savingsAmount)}
+                      </p>
+                    )}
                   </div>
                 </div>
 
                 {/* Mandated GCash Payment Receipt Upload */}
                 <div className="space-y-2 bg-[#121212]/95 border border-slate-800/80 p-4 rounded-xl mt-3 text-left">
                   <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest flex justify-between items-center">
-                    <span>GCash Payment Receipt Screenshot {!(user && profile && Number(profile.balance) >= calculatedTotal) && <span className="text-red-500">*</span>}</span>
+                    <span>GCash Payment Receipt Screenshot {!(user && profile && Number(profile.balance) >= payableTotal) && <span className="text-red-500">*</span>}</span>
                     <span className="text-[8px] font-black uppercase text-red-500">
-                      {user && profile && Number(profile.balance) >= calculatedTotal ? "Optional for Wallet" : "Strictly Required"}
+                      {user && profile && Number(profile.balance) >= payableTotal ? "Optional for Wallet" : "Strictly Required"}
                     </span>
                   </label>
                   <div className="relative">
@@ -886,8 +917,13 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
                     📱 GCash Checkout QR Code
                   </span>
                   <p className="text-[10px] text-slate-400 leading-relaxed font-semibold">
-                    Pay exactly <strong className="text-white">₱{formatPrice(calculatedTotal)} PHP</strong> using the GCash QR code. After placing your order, copy your **Tracking ID** and send it along with your transaction receipt to our Support Chatbot for instant approval.
+                    Pay exactly <strong className="text-white">₱{formatPrice(payableTotal)} PHP</strong> using the GCash QR code. After placing your order, copy your **Tracking ID** and send it along with your transaction receipt to our Support Chatbot for instant approval.
                   </p>
+                  {hasVipDiscount && (
+                    <div className="rounded-xl border border-[#1DB954]/25 bg-[#1DB954]/10 px-3 py-2 text-[10px] font-black uppercase tracking-wider text-[#1DB954]">
+                      Regular ₱{formatPrice(calculatedTotal)} {"->"} VIP ₱{formatPrice(payableTotal)}. You save ₱{formatPrice(vipTotalSummary.savingsAmount)}.
+                    </div>
+                  )}
                   
                   {/* Safety compliance notice under QR scan text to boost purchase intent */}
                   <div className="text-[9px] text-slate-500 font-bold border-t border-slate-850 pt-2 flex items-center gap-1.5">
@@ -912,14 +948,14 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
 
                 {/* Submitting Actions */}
                 <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-slate-850">
-                  {user && profile && Number(profile.balance) >= calculatedTotal && (
+                  {user && profile && Number(profile.balance) >= payableTotal && (
                     <button
                       type="button"
                       disabled={isSubmitting}
                       onClick={handleWalletCheckout}
                       className="flex-1 bg-[#1DB954]/10 hover:bg-[#1DB954]/20 border border-[#1DB954]/30 hover:border-[#1DB954]/50 disabled:opacity-50 text-[#1DB954] font-extrabold py-3 rounded-xl transition-all flex items-center justify-center gap-2 text-xs uppercase tracking-wider"
                     >
-                      <Wallet size={14} /> Pay with Wallet (₱{formatPrice(calculatedTotal)})
+                      <Wallet size={14} /> Pay with Wallet (₱{formatPrice(payableTotal)})
                     </button>
                   )}
                   
@@ -972,7 +1008,7 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
                     ✓ Balance Deducted Successful!
                   </span>
                   <p>
-                    We have securely deducted <strong className="text-white">₱{formatPrice(calculatedTotal)} PHP</strong> from your internal wallet balance.
+                    We have securely deducted <strong className="text-white">₱{formatPrice(payableTotal)} PHP</strong> from your internal wallet balance.
                   </p>
                   {smmBalance <= 0 ? (
                     <p className="text-[10px] text-[#ff9800] font-bold mt-1.5 leading-relaxed">

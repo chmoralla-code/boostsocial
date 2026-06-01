@@ -7,6 +7,7 @@ import { LinkPreviewWindow } from "./LinkPreviewWindow";
 import { compressImage } from "@/utils/imageCompressor";
 import { parseDescription } from "@/utils/serviceHelpers";
 import { getFBReactionRetailPrice, getFBReactionsSMMDetails } from "@/utils/fbReactions";
+import { getVipDiscountSummary } from "@/utils/vip";
 
 interface OrderModalProps {
   isOpen: boolean;
@@ -342,6 +343,9 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
 
   const totalPrice = baseTotal > 0 ? Math.max(baseTotal, 5.00) : 0; // Enforce minimum order price of ₱5.00 to cover overhead
   const fakeOriginalPrice = totalPrice / (1 - fakeDiscountPercent / 105);
+  const vipSummary = getVipDiscountSummary(profile, totalPrice);
+  const payableTotal = vipSummary.discountPercent > 0 ? Math.max(vipSummary.finalAmount, 5.00) : totalPrice;
+  const hasVipDiscount = vipSummary.discountPercent > 0 && vipSummary.savingsAmount > 0;
   const formatPrice = (amount: number) => amount.toFixed(2);
 
 
@@ -389,27 +393,6 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
       const insertData = { id: createData.orderId || createData.data?.id };
       if (!insertData.id) throw new Error("Order was created without a tracking ID.");
 
-      // Compress and upload receipt
-      try {
-        const compressedReceipt = await compressImage(receiptFile);
-        const receiptFormData = new FormData();
-        receiptFormData.append("file", compressedReceipt);
-        receiptFormData.append("orderId", insertData.id);
-        
-        const uploadRes = await fetch("/api/upload-receipt", {
-          method: "POST",
-          body: receiptFormData
-        });
-        
-        if (!uploadRes.ok) {
-          const errData = await uploadRes.json();
-          throw new Error(errData.error || "Failed to upload payment receipt file.");
-        }
-      } catch (uploadReceiptErr: any) {
-        console.error("Receipt upload failed:", uploadReceiptErr);
-        throw new Error(uploadReceiptErr.message || "Failed to upload payment receipt screenshot.");
-      }
-
       // Upload Profile/Cover pictures if page service
       let profileUrl = "N/A";
       let coverUrl = "N/A";
@@ -440,6 +423,27 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
         }
       }
 
+      // Compress and upload receipt after final page details are saved so Telegram reports show complete order data.
+      try {
+        const compressedReceipt = await compressImage(receiptFile);
+        const receiptFormData = new FormData();
+        receiptFormData.append("file", compressedReceipt);
+        receiptFormData.append("orderId", insertData.id);
+
+        const uploadRes = await fetch("/api/upload-receipt", {
+          method: "POST",
+          body: receiptFormData
+        });
+
+        if (!uploadRes.ok) {
+          const errData = await uploadRes.json();
+          throw new Error(errData.error || "Failed to upload payment receipt file.");
+        }
+      } catch (uploadReceiptErr: any) {
+        console.error("Receipt upload failed:", uploadReceiptErr);
+        throw new Error(uploadReceiptErr.message || "Failed to upload payment receipt screenshot.");
+      }
+
       setOrderId(insertData.id);
       setIsWalletPayment(false);
       setSuccess(true);
@@ -457,7 +461,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
           service: serviceTitle,
           email: email.trim(),
           quantity: finalQuantity,
-          amount: totalPrice,
+          amount: payableTotal,
           paymentMethod: "📱 GCash",
           details: tempUrl,
         }),
@@ -475,7 +479,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
 
     const finalQuantity = Math.max(quantity, minQty);
 
-    if (Number(profile?.balance || 0) < totalPrice) {
+    if (Number(profile?.balance || 0) < payableTotal) {
       setError("Insufficient wallet balance. Please top up first.");
       return;
     }
@@ -626,7 +630,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                       🎉 Balance Payment Successful!
                     </h3>
                     <p className="text-xs text-slate-300 leading-relaxed font-semibold">
-                      We deducted <strong className="text-white">₱{formatPrice(totalPrice)} PHP</strong> directly from your account wallet balance. Your order is registered!
+                      We deducted <strong className="text-white">₱{formatPrice(payableTotal)} PHP</strong> directly from your account wallet balance. Your order is registered!
                     </p>
                     <div className="bg-[#121212] border border-slate-800/80 p-3.5 rounded-lg text-xs space-y-1 text-center">
                       <span className="text-[9px] text-slate-500 font-black uppercase tracking-widest block">Remote Setup Protocol</span>
@@ -670,7 +674,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                     {smmBalance <= 0 ? (
                       <>
                         <p className="text-xs text-slate-300 leading-relaxed font-semibold">
-                          We deducted <strong className="text-white">₱{formatPrice(totalPrice)} PHP</strong> directly from your account wallet balance. Your boost has been securely registered and queued!
+                          We deducted <strong className="text-white">₱{formatPrice(payableTotal)} PHP</strong> directly from your account wallet balance. Your boost has been securely registered and queued!
                         </p>
                         <div className="bg-[#121212] border border-slate-800/80 p-3.5 rounded-lg text-xs space-y-1 text-center">
                           <span className="text-[9px] text-slate-550 font-black uppercase tracking-widest block">Amplification Flow Status</span>
@@ -685,7 +689,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                     ) : (
                       <>
                         <p className="text-xs text-slate-300 leading-relaxed font-semibold">
-                          We deducted <strong className="text-white">₱{formatPrice(totalPrice)} PHP</strong> directly from your account wallet balance. Your uploaded receipt is attached and your boost is queued for verified processing.
+                          We deducted <strong className="text-white">₱{formatPrice(payableTotal)} PHP</strong> directly from your account wallet balance. Your uploaded receipt is attached and your boost is queued for verified processing.
                         </p>
                         <div className="bg-[#121212] border border-slate-800/80 p-3.5 rounded-lg text-xs space-y-1 text-center">
                           <span className="text-[9px] text-slate-500 font-black uppercase tracking-widest block">Amplification Flow Status</span>
@@ -721,7 +725,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                         <div className="flex gap-2">
                           <span className="bg-[#1877F2]/10 text-[#1877F2] font-bold w-4 h-4 rounded-full flex items-center justify-center text-[10px] flex-shrink-0 mt-0.5">1</span>
                           <p>
-                            <strong>Pay via GCash:</strong> Scan the Instapay QR code below and pay: <strong className="text-[#1877F2]">₱{formatPrice(totalPrice)}</strong>.
+                            <strong>Pay via GCash:</strong> Scan the Instapay QR code below and pay: <strong className="text-[#1877F2]">₱{formatPrice(payableTotal)}</strong>.
                           </p>
                         </div>
 
@@ -792,7 +796,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                         <div className="flex gap-2">
                           <span className="bg-[#1877F2]/10 text-[#1877F2] font-bold w-4 h-4 rounded-full flex items-center justify-center text-[10px] flex-shrink-0 mt-0.5">{parsedDetails.free_trial_amount > 0 ? "2" : "1"}</span>
                           <p>
-                            <strong>Pay via GCash:</strong> {parsedDetails.free_trial_amount > 0 ? `Once you see the free ${parsedDetails.free_trial_amount} delivered, scan` : "Scan"} the QR code below to pay the remaining balance: <strong className="text-[#1877F2]">₱{formatPrice(totalPrice)}</strong>.
+                            <strong>Pay via GCash:</strong> {parsedDetails.free_trial_amount > 0 ? `Once you see the free ${parsedDetails.free_trial_amount} delivered, scan` : "Scan"} the QR code below to pay the remaining balance: <strong className="text-[#1877F2]">₱{formatPrice(payableTotal)}</strong>.
                           </p>
                         </div>
 
@@ -1328,19 +1332,35 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                 <div className="flex justify-between items-center mt-3 bg-[#121212] px-3.5 py-2.5 rounded-lg border border-slate-800">
                   <div className="flex flex-col text-left">
                     <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Estimated Total:</span>
-                    {fakeDiscountPercent > 0 && (
+                    {hasVipDiscount ? (
+                      <span className="text-[10px] text-[#1DB954] font-black uppercase tracking-wider mt-0.5">
+                        VIP {vipSummary.discountPercent}% discount applied
+                      </span>
+                    ) : fakeDiscountPercent > 0 && (
                       <span className="text-[10px] text-[#1877F2] font-black uppercase tracking-wider mt-0.5 animate-pulse">
                         🔥 {fakeDiscountPercent}% Special Discount Applied!
                       </span>
                     )}
                   </div>
                   <div className="text-right">
-                    {fakeDiscountPercent > 0 && (
+                    {hasVipDiscount ? (
+                      <>
+                        <span className="text-[11px] text-slate-500 font-mono line-through block leading-tight">
+                          Regular ₱{formatPrice(totalPrice)}
+                        </span>
+                        <span className="text-lg font-black text-[#1DB954] block">VIP ₱{formatPrice(payableTotal)}</span>
+                        <span className="text-[9px] font-black uppercase tracking-wider text-[#1DB954] block">
+                          Save ₱{formatPrice(vipSummary.savingsAmount)}
+                        </span>
+                      </>
+                    ) : fakeDiscountPercent > 0 && (
                       <span className="text-[11px] text-slate-500 font-mono line-through block leading-tight">
                         ₱{formatPrice(fakeOriginalPrice)}
                       </span>
                     )}
-                    <span className="text-lg font-black text-white block">₱{formatPrice(totalPrice)}</span>
+                    {!hasVipDiscount && (
+                      <span className="text-lg font-black text-white block">₱{formatPrice(totalPrice)}</span>
+                    )}
                   </div>
                 </div>
 
@@ -1370,9 +1390,9 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                 {/* GCash Payment Receipt Upload */}
                 <div className="space-y-2 bg-[#121212] border border-slate-800 p-4 rounded-xl mt-3 text-left">
                   <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest flex justify-between items-center">
-                    <span>GCash Payment Receipt Screenshot {!(user && profile && Number(profile.balance) >= totalPrice) && <span className="text-red-500">*</span>}</span>
+                    <span>GCash Payment Receipt Screenshot {!(user && profile && Number(profile.balance) >= payableTotal) && <span className="text-red-500">*</span>}</span>
                     <span className="text-[8px] font-black uppercase text-red-500">
-                      {user && profile && Number(profile.balance) >= totalPrice ? "Optional for Wallet" : "Strictly Required"}
+                      {user && profile && Number(profile.balance) >= payableTotal ? "Optional for Wallet" : "Strictly Required"}
                     </span>
                   </label>
                   <div className="relative">
@@ -1398,7 +1418,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                 </div>
 
                 {/* GCash Quick QR for all manual checkouts to ensure the GCash payment flow is easily accessible */}
-                {!(user && profile && Number(profile.balance) >= totalPrice) && (
+                {!(user && profile && Number(profile.balance) >= payableTotal) && (
                   <div className="bg-[#121212] border border-slate-800/80 p-4 rounded-xl space-y-3 mt-3 animate-in fade-in duration-200">
                     <div className="flex justify-between items-center border-b border-slate-850 pb-2">
                       <span className="text-[10px] font-black uppercase tracking-widest text-[#1877F2] flex items-center gap-1.5">
@@ -1409,11 +1429,11 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                     <p className="text-[10px] text-slate-300 leading-relaxed font-semibold text-left">
                       {isSoftwareService ? (
                         <>
-                          Pay <strong className="text-white">₱{formatPrice(totalPrice)} PHP</strong> directly using the GCash QR code below. Once your order is placed, send your Tracking ID to our support chatbot, download **UltraViewer**, and wait for remote setup!
+                          Pay <strong className="text-white">₱{formatPrice(payableTotal)} PHP</strong> directly using the GCash QR code below. Once your order is placed, send your Tracking ID to our support chatbot, download **UltraViewer**, and wait for remote setup!
                         </>
                       ) : (
                         <>
-                          Pay <strong className="text-white">₱{formatPrice(totalPrice)} PHP</strong> directly using the GCash QR code below. Once your order is placed, send your Tracking ID and payment receipt in our support chatbot for instant verification and activation!
+                          Pay <strong className="text-white">₱{formatPrice(payableTotal)} PHP</strong> directly using the GCash QR code below. Once your order is placed, send your Tracking ID and payment receipt in our support chatbot for instant verification and activation!
                         </>
                       )}
                     </p>
@@ -1442,14 +1462,14 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
               )}
 
               <div className="flex flex-col gap-2 mt-4">
-                {user && profile && Number(profile.balance) >= totalPrice && (
+                {user && profile && Number(profile.balance) >= payableTotal && (
                   <button 
                     type="button" 
                     onClick={handleWalletCheckout}
                     disabled={isSubmitting}
                     className="w-full bg-[#1877F2]/20 hover:bg-[#1877F2]/30 border border-[#1877F2]/50 disabled:opacity-50 text-[#1877F2] font-extrabold py-3.5 rounded-full transition-all duration-300 flex justify-center items-center gap-2 tracking-wider uppercase text-xs"
                   >
-                    {isSubmitting ? <Loader2 className="animate-spin text-[#1877F2]" size={18} /> : `Pay with Wallet (₱${formatPrice(totalPrice)})`}
+                    {isSubmitting ? <Loader2 className="animate-spin text-[#1877F2]" size={18} /> : `Pay with Wallet (₱${formatPrice(payableTotal)})`}
                   </button>
                 )}
                 
@@ -1458,7 +1478,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                   disabled={isSubmitting}
                   className="w-full bg-[#1877F2] hover:bg-[#4e8df5] disabled:bg-slate-700 text-white font-extrabold py-3.5 rounded-full transition-all duration-300 flex justify-center items-center gap-2 tracking-wider uppercase text-xs shadow-[0_0_15px_rgba(24,119,242,0.35)]"
                 >
-                  {isSubmitting ? <Loader2 className="animate-spin text-black" size={18} /> : (user && profile && Number(profile.balance) >= totalPrice ? 'Pay via GCash Instead' : 'Place Order')}
+                  {isSubmitting ? <Loader2 className="animate-spin text-black" size={18} /> : (user && profile && Number(profile.balance) >= payableTotal ? 'Pay via GCash Instead' : 'Place Order')}
                 </button>
               </div>
             </form>
