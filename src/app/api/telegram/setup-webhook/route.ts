@@ -10,7 +10,14 @@ const TOPUP_CONFIG_PATH = "admin-config/telegram-topup.png";
 
 type TelegramConfig = { bot_token?: string; chat_id?: string };
 
-async function requireAdmin() {
+async function requireAdmin(req: NextRequest) {
+  const configuredSecret = process.env.TELEGRAM_WEBHOOK_SECRET?.trim();
+  const receivedSecret = req.headers.get("x-telegram-setup-secret")?.trim();
+
+  if (configuredSecret && receivedSecret && receivedSecret === configuredSecret) {
+    return null;
+  }
+
   const sessionClient = await createServerClient();
   const {
     data: { user },
@@ -61,7 +68,7 @@ async function setWebhook(botToken: string, webhookUrl: string, secretToken: str
 
 export async function POST(req: NextRequest) {
   try {
-    const adminResponse = await requireAdmin();
+    const adminResponse = await requireAdmin(req);
     if (adminResponse) return adminResponse;
 
     const rateLimitResponse = enforceRateLimit(req, {
@@ -123,9 +130,9 @@ export async function POST(req: NextRequest) {
   }
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const adminResponse = await requireAdmin();
+    const adminResponse = await requireAdmin(req);
     if (adminResponse) return adminResponse;
 
     const topupConfig = await readTelegramConfig(TOPUP_CONFIG_PATH);
