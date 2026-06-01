@@ -40,8 +40,85 @@ async function init() {
       CREATE TABLE IF NOT EXISTS profiles (
         id UUID PRIMARY KEY REFERENCES auth.users ON DELETE CASCADE,
         role TEXT DEFAULT 'customer',
-        full_name TEXT
+        full_name TEXT,
+        email TEXT,
+        balance NUMERIC(10, 2) DEFAULT 0.00,
+        vip_plan TEXT,
+        vip_started_at TIMESTAMPTZ,
+        vip_expires_at TIMESTAMPTZ
       );
+    `;
+
+    console.log('Creating vip_subscriptions table...');
+    await sql`
+      CREATE TABLE IF NOT EXISTS vip_subscriptions (
+        id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+        user_id UUID NOT NULL REFERENCES auth.users ON DELETE CASCADE,
+        email TEXT NOT NULL,
+        plan_code TEXT NOT NULL,
+        payment_method TEXT NOT NULL DEFAULT 'GCash',
+        amount NUMERIC(10, 2) NOT NULL,
+        receipt_url TEXT,
+        status TEXT NOT NULL DEFAULT 'pending',
+        notes TEXT,
+        reviewed_at TIMESTAMPTZ,
+        reviewed_by TEXT,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      );
+    `;
+
+    await sql`
+      ALTER TABLE vip_subscriptions ENABLE ROW LEVEL SECURITY;
+    `;
+
+    await sql`
+      GRANT SELECT ON vip_subscriptions TO authenticated;
+    `;
+
+    await sql`
+      DROP POLICY IF EXISTS "Users can view own VIP subscriptions" ON vip_subscriptions;
+      CREATE POLICY "Users can view own VIP subscriptions"
+        ON vip_subscriptions
+        FOR SELECT
+        TO authenticated
+        USING (auth.uid() = user_id);
+    `;
+
+    await sql`
+      DROP POLICY IF EXISTS "Admins can view VIP subscriptions" ON vip_subscriptions;
+      CREATE POLICY "Admins can view VIP subscriptions"
+        ON vip_subscriptions
+        FOR SELECT
+        TO authenticated
+        USING (lower(auth.jwt() ->> 'email') LIKE '%@boostsocial.com');
+    `;
+
+    await sql`
+      CREATE OR REPLACE FUNCTION public.touch_vip_subscriptions_updated_at()
+      RETURNS TRIGGER AS $$
+      BEGIN
+        NEW.updated_at = NOW();
+        RETURN NEW;
+      END;
+      $$ LANGUAGE plpgsql;
+    `;
+
+    await sql`
+      DROP TRIGGER IF EXISTS touch_vip_subscriptions_updated_at ON vip_subscriptions;
+      CREATE TRIGGER touch_vip_subscriptions_updated_at
+        BEFORE UPDATE ON vip_subscriptions
+        FOR EACH ROW
+        EXECUTE FUNCTION touch_vip_subscriptions_updated_at();
+    `;
+
+    console.log('Ensuring orders supports VIP discount fields...');
+    await sql`
+      ALTER TABLE orders
+      ADD COLUMN IF NOT EXISTS original_amount NUMERIC(10, 2),
+      ADD COLUMN IF NOT EXISTS vip_plan TEXT,
+      ADD COLUMN IF NOT EXISTS vip_discount_percent NUMERIC(5, 2) NOT NULL DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS vip_discount_amount NUMERIC(10, 2) NOT NULL DEFAULT 0;
     `;
 
     console.log('Seeding services data...');
