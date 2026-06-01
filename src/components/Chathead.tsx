@@ -212,7 +212,7 @@ export function Chathead() {
             setMessages(mapped);
           }
 
-          const unreadAdminMessages = dbMsgs.filter((m) => m.sender === "admin" && !m.is_read);
+          const unreadAdminMessages = dbMsgs.filter((m) => m.sender !== "customer" && !m.is_read);
           if (isOpen) {
             if (unreadAdminMessages.length > 0) {
               markAdminRepliesRead(customerEmail);

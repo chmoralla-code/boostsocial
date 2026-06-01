@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { sendOrderCompleteNotification } from "@/lib/telegram";
 import { syncBackupAdminClients } from "@/utils/supabase/dual-db";
 import { resolveSmmServiceTitle } from "@/lib/smmServiceResolver";
+import { notifyCustomer, orderStatusNotification } from "@/lib/customerNotifications";
 
 const RIXEYSMM_API_URL = "https://rixeysmm.shop/api/v2";
 
@@ -133,10 +134,18 @@ export async function POST(req: NextRequest) {
 
               // Fire order complete Telegram notification!
               if (dbStatusUpdate === "Completed") {
+                const trackingId = `BS-${order.id.slice(0, 8).toUpperCase()}`;
                 const serviceTitle = (order as any).services?.title || "SMM Service";
                 const resolvedServiceTitle = await resolveSmmServiceTitle((order as any).smm_service_id, serviceTitle);
+                notifyCustomer({
+                  client: supabase,
+                  email: order.customer_email,
+                  message: orderStatusNotification(trackingId, "Completed"),
+                }).catch((notificationErr) => {
+                  console.error(`Customer completion notification failed for order ${order.id}:`, notificationErr);
+                });
                 sendOrderCompleteNotification({
-                  trackingId: `BS-${order.id.slice(0, 8).toUpperCase()}`,
+                  trackingId,
                   service: resolvedServiceTitle,
                   email: order.customer_email,
                   quantity: order.quantity,

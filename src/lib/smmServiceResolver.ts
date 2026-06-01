@@ -9,6 +9,7 @@ type RixeyService = {
   name?: string;
   desc?: string;
   category?: string;
+  rate?: string | number;
 };
 
 type ServiceJoin = {
@@ -17,6 +18,8 @@ type ServiceJoin = {
 
 type OrderWithService = {
   smm_service_id?: string | number | null;
+  quantity?: string | number | null;
+  amount?: string | number | null;
   services?: ServiceJoin | ServiceJoin[] | null;
 };
 
@@ -126,13 +129,40 @@ export async function resolveSmmServiceTitle(
   return fallbackTitle(cleanId, fallback);
 }
 
+export async function resolveSmmServiceCost(
+  smmServiceId?: string | number | null,
+  quantity?: string | number | null
+) {
+  const cleanId = smmServiceId === undefined || smmServiceId === null ? "" : String(smmServiceId).trim();
+  const qty = Number(quantity || 0);
+
+  if (!cleanId || !Number.isFinite(qty) || qty <= 0) return 0;
+
+  try {
+    const serviceMap = await getRixeyServiceMap();
+    const service = serviceMap.get(cleanId);
+    const ratePer1k = Number(service?.rate || 0);
+    if (!Number.isFinite(ratePer1k) || ratePer1k <= 0) return 0;
+    return Number(((qty / 1000) * ratePer1k).toFixed(2));
+  } catch (error) {
+    console.error("SMM service cost lookup failed:", error);
+    return 0;
+  }
+}
+
 export async function enrichOrdersWithResolvedServiceTitles<T extends OrderWithService>(orders: T[] | null | undefined) {
   if (!orders?.length) return [];
 
   return Promise.all(
-    orders.map(async (order) => ({
-      ...order,
-      resolved_service_title: await resolveSmmServiceTitle(order.smm_service_id, getCandidateTitle(order)),
-    }))
+    orders.map(async (order) => {
+      const estimatedProviderCost = await resolveSmmServiceCost(order.smm_service_id, order.quantity);
+      const amount = Number(order.amount || 0);
+      return {
+        ...order,
+        resolved_service_title: await resolveSmmServiceTitle(order.smm_service_id, getCandidateTitle(order)),
+        estimated_provider_cost: estimatedProviderCost,
+        estimated_profit: Number((amount - estimatedProviderCost).toFixed(2)),
+      };
+    })
   );
 }
