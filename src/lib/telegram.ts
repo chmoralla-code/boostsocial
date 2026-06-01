@@ -1,14 +1,16 @@
 import { createClient } from "@supabase/supabase-js";
+import { getSupabaseServiceRoleKey, getSupabaseUrl } from "@/utils/env";
 
 const CONFIG_BUCKET = "receipts";
 const CONFIG_PATH = "admin-config/telegram.png";
 const TOPUP_CONFIG_PATH = "admin-config/telegram-topup.png";
 const ADMIN_ORDERS_URL = "https://pinoyboosting.com/admin/orders";
+const ADMIN_VIP_URL = "https://pinoyboosting.com/admin/vip";
 
 const getSupabase = () =>
   createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    getSupabaseUrl(),
+    getSupabaseServiceRoleKey(),
     { auth: { persistSession: false } }
   );
 
@@ -247,6 +249,61 @@ export async function sendTopupNotification(topup: {
     }
   } catch (err) {
     console.error("Telegram top-up notification failed:", err);
+  }
+}
+
+export async function sendVipSubscriptionNotification(args: {
+  subscriptionId: string;
+  email: string;
+  plan: {
+    label: string;
+    id: string;
+    durationDays: number;
+    price: number;
+    discountPercent: number;
+  };
+  amount: number;
+  receiptUrl: string;
+}) {
+  try {
+    const config = await getTopupTelegramConfig();
+    if (!config?.bot_token || !config?.chat_id) return;
+
+    const phTime = new Date().toLocaleString("en-PH", { timeZone: "Asia/Manila" });
+    const caption =
+      `New VIP Subscription Request\n\n` +
+      `ID: ${args.subscriptionId}\n` +
+      `Email: ${args.email}\n` +
+      `Plan: ${args.plan.label} (${args.plan.id})\n` +
+      `Duration: ${args.plan.durationDays} days\n` +
+      `Amount: PHP ${args.amount.toFixed(2)}\n` +
+      `Method: GCash\n` +
+      `Time: ${phTime} PHT\n\n` +
+      `Open admin VIP queue to approve or reject after reviewing the receipt.`;
+
+    const res = await fetch(`https://api.telegram.org/bot${config.bot_token}/sendPhoto`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: config.chat_id,
+        photo: args.receiptUrl,
+        caption,
+        reply_markup: {
+          inline_keyboard: [
+            [
+              { text: "Open VIP Subscriptions", url: ADMIN_VIP_URL }
+            ]
+          ]
+        }
+      }),
+    });
+
+    const data = await res.json();
+    if (!data.ok) {
+      console.error("Telegram VIP notification sendPhoto failed:", data.description);
+    }
+  } catch (err) {
+    console.error("Telegram VIP subscription notification failed:", err);
   }
 }
 
