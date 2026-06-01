@@ -94,10 +94,6 @@ export async function sendOrderNotification(order: {
   }
 }
 
-async function getAnyTelegramConfig(): Promise<{ bot_token: string; chat_id: string } | null> {
-  return await getTelegramConfig() || await getTopupTelegramConfig();
-}
-
 export async function sendOrderApprovalNotification(order: {
   orderId: string;
   trackingId: string;
@@ -247,27 +243,5 @@ export async function sendTopupNotification(topup: {
     }
   } catch (err) {
     console.error("Telegram top-up notification failed:", err);
-  }
-}
-
-export async function sendAdminAlert(alert: {
-  title: string;
-  message: string;
-}) {
-  try {
-    const config = await getAnyTelegramConfig();
-    if (!config?.bot_token || !config?.chat_id) return;
-
-    const text = `${alert.title}\n\n${alert.message}`;
-    await fetch(`https://api.telegram.org/bot${config.bot_token}/sendMessage`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        chat_id: config.chat_id,
-        text,
-      }),
-    });
-  } catch (err) {
-    console.error("Telegram admin alert failed:", err);
   }
 }

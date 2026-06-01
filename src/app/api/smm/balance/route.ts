@@ -1,6 +1,4 @@
 import { NextResponse } from "next/server";
-import { getPrimaryAdminClient } from "@/utils/supabase/dual-db";
-import { notifyLowProviderBalanceIfNeeded } from "@/lib/providerBalanceMonitor";
 
 export async function GET() {
   try {
@@ -25,15 +23,7 @@ export async function GET() {
     }
 
     const data = await res.json();
-    const balance = Number(data.balance || 0);
-
-    try {
-      await notifyLowProviderBalanceIfNeeded(getPrimaryAdminClient(), balance);
-    } catch (alertErr) {
-      console.error("Provider balance monitor failed:", alertErr);
-    }
-
-    return NextResponse.json({ balance });
+    return NextResponse.json({ balance: Number(data.balance || 0) });
   } catch (err) {
     console.error("Failed fetching SMM balance:", err);
     return NextResponse.json({ balance: 0.0 });

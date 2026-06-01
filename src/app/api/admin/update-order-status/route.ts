@@ -5,7 +5,6 @@ import { sendOrderCompleteNotification } from "@/lib/telegram";
 import { syncBackupAdminClients } from "@/utils/supabase/dual-db";
 import { creditReferralCommission } from "@/utils/referrals";
 import { resolveSmmServiceTitle } from "@/lib/smmServiceResolver";
-import { notifyCustomer, orderStatusNotification } from "@/lib/customerNotifications";
 
 export async function POST(req: NextRequest) {
   try {
@@ -65,15 +64,6 @@ export async function POST(req: NextRequest) {
         .eq("id", orderId);
     }, "admin order status sync");
 
-    const trackingId = `BS-${orderId.slice(0, 8).toUpperCase()}`;
-    notifyCustomer({
-      client: supabase,
-      email: order.customer_email,
-      message: orderStatusNotification(trackingId, newStatus),
-    }).catch((notificationErr) => {
-      console.error("Admin order status customer notification failed:", notificationErr);
-    });
-
     // 3. Trigger automated RixeySMM placement if:
     // - Order status is updated to 'Processing'
     // - Order does not already have an external order placed
@@ -102,7 +92,7 @@ export async function POST(req: NextRequest) {
       const serviceTitle = (order as any).services?.title || "SMM Service";
       const resolvedServiceTitle = await resolveSmmServiceTitle((order as any).smm_service_id, serviceTitle);
       sendOrderCompleteNotification({
-        trackingId,
+        trackingId: `BS-${orderId.slice(0, 8).toUpperCase()}`,
         service: resolvedServiceTitle,
         email: order.customer_email,
         quantity: order.quantity,

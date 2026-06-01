@@ -187,13 +187,13 @@ export async function PATCH(req: NextRequest) {
       }
     }
 
-    const sendersToMark = normalizedReader === "customer" ? ["admin", "system"] : ["customer"];
+    const senderToMark = normalizedReader === "customer" ? "admin" : "customer";
     const supabase = getSupabase();
     const { error } = await supabase
       .from("customer_messages")
       .update({ is_read: true })
       .eq("customer_email", normalizedEmail)
-      .in("sender", sendersToMark)
+      .eq("sender", senderToMark)
       .eq("is_read", false);
 
     if (error) throw error;

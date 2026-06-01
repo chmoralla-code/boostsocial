@@ -5,7 +5,6 @@ import { syncBackupAdminClients } from "@/utils/supabase/dual-db";
 import { enforceRateLimit } from "@/utils/security/rate-limit";
 import { creditReferralCommission } from "@/utils/referrals";
 import { resolveSmmServiceTitle } from "@/lib/smmServiceResolver";
-import { notifyCustomer, orderStatusNotification } from "@/lib/customerNotifications";
 
 const CONFIG_BUCKET = "receipts";
 const ORDER_CONFIG_PATH = "admin-config/telegram.png";
@@ -161,13 +160,6 @@ async function handleTopupAction(callbackData: string, chatId: number, messageId
     }
 
     await answerCallback(config.bot_token, callbackQueryId, `Approved! PHP ${topupAmount.toFixed(2)} credited.`);
-    notifyCustomer({
-      client: supabase,
-      email: topup.email,
-      message: `System update: Your PHP ${topupAmount.toFixed(2)} wallet top-up was approved and credited. New balance: PHP ${newBalance.toFixed(2)}.`,
-    }).catch((notificationErr) => {
-      console.error("Telegram top-up approval customer notification failed:", notificationErr);
-    });
     await editCaption(
       config.bot_token,
       chatId,
@@ -181,13 +173,6 @@ async function handleTopupAction(callbackData: string, chatId: number, messageId
       .eq("id", topupId);
 
     await answerCallback(config.bot_token, callbackQueryId, "Top-up rejected.");
-    notifyCustomer({
-      client: supabase,
-      email: topup.email,
-      message: `System update: Your PHP ${Number(topup.amount).toFixed(2)} wallet top-up was rejected. Please contact support if the receipt or amount needs correction.`,
-    }).catch((notificationErr) => {
-      console.error("Telegram top-up rejection customer notification failed:", notificationErr);
-    });
     await editCaption(
       config.bot_token,
       chatId,
@@ -287,14 +272,6 @@ async function handleOrderAction(callbackData: string, chatId: number, messageId
     : (order as any).services?.title;
   const resolvedServiceTitle = await resolveSmmServiceTitle(order.smm_service_id, serviceTitle || "SMM Service");
   const trackingId = `BS-${orderId.slice(0, 8).toUpperCase()}`;
-
-  notifyCustomer({
-    client: supabase,
-    email: order.customer_email,
-    message: orderStatusNotification(trackingId, newStatus),
-  }).catch((notificationErr) => {
-    console.error("Telegram order status customer notification failed:", notificationErr);
-  });
 
   if (isApprove) {
     try {
