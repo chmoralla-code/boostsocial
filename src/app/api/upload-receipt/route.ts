@@ -4,6 +4,7 @@ import { sendOrderApprovalNotification } from "@/lib/telegram";
 import { createClient as createServerClient } from "@/utils/supabase/server";
 import { enforceRateLimit } from "@/utils/security/rate-limit";
 import { isAdminEmail } from "@/utils/security/admin";
+import { resolveSmmServiceTitle } from "@/lib/smmServiceResolver";
 
 const MAX_RECEIPT_FILE_BYTES = 8 * 1024 * 1024;
 const ALLOWED_RECEIPT_TYPES = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp"]);
@@ -66,6 +67,7 @@ export async function POST(req: NextRequest) {
         amount,
         quantity,
         target_url,
+        smm_service_id,
         services (
           title
         )
@@ -109,10 +111,12 @@ export async function POST(req: NextRequest) {
         ? (orderData as any).services[0]?.title
         : (orderData as any)?.services?.title;
 
+      const resolvedServiceTitle = await resolveSmmServiceTitle(orderData.smm_service_id, serviceTitle || "SMM Service");
+
       sendOrderApprovalNotification({
         orderId,
         trackingId: `BS-${orderId.slice(0, 8).toUpperCase()}`,
-        service: serviceTitle || "SMM Service",
+        service: resolvedServiceTitle,
         email,
         quantity: Number(orderData?.quantity || 0),
         amount: Number(orderData?.amount || 0),

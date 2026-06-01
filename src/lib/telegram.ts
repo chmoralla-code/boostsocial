@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 const CONFIG_BUCKET = "receipts";
 const CONFIG_PATH = "admin-config/telegram.png";
 const TOPUP_CONFIG_PATH = "admin-config/telegram-topup.png";
+const ADMIN_ORDERS_URL = "https://pinoyboosting.com/admin/orders";
 
 const getSupabase = () =>
   createClient(
@@ -10,6 +11,15 @@ const getSupabase = () =>
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     { auth: { persistSession: false } }
   );
+
+function truncateTelegramCaption(caption: string) {
+  return caption.length > 950 ? `${caption.slice(0, 947)}...` : caption;
+}
+
+function toTelegramUrl(value?: string) {
+  const trimmed = String(value || "").trim();
+  return /^https?:\/\//i.test(trimmed) ? trimmed : null;
+}
 
 async function getTelegramConfig(): Promise<{ bot_token: string; chat_id: string } | null> {
   try {
@@ -101,7 +111,17 @@ export async function sendOrderApprovalNotification(order: {
 
     const phTime = new Date().toLocaleString("en-PH", { timeZone: "Asia/Manila" });
 
-    const caption =
+    const targetUrl = toTelegramUrl(order.details);
+    const inlineKeyboard = [
+      [
+        { text: "Approve -> Processing", callback_data: `order_approve_${order.orderId}` },
+        { text: "Reject / Cancel", callback_data: `order_reject_${order.orderId}` }
+      ],
+      ...(targetUrl ? [[{ text: "Open Target Link", url: targetUrl }]] : []),
+      [{ text: "Open Admin Orders", url: ADMIN_ORDERS_URL }]
+    ];
+
+    const caption = truncateTelegramCaption(
       `New GCash order needs approval\n\n` +
       `Tracking ID: ${order.trackingId}\n` +
       `Service: ${order.service}\n` +
@@ -111,7 +131,8 @@ export async function sendOrderApprovalNotification(order: {
       `Payment: ${order.paymentMethod}\n` +
       (order.details ? `Details: ${order.details.slice(0, 250)}\n` : "") +
       `Time: ${phTime} PHT\n\n` +
-      `Review the uploaded proof of payment, then approve or reject this order.`;
+      `Receipt proof is attached. Approve only when the GCash payment amount matches this order.`
+    );
 
     const res = await fetch(`https://api.telegram.org/bot${config.bot_token}/sendPhoto`, {
       method: "POST",
@@ -121,12 +142,7 @@ export async function sendOrderApprovalNotification(order: {
         photo: order.receiptUrl,
         caption,
         reply_markup: {
-          inline_keyboard: [
-            [
-              { text: "Approve Order", callback_data: `order_approve_${order.orderId}` },
-              { text: "Reject Order", callback_data: `order_reject_${order.orderId}` }
-            ]
-          ]
+          inline_keyboard: inlineKeyboard
         }
       }),
     });

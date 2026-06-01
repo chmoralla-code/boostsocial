@@ -11,6 +11,7 @@ import { ShowcaseVideoSettingsPanel } from "./ShowcaseVideoSettingsPanel";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 import { InstallAppButton } from "./InstallAppButton";
+import { enrichOrdersWithResolvedServiceTitles } from "@/lib/smmServiceResolver";
 
 export default async function AdminOverview() {
   const supabase = await createClient();
@@ -50,18 +51,21 @@ export default async function AdminOverview() {
       created_at,
       customer_email,
       target_url,
+      smm_service_id,
       services ( title )
     `)
     .order('created_at', { ascending: false });
 
+  const enrichedOrders = await enrichOrdersWithResolvedServiceTitles(orders || []);
+
   // Calculate metrics
-  const totalRevenue = orders?.reduce((acc, order) => acc + Number(order.amount), 0) || 0;
-  const totalOrders = orders?.length || 0;
-  const pendingOrders = orders?.filter(o => o.status === 'Pending').length || 0;
+  const totalRevenue = enrichedOrders.reduce((acc, order) => acc + Number(order.amount), 0);
+  const totalOrders = enrichedOrders.length;
+  const pendingOrders = enrichedOrders.filter(o => o.status === 'Pending').length;
   const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
   
   // Calculate unique active customers
-  const uniqueCustomers = Array.from(new Set(orders?.map(o => o.customer_email) || [])).length;
+  const uniqueCustomers = Array.from(new Set(enrichedOrders.map(o => o.customer_email) || [])).length;
 
   // Calculate service share
   let followersCount = 0;
@@ -69,9 +73,9 @@ export default async function AdminOverview() {
   let viewsCount = 0;
   let otherCount = 0;
 
-  orders?.forEach(o => {
+  enrichedOrders.forEach(o => {
     const servicesData = o.services as unknown as { title: string } | { title: string }[] | null;
-    const title = (Array.isArray(servicesData) ? servicesData[0]?.title : servicesData?.title)?.toLowerCase() || "";
+    const title = (o.resolved_service_title || (Array.isArray(servicesData) ? servicesData[0]?.title : servicesData?.title))?.toLowerCase() || "";
     if (title.includes("follower") || title.includes("page")) {
       followersCount++;
     } else if (title.includes("like") || title.includes("reaction") || title.includes("react") || title.includes("love")) {
@@ -90,7 +94,7 @@ export default async function AdminOverview() {
   const otherPercent = Math.round((otherCount / totalCategorized) * 100);
 
   // Take latest 5 orders for feed
-  const recentOrders = orders?.slice(0, 5) || [];
+  const recentOrders = enrichedOrders.slice(0, 5);
 
   return (
     <div className="space-y-8 animate-in fade-in duration-300 text-slate-300">
@@ -280,10 +284,7 @@ export default async function AdminOverview() {
 
                         {/* Service Name */}
                         <td className="py-3.5 px-4 text-xs font-bold text-white max-w-[150px] truncate">
-                          {(() => {
-                            const servicesData = order.services as unknown as { title: string } | { title: string }[] | null;
-                            return Array.isArray(servicesData) ? servicesData[0]?.title : servicesData?.title;
-                          })()}
+                          {order.resolved_service_title}
                         </td>
 
                         {/* Revenue */}

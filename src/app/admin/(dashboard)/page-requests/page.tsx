@@ -1,6 +1,7 @@
 import { createClient } from "@/utils/supabase/server";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
 import { OrdersTable } from "../orders/OrdersTable";
+import { enrichOrdersWithResolvedServiceTitles } from "@/lib/smmServiceResolver";
 
 export default async function PageRequestsDashboard() {
   const supabase = await createClient();
@@ -23,6 +24,7 @@ export default async function PageRequestsDashboard() {
 
   const { data: files } = await serviceSupabase.storage.from('receipts').list();
   const receiptFiles = files?.map(f => f.name) || [];
+  const enrichedOrders = await enrichOrdersWithResolvedServiceTitles(orders || []);
 
   return (
     <div className="space-y-8 animate-in fade-in duration-300 text-slate-300">
@@ -36,7 +38,7 @@ export default async function PageRequestsDashboard() {
         </div>
       </div>
       
-      <OrdersTable initialOrders={orders || []} receiptFiles={receiptFiles} />
+      <OrdersTable initialOrders={enrichedOrders} receiptFiles={receiptFiles} />
     </div>
   );
 }

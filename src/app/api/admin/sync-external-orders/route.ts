@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { sendOrderCompleteNotification } from "@/lib/telegram";
 import { syncBackupAdminClients } from "@/utils/supabase/dual-db";
+import { resolveSmmServiceTitle } from "@/lib/smmServiceResolver";
 
 const RIXEYSMM_API_URL = "https://rixeysmm.shop/api/v2";
 
@@ -36,6 +37,7 @@ export async function POST(req: NextRequest) {
         quantity,
         amount,
         payment_method,
+        smm_service_id,
         services (
           title
         )
@@ -132,9 +134,10 @@ export async function POST(req: NextRequest) {
               // Fire order complete Telegram notification!
               if (dbStatusUpdate === "Completed") {
                 const serviceTitle = (order as any).services?.title || "SMM Service";
+                const resolvedServiceTitle = await resolveSmmServiceTitle((order as any).smm_service_id, serviceTitle);
                 sendOrderCompleteNotification({
                   trackingId: `BS-${order.id.slice(0, 8).toUpperCase()}`,
-                  service: serviceTitle,
+                  service: resolvedServiceTitle,
                   email: order.customer_email,
                   quantity: order.quantity,
                   amount: Number(order.amount),

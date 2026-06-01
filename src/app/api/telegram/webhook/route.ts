@@ -4,6 +4,7 @@ import { autoPlaceRixeyOrder } from "@/lib/rixeysmm";
 import { syncBackupAdminClients } from "@/utils/supabase/dual-db";
 import { enforceRateLimit } from "@/utils/security/rate-limit";
 import { creditReferralCommission } from "@/utils/referrals";
+import { resolveSmmServiceTitle } from "@/lib/smmServiceResolver";
 
 const CONFIG_BUCKET = "receipts";
 const ORDER_CONFIG_PATH = "admin-config/telegram.png";
@@ -35,6 +36,17 @@ async function getTelegramConfig(path: string): Promise<TelegramConfig | null> {
 
 async function getOrderActionConfig() {
   return await getTelegramConfig(TOPUP_CONFIG_PATH) || await getTelegramConfig(ORDER_CONFIG_PATH);
+}
+
+async function getOrderActionConfigs() {
+  const configs = [
+    await getTelegramConfig(TOPUP_CONFIG_PATH),
+    await getTelegramConfig(ORDER_CONFIG_PATH),
+  ].filter((config): config is TelegramConfig => Boolean(config?.bot_token));
+
+  return configs.filter((config, index, all) =>
+    all.findIndex((item) => item.bot_token === config.bot_token) === index
+  );
 }
 
 export async function POST(req: NextRequest) {
@@ -173,7 +185,8 @@ async function handleTopupAction(callbackData: string, chatId: number, messageId
 }
 
 async function handleOrderAction(callbackData: string, chatId: number, messageId: number, callbackQueryId: string) {
-  const config = await getOrderActionConfig();
+  const configs = await getOrderActionConfigs();
+  const config = configs[0] || await getOrderActionConfig();
   if (!config?.bot_token) return;
 
   const isApprove = callbackData.startsWith("order_approve_");
@@ -191,6 +204,7 @@ async function handleOrderAction(callbackData: string, chatId: number, messageId
       customer_email,
       amount,
       payment_method,
+      smm_service_id,
       services (
         title
       )
@@ -204,19 +218,45 @@ async function handleOrderAction(callbackData: string, chatId: number, messageId
   }
 
   if (order.status !== "Pending") {
-    await answerCallback(config.bot_token, callbackQueryId, `Already ${order.status}.`);
-    await removeButtons(config.bot_token, chatId, messageId);
+    await answerWithOrderBots(configs, callbackQueryId, `Already ${order.status}.`);
+    await removeButtonsWithOrderBots(configs, chatId, messageId);
     return;
   }
 
+  const paymentMethod = String(order.payment_method || "").trim();
+  const isWalletPayment = paymentMethod.toLowerCase() === "wallet";
+
+  if (isApprove && isWalletPayment) {
+    await answerWithOrderBots(configs, callbackQueryId, "Wallet orders do not need Telegram receipt approval.");
+    await removeButtonsWithOrderBots(configs, chatId, messageId);
+    return;
+  }
+
+  if (isApprove) {
+    const hasReceipt = await hasUploadedOrderReceipt(supabase, orderId);
+    if (!hasReceipt) {
+      await answerWithOrderBots(configs, callbackQueryId, "Receipt proof not found. Upload proof before approving.");
+      return;
+    }
+  }
+
   const newStatus = isApprove ? "Processing" : "Rejected";
-  const { error: updateError } = await supabase
+  const { data: updatedOrder, error: updateError } = await supabase
     .from("orders")
     .update({ status: newStatus })
-    .eq("id", orderId);
+    .eq("id", orderId)
+    .eq("status", "Pending")
+    .select("id")
+    .maybeSingle();
 
   if (updateError) {
-    await answerCallback(config.bot_token, callbackQueryId, `Failed to update order: ${updateError.message}`);
+    await answerWithOrderBots(configs, callbackQueryId, `Failed to update order: ${updateError.message}`);
+    return;
+  }
+
+  if (!updatedOrder) {
+    await answerWithOrderBots(configs, callbackQueryId, "Order was already updated by another admin.");
+    await removeButtonsWithOrderBots(configs, chatId, messageId);
     return;
   }
 
@@ -230,6 +270,7 @@ async function handleOrderAction(callbackData: string, chatId: number, messageId
   const serviceTitle = Array.isArray((order as any).services)
     ? (order as any).services[0]?.title
     : (order as any).services?.title;
+  const resolvedServiceTitle = await resolveSmmServiceTitle(order.smm_service_id, serviceTitle || "SMM Service");
   const trackingId = `BS-${orderId.slice(0, 8).toUpperCase()}`;
 
   if (isApprove) {
@@ -251,46 +292,83 @@ async function handleOrderAction(callbackData: string, chatId: number, messageId
       });
     }
 
-    await answerCallback(config.bot_token, callbackQueryId, "Order approved. Status changed to Processing.");
-    await editCaption(
-      config.bot_token,
+    await answerWithOrderBots(configs, callbackQueryId, "Order approved. Status changed to Processing.");
+    await editCaptionWithOrderBots(
+      configs,
       chatId,
       messageId,
-      `ORDER APPROVED\n\nTracking ID: ${trackingId}\nService: ${serviceTitle || "SMM Service"}\nCustomer: ${order.customer_email}\nAmount: PHP ${Number(order.amount).toFixed(2)}\nStatus: Processing\n\nApproved via Telegram by Admin.`
+      `ORDER APPROVED\n\nTracking ID: ${trackingId}\nService: ${resolvedServiceTitle}\nCustomer: ${order.customer_email}\nQuantity: ${Number(order.quantity || 0).toLocaleString()}\nAmount: PHP ${Number(order.amount).toFixed(2)}\nPayment: ${paymentMethod || "GCash"}\nStatus: Processing\n\nApproved via Telegram by Admin.`
     );
   } else {
-    await answerCallback(config.bot_token, callbackQueryId, "Order rejected.");
-    await editCaption(
-      config.bot_token,
+    await answerWithOrderBots(configs, callbackQueryId, "Order rejected.");
+    await editCaptionWithOrderBots(
+      configs,
       chatId,
       messageId,
-      `ORDER REJECTED\n\nTracking ID: ${trackingId}\nService: ${serviceTitle || "SMM Service"}\nCustomer: ${order.customer_email}\nAmount: PHP ${Number(order.amount).toFixed(2)}\nStatus: Rejected\n\nRejected via Telegram by Admin.`
+      `ORDER REJECTED\n\nTracking ID: ${trackingId}\nService: ${resolvedServiceTitle}\nCustomer: ${order.customer_email}\nQuantity: ${Number(order.quantity || 0).toLocaleString()}\nAmount: PHP ${Number(order.amount).toFixed(2)}\nPayment: ${paymentMethod || "GCash"}\nStatus: Rejected\n\nRejected via Telegram by Admin.`
     );
   }
 
-  await removeButtons(config.bot_token, chatId, messageId);
+  await removeButtonsWithOrderBots(configs, chatId, messageId);
+}
+
+async function hasUploadedOrderReceipt(supabase: ReturnType<typeof getSupabase>, orderId: string) {
+  const { data, error } = await supabase.storage
+    .from(CONFIG_BUCKET)
+    .list("", { limit: 1000, search: orderId });
+
+  if (error) {
+    console.error("Telegram order receipt lookup failed:", error);
+    return false;
+  }
+
+  return Boolean(data?.some((file) => file.name.startsWith(`${orderId}_`) || file.name.startsWith(orderId)));
+}
+
+async function answerWithOrderBots(configs: TelegramConfig[], callbackQueryId: string, text: string) {
+  for (const config of configs) {
+    if (await answerCallback(config.bot_token, callbackQueryId, text)) return;
+  }
+}
+
+async function editCaptionWithOrderBots(configs: TelegramConfig[], chatId: number, messageId: number, caption: string) {
+  for (const config of configs) {
+    if (await editCaption(config.bot_token, chatId, messageId, caption)) return;
+  }
+}
+
+async function removeButtonsWithOrderBots(configs: TelegramConfig[], chatId: number, messageId: number) {
+  for (const config of configs) {
+    if (await removeButtons(config.bot_token, chatId, messageId)) return;
+  }
 }
 
 async function answerCallback(botToken: string, callbackQueryId: string, text: string) {
-  await fetch(`https://api.telegram.org/bot${botToken}/answerCallbackQuery`, {
+  const res = await fetch(`https://api.telegram.org/bot${botToken}/answerCallbackQuery`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ callback_query_id: callbackQueryId, text, show_alert: true }),
   });
+  const data = await res.json().catch(() => null);
+  return Boolean(data?.ok ?? res.ok);
 }
 
 async function editCaption(botToken: string, chatId: number, messageId: number, caption: string) {
-  await fetch(`https://api.telegram.org/bot${botToken}/editMessageCaption`, {
+  const res = await fetch(`https://api.telegram.org/bot${botToken}/editMessageCaption`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ chat_id: chatId, message_id: messageId, caption }),
   });
+  const data = await res.json().catch(() => null);
+  return Boolean(data?.ok ?? res.ok);
 }
 
 async function removeButtons(botToken: string, chatId: number, messageId: number) {
-  await fetch(`https://api.telegram.org/bot${botToken}/editMessageReplyMarkup`, {
+  const res = await fetch(`https://api.telegram.org/bot${botToken}/editMessageReplyMarkup`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ chat_id: chatId, message_id: messageId, reply_markup: { inline_keyboard: [] } }),
   });
+  const data = await res.json().catch(() => null);
+  return Boolean(data?.ok ?? res.ok);
 }

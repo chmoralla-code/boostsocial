@@ -4,6 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 import { createClient as createServerClient } from "@/utils/supabase/server";
 import { isAdminEmail } from "@/utils/security/admin";
 import { enforceRateLimit } from "@/utils/security/rate-limit";
+import { resolveSmmServiceTitle } from "@/lib/smmServiceResolver";
 
 const TRACKING_PATTERN = /^BS-([0-9a-f]{8})$/i;
 
@@ -20,7 +21,7 @@ async function resolveOrderByTrackingPrefix(prefix: string) {
   const supabase = getServiceRoleClient();
   const { data, error } = await supabase
     .from("orders")
-    .select("id, customer_email, quantity, amount, payment_method, target_url, services(title)")
+    .select("id, customer_email, quantity, amount, payment_method, target_url, smm_service_id, services(title)")
     .gte("id", `${prefix}-0000-0000-0000-000000000000`)
     .lte("id", `${prefix}-ffff-ffff-ffff-ffffffffffff`)
     .limit(1)
@@ -69,9 +70,11 @@ export async function POST(req: NextRequest) {
       ? (order as any).services[0]?.title
       : (order as any).services?.title;
 
+    const resolvedServiceTitle = await resolveSmmServiceTitle(order.smm_service_id, serviceTitle || "SMM Service");
+
     await sendOrderNotification({
       trackingId,
-      service: serviceTitle || "SMM Service",
+      service: resolvedServiceTitle,
       email: orderEmail,
       quantity: Number(order.quantity || 0),
       amount: Number(order.amount || 0),

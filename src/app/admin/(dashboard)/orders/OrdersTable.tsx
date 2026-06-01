@@ -5,6 +5,7 @@ import { createClient } from "@/utils/supabase/client";
 import { format } from "date-fns";
 import { toZonedTime } from "date-fns-tz";
 import { Trash2, Clock, Search, Filter, ExternalLink, Image, Key, Loader2, Sparkles, RefreshCw } from "lucide-react";
+import { formatSmmServiceName } from "@/utils/serviceHelpers";
 
 export function OrdersTable({ initialOrders, receiptFiles = [] }: { initialOrders: any[], receiptFiles?: string[] }) {
   const [orders, setOrders] = useState(initialOrders);
@@ -14,12 +15,47 @@ export function OrdersTable({ initialOrders, receiptFiles = [] }: { initialOrder
   const [selectedPageSpecs, setSelectedPageSpecs] = useState<any | null>(null);
   const [isDeletingAll, setIsDeletingAll] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [smmServiceLabels, setSmmServiceLabels] = useState<Record<string, string>>({});
   const supabase = createClient();
 
   useEffect(() => {
     // Run silent sync on mount
     syncExternalOrders(true);
+    loadSmmServiceLabels();
   }, []);
+
+  const loadSmmServiceLabels = async () => {
+    try {
+      const res = await fetch("/api/smm/services");
+      if (!res.ok) return;
+
+      const services = await res.json();
+      if (!Array.isArray(services)) return;
+
+      const labels = services.reduce((acc: Record<string, string>, service: any) => {
+        if (service?.id) {
+          acc[String(service.id)] = formatSmmServiceName(service.name || "SMM Service", service.id, service.desc || service.category || "");
+        }
+        return acc;
+      }, {});
+
+      setSmmServiceLabels(labels);
+    } catch (err) {
+      console.error("Failed to load SMM service labels for admin orders:", err);
+    }
+  };
+
+  const getOrderServiceTitle = (order: any) => {
+    const smmServiceId = order.smm_service_id ? String(order.smm_service_id) : "";
+    const joinedTitle = Array.isArray(order.services) ? order.services[0]?.title : order.services?.title;
+    const cleanJoinedTitle = String(joinedTitle || "").trim();
+    const isGenericTitle = /^(all services|smm catalog explorer|smm service|boost campaign)$/i.test(cleanJoinedTitle);
+
+    if (smmServiceId && smmServiceLabels[smmServiceId]) return smmServiceLabels[smmServiceId];
+    if (order.resolved_service_title) return order.resolved_service_title;
+    if (smmServiceId) return isGenericTitle || !cleanJoinedTitle ? `SMM Service ID ${smmServiceId}` : `${cleanJoinedTitle} - SMM ID ${smmServiceId}`;
+    return cleanJoinedTitle && !isGenericTitle ? cleanJoinedTitle : "Specific SMM Service";
+  };
 
   const syncExternalOrders = async (silent = false) => {
     if (!silent) setIsSyncing(true);
@@ -172,9 +208,11 @@ export function OrdersTable({ initialOrders, receiptFiles = [] }: { initialOrder
   // Filter logic
   const filteredOrders = orders.filter(order => {
     const trackingId = `BS-${order.id.slice(0, 8).toUpperCase()}`;
+    const serviceTitle = getOrderServiceTitle(order).toLowerCase();
     const matchesSearch = 
       order.customer_email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       trackingId.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      serviceTitle.includes(searchTerm.toLowerCase()) ||
       order.target_url?.toLowerCase().includes(searchTerm.toLowerCase());
       
     const matchesStatus = statusFilter === "All" || order.status === statusFilter;
@@ -279,6 +317,7 @@ export function OrdersTable({ initialOrders, receiptFiles = [] }: { initialOrder
             <tbody className="divide-y divide-slate-850/40">
               {filteredOrders.map((order) => {
                 const phTime = formatPHTime(order.created_at);
+                const serviceTitle = getOrderServiceTitle(order);
                 return (
                   <tr key={order.id} className="hover:bg-slate-800/20 transition-colors border-b border-slate-850/30 last:border-0">
                     {/* Date + Time PHT */}
@@ -303,8 +342,11 @@ export function OrdersTable({ initialOrders, receiptFiles = [] }: { initialOrder
 
                     {/* Service */}
                     <td className="py-3.5 px-5">
-                      <span className="text-[9px] font-black uppercase tracking-wider bg-[#1DB954]/10 text-[#1DB954] border border-[#1DB954]/20 px-2.5 py-1 rounded-full whitespace-nowrap">
-                        {order.services?.title}
+                      <span
+                        title={serviceTitle}
+                        className="text-[9px] font-black uppercase tracking-wider bg-[#1DB954]/10 text-[#1DB954] border border-[#1DB954]/20 px-2.5 py-1 rounded-full whitespace-nowrap"
+                      >
+                        {serviceTitle}
                       </span>
                     </td>
 

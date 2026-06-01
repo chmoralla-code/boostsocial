@@ -4,6 +4,7 @@ import { autoPlaceRixeyOrder } from "@/lib/rixeysmm";
 import { sendOrderCompleteNotification } from "@/lib/telegram";
 import { syncBackupAdminClients } from "@/utils/supabase/dual-db";
 import { creditReferralCommission } from "@/utils/referrals";
+import { resolveSmmServiceTitle } from "@/lib/smmServiceResolver";
 
 export async function POST(req: NextRequest) {
   try {
@@ -36,6 +37,7 @@ export async function POST(req: NextRequest) {
         customer_email,
         amount,
         payment_method,
+        smm_service_id,
         services (
           title
         )
@@ -88,9 +90,10 @@ export async function POST(req: NextRequest) {
     // - Order status is updated to 'Completed'
     if (newStatus === "Completed") {
       const serviceTitle = (order as any).services?.title || "SMM Service";
+      const resolvedServiceTitle = await resolveSmmServiceTitle((order as any).smm_service_id, serviceTitle);
       sendOrderCompleteNotification({
         trackingId: `BS-${orderId.slice(0, 8).toUpperCase()}`,
-        service: serviceTitle,
+        service: resolvedServiceTitle,
         email: order.customer_email,
         quantity: order.quantity,
         amount: Number(order.amount),
