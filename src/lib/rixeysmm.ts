@@ -3,9 +3,6 @@ import { parseDescription } from "@/utils/serviceHelpers";
 import { syncBackupAdminClients } from "@/utils/supabase/dual-db";
 
 const RIXEYSMM_API_URL = "https://rixeysmm.shop/api/v2";
-const PROVIDER_FUNDING_QUEUE_STATUS =
-  "Queued: RixeySMM provider balance is PHP 0.00. Order is registered and waiting for provider top-up or manual fulfillment.";
-const getErrorMessage = (error: unknown) => error instanceof Error ? error.message : String(error);
 
 const getSupabase = () =>
   createClient(
@@ -22,49 +19,6 @@ const syncOrderUpdateToBackups = async (orderId: string, update: Record<string, 
       .eq("id", orderId);
   }, "RixeySMM order update sync");
 };
-
-async function fetchRixeyBalance(apiKey: string) {
-  const res = await fetch(RIXEYSMM_API_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body: new URLSearchParams({
-      key: apiKey,
-      action: "balance",
-    }),
-  });
-
-  if (!res.ok) {
-    throw new Error(`Balance lookup failed with HTTP ${res.status}`);
-  }
-
-  const data = await res.json();
-  const balance = Number(data.balance);
-  return Number.isFinite(balance) ? balance : null;
-}
-
-function isProviderFundingError(message: string) {
-  return /(balance|fund|funds|credit|not enough|insufficient)/i.test(message);
-}
-
-async function markOrderQueuedForProviderFunding(
-  supabase: ReturnType<typeof getSupabase>,
-  orderId: string,
-  smmServiceId: string | number | null,
-  reason = PROVIDER_FUNDING_QUEUE_STATUS
-) {
-  const update = {
-    external_status: reason,
-    smm_service_id: smmServiceId ? String(smmServiceId) : null,
-  };
-
-  await supabase
-    .from("orders")
-    .update(update)
-    .eq("id", orderId);
-  await syncOrderUpdateToBackups(orderId, update);
-}
 
 /**
  * Automatically places an order on RixeySMM for any mapped service.
@@ -133,18 +87,6 @@ export async function autoPlaceRixeyOrder(
       return;
     }
 
-    try {
-      const balance = await fetchRixeyBalance(apiKey);
-      if (balance !== null && balance <= 0) {
-        const queueStatus = `Queued: RixeySMM provider balance is PHP ${balance.toFixed(2)}. Order is registered and waiting for provider top-up or manual fulfillment.`;
-        console.warn(`[RixeySMM] Order ${orderId} queued because provider balance is ${balance.toFixed(2)}.`);
-        await markOrderQueuedForProviderFunding(supabase, orderId, smmServiceId, queueStatus);
-        return;
-      }
-    } catch (balanceErr) {
-      console.error("[RixeySMM] Provider balance preflight failed. Continuing to panel placement attempt:", balanceErr);
-    }
-
     // Clean up target URL if it has pre-made specs formatting (just in case)
     let cleanUrl = targetUrl.trim();
     if (cleanUrl.includes("Page Wants:")) {
@@ -180,7 +122,7 @@ export async function autoPlaceRixeyOrder(
           uniqueSmmUrl = `${cleanUrl}?t=${uniqueVal}`;
         }
       }
-    } catch {
+    } catch (e) {
       const uniqueVal = `${Date.now()}_${Math.floor(Math.random() * 1000)}`;
       if (cleanUrl.includes("?")) {
         uniqueSmmUrl = `${cleanUrl}&t=${uniqueVal}`;
@@ -233,15 +175,7 @@ export async function autoPlaceRixeyOrder(
       console.log(`[RixeySMM] Order successfully placed! External ID: ${externalId}`);
     } else if (data.error) {
       // Panel returned a specific error (e.g. low balance, bad link)
-      const providerError = String(data.error);
-      if (isProviderFundingError(providerError)) {
-        const queueStatus = `Queued: RixeySMM provider balance/funds unavailable (${providerError}). Order is registered and waiting for provider top-up or manual fulfillment.`;
-        await markOrderQueuedForProviderFunding(supabase, orderId, smmServiceId, queueStatus);
-        console.warn(`[RixeySMM] Order ${orderId} queued after panel funding error: ${providerError}`);
-        return;
-      }
-
-      const panelError = `Failed: ${providerError}`;
+      const panelError = `Failed: ${data.error}`;
       await supabase
         .from("orders")
         .update({
@@ -249,7 +183,7 @@ export async function autoPlaceRixeyOrder(
         })
         .eq("id", orderId);
       await syncOrderUpdateToBackups(orderId, { external_status: panelError });
-      console.error(`[RixeySMM] SMM Panel returned error: ${providerError}`);
+      console.error(`[RixeySMM] SMM Panel returned error: ${data.error}`);
     } else {
       // Unknown response format
       const unknownError = "Failed: Unknown API response structure.";
@@ -262,8 +196,8 @@ export async function autoPlaceRixeyOrder(
       await syncOrderUpdateToBackups(orderId, { external_status: unknownError });
       console.error(`[RixeySMM] Unknown SMM response:`, data);
     }
-  } catch (err: unknown) {
-    const externalStatus = `Failed: ${getErrorMessage(err)}`;
+  } catch (err: any) {
+    const externalStatus = `Failed: ${err.message || err.toString()}`;
     console.error(`[RixeySMM] Auto-placement failed for Order ${orderId}:`, err);
     await supabase
       .from("orders")
