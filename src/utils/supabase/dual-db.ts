@@ -198,16 +198,24 @@ export async function dualWrite<T = any>(
 export async function fallbackRead<T = any>(
   operation: (client: SupabaseClient) => Promise<{ data: T | null; error: any }>
 ): Promise<{ data: T | null; error: any; databaseUsed: "primary" | BackupLabel }> {
-  const primary = getPrimaryAdminClient();
+  let primary: SupabaseClient | null = null;
 
   try {
-    const res = await operation(primary);
-    if (!res.error) {
-      return { data: res.data, error: null, databaseUsed: "primary" };
-    }
-    console.warn("Primary database read failed. Querying backup databases...");
+    primary = getPrimaryAdminClient();
   } catch (err) {
-    console.warn("Primary database read network exception. Querying backup databases...", err);
+    console.warn("Primary Supabase Admin client creation failed. Querying backup databases...", err);
+  }
+
+  if (primary) {
+    try {
+      const res = await operation(primary);
+      if (!res.error) {
+        return { data: res.data, error: null, databaseUsed: "primary" };
+      }
+      console.warn("Primary database read failed. Querying backup databases...");
+    } catch (err) {
+      console.warn("Primary database read network exception. Querying backup databases...", err);
+    }
   }
 
   for (const backup of getBackupAdminClients()) {

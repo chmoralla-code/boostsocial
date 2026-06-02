@@ -39,7 +39,8 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/reset-password') ||
     pathname.startsWith('/auth') ||
     pathname.startsWith('/api/admin') ||
-    pathname.startsWith('/api/auth')
+    pathname.startsWith('/api/auth') ||
+    pathname.startsWith('/api/announcement')
 
   // 2. Perform maintenance lockout if not on a bypass route
   if (!isBypassPath) {
