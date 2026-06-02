@@ -13,12 +13,15 @@ function isAdminSurface(pathname: string) {
 
 export function FloatingSiteWidgets() {
   const pathname = usePathname();
-  const hideChathead = isAdminSurface(pathname);
   const visibility = useWidgetVisibility();
+
+  if (isAdminSurface(pathname)) {
+    return null;
+  }
 
   return (
     <>
-      {!hideChathead && visibility.chathead && (
+      {visibility.chathead && (
         <>
           <Script src="https://js.puter.com/v2/" strategy="afterInteractive" />
           <Chathead />
