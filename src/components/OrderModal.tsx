@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { X, Loader2, ShieldCheck, Copy, Check, Download, Laptop, HelpCircle, Plus, Trash2, Terminal, CheckCircle2, Lock, User, Image, AlertCircle } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
+import { useWidgetVisibility } from "@/hooks/useWidgetVisibility";
 import { LinkPreviewWindow } from "./LinkPreviewWindow";
 import { compressImage } from "@/utils/imageCompressor";
 import { parseDescription } from "@/utils/serviceHelpers";
@@ -37,6 +38,7 @@ const REACTION_OPTIONS = [
 
 export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBasePrice, presetQuantity, service }: OrderModalProps) {
   const [email, setEmail] = useState("");
+  const { featureBadges } = useWidgetVisibility();
   const [url, setUrl] = useState("");
   const [quantity, setQuantity] = useState<number>(1000);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -1379,13 +1381,15 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                 )}
 
                 {/* Safety Curation Layer Reassurance */}
-                <div className="bg-[#1DB954]/5 border border-[#1DB954]/10 p-3.5 rounded-xl flex items-start gap-2 mt-3 animate-in fade-in duration-300">
-                  <span className="text-sm mt-0.5">🛡️</span>
-                  <p className="text-[10px] text-slate-355 leading-relaxed font-bold text-left">
-                    <span className="text-[#1DB954] uppercase tracking-wider block mb-0.5">🔒 100% Monetization Safe Guarantee</span>
-                    Your campaign passes through CYNETWORK's proprietary filters to exclude toxic bot pools that trigger restrictions. Safe for Facebook Adsense & organic page growth.
-                  </p>
-                </div>
+{featureBadges && (
+                  <div className="bg-[#1DB954]/5 border border-[#1DB954]/10 p-3.5 rounded-xl flex items-start gap-2 mt-3 animate-in fade-in duration-300">
+                    <span className="text-sm mt-0.5">🛡️</span>
+                    <p className="text-[10px] text-slate-355 leading-relaxed font-bold text-left">
+                      <span className="text-[#1DB954] uppercase tracking-wider block mb-0.5">🔒 100% Monetization Safe Guarantee</span>
+                      Your campaign passes through CYNETWORK's proprietary filters to exclude toxic bot pools that trigger restrictions. Safe for Facebook Adsense & organic page growth.
+                    </p>
+                  </div>
+)}
 
                 {/* GCash Payment Receipt Upload */}
                 <div className="space-y-2 bg-[#121212] border border-slate-800 p-4 rounded-xl mt-3 text-left">

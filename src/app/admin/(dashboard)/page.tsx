@@ -8,6 +8,7 @@ import { HeroVideoSettingsPanel } from "./HeroVideoSettingsPanel";
 import { HeroTextSettingsPanel } from "./HeroTextSettingsPanel";
 import { ServicesBgSettingsPanel } from "./ServicesBgSettingsPanel";
 import { ServicesCandidatesPanel } from "./ServicesCandidatesPanel";
+import { WidgetVisibilityPanel } from "./WidgetVisibilityPanel";
 import { ShowcaseVideoSettingsPanel } from "./ShowcaseVideoSettingsPanel";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
@@ -351,6 +352,7 @@ export default async function AdminOverview() {
           <HeroTextSettingsPanel />
           <ServicesBgSettingsPanel />
           <ServicesCandidatesPanel />
+          <WidgetVisibilityPanel />
 
         </div>
 
