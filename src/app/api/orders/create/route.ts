@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { dualWrite } from "@/utils/supabase/dual-db";
 import { createClient as createServerClient } from "@/utils/supabase/server";
 import { enforceRateLimit } from "@/utils/security/rate-limit";
-import { calculateVipDiscount, getVipDiscountSummary } from "@/utils/vip";
+import { getVipDiscountSummary } from "@/utils/vip";
 import { createClient } from "@supabase/supabase-js";
 import { getSupabaseServiceRoleKey, getSupabaseUrl } from "@/utils/env";
 
@@ -78,9 +78,9 @@ export async function POST(req: NextRequest) {
       .eq("id", user.id)
       .single();
 
-    const vipAmount = calculateVipDiscount(profileData || null, amount);
-    const finalAmount = Math.max(vipAmount, 5);
-    const adjustedSummary = getVipDiscountSummary(profileData || null, amount);
+    const regularAmount = Math.max(amount, 5);
+    const adjustedSummary = getVipDiscountSummary(profileData || null, regularAmount);
+    const finalAmount = adjustedSummary.finalAmount;
 
     const basePayload = {
       id: orderId,
@@ -96,7 +96,7 @@ export async function POST(req: NextRequest) {
 
     const vipPayload = {
       ...basePayload,
-      original_amount: amount,
+      original_amount: regularAmount,
       vip_plan: adjustedSummary.plan ? adjustedSummary.plan.id : null,
       vip_discount_percent: adjustedSummary.discountPercent,
       vip_discount_amount: adjustedSummary.savingsAmount,

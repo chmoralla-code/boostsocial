@@ -114,8 +114,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid wallet checkout amount" }, { status: 400 });
     }
 
-    const discountSummary = getVipDiscountSummary(profile || null, parsedTotal);
-    const cost = Math.max(discountSummary.finalAmount, 5.00);
+    const regularCost = Math.max(parsedTotal, 5);
+    const discountSummary = getVipDiscountSummary(profile || null, regularCost);
+    const cost = discountSummary.finalAmount;
     const { error: vipColumnsError } = await supabase
       .from("orders")
       .select("original_amount, vip_plan, vip_discount_percent, vip_discount_amount")
@@ -123,7 +124,7 @@ export async function POST(req: NextRequest) {
     const orderVipFields = vipColumnsError
       ? {}
       : {
-          original_amount: parsedTotal,
+          original_amount: regularCost,
           vip_plan: discountSummary.plan ? discountSummary.plan.id : null,
           vip_discount_percent: discountSummary.discountPercent,
           vip_discount_amount: discountSummary.savingsAmount,

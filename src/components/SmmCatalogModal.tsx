@@ -315,8 +315,9 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
 
   const effectiveQuantity = selectedService ? Math.max(quantity, selectedService.min) : 0;
   const calculatedTotal = selectedService ? effectiveQuantity * selectedService.startingPrice : 0;
-  const vipTotalSummary = getVipDiscountSummary(profile, calculatedTotal);
-  const payableTotal = vipTotalSummary.discountPercent > 0 ? Math.max(vipTotalSummary.finalAmount, 5.00) : calculatedTotal;
+  const regularTotal = calculatedTotal > 0 ? Math.max(calculatedTotal, 5.00) : 0;
+  const vipTotalSummary = getVipDiscountSummary(profile, regularTotal);
+  const payableTotal = vipTotalSummary.discountPercent > 0 ? vipTotalSummary.finalAmount : regularTotal;
   const hasVipDiscount = vipTotalSummary.discountPercent > 0 && vipTotalSummary.savingsAmount > 0;
   const getVipPrice = (amount: number) => {
     const summary = getVipDiscountSummary(profile, amount);
@@ -362,7 +363,7 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
           serviceId: CUSTOM_SMM_SERVICE_ID,
           email: email.trim(),
           targetUrl: url.trim(),
-          amount: calculatedTotal,
+          amount: regularTotal,
           paymentMethod: "GCash",
           quantity: finalQuantity,
           smmServiceId: selectedService.id
@@ -461,7 +462,7 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
           email: user.email,
           url: url.trim(),
           quantity: finalQuantity,
-          totalPrice: calculatedTotal,
+          totalPrice: regularTotal,
           smmServiceId: selectedService.id
         })
       });
@@ -871,11 +872,11 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
                       <span className="text-[9px] font-extrabold text-slate-500 uppercase tracking-wider">Estimator cost:</span>
                       {hasVipDiscount ? (
                         <span className="text-right leading-tight">
-                          <span className="block text-[10px] font-mono text-slate-500 line-through">Regular ₱{formatPrice(calculatedTotal)}</span>
+                          <span className="block text-[10px] font-mono text-slate-500 line-through">Regular ₱{formatPrice(regularTotal)}</span>
                           <span className="block text-sm font-black text-[#1DB954]">VIP ₱{formatPrice(payableTotal)}</span>
                         </span>
                       ) : (
-                        <span className="text-sm font-black text-white">₱{formatPrice(calculatedTotal)} PHP</span>
+                        <span className="text-sm font-black text-white">₱{formatPrice(regularTotal)} PHP</span>
                       )}
                     </div>
                     {hasVipDiscount && (
@@ -926,7 +927,7 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
                   </p>
                   {hasVipDiscount && (
                     <div className="rounded-xl border border-[#1DB954]/25 bg-[#1DB954]/10 px-3 py-2 text-[10px] font-black uppercase tracking-wider text-[#1DB954]">
-                      Regular ₱{formatPrice(calculatedTotal)} {"->"} VIP ₱{formatPrice(payableTotal)}. You save ₱{formatPrice(vipTotalSummary.savingsAmount)}.
+                      Regular ₱{formatPrice(regularTotal)} {"->"} VIP ₱{formatPrice(payableTotal)}. You save ₱{formatPrice(vipTotalSummary.savingsAmount)}.
                     </div>
                   )}
                   

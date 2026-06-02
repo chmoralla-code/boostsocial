@@ -387,7 +387,7 @@ export default function QuickStartPage() {
     setLoading(true);
     setError("");
 
-    const calculatedTotal = quantity * selectedService.startingPrice;
+    const calculatedTotal = Math.max(quantity * selectedService.startingPrice, 5);
     const CUSTOM_SMM_SERVICE_ID = "e6f61249-71fe-40df-84f3-96d03d3e8dcf";
 
     try {
@@ -462,7 +462,7 @@ export default function QuickStartPage() {
     }
   };
 
-  const calculatedCost = selectedService ? quantity * selectedService.startingPrice : 0;
+  const calculatedCost = selectedService ? Math.max(quantity * selectedService.startingPrice, 5) : 0;
 
   // SMM service lists matched search term
   const searchedServices = services.filter((s) => {

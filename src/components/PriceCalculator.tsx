@@ -57,7 +57,7 @@ export function PriceCalculator({ services, vipDiscountPercent = 0, onOrder }: P
 
   const regularTargetPrice = baseTotal > 0 ? Math.max(baseTotal, 5.00) : 0; // Enforce minimum order price of ₱5.00 to cover overhead
   const vipTargetPrice = vipDiscountPercent > 0
-    ? Math.max(Number((regularTargetPrice * (100 - vipDiscountPercent) / 100).toFixed(2)), regularTargetPrice > 0 ? 5.00 : 0)
+    ? Number((regularTargetPrice * (100 - vipDiscountPercent) / 100).toFixed(2))
     : regularTargetPrice;
   const hasVipPrice = vipDiscountPercent > 0 && vipTargetPrice < regularTargetPrice;
   const targetPrice = hasVipPrice ? vipTargetPrice : regularTargetPrice;

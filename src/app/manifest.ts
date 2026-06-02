@@ -2,10 +2,10 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "PinoyBoosting Admin",
-    short_name: "PB Admin",
-    description: "Android-ready admin dashboard for PinoyBoosting.",
-    start_url: "/admin",
+    name: "PinoyBoosting",
+    short_name: "PinoyBoosting",
+    description: "Philippines-focused social media boosting services for Facebook, Instagram, TikTok, YouTube, Telegram, and more.",
+    start_url: "/",
     scope: "/",
     display: "standalone",
     orientation: "portrait",

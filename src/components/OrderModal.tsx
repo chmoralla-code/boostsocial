@@ -346,7 +346,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
   const totalPrice = baseTotal > 0 ? Math.max(baseTotal, 5.00) : 0; // Enforce minimum order price of ₱5.00 to cover overhead
   const fakeOriginalPrice = totalPrice / (1 - fakeDiscountPercent / 105);
   const vipSummary = getVipDiscountSummary(profile, totalPrice);
-  const payableTotal = vipSummary.discountPercent > 0 ? Math.max(vipSummary.finalAmount, 5.00) : totalPrice;
+  const payableTotal = vipSummary.discountPercent > 0 ? vipSummary.finalAmount : totalPrice;
   const hasVipDiscount = vipSummary.discountPercent > 0 && vipSummary.savingsAmount > 0;
   const formatPrice = (amount: number) => amount.toFixed(2);
 

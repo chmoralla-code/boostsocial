@@ -91,7 +91,7 @@ export default function OrderPage() {
   const extraFollowerCost = extraFollowers * followerUnitPrice;
   const grandTotal = BASE_PAGE_PRICE + extraFollowerCost;
   const vipSummary = getVipDiscountSummary(profile, grandTotal);
-  const payableTotal = vipSummary.discountPercent > 0 ? Math.max(vipSummary.finalAmount, 5.00) : grandTotal;
+  const payableTotal = vipSummary.discountPercent > 0 ? vipSummary.finalAmount : grandTotal;
   const hasVipDiscount = vipSummary.discountPercent > 0 && vipSummary.savingsAmount > 0;
   const walletBalance = Number(profile?.balance || 0);
   const canUseWallet = Boolean(user && walletBalance >= payableTotal);
