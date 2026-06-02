@@ -2,12 +2,11 @@
 // It implements a Network-First strategy for pages to ensure the admin dashboard
 // always has the absolute latest live data and reflects new features immediately.
 
-const CACHE_NAME = 'cynetwork-pwa-cache-v1';
+const CACHE_NAME = 'cynetwork-pwa-cache-v2';
 const STATIC_ASSETS = [
   '/icon.svg',
   '/next.svg',
   '/vercel.svg',
-  '/globals.css',
 ];
 
 self.addEventListener('install', (event) => {
