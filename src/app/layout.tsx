@@ -29,7 +29,7 @@ export const metadata: Metadata = {
   publisher: "PinoyBoosting",
   manifest: "/manifest.webmanifest",
   alternates: {
-    canonical: "/",
+    canonical: "https://pinoyboosting.com",
   },
   openGraph: {
     type: "website",
