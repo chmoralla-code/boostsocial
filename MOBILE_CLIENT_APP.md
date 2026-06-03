@@ -1,12 +1,12 @@
 # PinoyBoosting Client Mobile App
 
-This repo includes Capacitor shells for the public PinoyBoosting client website.
+This repo includes Capacitor shells for the simplified PinoyBoosting client app.
 
 ## How It Updates
 
-The mobile shells open `https://pinoyboosting.com/` inside the app. Because the app loads the live website, website changes deployed to Vercel are reflected after the app opens or after the customer taps the in-app **Update App** button.
+The mobile shells open `https://pinoyboosting.com/app` inside the app. That route is a lightweight, beginner-friendly service screen that avoids the full website hero video, floating widgets, and animation-heavy effects.
 
-The **Update App** button refreshes the service worker and clears cached web assets before reloading the current page. Native shell changes still require a newly built APK/AAB for Android or IPA/TestFlight build for iOS.
+The **Update** button refreshes the service worker and clears cached web assets before reloading the current page. Native shell changes still require a newly built APK/AAB for Android or IPA/TestFlight build for iOS.
 
 ## Android Build
 
@@ -23,6 +23,12 @@ The debug APK is generated at:
 
 ```text
 android/app/build/outputs/apk/debug/app-debug.apk
+```
+
+The public download copy is served as:
+
+```text
+public/downloads/pinoyboosting.apk
 ```
 
 For a release APK/AAB, create a private signing key and configure Gradle signing locally. Do not commit keystore files or passwords.

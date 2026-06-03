@@ -8,7 +8,7 @@ const config: CapacitorConfig = {
   loggingBehavior: "debug",
   appendUserAgent: " PinoyBoostingClientApp",
   server: {
-    url: "https://pinoyboosting.com/",
+    url: "https://pinoyboosting.com/app",
     cleartext: false,
     androidScheme: "https",
     allowNavigation: ["pinoyboosting.com", "www.pinoyboosting.com"],

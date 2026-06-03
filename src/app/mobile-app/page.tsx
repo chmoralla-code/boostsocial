@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ArrowLeft, Download, RefreshCw, ShieldCheck, Smartphone } from "lucide-react";
 
-const apkPath = "/downloads/pinoyboosting-client-debug.apk";
+const apkPath = "/downloads/pinoyboosting.apk";
 
 export default function MobileAppDownloadPage() {
   return (
@@ -29,8 +29,8 @@ export default function MobileAppDownloadPage() {
                 PinoyBoosting Mobile App
               </h1>
               <p className="max-w-xl text-sm font-semibold leading-7 text-slate-400">
-                Install the Android client app for direct access to the live PinoyBoosting website,
-                services catalog, wallet, tracking, and order flow.
+                Install the Android client app for a simpler PinoyBoosting experience focused on
+                services, orders, wallet, tracking, and help.
               </p>
             </div>
 
@@ -41,7 +41,7 @@ export default function MobileAppDownloadPage() {
                 className="inline-flex items-center justify-center gap-2 rounded-full bg-[#1DB954] px-6 py-4 text-xs font-black uppercase tracking-wider text-black shadow-lg shadow-emerald-500/10 transition hover:bg-[#1ed760]"
               >
                 <Download size={17} />
-                Download Android APK
+                Download pinoyboosting.apk
               </a>
               <Link
                 href="/"
@@ -71,8 +71,8 @@ export default function MobileAppDownloadPage() {
                       Manual Updates
                     </h2>
                     <p className="mt-1 text-xs font-semibold leading-5 text-slate-400">
-                      The app includes an Update App button that clears cached website assets
-                      and reloads the latest deployed version.
+                      The app includes an Update button that clears cached app assets and reloads
+                      the latest deployed version.
                     </p>
                   </div>
                 </div>

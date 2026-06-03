@@ -10,11 +10,11 @@ type CapacitorWindow = Window & {
   };
 };
 
-function isAdminSurface(pathname: string) {
+function isHiddenSurface(pathname: string) {
   return pathname === "/admin" || pathname.startsWith("/admin/") || pathname === "/admin-app";
 }
 
-async function refreshServiceWorkerAndCaches() {
+export async function refreshClientAppContent() {
   if ("serviceWorker" in navigator) {
     const registrations = await navigator.serviceWorker.getRegistrations();
     await Promise.all(registrations.map((registration) => registration.update().catch(() => undefined)));
@@ -45,7 +45,7 @@ export function ClientAppUpdateButton() {
     return () => window.clearTimeout(timeout);
   }, []);
 
-  if (!isClientApp || isAdminSurface(pathname)) {
+  if (!isClientApp || isHiddenSurface(pathname) || pathname === "/app") {
     return null;
   }
 
@@ -54,7 +54,7 @@ export function ClientAppUpdateButton() {
     setIsUpdating(true);
 
     try {
-      await refreshServiceWorkerAndCaches();
+      await refreshClientAppContent();
     } finally {
       const nextUrl = new URL(window.location.href);
       nextUrl.searchParams.set("app_update", String(Date.now()));
