@@ -4,17 +4,14 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import {
-  Bot,
+  ArrowLeft,
   ChevronRight,
   ClipboardList,
   HelpCircle,
   Home,
-  KeyRound,
-  ListFilter,
   Moon,
   RefreshCw,
   Search,
-  ShoppingBag,
   Sun,
   Wallet,
   Wifi,
@@ -42,8 +39,16 @@ type Shortcut = {
   kind: "catalog" | "service";
   query?: string;
   matchTerms?: string[];
-  tone: string;
-  Icon: typeof ShoppingBag;
+};
+
+type LogoDefinition = {
+  match: RegExp;
+  src?: string;
+  alt: string;
+  fallback: string;
+  lightBg: string;
+  darkBg: string;
+  border: string;
 };
 
 const OrderModal = dynamic(
@@ -64,8 +69,6 @@ const SHORTCUTS: Shortcut[] = [
     helper: "Start here for FB pages",
     kind: "catalog",
     query: "Facebook Followers",
-    tone: "bg-blue-50 text-blue-700 border-blue-100",
-    Icon: ShoppingBag,
   },
   {
     id: "tiktok",
@@ -74,8 +77,6 @@ const SHORTCUTS: Shortcut[] = [
     helper: "For videos and creators",
     kind: "catalog",
     query: "TikTok Views",
-    tone: "bg-zinc-100 text-zinc-800 border-zinc-200",
-    Icon: ListFilter,
   },
   {
     id: "pisowifi",
@@ -84,8 +85,6 @@ const SHORTCUTS: Shortcut[] = [
     helper: "For vendo owners",
     kind: "service",
     matchTerms: ["pisowifi", "piso wifi", "wifi vendo"],
-    tone: "bg-emerald-50 text-emerald-700 border-emerald-100",
-    Icon: Wifi,
   },
   {
     id: "gemini",
@@ -94,8 +93,6 @@ const SHORTCUTS: Shortcut[] = [
     helper: "For AI tools",
     kind: "service",
     matchTerms: ["gemini"],
-    tone: "bg-sky-50 text-sky-700 border-sky-100",
-    Icon: Bot,
   },
   {
     id: "software",
@@ -104,8 +101,217 @@ const SHORTCUTS: Shortcut[] = [
     helper: "For laptop or PC",
     kind: "service",
     matchTerms: ["software", "autocad", "sketchup", "lumion", "revit", "license"],
-    tone: "bg-amber-50 text-amber-700 border-amber-100",
-    Icon: KeyRound,
+  },
+];
+
+const SIMPLE_ICON = "https://cdn.simpleicons.org";
+
+const SERVICE_LOGOS: LogoDefinition[] = [
+  {
+    match: /\bfacebook\b|\bfb\b/i,
+    src: `${SIMPLE_ICON}/facebook/1877F2`,
+    alt: "Facebook logo",
+    fallback: "f",
+    lightBg: "#eef5ff",
+    darkBg: "#10233f",
+    border: "#bfdcff",
+  },
+  {
+    match: /\binstagram\b|\big\b/i,
+    src: `${SIMPLE_ICON}/instagram/E4405F`,
+    alt: "Instagram logo",
+    fallback: "IG",
+    lightBg: "#fff0f6",
+    darkBg: "#351424",
+    border: "#ffc2d8",
+  },
+  {
+    match: /\btiktok\b/i,
+    src: `${SIMPLE_ICON}/tiktok/000000`,
+    alt: "TikTok logo",
+    fallback: "TT",
+    lightBg: "#ffffff",
+    darkBg: "#ffffff",
+    border: "#d4d4d8",
+  },
+  {
+    match: /\byoutube\b|\byt\b/i,
+    src: `${SIMPLE_ICON}/youtube/FF0000`,
+    alt: "YouTube logo",
+    fallback: "YT",
+    lightBg: "#fff1f2",
+    darkBg: "#3d1111",
+    border: "#fecaca",
+  },
+  {
+    match: /\btelegram\b/i,
+    src: `${SIMPLE_ICON}/telegram/26A5E4`,
+    alt: "Telegram logo",
+    fallback: "TG",
+    lightBg: "#eff9ff",
+    darkBg: "#102a3a",
+    border: "#bae6fd",
+  },
+  {
+    match: /\bthreads\b/i,
+    src: `${SIMPLE_ICON}/threads/000000`,
+    alt: "Threads logo",
+    fallback: "TH",
+    lightBg: "#ffffff",
+    darkBg: "#ffffff",
+    border: "#d4d4d8",
+  },
+  {
+    match: /\btwitch\b/i,
+    src: `${SIMPLE_ICON}/twitch/9146FF`,
+    alt: "Twitch logo",
+    fallback: "TW",
+    lightBg: "#f5f0ff",
+    darkBg: "#21123d",
+    border: "#ddd6fe",
+  },
+  {
+    match: /\bspotify\b/i,
+    src: `${SIMPLE_ICON}/spotify/1DB954`,
+    alt: "Spotify logo",
+    fallback: "SP",
+    lightBg: "#ecfdf3",
+    darkBg: "#102918",
+    border: "#bbf7d0",
+  },
+  {
+    match: /\bdiscord\b/i,
+    src: `${SIMPLE_ICON}/discord/5865F2`,
+    alt: "Discord logo",
+    fallback: "DC",
+    lightBg: "#eef2ff",
+    darkBg: "#151b3b",
+    border: "#c7d2fe",
+  },
+  {
+    match: /\bpinterest\b/i,
+    src: `${SIMPLE_ICON}/pinterest/BD081C`,
+    alt: "Pinterest logo",
+    fallback: "P",
+    lightBg: "#fff1f2",
+    darkBg: "#3b1118",
+    border: "#fecdd3",
+  },
+  {
+    match: /\breddit\b/i,
+    src: `${SIMPLE_ICON}/reddit/FF4500`,
+    alt: "Reddit logo",
+    fallback: "RD",
+    lightBg: "#fff4ed",
+    darkBg: "#351807",
+    border: "#fed7aa",
+  },
+  {
+    match: /\bwhatsapp\b/i,
+    src: `${SIMPLE_ICON}/whatsapp/25D366`,
+    alt: "WhatsApp logo",
+    fallback: "WA",
+    lightBg: "#ecfdf3",
+    darkBg: "#102819",
+    border: "#bbf7d0",
+  },
+  {
+    match: /\bviber\b/i,
+    src: `${SIMPLE_ICON}/viber/7360F2`,
+    alt: "Viber logo",
+    fallback: "VB",
+    lightBg: "#f4f1ff",
+    darkBg: "#20173d",
+    border: "#ddd6fe",
+  },
+  {
+    match: /\bsnapchat\b/i,
+    src: `${SIMPLE_ICON}/snapchat/000000`,
+    alt: "Snapchat logo",
+    fallback: "SC",
+    lightBg: "#fffc00",
+    darkBg: "#fffc00",
+    border: "#fef08a",
+  },
+  {
+    match: /\btwitter\b|\bx followers\b|\bx likes\b/i,
+    src: `${SIMPLE_ICON}/x/000000`,
+    alt: "X logo",
+    fallback: "X",
+    lightBg: "#ffffff",
+    darkBg: "#ffffff",
+    border: "#d4d4d8",
+  },
+  {
+    match: /\bmeta\b/i,
+    src: `${SIMPLE_ICON}/meta/0467DF`,
+    alt: "Meta logo",
+    fallback: "M",
+    lightBg: "#eef5ff",
+    darkBg: "#10243f",
+    border: "#bfdbfe",
+  },
+  {
+    match: /\bgemini\b/i,
+    src: `${SIMPLE_ICON}/googlegemini/8E75B2`,
+    alt: "Google Gemini logo",
+    fallback: "G",
+    lightBg: "#f5f3ff",
+    darkBg: "#21183a",
+    border: "#ddd6fe",
+  },
+  {
+    match: /\bgoogle\b/i,
+    src: `${SIMPLE_ICON}/google/4285F4`,
+    alt: "Google logo",
+    fallback: "G",
+    lightBg: "#eef5ff",
+    darkBg: "#10243f",
+    border: "#bfdbfe",
+  },
+  {
+    match: /\bsketchup\b/i,
+    src: `${SIMPLE_ICON}/sketchup/005F9E`,
+    alt: "SketchUp logo",
+    fallback: "SU",
+    lightBg: "#eef7ff",
+    darkBg: "#102434",
+    border: "#bae6fd",
+  },
+  {
+    match: /\brevit\b/i,
+    src: `${SIMPLE_ICON}/autodeskrevit/186BFF`,
+    alt: "Autodesk Revit logo",
+    fallback: "RV",
+    lightBg: "#eef6ff",
+    darkBg: "#11243d",
+    border: "#bfdbfe",
+  },
+  {
+    match: /\bautocad\b|\bautodesk\b|\bsoftware\b|\blicense\b/i,
+    src: `${SIMPLE_ICON}/autocad/E51050`,
+    alt: "AutoCAD logo",
+    fallback: "AC",
+    lightBg: "#fff1f2",
+    darkBg: "#3b1218",
+    border: "#fecdd3",
+  },
+  {
+    match: /\btp-link\b|\btplink\b|\beap\b/i,
+    src: `${SIMPLE_ICON}/tplink/4ACBD6`,
+    alt: "TP-Link logo",
+    fallback: "TP",
+    lightBg: "#ecfeff",
+    darkBg: "#0e2b30",
+    border: "#a5f3fc",
+  },
+  {
+    match: /\bpisowifi\b|\bpiso wifi\b|\bwifi vendo\b|\brouter\b/i,
+    alt: "PisoWiFi service",
+    fallback: "WiFi",
+    lightBg: "#ecfdf5",
+    darkBg: "#10271d",
+    border: "#bbf7d0",
   },
 ];
 
@@ -139,6 +345,67 @@ function serviceText(service: AppService) {
     .filter(Boolean)
     .join(" ")
     .toLowerCase();
+}
+
+function getDirectLogoSrc(value: string) {
+  const trimmed = value.trim();
+  if (/^(https?:)?\/\//i.test(trimmed) || trimmed.startsWith("/")) {
+    return trimmed;
+  }
+  return "";
+}
+
+function getServiceLogo(text: string) {
+  return SERVICE_LOGOS.find((logo) => logo.match.test(text)) || null;
+}
+
+function ServiceLogo({
+  service,
+  logoText = "",
+  isDark,
+  size = "md",
+}: {
+  service?: AppService;
+  logoText?: string;
+  isDark: boolean;
+  size?: "sm" | "md";
+}) {
+  const searchableText = service ? `${serviceText(service)} ${logoText}` : logoText.toLowerCase();
+  const logo = getServiceLogo(searchableText);
+  const directSrc = service?.icon_type ? getDirectLogoSrc(service.icon_type) : "";
+  const src = directSrc || logo?.src || "";
+  const [failedSrc, setFailedSrc] = useState("");
+  const imageFailed = Boolean(src && failedSrc === src);
+  const dimensionClass = size === "sm" ? "h-10 w-10 rounded-2xl" : "h-11 w-11 rounded-2xl";
+  const imageClass = size === "sm" ? "h-5 w-5" : "h-6 w-6";
+
+  return (
+    <span
+      className={`flex shrink-0 items-center justify-center overflow-hidden border ${dimensionClass}`}
+      style={{
+        backgroundColor: logo ? (isDark ? logo.darkBg : logo.lightBg) : isDark ? "#18181b" : "#f4f4f5",
+        borderColor: logo?.border || (isDark ? "#27272a" : "#e4e4e7"),
+      }}
+    >
+      {src && !imageFailed ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={src}
+          alt={directSrc ? `${service?.title || "Service"} logo` : logo?.alt || "Service logo"}
+          className={`${imageClass} object-contain`}
+          loading="lazy"
+          decoding="async"
+          onError={() => setFailedSrc(src)}
+        />
+      ) : logo?.fallback === "WiFi" ? (
+        <Wifi size={size === "sm" ? 19 : 21} className={isDark ? "text-emerald-300" : "text-emerald-700"} />
+      ) : (
+        <span className={`text-[11px] font-black ${isDark ? "text-zinc-200" : "text-zinc-800"}`}>
+          {logo?.fallback || "PB"}
+        </span>
+      )}
+    </span>
+  );
 }
 
 function serviceSummary(service: AppService) {
@@ -245,6 +512,43 @@ export function ClientAppHome({
     openCatalog(shortcut.title);
   };
 
+  const handleHome = () => {
+    setSelectedService(null);
+    setCatalogOpen(false);
+    setCatalogSearch("");
+    setQuery("");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+
+    if (window.location.pathname !== "/app" || window.location.search || window.location.hash) {
+      window.history.replaceState(null, "", "/app");
+    }
+  };
+
+  const handleBack = () => {
+    if (selectedService) {
+      setSelectedService(null);
+      return;
+    }
+
+    if (catalogOpen) {
+      setCatalogOpen(false);
+      setCatalogSearch("");
+      return;
+    }
+
+    if (query.trim()) {
+      setQuery("");
+      return;
+    }
+
+    if (window.history.length > 1) {
+      window.history.back();
+      return;
+    }
+
+    handleHome();
+  };
+
   const handleUpdate = async () => {
     if (isUpdating) return;
     setIsUpdating(true);
@@ -270,12 +574,36 @@ export function ClientAppHome({
       <header className={`sticky top-0 z-40 border-b px-4 py-3 ${
         isDark ? "border-zinc-800 bg-[#101112]" : "border-zinc-200 bg-[#f7f8f5]"
       }`}>
-        <div className="mx-auto flex max-w-3xl items-center justify-between gap-3">
-          <div>
-            <p className={`text-base font-black leading-none ${isDark ? "text-white" : "text-[#111]"}`}>
+        <div className="mx-auto flex max-w-3xl items-center gap-2">
+          <div className="flex shrink-0 items-center gap-1.5">
+            <button
+              type="button"
+              onClick={handleBack}
+              className={`inline-flex h-9 w-9 items-center justify-center rounded-full border shadow-sm ${
+                isDark ? "border-zinc-800 bg-zinc-900 text-zinc-100" : "border-zinc-200 bg-white text-zinc-800"
+              }`}
+              aria-label="Go back"
+              title="Back"
+            >
+              <ArrowLeft size={16} />
+            </button>
+            <button
+              type="button"
+              onClick={handleHome}
+              className={`inline-flex h-9 w-9 items-center justify-center rounded-full border shadow-sm ${
+                isDark ? "border-zinc-800 bg-zinc-900 text-emerald-300" : "border-zinc-200 bg-white text-emerald-700"
+              }`}
+              aria-label="Go home"
+              title="Home"
+            >
+              <Home size={16} />
+            </button>
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className={`truncate text-base font-black leading-none ${isDark ? "text-white" : "text-[#111]"}`}>
               {appSettings.appName}
             </p>
-            <p className={`mt-1 text-xs font-semibold ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>
+            <p className={`mt-1 truncate text-xs font-semibold ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>
               {appSettings.appSubtitle} - v{localVersion}
             </p>
           </div>
@@ -283,7 +611,7 @@ export function ClientAppHome({
             <button
               type="button"
               onClick={toggleTheme}
-              className={`inline-flex h-10 w-10 items-center justify-center rounded-full border shadow-sm ${
+              className={`inline-flex h-9 w-9 items-center justify-center rounded-full border shadow-sm ${
                 isDark ? "border-zinc-800 bg-zinc-900 text-zinc-100" : "border-zinc-200 bg-white text-zinc-800"
               }`}
               aria-label="Toggle dark mode"
@@ -294,7 +622,7 @@ export function ClientAppHome({
               type="button"
               onClick={updateAvailable ? handleUpdate : undefined}
               disabled={isUpdating || !updateAvailable}
-              className={`inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-full border px-3 text-xs font-bold shadow-sm ${
+              className={`inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-full border px-2 text-[11px] font-bold shadow-sm ${
                 updateAvailable
                   ? "border-emerald-200 bg-emerald-600 text-white"
                   : isDark
@@ -302,7 +630,7 @@ export function ClientAppHome({
                     : "border-zinc-200 bg-white text-zinc-500"
               } disabled:cursor-default disabled:opacity-80`}
             >
-              <RefreshCw size={15} className={isUpdating ? "animate-spin" : ""} />
+              <RefreshCw size={14} className={isUpdating ? "animate-spin" : ""} />
               {isUpdating ? "Updating" : updateAvailable ? `Update ${latestVersion}` : "Up to date"}
             </button>
           </div>
@@ -368,8 +696,6 @@ export function ClientAppHome({
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {SHORTCUTS.map((shortcut) => {
-              const Icon = shortcut.Icon;
-
               return (
                 <button
                   key={shortcut.id}
@@ -379,9 +705,7 @@ export function ClientAppHome({
                     isDark ? "border-zinc-800 bg-[#171819]" : "border-zinc-200 bg-white"
                   }`}
                 >
-                  <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border ${shortcut.tone}`}>
-                    <Icon size={20} />
-                  </span>
+                  <ServiceLogo logoText={`${shortcut.id} ${shortcut.title}`} isDark={isDark} size="sm" />
                   <span className="min-w-0 flex-1">
                     <span className={`block text-sm font-black ${isDark ? "text-zinc-100" : "text-zinc-950"}`}>{shortcut.title}</span>
                     <span className={`mt-1 block text-xs font-medium leading-5 ${isDark ? "text-zinc-400" : "text-zinc-600"}`}>
@@ -423,11 +747,7 @@ export function ClientAppHome({
                     index > 0 ? (isDark ? "border-t border-zinc-800" : "border-t border-zinc-100") : ""
                   }`}
                 >
-                  <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${
-                    isDark ? "bg-zinc-900 text-zinc-300" : "bg-zinc-100 text-zinc-700"
-                  }`}>
-                    <ShoppingBag size={18} />
-                  </span>
+                  <ServiceLogo service={service} isDark={isDark} size="sm" />
                   <span className="min-w-0 flex-1">
                     <span className={`block truncate text-sm font-black ${isDark ? "text-zinc-100" : "text-zinc-950"}`}>{service.title}</span>
                     <span className={`mt-1 block line-clamp-2 text-xs font-medium leading-5 ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>
