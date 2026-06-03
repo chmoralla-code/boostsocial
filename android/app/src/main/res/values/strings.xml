@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">PinoyBoosting Admin</string>
-    <string name="title_activity_main">PinoyBoosting Admin</string>
-    <string name="package_name">com.pinoyboosting.admin</string>
-    <string name="custom_url_scheme">com.pinoyboosting.admin</string>
+    <string name="app_name">PinoyBoosting</string>
+    <string name="title_activity_main">PinoyBoosting</string>
+    <string name="package_name">com.pinoyboosting.app</string>
+    <string name="custom_url_scheme">com.pinoyboosting.app</string>
 </resources>

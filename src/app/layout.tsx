@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import { FloatingSiteWidgets } from "@/components/FloatingSiteWidgets";
+import { ClientAppUpdateButton } from "@/components/ClientAppUpdateButton";
 import { PWARegister } from "@/components/PWARegister";
 import "./globals.css";
 
@@ -119,6 +120,7 @@ export default function RootLayout({
         <PWARegister />
         {children}
         <FloatingSiteWidgets />
+        <ClientAppUpdateButton />
       </body>
     </html>
   );

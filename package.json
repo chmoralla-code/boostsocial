@@ -10,11 +10,17 @@
     "android:add": "capacitor add android",
     "android:sync": "capacitor sync android",
     "android:open": "capacitor open android",
-    "android:build:debug": "cd android && gradlew.bat :app:assembleDebug"
+    "android:build:debug": "cd android && gradlew.bat :app:assembleDebug",
+    "android:build:release": "cd android && gradlew.bat :app:assembleRelease",
+    "ios:add": "capacitor add ios",
+    "ios:sync": "capacitor sync ios",
+    "ios:open": "capacitor open ios",
+    "mobile:sync": "capacitor sync"
   },
   "dependencies": {
-    "@capacitor/android": "^8.3.4",
-    "@capacitor/core": "^8.3.4",
+    "@capacitor/android": "8.4.0",
+    "@capacitor/core": "8.4.0",
+    "@capacitor/ios": "8.4.0",
     "@supabase/ssr": "^0.10.3",
     "@supabase/supabase-js": "^2.105.4",
     "clsx": "^2.1.1",
@@ -28,7 +34,7 @@
     "tailwind-merge": "^3.6.0"
   },
   "devDependencies": {
-    "@capacitor/cli": "^8.3.4",
+    "@capacitor/cli": "8.4.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",

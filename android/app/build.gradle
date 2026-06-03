@@ -1,11 +1,11 @@
 apply plugin: 'com.android.application'
 
 android {
-    namespace = "com.pinoyboosting.admin"
+    namespace = "com.pinoyboosting.app"
     compileSdk = rootProject.ext.compileSdkVersion
     buildToolsVersion = "36.0.0"
     defaultConfig {
-        applicationId "com.pinoyboosting.admin"
+        applicationId "com.pinoyboosting.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1

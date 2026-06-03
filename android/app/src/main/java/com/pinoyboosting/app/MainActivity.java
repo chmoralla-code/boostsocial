@@ -1,4 +1,4 @@
-package com.pinoyboosting.admin;
+package com.pinoyboosting.app;
 
 import com.getcapacitor.BridgeActivity;
 
