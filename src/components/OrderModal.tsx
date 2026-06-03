@@ -144,6 +144,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
   const isPageService = titleLower.includes("page");
   const isReactionService = titleLower.includes("reaction");
   const isGeminiService = titleLower.includes("gemini");
+  const isPisoWifiService = titleLower.includes("pisowifi") || titleLower.includes("piso wifi");
   const isEapService = titleLower.includes("eap") || titleLower.includes("tplink");
   const isSoftwareService = 
     titleLower.includes("software") || 
@@ -184,6 +185,9 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
   } else if (isGeminiService) {
     unitLabel = "Accounts";
     unitSingle = "account";
+  } else if (isPisoWifiService) {
+    unitLabel = "Packages";
+    unitSingle = "package";
   } else if (isEapService) {
     unitLabel = "Adaptations";
     unitSingle = "adaptation";
@@ -226,10 +230,11 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
 
   // Dynamic min quantity and free trial amount based on JSON description pack
   const parsedDetails = (() => {
+    const isSingleItemService = isPageService || isEapService || isSoftwareService || isPisoWifiService;
     const defaults = {
-      min_quantity: (isPageService || isEapService || isSoftwareService) ? 1 : 100,
-      free_trial_amount: (isPageService || isEapService || isSoftwareService) ? 0 : 50,
-      custom_fields: [] as {id: string, label: string, type?: string, options?: string[]}[],
+      min_quantity: isSingleItemService ? 1 : 100,
+      free_trial_amount: isSingleItemService ? 0 : 50,
+      custom_fields: [] as {id: string, label: string, type?: string, options?: string[], required?: boolean}[],
       smm_service_id: null as string | null
     };
 
@@ -238,8 +243,8 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
         const p = parseDescription(service.description);
         if (p) {
           return {
-            min_quantity: (isPageService || isEapService || isSoftwareService) ? 1 : (Number(p.min_quantity) || defaults.min_quantity),
-            free_trial_amount: (isPageService || isEapService || isSoftwareService) ? 0 : (Number(p.free_trial_amount) || defaults.free_trial_amount),
+            min_quantity: isSingleItemService ? 1 : (Number(p.min_quantity) || defaults.min_quantity),
+            free_trial_amount: Number.isFinite(Number(p.free_trial_amount)) ? Number(p.free_trial_amount) : defaults.free_trial_amount,
             custom_fields: p.custom_fields || [],
             smm_service_id: p.smm_service_id ? String(p.smm_service_id) : null
           };
@@ -250,7 +255,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
   })();
 
   // Safe min quantity floor for per-1,000 services
-  const minQty = (isPageService || isGeminiService || isEapService || isSoftwareService)
+  const minQty = (isPageService || isGeminiService || isEapService || isSoftwareService || isPisoWifiService)
     ? 1
     : Math.max(parsedDetails.min_quantity || 100, 1);
 
@@ -280,7 +285,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
       setSelectedReactions(["Like"]);
       setEapDeviceCount(1);
       
-      if (isEapService || isSoftwareService || isPageService) {
+      if (isEapService || isSoftwareService || isPageService || isPisoWifiService) {
         setQuantity(1);
       } else if (presetQuantity) {
         setQuantity(presetQuantity);
@@ -321,7 +326,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
 
       checkAuth();
     }
-  }, [isOpen, presetQuantity, isPageService, isEapService, isSoftwareService]);
+  }, [isOpen, presetQuantity, isPageService, isEapService, isSoftwareService, isPisoWifiService]);
 
   useEffect(() => {
     if (isEapService) {
@@ -337,7 +342,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
   const baseTotal = effectiveQuantity * dynamicReactionPrice;
 
   // Fake Marketing Discount Engine (Visual-only discount to incentivize sales)
-  const fakeDiscountPercent = isEapService 
+  const fakeDiscountPercent = (isEapService || isPisoWifiService)
     ? 0 
     : (minQty === 1
       ? (effectiveQuantity >= 5 ? 20 : effectiveQuantity >= 3 ? 15 : 10)
@@ -348,6 +353,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
   const vipSummary = getVipDiscountSummary(profile, totalPrice);
   const payableTotal = vipSummary.discountPercent > 0 ? vipSummary.finalAmount : totalPrice;
   const hasVipDiscount = vipSummary.discountPercent > 0 && vipSummary.savingsAmount > 0;
+  const hasWalletBalanceForOrder = Boolean(!isPisoWifiService && user && profile && Number(profile.balance) >= payableTotal);
   const formatPrice = (amount: number) => amount.toFixed(2);
 
 
@@ -586,7 +592,9 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
           <h2 className="text-2xl font-black text-white mb-1.5 tracking-tight flex items-center gap-2">
             Order <span className="text-[#1877F2]">{serviceTitle}</span>
           </h2>
-          <p className="text-slate-400 text-sm mb-6">Process your amplification request securely.</p>
+          <p className="text-slate-400 text-sm mb-6">
+            {isPisoWifiService ? "Submit your PisoWiFi package details for GCash verification." : "Process your amplification request securely."}
+          </p>
 
           {success ? (
             <div className="bg-[#121212] text-white p-5 rounded-xl border border-slate-800 text-center space-y-4 animate-in zoom-in duration-300 max-h-[72vh] overflow-y-auto">
@@ -839,6 +847,17 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                         </p>
                       </div>
                     )}
+
+                    {isPisoWifiService && (
+                      <div className="bg-[#1877F2]/20 border border-[#1877F2]/40 p-4 rounded-xl mt-3 text-left">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-[#1877F2] block mb-1">
+                          PisoWiFi Pending Review
+                        </span>
+                        <p className="text-[10px] text-slate-200 leading-relaxed font-semibold">
+                          Your PisoWiFi package order is pending admin review. We will verify your GCash receipt, prepare the license/equipment details, and contact you using the submitted name, phone, address, and WiFi configuration.
+                        </p>
+                      </div>
+                    )}
                   </>
                 )
               )}
@@ -944,35 +963,52 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                   ) : (
                     <>
                       <span className="text-[10px] font-black uppercase tracking-widest text-[#1877F2] block border-b border-slate-850 pb-2">
-                        📋 Custom Request Specifications
+                        {isPisoWifiService ? "PisoWiFi Installation Details" : "Custom Request Specifications"}
                       </span>
-                      {parsedDetails.custom_fields.map((field: {id: string, label: string, type?: string, options?: string[]}) => (
-                        <div key={field.id}>
-                          <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5">{field.label}</label>
-                          {field.type === 'select' && field.options ? (
-                            <select
-                              required
-                              value={customFieldValues[field.label] || ""}
-                              onChange={(e) => setCustomFieldValues({...customFieldValues, [field.label]: e.target.value})}
-                              className="w-full px-4 py-3 rounded-xl bg-[#282828] border border-slate-700/60 focus:outline-none focus:ring-2 focus:ring-[#1877F2] text-white transition-all text-sm font-medium cursor-pointer"
-                            >
-                              <option value="">-- Select {field.label} --</option>
-                              {field.options.map((opt) => (
-                                <option key={opt} value={opt}>{opt}</option>
-                              ))}
-                            </select>
-                          ) : (
-                            <input 
-                              type={field.label.toLowerCase().includes("password") || field.id.toLowerCase().includes("password") ? "password" : "text"}
-                              required={!(field.id.toLowerCase().includes("blank") || field.id.toLowerCase().includes("custom") || field.label.toLowerCase().includes("blank"))}
-                              value={customFieldValues[field.label] || ""}
-                              onChange={(e) => setCustomFieldValues({...customFieldValues, [field.label]: e.target.value})}
-                              className="w-full px-4 py-3 rounded-xl bg-[#282828] border border-slate-700/60 focus:outline-none focus:ring-2 focus:ring-[#1877F2] text-white transition-all text-sm font-medium"
-                              placeholder={field.label.toLowerCase().includes("facebook") ? "e.g. https://facebook.com/username" : `Enter ${field.label.toLowerCase()}`}
-                            />
-                          )}
-                        </div>
-                      ))}
+                      {parsedDetails.custom_fields.map((field: {id: string, label: string, type?: string, options?: string[], required?: boolean}) => {
+                        const fieldRequired = field.required !== false && !(field.id.toLowerCase().includes("blank") || field.id.toLowerCase().includes("custom") || field.label.toLowerCase().includes("blank"));
+                        const fieldType = String(field.type || "").toLowerCase();
+                        const fieldValue = customFieldValues[field.label] || "";
+                        const updateField = (value: string) => setCustomFieldValues({...customFieldValues, [field.label]: value});
+                        const commonClass = "w-full px-4 py-3 rounded-xl bg-[#282828] border border-slate-700/60 focus:outline-none focus:ring-2 focus:ring-[#1877F2] text-white transition-all text-sm font-medium";
+
+                        return (
+                          <div key={field.id}>
+                            <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5">{field.label}</label>
+                            {fieldType === 'select' && field.options ? (
+                              <select
+                                required={fieldRequired}
+                                value={fieldValue}
+                                onChange={(e) => updateField(e.target.value)}
+                                className={`${commonClass} cursor-pointer`}
+                              >
+                                <option value="">-- Select {field.label} --</option>
+                                {field.options.map((opt) => (
+                                  <option key={opt} value={opt}>{opt}</option>
+                                ))}
+                              </select>
+                            ) : fieldType === "textarea" ? (
+                              <textarea
+                                required={fieldRequired}
+                                value={fieldValue}
+                                onChange={(e) => updateField(e.target.value)}
+                                rows={3}
+                                className={`${commonClass} resize-none`}
+                                placeholder={`Enter ${field.label.toLowerCase()}`}
+                              />
+                            ) : (
+                              <input
+                                type={field.label.toLowerCase().includes("password") || field.id.toLowerCase().includes("password") ? "password" : (fieldType || "text")}
+                                required={fieldRequired}
+                                value={fieldValue}
+                                onChange={(e) => updateField(e.target.value)}
+                                className={commonClass}
+                                placeholder={field.label.toLowerCase().includes("facebook") ? "e.g. https://facebook.com/username" : `Enter ${field.label.toLowerCase()}`}
+                              />
+                            )}
+                          </div>
+                        );
+                      })}
                     </>
                   )}
 
@@ -1322,9 +1358,13 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                     <div className="bg-[#1877F2]/5 border border-[#1877F2]/10 p-3 rounded-xl flex items-start gap-2 animate-in fade-in duration-300">
                       <span className="text-sm mt-0.5">💡</span>
                       <p className="text-[10px] text-slate-400 leading-relaxed font-semibold text-left">
-                        1 unit = 1 {unitSingle}. To order 1,000 {unitLabel.toLowerCase()}, simply type <strong className="text-[#1877F2]">1000</strong>. 
+                        {isPisoWifiService ? (
+                          <>1 unit = 1 {unitSingle}. Increase quantity only when buying multiple PisoWiFi packages.</>
+                        ) : (
+                          <>1 unit = 1 {unitSingle}. To order 1,000 {unitLabel.toLowerCase()}, simply type <strong className="text-[#1877F2]">1000</strong>.</>
+                        )}
                         <span className="block mt-1 text-[9px] text-[#1877F2] font-black uppercase tracking-wider">
-                          🎯 Minimum Requirement: {minQty.toLocaleString()} {unitLabel.toLowerCase()}
+                          🎯 Minimum Requirement: {minQty.toLocaleString()} {minQty === 1 ? unitSingle : unitLabel.toLowerCase()}
                         </span>
                       </p>
                     </div>
@@ -1381,7 +1421,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                 )}
 
                 {/* Safety Curation Layer Reassurance */}
-{featureBadges && (
+{featureBadges && !isPisoWifiService && (
                   <div className="bg-[#1DB954]/5 border border-[#1DB954]/10 p-3.5 rounded-xl flex items-start gap-2 mt-3 animate-in fade-in duration-300">
                     <span className="text-sm mt-0.5">🛡️</span>
                     <p className="text-[10px] text-slate-355 leading-relaxed font-bold text-left">
@@ -1394,9 +1434,9 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                 {/* GCash Payment Receipt Upload */}
                 <div className="space-y-2 bg-[#121212] border border-slate-800 p-4 rounded-xl mt-3 text-left">
                   <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest flex justify-between items-center">
-                    <span>GCash Payment Receipt Screenshot {!(user && profile && Number(profile.balance) >= payableTotal) && <span className="text-red-500">*</span>}</span>
+                    <span>GCash Payment Receipt Screenshot {!hasWalletBalanceForOrder && <span className="text-red-500">*</span>}</span>
                     <span className="text-[8px] font-black uppercase text-red-500">
-                      {user && profile && Number(profile.balance) >= payableTotal ? "Optional for Wallet" : "Strictly Required"}
+                      {hasWalletBalanceForOrder ? "Optional for Wallet" : "Strictly Required"}
                     </span>
                   </label>
                   <div className="relative">
@@ -1422,7 +1462,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                 </div>
 
                 {/* GCash Quick QR for all manual checkouts to ensure the GCash payment flow is easily accessible */}
-                {!(user && profile && Number(profile.balance) >= payableTotal) && (
+                {!hasWalletBalanceForOrder && (
                   <div className="bg-[#121212] border border-slate-800/80 p-4 rounded-xl space-y-3 mt-3 animate-in fade-in duration-200">
                     <div className="flex justify-between items-center border-b border-slate-850 pb-2">
                       <span className="text-[10px] font-black uppercase tracking-widest text-[#1877F2] flex items-center gap-1.5">
@@ -1466,7 +1506,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
               )}
 
               <div className="flex flex-col gap-2 mt-4">
-                {user && profile && Number(profile.balance) >= payableTotal && (
+                {hasWalletBalanceForOrder && (
                   <button 
                     type="button" 
                     onClick={handleWalletCheckout}
@@ -1482,7 +1522,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                   disabled={isSubmitting}
                   className="w-full bg-[#1877F2] hover:bg-[#4e8df5] disabled:bg-slate-700 text-white font-extrabold py-3.5 rounded-full transition-all duration-300 flex justify-center items-center gap-2 tracking-wider uppercase text-xs shadow-[0_0_15px_rgba(24,119,242,0.35)]"
                 >
-                  {isSubmitting ? <Loader2 className="animate-spin text-black" size={18} /> : (user && profile && Number(profile.balance) >= payableTotal ? 'Pay via GCash Instead' : 'Place Order')}
+                  {isSubmitting ? <Loader2 className="animate-spin text-black" size={18} /> : (hasWalletBalanceForOrder ? 'Pay via GCash Instead' : 'Place Order')}
                 </button>
               </div>
             </form>

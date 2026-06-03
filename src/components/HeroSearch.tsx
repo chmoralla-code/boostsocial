@@ -47,6 +47,8 @@ export function HeroSearch({ services }: HeroSearchProps) {
     const isSingleQty = 
       title.toLowerCase().includes("page") || 
       title.toLowerCase().includes("gemini") || 
+      title.toLowerCase().includes("pisowifi") ||
+      title.toLowerCase().includes("piso wifi") ||
       title.toLowerCase().includes("eap") || 
       title.toLowerCase().includes("tplink") || 
       title.toLowerCase().includes("software") || 
