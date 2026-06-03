@@ -14,6 +14,7 @@ import {
   Menu,
   Settings,
   ShoppingCart,
+  Smartphone,
   Users,
   Wallet,
   X,
@@ -73,6 +74,14 @@ const navGroups: { title: string; description: string; items: AdminNavItem[] }[]
         tone: "green",
       },
       {
+        href: "/admin/app",
+        label: "Mobile App",
+        shortLabel: "App",
+        description: "Edit APK screen, theme, and versions",
+        icon: Smartphone,
+        tone: "blue",
+      },
+      {
         href: "/admin/page-requests",
         label: "Page Requests",
         shortLabel: "Pages",
@@ -111,7 +120,7 @@ const bottomNavItems = [
   navGroups[0].items[1],
   navGroups[0].items[2],
   navGroups[2].items[0],
-  navGroups[1].items[0],
+  navGroups[1].items[1],
 ];
 
 const toneClasses = {

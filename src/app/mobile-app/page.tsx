@@ -1,9 +1,15 @@
 import Link from "next/link";
 import { ArrowLeft, Download, RefreshCw, ShieldCheck, Smartphone } from "lucide-react";
+import { readMobileAppSettingsFromAnyDatabase } from "@/lib/mobileAppServer";
 
 const apkPath = "/downloads/pinoyboosting.apk";
 
-export default function MobileAppDownloadPage() {
+export const dynamic = "force-dynamic";
+
+export default async function MobileAppDownloadPage() {
+  const settings = await readMobileAppSettingsFromAnyDatabase();
+  const updateAvailable = settings.updateAvailable && settings.latestVersion !== settings.appVersion;
+
   return (
     <main className="min-h-screen bg-[#0a0a0a] text-white relative overflow-hidden px-5 py-8">
       <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.012)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.012)_1px,transparent_1px)] bg-[size:44px_44px] pointer-events-none" />
@@ -32,17 +38,35 @@ export default function MobileAppDownloadPage() {
                 Install the Android client app for a simpler PinoyBoosting experience focused on
                 services, orders, wallet, tracking, and help.
               </p>
+              <div className="inline-flex rounded-full border border-[#1DB954]/20 bg-[#1DB954]/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-[#1DB954]">
+                Version {settings.appVersion}
+                {updateAvailable ? ` -> ${settings.latestVersion}` : " - up to date"}
+              </div>
+              <p className="text-xs font-bold text-slate-500">
+                APK file: pinoyboosting.apk
+              </p>
             </div>
 
             <div className="flex flex-col gap-3 sm:flex-row">
-              <a
-                href={apkPath}
-                download
-                className="inline-flex items-center justify-center gap-2 rounded-full bg-[#1DB954] px-6 py-4 text-xs font-black uppercase tracking-wider text-black shadow-lg shadow-emerald-500/10 transition hover:bg-[#1ed760]"
-              >
-                <Download size={17} />
-                Download pinoyboosting.apk
-              </a>
+              {updateAvailable ? (
+                <a
+                  href={apkPath}
+                  download
+                  className="inline-flex items-center justify-center gap-2 rounded-full bg-[#1DB954] px-6 py-4 text-xs font-black uppercase tracking-wider text-black shadow-lg shadow-emerald-500/10 transition hover:bg-[#1ed760]"
+                >
+                  <Download size={17} />
+                  Download update {settings.latestVersion}
+                </a>
+              ) : (
+                <button
+                  type="button"
+                  disabled
+                  className="inline-flex cursor-default items-center justify-center gap-2 rounded-full border border-slate-800 bg-[#181818]/80 px-6 py-4 text-xs font-black uppercase tracking-wider text-slate-400"
+                >
+                  <ShieldCheck size={17} />
+                  Up to date
+                </button>
+              )}
               <Link
                 href="/"
                 className="inline-flex items-center justify-center gap-2 rounded-full border border-slate-800 bg-[#181818]/80 px-6 py-4 text-xs font-black uppercase tracking-wider text-slate-200 transition hover:border-[#1DB954]/40 hover:text-white"
@@ -71,8 +95,9 @@ export default function MobileAppDownloadPage() {
                       Manual Updates
                     </h2>
                     <p className="mt-1 text-xs font-semibold leading-5 text-slate-400">
-                      The app includes an Update button that clears cached app assets and reloads
-                      the latest deployed version.
+                      {updateAvailable
+                        ? settings.updateMessage
+                        : "The current APK build is already marked as the latest app version."}
                     </p>
                   </div>
                 </div>

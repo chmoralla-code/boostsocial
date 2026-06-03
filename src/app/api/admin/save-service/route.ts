@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { syncBackupAdminClients } from "@/utils/supabase/dual-db";
+import { publishMobileAppUpdate } from "@/lib/mobileAppServer";
+
+function getErrorMessage(err: unknown) {
+  return err instanceof Error ? err.message : String(err);
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -135,6 +140,12 @@ export async function POST(req: NextRequest) {
           .eq("id", id);
       }, "save-service update sync");
 
+      try {
+        await publishMobileAppUpdate(supabase, "Service catalog changed. Tap Update to refresh the APK service list.");
+      } catch (updateErr) {
+        console.error("Mobile app update publish after service update failed:", updateErr);
+      }
+
       return NextResponse.json({ success: true, service: data });
     } else {
       // Insert new service
@@ -167,10 +178,16 @@ export async function POST(req: NextRequest) {
           ]);
       }, "save-service insert sync");
 
+      try {
+        await publishMobileAppUpdate(supabase, "New service added. Tap Update to refresh the APK service list.");
+      } catch (updateErr) {
+        console.error("Mobile app update publish after service insert failed:", updateErr);
+      }
+
       return NextResponse.json({ success: true, service: data });
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("Save service endpoint failed:", err);
-    return NextResponse.json({ error: err.message || err.toString() }, { status: 500 });
+    return NextResponse.json({ error: getErrorMessage(err) }, { status: 500 });
   }
 }
