@@ -68,6 +68,7 @@ interface ServiceCandidate {
   glow_color?: string;
   caption?: string;
   layout?: string;
+  image_url?: string;
 }
 
 const ORDER_PAGE_CANDIDATE = {
@@ -792,6 +793,7 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
             const candidateRateAmount = getCandidateRateAmount(card.rate_text);
             const candidateVipAmount = candidateRateAmount ? applyVipPrice(candidateRateAmount) : null;
             const hasCandidateVipPrice = Boolean(vipDiscountPercent && candidateRateAmount && candidateVipAmount && candidateVipAmount < candidateRateAmount);
+            const candidateImageUrl = card.image_url?.trim();
 
             return (
               <div 
@@ -809,36 +811,50 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
                   e.currentTarget.style.borderColor = `rgba(255, 255, 255, 0.04)`;
                 }}
               >
-                <div className="h-16 flex items-center justify-center group-hover:scale-115 group-hover:rotate-6 transition-transform duration-500 ease-out">
-                  {card.emoji === "Layers" ? (
-                    <Layers 
-                      size={40} 
-                      className="mb-4"
-                      style={{ 
-                        color: card.theme_color,
-                        filter: `drop-shadow(0 0 12px ${card.theme_color}45)`
-                      }} 
+                {candidateImageUrl ? (
+                  <div
+                    className="relative w-full aspect-[16/9] rounded-2xl overflow-hidden mb-5 border bg-black/30 shadow-inner"
+                    style={{ borderColor: `${card.theme_color}25` }}
+                  >
+                    <img
+                      src={candidateImageUrl}
+                      alt={`${card.title} service`}
+                      className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
                     />
-                  ) : card.id === "pisowifi-package" ? (
-                    <Wifi
-                      size={40}
-                      className="mb-4"
-                      style={{
-                        color: card.theme_color,
-                        filter: `drop-shadow(0 0 12px ${card.theme_color}45)`
-                      }}
-                    />
-                  ) : (
-                    <span 
-                      className="text-4xl mb-4 select-none"
-                      style={{ 
-                        filter: `drop-shadow(0 0 12px ${card.theme_color}45)`
-                      }}
-                    >
-                      {card.emoji}
-                    </span>
-                  )}
-                </div>
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-transparent pointer-events-none"></div>
+                  </div>
+                ) : (
+                  <div className="h-16 flex items-center justify-center group-hover:scale-115 group-hover:rotate-6 transition-transform duration-500 ease-out">
+                    {card.emoji === "Layers" ? (
+                      <Layers 
+                        size={40} 
+                        className="mb-4"
+                        style={{ 
+                          color: card.theme_color,
+                          filter: `drop-shadow(0 0 12px ${card.theme_color}45)`
+                        }} 
+                      />
+                    ) : card.id === "pisowifi-package" ? (
+                      <Wifi
+                        size={40}
+                        className="mb-4"
+                        style={{
+                          color: card.theme_color,
+                          filter: `drop-shadow(0 0 12px ${card.theme_color}45)`
+                        }}
+                      />
+                    ) : (
+                      <span 
+                        className="text-4xl mb-4 select-none"
+                        style={{ 
+                          filter: `drop-shadow(0 0 12px ${card.theme_color}45)`
+                        }}
+                      >
+                        {card.emoji}
+                      </span>
+                    )}
+                  </div>
+                )}
                 
                 <h3 
                   className="uppercase text-xs font-black tracking-widest mb-2"

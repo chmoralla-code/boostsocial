@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Layers, Save, CheckCircle, XCircle, Loader2, Sparkles, ChevronDown, ChevronUp } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { Layers, Save, CheckCircle, XCircle, Loader2, Sparkles, ChevronDown, ChevronUp, Upload, Image as ImageIcon, Trash2 } from "lucide-react";
 
 interface Candidate {
   id: string;
@@ -16,7 +16,22 @@ interface Candidate {
   theme_color: string;
   btn_bg: string;
   glow_color: string;
+  image_url?: string;
 }
+
+function getErrorMessage(err: unknown, fallback: string) {
+  if (err instanceof Error && err.message) return err.message;
+  if (typeof err === "string" && err) return err;
+  return fallback;
+}
+
+const normalizeCandidates = (items: Candidate[]) =>
+  items.map((item) => ({
+    ...item,
+    caption: item.caption || "",
+    layout: item.layout || "standard",
+    image_url: item.image_url || ""
+  }));
 
 export function ServicesCandidatesPanel() {
   const [candidates, setCandidates] = useState<Candidate[]>([]);
@@ -24,19 +39,9 @@ export function ServicesCandidatesPanel() {
   const [isSaving, setIsSaving] = useState(false);
   const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
   const [openCardId, setOpenCardId] = useState<string | null>("facebook");
+  const [uploadingCardId, setUploadingCardId] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchCandidates();
-  }, []);
-
-  const normalizeCandidates = (items: Candidate[]) =>
-    items.map((item) => ({
-      ...item,
-      caption: item.caption || "",
-      layout: item.layout || "standard"
-    }));
-
-  const fetchCandidates = async () => {
+  const fetchCandidates = useCallback(async () => {
     try {
       const res = await fetch("/api/admin/services-candidates");
       const data = await res.json();
@@ -45,13 +50,18 @@ export function ServicesCandidatesPanel() {
       } else {
         throw new Error(data.error || "Failed to load candidates");
       }
-    } catch (e: any) {
+    } catch (e) {
       console.error(e);
       setResult({ success: false, message: "Failed to fetch active services candidates settings." });
     } finally {
       setFetching(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchCandidates();
+  }, [fetchCandidates]);
 
   const handleFieldChange = (index: number, field: keyof Candidate, value: string) => {
     const updated = [...candidates];
@@ -103,8 +113,8 @@ export function ServicesCandidatesPanel() {
       }
 
       setResult({ success: true, message: "✅ Services candidates updated and synchronized live across your domain!" });
-    } catch (err: any) {
-      setResult({ success: false, message: `❌ ${err.message || "An error occurred while saving."}` });
+    } catch (err) {
+      setResult({ success: false, message: `❌ ${getErrorMessage(err, "An error occurred while saving.")}` });
     } finally {
       setIsSaving(false);
     }
@@ -112,6 +122,52 @@ export function ServicesCandidatesPanel() {
 
   const toggleCard = (id: string) => {
     setOpenCardId(openCardId === id ? null : id);
+  };
+
+  const handleImageUpload = async (index: number, file?: File | null) => {
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      setResult({ success: false, message: "Please choose a valid image file." });
+      return;
+    }
+
+    if (file.size > 8 * 1024 * 1024) {
+      setResult({ success: false, message: "Image is too large. Maximum size is 8MB." });
+      return;
+    }
+
+    const card = candidates[index];
+    setUploadingCardId(card.id);
+    setResult(null);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("candidateId", card.id);
+
+      const res = await fetch("/api/admin/upload-service-candidate-image", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Image upload failed");
+      }
+
+      handleFieldChange(index, "image_url", data.url);
+      setResult({ success: true, message: "Image uploaded. Save the candidates configuration to publish it." });
+    } catch (err) {
+      setResult({ success: false, message: getErrorMessage(err, "Failed to upload image.") });
+    } finally {
+      setUploadingCardId(null);
+    }
+  };
+
+  const handleRemoveImage = (index: number) => {
+    handleFieldChange(index, "image_url", "");
+    setResult({ success: true, message: "Image removed. Save the candidates configuration to publish it." });
   };
 
   if (fetching) {
@@ -208,6 +264,60 @@ export function ServicesCandidatesPanel() {
                         placeholder="e.g. Page & Post Services"
                         className="w-full bg-[#181818] border border-slate-850 rounded-xl px-4.5 py-2.5 text-xs font-bold text-white placeholder-slate-650 focus:outline-none focus:border-[#1DB954]"
                       />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_220px] gap-4 items-stretch">
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-black uppercase text-slate-500 tracking-wider">Card Picture URL</label>
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <input
+                          type="url"
+                          value={card.image_url || ""}
+                          onChange={(e) => handleFieldChange(idx, "image_url", e.target.value)}
+                          placeholder="https://..."
+                          className="flex-grow bg-[#181818] border border-slate-850 rounded-xl px-4.5 py-2.5 text-xs font-bold text-white placeholder-slate-650 focus:outline-none focus:border-[#1DB954]"
+                        />
+                        <label className="inline-flex items-center justify-center gap-2 bg-[#1DB954] hover:bg-[#1ed760] disabled:bg-slate-850 disabled:text-slate-550 text-black font-extrabold px-4 py-2.5 rounded-xl text-xs uppercase tracking-wider transition-all cursor-pointer shadow-md whitespace-nowrap">
+                          {uploadingCardId === card.id ? <Loader2 size={14} className="animate-spin text-black" /> : <Upload size={14} />}
+                          {uploadingCardId === card.id ? "Uploading" : "Upload"}
+                          <input
+                            type="file"
+                            accept="image/*"
+                            disabled={uploadingCardId === card.id}
+                            onChange={(e) => {
+                              handleImageUpload(idx, e.target.files?.[0]);
+                              e.currentTarget.value = "";
+                            }}
+                            className="hidden"
+                          />
+                        </label>
+                        {card.image_url && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveImage(idx)}
+                            disabled={uploadingCardId === card.id}
+                            className="inline-flex items-center justify-center gap-2 bg-slate-800 hover:bg-red-500/15 disabled:opacity-50 text-red-300 hover:text-red-200 border border-slate-700 hover:border-red-500/30 font-extrabold px-4 py-2.5 rounded-xl text-xs uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap"
+                          >
+                            <Trash2 size={14} />
+                            Remove
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    <div className="bg-[#181818] border border-slate-850 rounded-xl overflow-hidden min-h-[126px] flex items-center justify-center">
+                      {card.image_url ? (
+                        <img
+                          src={card.image_url}
+                          alt={`${card.title} preview`}
+                          className="w-full h-full min-h-[126px] object-cover"
+                        />
+                      ) : (
+                        <div className="text-slate-600 flex flex-col items-center gap-2 text-[10px] font-black uppercase tracking-widest">
+                          <ImageIcon size={22} />
+                          No Image
+                        </div>
+                      )}
                     </div>
                   </div>
 
