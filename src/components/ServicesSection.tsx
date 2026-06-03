@@ -8,7 +8,7 @@ import { StatCounters } from "./StatCounters";
 import { FaqSection } from "./FaqSection";
 import { ReviewsSection } from "./ReviewsSection";
 import { SmmCatalogModal } from "./SmmCatalogModal";
-import { Layers, X, Loader2 } from "lucide-react";
+import { Layers, X, Loader2, Wifi } from "lucide-react";
 import { parseDescription, matchesServiceQualityFilter } from "@/utils/serviceHelpers";
 import { createClient } from "@/utils/supabase/client";
 import { getVipDiscountPercent, isVipActive } from "@/utils/vip";
@@ -23,6 +23,7 @@ interface Service {
 }
 
 type PlatformType = "facebook" | "instagram" | "tiktok" | "youtube";
+type OtherServiceGroup = "utilities" | "pisowifi";
 
 interface SmmService {
   id: string;
@@ -51,7 +52,22 @@ interface ReactionVariant extends ReactionVariantConfig {
 interface ServicesSectionProps {
   services: Service[];
   servicesBg?: { videoUrl: string; opacity: number };
-  servicesCandidates?: any[] | null;
+  servicesCandidates?: ServiceCandidate[] | null;
+}
+
+interface ServiceCandidate {
+  id: string;
+  emoji: string;
+  tag: string;
+  title: string;
+  description: string;
+  rate_prefix: string;
+  rate_text: string;
+  theme_color: string;
+  btn_bg?: string;
+  glow_color?: string;
+  caption?: string;
+  layout?: string;
 }
 
 const ORDER_PAGE_CANDIDATE = {
@@ -137,6 +153,7 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
 
   // New state for "Other Services" visual selector modal
   const [isOtherModalOpen, setIsOtherModalOpen] = useState(false);
+  const [otherServiceGroup, setOtherServiceGroup] = useState<OtherServiceGroup>("utilities");
   
   // New state for "RixeySMM Catalog" explorer modal
   const [isSmmCatalogModalOpen, setIsSmmCatalogModalOpen] = useState(false);
@@ -401,20 +418,22 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
     setIsModalOpen(true);
   };
 
-  // Segment services: otherServices are Gemini, PisoWiFi, EAP TP-Link, and Architectural Software (Lifetime License)
-  const otherServiceIds = [
+  // Segment services into utility bundles and dedicated PisoWiFi packages.
+  const utilityServiceIds = [
     "530e797c-62d1-467a-bf23-310c169a7103", // Gemini Pro
-    "bace2033-2a35-491f-ad83-ab5fccffb6eb", // PisoWiFi
     "8134f872-1738-44f1-adb0-bc341e64ace0", // EAP TP-Link
     "03185a81-49f3-4255-868e-9e9ec3189497"  // Architectural Software / Lifetime License
   ];
 
-  const otherServices = services.filter((s) => {
+  const pisoWifiServiceIds = [
+    "bace2033-2a35-491f-ad83-ab5fccffb6eb", // PisoWiFi
+  ];
+
+  const utilityServices = services.filter((s) => {
     const t = s.title.toLowerCase();
     return (
-      otherServiceIds.includes(s.id) ||
+      utilityServiceIds.includes(s.id) ||
       t.includes("gemini") ||
-      t.includes("pisowifi") ||
       t.includes("eap") ||
       t.includes("tplink") ||
       t.includes("architectural") ||
@@ -423,8 +442,19 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
     );
   });
 
-  // Core services are those that are not classified as other services
-  const coreServices = services.filter((s) => !otherServices.some((o) => o.id === s.id));
+  const pisoWifiServices = services.filter((s) => {
+    const t = s.title.toLowerCase();
+    return (
+      pisoWifiServiceIds.includes(s.id) ||
+      t.includes("pisowifi") ||
+      t.includes("piso wifi")
+    );
+  });
+
+  const specialServices = [...utilityServices, ...pisoWifiServices];
+
+  // Core services are those that are not classified as special utility/package services
+  const coreServices = services.filter((s) => !specialServices.some((o) => o.id === s.id));
 
   // Cheapest SMM followers candidates for each major platform to show separately
   const fbFollowers = services.find(s => s.id === "6ef1e136-c2c8-4719-8c12-b0f20504d15e") || services.find(s => s.title.toLowerCase() === "fb followers" || s.title.toLowerCase() === "facebook followers");
@@ -432,7 +462,7 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
   const tiktokFollowers = services.find(s => s.id === "2a98f123-1d42-45e3-82ef-fb347cda6541") || services.find(s => s.title.toLowerCase() === "tiktok followers");
   const ytSubscribers = services.find(s => s.id === "ab348d21-f123-45c1-bd76-e137fab62aa1") || services.find(s => s.title.toLowerCase() === "yt subscribers" || s.title.toLowerCase() === "youtube subscribers");
 
-  const DEFAULT_CANDIDATES = [
+  const DEFAULT_CANDIDATES: ServiceCandidate[] = [
     {
       id: "facebook",
       emoji: "📘",
@@ -482,13 +512,26 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
       glow_color: "rgba(255, 0, 0, 0.45)"
     },
     {
+      id: "pisowifi-package",
+      emoji: "Wifi",
+      tag: "PISOWIFI PACKAGE",
+      title: "PISOWIFI PACKAGE",
+      caption: "Starter, Professional & Enterprise",
+      description: "Dedicated PisoWiFi package bundles with the existing GCash QR payment flow, receipt upload, and installation details for manual admin review.",
+      rate_prefix: "Package Rates",
+      rate_text: "Starter \u20B15,800 | Professional \u20B18,500 | Enterprise \u20B111,000",
+      theme_color: "#1877F2",
+      btn_bg: "bg-[#1877F2] hover:bg-[#4e8df5]",
+      glow_color: "rgba(24, 119, 242, 0.45)"
+    },
+    {
       id: "other",
       emoji: "Layers",
       tag: "OTHER SERVICES",
       title: "Specialty & Utilities",
-      description: "Premium digital memberships, PisoWiFi setups, network router optimizations, and pre-activated professional architectural design tools.",
+      description: "Premium digital memberships, network router optimizations, and pre-activated professional architectural design tools.",
       rate_prefix: "Included services",
-      rate_text: "Gemini Subscriptions, PisoWiFi setups, EAP TP-Link routers, and Architectural Software",
+      rate_text: "Gemini Subscriptions, EAP TP-Link routers, and Architectural Software",
       theme_color: "#1877F2",
       btn_bg: "bg-[#1877F2] hover:bg-[#4e8df5]",
       glow_color: "rgba(24, 119, 242, 0.45)"
@@ -508,19 +551,47 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
 
   ];
 
+  const mergeCandidatesWithDefaults = (savedCandidates: unknown): ServiceCandidate[] => {
+    const candidateOrder = ["facebook", "instagram", "tiktok", "youtube", "order-page", "pisowifi-package", "other", "catalog"];
+    const sortCandidates = (cards: ServiceCandidate[]) => [...cards].sort((a, b) => {
+      const aRank = candidateOrder.indexOf(a.id || "");
+      const bRank = candidateOrder.indexOf(b.id || "");
+      return (aRank === -1 ? candidateOrder.length : aRank) - (bRank === -1 ? candidateOrder.length : bRank);
+    });
+
+    if (!Array.isArray(savedCandidates)) {
+      return sortCandidates([
+        ...DEFAULT_CANDIDATES.slice(0, 4),
+        ORDER_PAGE_CANDIDATE,
+        ...DEFAULT_CANDIDATES.slice(4)
+      ]);
+    }
+
+    const merged = [...savedCandidates] as ServiceCandidate[];
+    if (!merged.some((item) => typeof item === "object" && item !== null && "id" in item && (item as { id?: unknown }).id === ORDER_PAGE_CANDIDATE.id)) {
+      merged.splice(Math.min(4, merged.length), 0, ORDER_PAGE_CANDIDATE);
+    }
+    for (const candidate of DEFAULT_CANDIDATES) {
+      if (!merged.some((item) => typeof item === "object" && item !== null && "id" in item && (item as { id?: unknown }).id === candidate.id)) {
+        const insertIndex = candidate.id === "order-page"
+          ? Math.min(4, merged.length)
+          : candidate.id === "pisowifi-package"
+            ? Math.min(5, merged.length)
+            : merged.length;
+        merged.splice(insertIndex, 0, candidate);
+      }
+    }
+
+    return sortCandidates(merged);
+  };
+
   const configuredCandidates = servicesCandidates && Array.isArray(servicesCandidates) && servicesCandidates.length > 0
     ? servicesCandidates
     : DEFAULT_CANDIDATES;
-  const activeCandidates = configuredCandidates.some((card) => card.id === ORDER_PAGE_CANDIDATE.id)
-    ? configuredCandidates
-    : [
-        ...configuredCandidates.slice(0, 4),
-        ORDER_PAGE_CANDIDATE,
-        ...configuredCandidates.slice(4)
-      ];
+  const activeCandidates = mergeCandidatesWithDefaults(configuredCandidates);
 
   const filteredServicesForCalculator = services.filter((srv) => {
-    const isOther = otherServices.some((o) => o.id === srv.id);
+    const isOther = specialServices.some((o) => o.id === srv.id);
     if (isOther) return false;
 
     const desc = typeof srv.description === "string" ? srv.description : (srv.description?.description || "");
@@ -694,8 +765,17 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
                 window.location.href = "/order-page";
               };
             } else if (card.id === "other") {
-              if (otherServices.length === 0) return null;
-              clickAction = () => setIsOtherModalOpen(true);
+              if (utilityServices.length === 0) return null;
+              clickAction = () => {
+                setOtherServiceGroup("utilities");
+                setIsOtherModalOpen(true);
+              };
+            } else if (card.id === "pisowifi-package") {
+              if (pisoWifiServices.length === 0) return null;
+              clickAction = () => {
+                setOtherServiceGroup("pisowifi");
+                setIsOtherModalOpen(true);
+              };
             } else if (card.id === "catalog") {
               clickAction = () => setIsSmmCatalogModalOpen(true);
             }
@@ -738,6 +818,15 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
                         color: card.theme_color,
                         filter: `drop-shadow(0 0 12px ${card.theme_color}45)`
                       }} 
+                    />
+                  ) : card.id === "pisowifi-package" ? (
+                    <Wifi
+                      size={40}
+                      className="mb-4"
+                      style={{
+                        color: card.theme_color,
+                        filter: `drop-shadow(0 0 12px ${card.theme_color}45)`
+                      }}
                     />
                   ) : (
                     <span 
@@ -840,7 +929,7 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
                   onMouseEnter={(e) => e.currentTarget.style.filter = "brightness(1.1)"}
                   onMouseLeave={(e) => e.currentTarget.style.filter = "none"}
                 >
-                  {card.id === "order-page" ? "ORDER PAGE" : "VIEW"}
+                  {card.id === "order-page" ? "ORDER PAGE" : card.id === "pisowifi-package" ? "VIEW PACKAGES" : "VIEW"}
                 </button>
               </div>
             );
@@ -990,7 +1079,10 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#090909]/90 backdrop-blur-md p-4 animate-in fade-in duration-300">
           <div className="bg-[#121212]/95 border border-slate-800/80 rounded-3xl w-full max-w-5xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] overflow-hidden relative transform transition-all animate-in zoom-in-95 duration-300 max-h-[90vh] flex flex-col">
             <button 
-              onClick={() => setIsOtherModalOpen(false)}
+              onClick={() => {
+                setIsOtherModalOpen(false);
+                setOtherServiceGroup("utilities");
+              }}
               className="absolute top-6 right-6 text-slate-400 hover:text-white transition-colors p-1.5 hover:bg-slate-850 rounded-xl z-20 cursor-pointer"
               title="Close"
             >
@@ -999,14 +1091,26 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
             
             <div className="p-8 sm:p-10 border-b border-slate-800/50">
               <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-                Other <span className="text-[#1877F2]">Premium Services</span>
+                {otherServiceGroup === "pisowifi" ? (
+                  <>
+                    PISOWIFI <span className="text-[#1877F2]">PACKAGE</span>
+                  </>
+                ) : (
+                  <>
+                    Other <span className="text-[#1877F2]">Premium Services</span>
+                  </>
+                )}
               </h2>
-              <p className="text-slate-400 text-sm mt-1.5">Configure your custom activation or specialty utility subscriptions.</p>
+              <p className="text-slate-400 text-sm mt-1.5">
+                {otherServiceGroup === "pisowifi"
+                  ? "Starter, Professional, and Enterprise PisoWiFi bundles with the retained GCash QR checkout."
+                  : "Configure your custom activation or specialty utility subscriptions."}
+              </p>
             </div>
             
             <div className="overflow-y-auto p-8 sm:p-10 flex-grow">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-                {otherServices.map((service) => (
+                {(otherServiceGroup === "pisowifi" ? pisoWifiServices : utilityServices).map((service) => (
                   <ServiceCard 
                     key={service.id}
                     id={service.id}
@@ -1017,6 +1121,7 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
                     vipDiscountPercent={vipDiscountPercent}
                     onOrder={(id, title, price) => {
                       setIsOtherModalOpen(false); // Auto-close selector sub-modal
+                      setOtherServiceGroup("utilities");
                       setSelectedService(service);
                       handleOrder(id, title, price, service.description); // Fire the core order/redirect process
                     }}

@@ -53,6 +53,19 @@ const DEFAULT_CANDIDATES = [
     glow_color: "rgba(255, 0, 0, 0.45)"
   },
   {
+    id: "pisowifi-package",
+    emoji: "Wifi",
+    tag: "PISOWIFI PACKAGE",
+    title: "PISOWIFI PACKAGE",
+    caption: "Starter, Professional & Enterprise",
+    description: "Dedicated PisoWiFi package bundles with the existing GCash QR payment flow, receipt upload, and installation details for manual admin review.",
+    rate_prefix: "Package Rates",
+    rate_text: "Starter \u20B15,800 | Professional \u20B18,500 | Enterprise \u20B111,000",
+    theme_color: "#1877F2",
+    btn_bg: "bg-[#1877F2] hover:bg-[#4e8df5]",
+    glow_color: "rgba(24, 119, 242, 0.45)"
+  },
+  {
     id: "order-page",
     emoji: "📄",
     tag: "ORDER PAGE",
@@ -71,9 +84,9 @@ const DEFAULT_CANDIDATES = [
     emoji: "Layers",
     tag: "OTHER SERVICES",
     title: "Specialty & Utilities",
-    description: "Premium digital memberships, PisoWiFi setups, network router optimizations, and pre-activated professional architectural design tools.",
+    description: "Premium digital memberships, network router optimizations, and pre-activated professional architectural design tools.",
     rate_prefix: "Included services",
-    rate_text: "Gemini Subscriptions, PisoWiFi setups, EAP TP-Link routers, and Architectural Software",
+    rate_text: "Gemini Subscriptions, EAP TP-Link routers, and Architectural Software",
     theme_color: "#1877F2",
     btn_bg: "bg-[#1877F2] hover:bg-[#4e8df5]",
     glow_color: "rgba(24, 119, 242, 0.45)"
@@ -94,18 +107,29 @@ const DEFAULT_CANDIDATES = [
 ];
 
 function mergeDefaultCandidates(savedCandidates: unknown) {
+  const candidateOrder = ["facebook", "instagram", "tiktok", "youtube", "order-page", "pisowifi-package", "other", "catalog"];
+  const sortCandidates = (cards: Array<{ id?: string }>) => [...cards].sort((a, b) => {
+    const aRank = candidateOrder.indexOf(a.id || "");
+    const bRank = candidateOrder.indexOf(b.id || "");
+    return (aRank === -1 ? candidateOrder.length : aRank) - (bRank === -1 ? candidateOrder.length : bRank);
+  });
+
   if (!Array.isArray(savedCandidates)) {
-    return DEFAULT_CANDIDATES;
+    return sortCandidates(DEFAULT_CANDIDATES);
   }
 
   const merged = [...savedCandidates];
   for (const candidate of DEFAULT_CANDIDATES) {
     if (!merged.some((item) => typeof item === "object" && item !== null && "id" in item && (item as { id?: unknown }).id === candidate.id)) {
-      const insertIndex = candidate.id === "order-page" ? Math.min(4, merged.length) : merged.length;
+      const insertIndex = candidate.id === "order-page"
+        ? Math.min(4, merged.length)
+        : candidate.id === "pisowifi-package"
+          ? Math.min(5, merged.length)
+          : merged.length;
       merged.splice(insertIndex, 0, candidate);
     }
   }
-  return merged;
+  return sortCandidates(merged);
 }
 
 // Helper to check if the user is a logged-in administrator
