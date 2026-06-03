@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import { Loader2, Rocket, ArrowLeft, Eye, EyeOff, CheckCircle2, AlertCircle, Sparkles, MailCheck } from "lucide-react";
@@ -17,6 +17,7 @@ export default function LoginPage() {
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
   const [referralCode, setReferralCode] = useState("");
+  const [redirectTo, setRedirectTo] = useState("/");
   
   // Real-time email validation states
   const [emailVerifying, setEmailVerifying] = useState(false);
@@ -26,7 +27,7 @@ export default function LoginPage() {
   const [resendCountdown, setResendCountdown] = useState(0);
 
   const router = useRouter();
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   // Password strength checklist metrics (only shown on signup)
   const hasMinLength = password.length >= 8;
@@ -47,8 +48,10 @@ export default function LoginPage() {
   const strength = getStrengthLabel();
 
   useEffect(() => {
-    // 1. Check LocalStorage for "Remember Me" credentials
-    if (typeof window !== "undefined") {
+    const timeout = window.setTimeout(() => {
+      let appRedirect = "/";
+
+      // 1. Check LocalStorage for "Remember Me" credentials
       const savedEmail = localStorage.getItem("boostsocial_remember_email");
       if (savedEmail) {
         setEmail(savedEmail);
@@ -61,6 +64,14 @@ export default function LoginPage() {
       const code = params.get("code");
       const ref = params.get("ref");
       const errParam = params.get("error");
+      const nextParam = params.get("next");
+      const appParam = params.get("app");
+      appRedirect = nextParam?.startsWith("/") && !nextParam.startsWith("//")
+        ? nextParam
+        : appParam === "1"
+          ? "/app"
+          : "/";
+      setRedirectTo(appRedirect);
 
       if (verified === "true" || code) {
         setSuccess("✨ Account Successfully Activated! Your email has been verified. Welcome to your CYNETWORK workspace! Please sign in below to manage your services and track your orders in real time. 🚀");
@@ -72,19 +83,21 @@ export default function LoginPage() {
         setReferralCode(ref);
         setMode("signup");
       }
-    }
 
-    // 2. Check if user is already logged in
-    supabase.auth.getUser().then(({ data }) => {
-      if (data.user) {
-        if (data.user.email?.endsWith("@boostsocial.com")) {
-          router.push("/admin");
-        } else {
-          router.push("/");
+      // 2. Check if user is already logged in
+      supabase.auth.getUser().then(({ data }) => {
+        if (data.user) {
+          if (data.user.email?.endsWith("@boostsocial.com")) {
+            router.push("/admin");
+          } else {
+            router.push(appRedirect);
+          }
         }
-      }
-    });
-  }, []);
+      });
+    }, 0);
+
+    return () => window.clearTimeout(timeout);
+  }, [router, supabase]);
 
   // Countdown timer for password reset resend
   useEffect(() => {
@@ -181,8 +194,8 @@ export default function LoginPage() {
           setPassword("");
           setConfirmPassword("");
         }
-      } catch (err: any) {
-        setError(err.message || "An unexpected error occurred during registration.");
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : "An unexpected error occurred during registration.");
         setLoading(false);
       }
 
@@ -207,14 +220,14 @@ export default function LoginPage() {
           setResendCountdown(60); // Protect against API rate limits and spamming
           setLoading(false);
         }
-      } catch (err: any) {
-        setError(err.message || "Failed to request password reset. Please try again later.");
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : "Failed to request password reset. Please try again later.");
         setLoading(false);
       }
 
     // C. Sign In Flow
     } else {
-      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+      const { error: signInError } = await supabase.auth.signInWithPassword({
         email: loginEmail,
         password,
       });
@@ -239,7 +252,7 @@ export default function LoginPage() {
         if (loginEmail.endsWith("@boostsocial.com")) {
           router.push("/admin");
         } else {
-          router.push("/");
+          router.push(redirectTo);
         }
       }
     }

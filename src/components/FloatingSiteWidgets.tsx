@@ -8,7 +8,7 @@ import { AnnouncementModal } from "@/components/AnnouncementModal";
 import { useWidgetVisibility } from "@/hooks/useWidgetVisibility";
 
 function isAdminSurface(pathname: string) {
-  return pathname === "/admin" || pathname.startsWith("/admin/") || pathname === "/admin-app" || pathname === "/app";
+  return pathname === "/admin" || pathname.startsWith("/admin/") || pathname === "/admin-app" || pathname === "/app" || pathname.startsWith("/app/");
 }
 
 export function FloatingSiteWidgets() {

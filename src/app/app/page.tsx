@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { createClient } from "@/utils/supabase/server";
 import { ClientAppHome } from "./ClientAppHome";
 import { readMobileAppSettingsFromAnyDatabase } from "@/lib/mobileAppServer";
+import { readServiceCandidatesFromAnyDatabase } from "@/lib/serviceCandidatesServer";
 
 type AppService = {
   id: string;
@@ -34,10 +35,11 @@ async function getServices(): Promise<AppService[]> {
 }
 
 export default async function AppPage() {
-  const [services, appSettings] = await Promise.all([
+  const [services, appSettings, serviceCandidates] = await Promise.all([
     getServices(),
     readMobileAppSettingsFromAnyDatabase(),
+    readServiceCandidatesFromAnyDatabase(),
   ]);
 
-  return <ClientAppHome services={services} appSettings={appSettings} />;
+  return <ClientAppHome services={services} appSettings={appSettings} serviceCandidates={serviceCandidates} />;
 }

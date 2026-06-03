@@ -11,7 +11,7 @@ type CapacitorWindow = Window & {
 };
 
 function isHiddenSurface(pathname: string) {
-  return pathname === "/admin" || pathname.startsWith("/admin/") || pathname === "/admin-app";
+  return pathname === "/admin" || pathname.startsWith("/admin/") || pathname === "/admin-app" || pathname.startsWith("/app/");
 }
 
 export async function refreshClientAppContent() {
