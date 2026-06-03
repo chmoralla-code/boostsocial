@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Eye, EyeOff, Shield, Filter, MessageCircle, Radio, CheckCircle, Loader2, AlertCircle } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Eye, EyeOff, CheckCircle, Loader2, AlertCircle } from 'lucide-react';
+import { notifyWidgetVisibilityChanged } from '@/hooks/useWidgetVisibility';
 
 interface WidgetVisibilitySettings {
   featureBadges: boolean;
@@ -23,14 +24,17 @@ export function WidgetVisibilityPanel() {
   const [saving, setSaving] = useState(false);
   const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
 
-  useEffect(() => { fetchSettings(); }, []);
-
-  const fetchSettings = async () => {
+  const fetchSettings = useCallback(async () => {
     try {
       const res = await fetch('/api/admin/widget-visibility');
       if (res.ok) { setSettings(await res.json()); }
-    } catch (e) { console.error(e); } finally { setLoading(false); }
-  };
+    } catch { } finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchSettings();
+  }, [fetchSettings]);
 
   const handleToggle = async (key: keyof WidgetVisibilitySettings) => {
     const newSettings = { ...settings, [key]: !settings[key] };
@@ -45,9 +49,10 @@ export function WidgetVisibilityPanel() {
       });
       if (res.ok) {
         setResult({ success: true, message: 'Widget visibility updated successfully.' });
+        notifyWidgetVisibilityChanged();
         setTimeout(() => setResult(null), 3000);
       } else { throw new Error('Failed to save'); }
-    } catch (e) {
+    } catch {
       setResult({ success: false, message: 'Failed to update settings.' });
       setSettings(settings);
     } finally { setSaving(false); }

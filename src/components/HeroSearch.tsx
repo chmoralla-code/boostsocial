@@ -1,14 +1,14 @@
 "use client";
 
-import { useState } from "react";
-import { X, Search, Loader2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { X, ExternalLink, Copy, Check } from "lucide-react";
 import { OrderModal } from "./OrderModal";
 import { SmmCatalogModal } from "./SmmCatalogModal";
 
 interface Service {
   id: string;
   title: string;
-  description: any;
+  description: unknown;
   starting_price: number;
   icon_type: string;
 }
@@ -17,11 +17,38 @@ interface HeroSearchProps {
   services: Service[];
 }
 
+type AiSearchRecommendation = {
+  kind: "smm" | "service" | "page" | "catalog";
+  title: string;
+  description: string;
+  href: string;
+  action: "open_catalog" | "open_order" | "open_page";
+  serviceId?: string;
+  smmServiceId?: string;
+  searchKeyword?: string;
+  priceLabel?: string;
+};
+
+type AiSearchResult = {
+  service: "smm" | "gemini" | "pisowifi" | "eap" | "software" | "none";
+  search_keyword: string;
+  explanation: string;
+  recommendations?: AiSearchRecommendation[];
+  confidence?: string;
+};
+
+function getErrorMessage(err: unknown) {
+  if (err instanceof Error && err.message) return err.message;
+  if (typeof err === "string" && err) return err;
+  return "AI search temporarily unavailable.";
+}
+
 export function HeroSearch({ services }: HeroSearchProps) {
   const [sectionSearchQuery, setSectionSearchQuery] = useState("");
   const [isAiLoading, setIsAiLoading] = useState(false);
-  const [aiRecommend, setAiRecommend] = useState<any>(null);
+  const [aiRecommend, setAiRecommend] = useState<AiSearchResult | null>(null);
   const [catalogPrefill, setCatalogPrefill] = useState("");
+  const [copiedLink, setCopiedLink] = useState<string | null>(null);
 
   // Modals inside HeroSearch
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -33,7 +60,7 @@ export function HeroSearch({ services }: HeroSearchProps) {
 
   const [isSmmCatalogModalOpen, setIsSmmCatalogModalOpen] = useState(false);
 
-  const handleOrder = (id: string, title: string, price: number, description?: any) => {
+  const handleOrder = (id: string, title: string, price: number, description?: unknown) => {
     setSelectedServiceId(id);
     setSelectedServiceTitle(title);
     setSelectedServicePrice(price);
@@ -42,6 +69,14 @@ export function HeroSearch({ services }: HeroSearchProps) {
     const matched = services.find(s => s.id === id);
     if (matched) {
       setSelectedService(matched);
+    } else {
+      setSelectedService({
+        id,
+        title,
+        description: description || "",
+        starting_price: price,
+        icon_type: "followers",
+      });
     }
 
     const isSingleQty = 
@@ -59,141 +94,115 @@ export function HeroSearch({ services }: HeroSearchProps) {
     setIsModalOpen(true);
   };
 
+  const getAbsoluteHref = (href: string) => {
+    if (href.startsWith("http")) return href;
+    if (typeof window === "undefined") return href;
+    return `${window.location.origin}${href}`;
+  };
+
+  const copyServiceLink = async (href: string) => {
+    const absoluteHref = getAbsoluteHref(href);
+    try {
+      await navigator.clipboard.writeText(absoluteHref);
+      setCopiedLink(href);
+      setTimeout(() => setCopiedLink(null), 1800);
+    } catch {
+      setCopiedLink(null);
+    }
+  };
+
+  const openRecommendation = (recommendation: AiSearchRecommendation) => {
+    if (recommendation.action === "open_catalog") {
+      setCatalogPrefill(recommendation.smmServiceId || recommendation.searchKeyword || aiRecommend?.search_keyword || sectionSearchQuery);
+      setIsSmmCatalogModalOpen(true);
+      return;
+    }
+
+    if (recommendation.action === "open_page") {
+      window.location.href = recommendation.href;
+      return;
+    }
+
+    if (recommendation.action === "open_order" && recommendation.serviceId) {
+      const service = services.find((item) => item.id === recommendation.serviceId);
+      if (service) {
+        handleOrder(service.id, service.title, service.starting_price, service.description);
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const params = new URLSearchParams(window.location.search);
+    const smmServiceId = params.get("smm_service");
+    const smmSearch = params.get("smm_search");
+    const serviceId = params.get("service_id");
+
+    if (smmServiceId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setCatalogPrefill(smmServiceId);
+      setIsSmmCatalogModalOpen(true);
+      return;
+    }
+
+    if (smmSearch) {
+      setCatalogPrefill(smmSearch);
+      setIsSmmCatalogModalOpen(true);
+      return;
+    }
+
+    if (serviceId) {
+      const service = services.find((item) => item.id === serviceId);
+      if (service) {
+        handleOrder(service.id, service.title, service.starting_price, service.description);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [services]);
+
   const handleAiSearch = async () => {
     if (!sectionSearchQuery.trim()) return;
     setIsAiLoading(true);
     setAiRecommend(null);
 
     try {
-      const systemPrompt = `You are the CYNETWORK Senior Digital Services Consultant & Google-Style AI Search Assistant.
-Your task is to analyze the user's search query for digital services or ANY general question they ask, and provide an extremely detailed, 100% accurate, and comprehensive "AI Overview" response, acting just like the Google Search Generative Experience.
-
-INSTRUCTIONS FOR MAPPING:
-1. If the user query is about digital services we offer:
-   - "smm": Social Media Boosts (followers, likes, views, shares on Facebook, Instagram, TikTok, YouTube, Twitter/X, Telegram).
-     * CRITICAL SPECIAL RULE FOR PH BASE: If the query mentions "PH Base", "Filipino", "Philippines", "local", or "pinoy" (especially "Facebook Followers PH Base" or "FB Followers PH Base"), your "search_keyword" MUST be exactly "PH Base" to filter correctly in the catalog explorer, and your explanation must specifically focus on our premium organic Filipino base profiles, explaining that these are real accounts from the Philippines with active feed histories, realistic local human avatars, and high-retention rates, making them 100% safe from algorithm drops or flags.
-     * Otherwise, set "search_keyword" to the exact platform service (e.g. "Instagram Followers", "TikTok Video Views", etc.).
-   - "gemini": Gemini Pro Premium AI Subscription. ("search_keyword": "Gemini Pro Premium Subscription")
-   - "pisowifi": PisoWiFi Cloud Admin / Network Portal Setup. ("search_keyword": "PisoWiFi Cloud Portal Custom Setup")
-   - "eap": EAP TP-Link Cloud Controller network setup. ("search_keyword": "EAP TP-Link Cloud Integration")
-   - "software": Pre-activated Lifetime Architectural Software (Lumion, Sketchup, AutoCAD, D5 Render, V-Ray, Revit). ("search_keyword": "Architectural Design Software Bundle")
-2. If the user query is a general question, informational search, or unrelated to our specific catalog services (e.g. general knowledge, tutorials, explanations, recipes, trivia, coding, marketing, or general questions like "why is water wet", "how to cook adobo", "what is the capital of Japan", "how to write a loop in JavaScript"):
-   - Mapped service: "none".
-   - "search_keyword" can be empty ("").
-   - In your "explanation", write a highly complete, comprehensive, and perfectly accurate featured answer just like a Google Search Featured Snippet or AI Overview! Provide deep, structured details to completely satisfy their search.
-
-TONE & RULES:
-- Blends professional Colloquial Taglish (Tagalog-English blend) or English perfectly.
-- Extremely smart, maximized, detailed, and reassuring.
-- Never write lazy or brief responses. Write at least 4-5 rich, detailed sentences or small paragraph chunks with clear points.
-
-OUTPUT FORMAT:
-You MUST respond strictly in the following JSON format:
-{
-  "service": "smm" | "gemini" | "pisowifi" | "eap" | "software" | "none",
-  "search_keyword": "exact matched keyword, or empty string if general",
-  "explanation": "Provide the complete, maximized, highly detailed, and 100% accurate Google-style featured answer or service consultant advice here."
-}
-
-No other text, markdown formatting, or symbols around the JSON. Just the raw JSON object. Make the explanation feel extremely premium, comforting, and authoritative.`;
-
-      const response = await fetch("https://text.pollinations.ai/", {
+      const response = await fetch("/api/ai-search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: `User Query: "${sectionSearchQuery}"` }
-          ],
-          model: "openai",
-          jsonMode: true
+          query: sectionSearchQuery,
+          services,
         })
       });
 
       if (!response.ok) {
-        throw new Error(`Pollinations API error: ${response.status}`);
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.error || `AI search failed with status ${response.status}`);
       }
 
-      const responseText = await response.text();
-      const cleanText = responseText
-        .replace(/```json/g, "")
-        .replace(/```/g, "")
-        .trim();
-
-      const result = JSON.parse(cleanText);
+      const result = await response.json() as AiSearchResult;
       setAiRecommend(result);
 
-      // Auto-triggering modal opening to provide the service automatically and accurately!
-      if (result.service === "smm") {
-        setCatalogPrefill(result.search_keyword || sectionSearchQuery);
-        setIsSmmCatalogModalOpen(true);
-      } else if (result.service === "gemini") {
-        const s = services.find(s => s.title.toLowerCase().includes("gemini"));
-        if (s) handleOrder(s.id, s.title, s.starting_price, s.description);
-      } else if (result.service === "pisowifi") {
-        const s = services.find(s => s.title.toLowerCase().includes("pisowifi") || s.title.toLowerCase().includes("wifi"));
-        if (s) handleOrder(s.id, s.title, s.starting_price, s.description);
-      } else if (result.service === "eap") {
-        const s = services.find(s => s.title.toLowerCase().includes("eap") || s.title.toLowerCase().includes("tplink"));
-        if (s) handleOrder(s.id, s.title, s.starting_price, s.description);
-      } else if (result.service === "software") {
-        const s = services.find(s => s.title.toLowerCase().includes("software") || s.title.toLowerCase().includes("architectural") || s.id === "03185a81-49f3-4255-868e-9e9ec3189497");
-        if (s) handleOrder(s.id, s.title, s.starting_price, s.description);
+      const topRecommendation = result.recommendations?.[0];
+      if (topRecommendation && result.service !== "none") {
+        openRecommendation(topRecommendation);
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error("AI Search failed:", err);
-      
-      // Local keywords fallback if Pollinations AI fails
-      const q = sectionSearchQuery.toLowerCase();
-      let fallbackService = "none";
-      let keyword = "";
-      let explanation = "Napansin ko na naghahanap ka ng digital boosts! We have exactly what you need.";
-
-      if (q.includes("ph base") || q.includes("philippine") || q.includes("filipino") || q.includes("pinoy")) {
-        fallbackService = "smm";
-        keyword = "PH Base";
-        explanation = "Naghahanap ka ba ng Premium Facebook Followers with real local Filipino accounts? Matutuwa ka dahil mayroon kaming premium 'PH Base' followers package sa ating catalog! Perfect ito para sa local brand credibility dahil real accounts na may actual human avatars at activity histories ang gagamitin natin, completely compliant sa account safety standards.";
-      } else if (q.includes("gemini") || q.includes("pro") || q.includes("ai")) {
-        fallbackService = "gemini";
-        explanation = "I found Gemini Pro Premium subscriptions in our services! Instantly activate your AI workflow.";
-      } else if (q.includes("wifi") || q.includes("piso") || q.includes("portal")) {
-        fallbackService = "pisowifi";
-        explanation = "Naghahanap ka ba ng PisoWiFi portal? Check out our customized PisoWiFi setups!";
-      } else if (q.includes("eap") || q.includes("tplink") || q.includes("controller")) {
-        fallbackService = "eap";
-        explanation = "I found TP-Link EAP Cloud Controller integration configurations in our network catalog!";
-      } else if (q.includes("software") || q.includes("sketchup") || q.includes("lumion") || q.includes("autocad") || q.includes("d5")) {
-        fallbackService = "software";
-        explanation = "Naghahanap ka ba ng premium architectural rendering software? I found lifetime activations for Lumion, SketchUp, and more!";
-      } else {
-        fallbackService = "smm";
-        keyword = sectionSearchQuery;
-        explanation = "Tumingin ako sa database at nahanap ko ang perfect SMM platform boost na akma para sa iyong search!";
-      }
-
       setAiRecommend({
-        service: fallbackService,
-        search_keyword: keyword,
-        explanation: explanation
+        service: "none",
+        search_keyword: "",
+        explanation: getErrorMessage(err),
+        recommendations: [{
+          kind: "catalog",
+          title: "All Services Catalog",
+          description: "Open the catalog and search manually while AI search recovers.",
+          href: `/?smm_search=${encodeURIComponent(sectionSearchQuery)}`,
+          action: "open_catalog",
+          searchKeyword: sectionSearchQuery,
+        }]
       });
-
-      // Auto-triggering modal opening for fallback path
-      if (fallbackService === "smm") {
-        setCatalogPrefill(keyword || sectionSearchQuery);
-        setIsSmmCatalogModalOpen(true);
-      } else if (fallbackService === "gemini") {
-        const s = services.find(s => s.title.toLowerCase().includes("gemini"));
-        if (s) handleOrder(s.id, s.title, s.starting_price, s.description);
-      } else if (fallbackService === "pisowifi") {
-        const s = services.find(s => s.title.toLowerCase().includes("pisowifi") || s.title.toLowerCase().includes("wifi"));
-        if (s) handleOrder(s.id, s.title, s.starting_price, s.description);
-      } else if (fallbackService === "eap") {
-        const s = services.find(s => s.title.toLowerCase().includes("eap") || s.title.toLowerCase().includes("tplink"));
-        if (s) handleOrder(s.id, s.title, s.starting_price, s.description);
-      } else if (fallbackService === "software") {
-        const s = services.find(s => s.title.toLowerCase().includes("software") || s.title.toLowerCase().includes("architectural") || s.id === "03185a81-49f3-4255-868e-9e9ec3189497");
-        if (s) handleOrder(s.id, s.title, s.starting_price, s.description);
-      }
     } finally {
       setIsAiLoading(false);
     }
@@ -282,6 +291,73 @@ No other text, markdown formatting, or symbols around the JSON. Just the raw JSO
           <p className="text-slate-300 text-[11px] sm:text-xs leading-relaxed font-semibold mb-6 bg-black/45 p-4 rounded-2xl border border-slate-850">
             {aiRecommend.explanation}
           </p>
+
+          {aiRecommend.recommendations && aiRecommend.recommendations.length > 0 && (
+            <div className="mb-6 space-y-2.5">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[10px] font-black uppercase tracking-widest text-[#1DB954]">
+                  Matched service links
+                </span>
+                <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">
+                  {aiRecommend.confidence || "smart match"}
+                </span>
+              </div>
+
+              {aiRecommend.recommendations.slice(0, 3).map((recommendation) => (
+                <div
+                  key={`${recommendation.kind}-${recommendation.href}-${recommendation.title}`}
+                  className="bg-[#161616] border border-slate-800 p-4 rounded-2xl flex flex-col gap-3 hover:border-[#1DB954]/30 transition-all"
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                    <div className="min-w-0">
+                      <h4 className="text-xs font-black text-white uppercase tracking-wider">
+                        {recommendation.title}
+                      </h4>
+                      <p className="text-[10px] text-slate-500 mt-1 leading-normal font-semibold">
+                        {recommendation.description}
+                      </p>
+                      {recommendation.priceLabel && (
+                        <p className="text-[10px] text-[#1DB954] mt-1 font-black uppercase tracking-wider">
+                          {recommendation.priceLabel}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row gap-2 sm:flex-shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => openRecommendation(recommendation)}
+                        className="inline-flex items-center justify-center gap-2 bg-[#1DB954] hover:bg-[#1ed760] text-black font-extrabold px-4 py-2.5 rounded-full text-[10px] uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap"
+                      >
+                        <ExternalLink size={13} />
+                        Open
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => copyServiceLink(recommendation.href)}
+                        className="inline-flex items-center justify-center gap-2 bg-slate-850 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white font-extrabold px-4 py-2.5 rounded-full text-[10px] uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap"
+                      >
+                        {copiedLink === recommendation.href ? <Check size={13} /> : <Copy size={13} />}
+                        {copiedLink === recommendation.href ? "Copied" : "Copy"}
+                      </button>
+                    </div>
+                  </div>
+
+                  <a
+                    href={recommendation.href}
+                    onClick={(event) => {
+                      event.preventDefault();
+                      openRecommendation(recommendation);
+                    }}
+                    className="block text-[10px] text-slate-500 hover:text-[#1DB954] font-mono truncate bg-black/35 border border-slate-900 rounded-xl px-3 py-2 transition-colors"
+                    title={getAbsoluteHref(recommendation.href)}
+                  >
+                    {getAbsoluteHref(recommendation.href)}
+                  </a>
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* Render dynamically matched Service recommendation card */}
           {aiRecommend.service === "smm" && (
