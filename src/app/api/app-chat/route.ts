@@ -115,10 +115,12 @@ function localFallback(message: string) {
 }
 
 export async function POST(request: Request) {
+  let userMessage = "";
+
   try {
     const body = await request.json();
     const messages = Array.isArray(body.messages) ? body.messages as ChatMessage[] : [];
-    const userMessage = latestUserMessage(messages);
+    userMessage = latestUserMessage(messages);
 
     if (!userMessage) {
       return NextResponse.json({ error: "Missing message" }, { status: 400 });
@@ -181,7 +183,7 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error("App chat route failed:", error);
     return NextResponse.json({
-      content: localFallback(getErrorMessage(error)),
+      content: localFallback(userMessage || getErrorMessage(error)),
     });
   }
 }
