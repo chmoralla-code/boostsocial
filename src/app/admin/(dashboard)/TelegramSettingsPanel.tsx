@@ -189,7 +189,7 @@ export function TelegramSettingsPanel() {
   const isTopupConfigured = topupBotToken.trim() && topupChatId.trim();
 
   return (
-    <div className="bg-[#181818] rounded-2xl border border-slate-850/80 p-6 mt-6 relative overflow-hidden text-white shadow-md">
+    <div id="telegram" className="bg-[#181818] rounded-2xl border border-slate-850/80 p-6 mt-6 relative scroll-mt-24 overflow-hidden text-white shadow-md">
       {/* Soft decorative glow */}
       <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-full blur-2xl pointer-events-none"></div>
 

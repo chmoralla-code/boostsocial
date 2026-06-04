@@ -99,6 +99,9 @@ async function findOrder(message: string) {
 
 function localFallback(message: string) {
   const text = message.toLowerCase();
+  if (text.includes("top up") || text.includes("top-up") || text.includes("topup") || text.includes("wallet")) {
+    return "Login first at /app/auth?mode=login, then open /app/profile to top up your app wallet. Upload your GCash receipt there and admin can approve it from the app dashboard or Telegram top-up bot.";
+  }
   if (text.includes("gcash") || text.includes("payment") || text.includes("bayad")) {
     return "We accept GCash. Login first at /app/auth?mode=login, choose a service at /app, submit your target link, then upload the payment receipt during checkout.";
   }
@@ -143,7 +146,7 @@ export async function POST(request: Request) {
           "You are the PinoyBoosting mobile app AI assistant.",
           "Be smarter and clearer than a generic support bot.",
           "Answer in concise English, Taglish when natural, and never invent services.",
-          "Always mention the exact app link /app for service cards, /app/auth?mode=login for login, /app/auth?mode=register for signup, and /app/orders for orders when relevant.",
+          "Always mention the exact app link /app for service cards, /app/profile for wallet top-ups, /app/auth?mode=login for login, /app/auth?mode=register for signup, and /app/orders for orders when relevant.",
           "When a client asks for a specific service, name the closest live candidate or stored service exactly, include the price/rate if available, and include /app as the tappable service link.",
           "Buying is prohibited until the client logs in or registers.",
           "Keep answers short: 3-6 useful sentences or a few short bullets.",

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ClipboardList, Home, LogIn, RefreshCw, Search, UserPlus } from "lucide-react";
+import { ArrowLeft, ClipboardList, Copy, Home, LogIn, RefreshCw, Search, UserPlus, X } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/utils/supabase/client";
 
@@ -49,6 +49,8 @@ export default function AppOrdersPage() {
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState<AppOrder | null>(null);
+  const [copiedTracking, setCopiedTracking] = useState(false);
 
   const loadOrders = useCallback(async (currentUser: User | null) => {
     if (!currentUser?.email) {
@@ -111,6 +113,13 @@ export default function AppOrdersPage() {
       return haystack.includes(cleanQuery);
     });
   }, [orders, query]);
+
+  const copySelectedTracking = async () => {
+    if (!selectedOrder) return;
+    await navigator.clipboard.writeText(trackingId(selectedOrder.id));
+    setCopiedTracking(true);
+    window.setTimeout(() => setCopiedTracking(false), 1600);
+  };
 
   return (
     <main className="min-h-screen bg-[#f7f8f5] px-4 pb-24 pt-[calc(env(safe-area-inset-top)+1rem)] text-zinc-950">
@@ -186,9 +195,12 @@ export default function AppOrdersPage() {
                       <span className="mt-1 block text-sm font-black text-zinc-950">{money(order.amount)}</span>
                     </div>
                   </div>
-                  <Link href={`/track?order=${encodeURIComponent(trackingId(order.id))}`} className="mt-3 flex h-11 items-center justify-center rounded-2xl bg-zinc-950 text-sm font-black text-white">
-                    Full tracking details
-                  </Link>
+                  <button type="button" onClick={() => {
+                    setCopiedTracking(false);
+                    setSelectedOrder(order);
+                  }} className="mt-3 flex h-11 w-full items-center justify-center rounded-2xl bg-zinc-950 text-sm font-black text-white">
+                    View app details
+                  </button>
                 </article>
               ))}
             </div>
@@ -220,6 +232,82 @@ export default function AppOrdersPage() {
           </Link>
         </div>
       </nav>
+
+      {selectedOrder && (
+        <div className="fixed inset-0 z-[90] flex items-end bg-black/35 px-3 pb-[calc(env(safe-area-inset-bottom)+0.8rem)] backdrop-blur-sm sm:items-center sm:justify-center">
+          <button type="button" className="absolute inset-0" aria-label="Close order details" onClick={() => setSelectedOrder(null)} />
+          <section className="relative mx-auto max-h-[86vh] w-full max-w-md overflow-hidden rounded-[1.75rem] border border-zinc-200 bg-white text-zinc-950 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-zinc-100 px-4 py-4">
+              <div className="flex min-w-0 items-center gap-3">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-600 text-white">
+                  <ClipboardList size={21} />
+                </span>
+                <div className="min-w-0">
+                  <h2 className="truncate text-lg font-black">Order Details</h2>
+                  <p className="truncate text-xs font-semibold text-zinc-500">{trackingId(selectedOrder.id)}</p>
+                </div>
+              </div>
+              <button type="button" onClick={() => setSelectedOrder(null)} className="rounded-full p-2 text-zinc-500" aria-label="Close order details">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="max-h-[72vh] space-y-4 overflow-y-auto p-4">
+              <div className="rounded-3xl border border-zinc-200 bg-zinc-50 p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-black uppercase tracking-wider text-zinc-400">Service</p>
+                    <h3 className="mt-1 line-clamp-2 text-base font-black">{selectedOrder.services?.title || "PinoyBoosting Service"}</h3>
+                  </div>
+                  <span className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-black uppercase ${statusClass(selectedOrder.status)}`}>
+                    {selectedOrder.status || "Pending"}
+                  </span>
+                </div>
+                <div className="mt-4 flex items-center gap-2 rounded-2xl bg-white px-3 py-2">
+                  <span className="min-w-0 flex-1 truncate text-xs font-black">{trackingId(selectedOrder.id)}</span>
+                  <button type="button" onClick={copySelectedTracking} className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-50 px-3 py-2 text-[11px] font-black text-emerald-700">
+                    <Copy size={13} />
+                    {copiedTracking ? "Copied" : "Copy"}
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 text-xs font-bold text-zinc-600">
+                <div className="rounded-2xl border border-zinc-200 bg-white p-3">
+                  Quantity
+                  <span className="mt-1 block text-sm font-black text-zinc-950">{selectedOrder.quantity || 0}</span>
+                </div>
+                <div className="rounded-2xl border border-zinc-200 bg-white p-3">
+                  Amount
+                  <span className="mt-1 block text-sm font-black text-zinc-950">{money(selectedOrder.amount)}</span>
+                </div>
+                <div className="rounded-2xl border border-zinc-200 bg-white p-3">
+                  Ordered
+                  <span className="mt-1 block text-sm font-black text-zinc-950">{shortDate(selectedOrder.created_at)}</span>
+                </div>
+                <div className="rounded-2xl border border-zinc-200 bg-white p-3">
+                  Payment review
+                  <span className="mt-1 block text-sm font-black text-zinc-950">{selectedOrder.status || "Pending"}</span>
+                </div>
+              </div>
+
+              <div className="rounded-3xl border border-zinc-200 bg-white p-4">
+                <p className="text-[10px] font-black uppercase tracking-wider text-zinc-400">Target / Details</p>
+                <p className="mt-2 break-words text-sm font-semibold leading-6 text-zinc-700">
+                  {selectedOrder.target_url || "No target details were attached."}
+                </p>
+              </div>
+
+              <div className="rounded-3xl border border-emerald-100 bg-emerald-50 p-4">
+                <p className="text-sm font-black text-emerald-900">Managed in the app</p>
+                <p className="mt-1 text-xs font-semibold leading-5 text-emerald-800">
+                  This order uses the same admin order queue and Telegram sales alerts, but customers stay inside the app view.
+                </p>
+              </div>
+            </div>
+          </section>
+        </div>
+      )}
     </main>
   );
 }

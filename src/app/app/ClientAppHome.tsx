@@ -315,10 +315,11 @@ function linkifyMessageLine(line: string) {
   return parts.map((part, index) => {
     const isLink = part.startsWith("http") || part.startsWith("/app") || part.startsWith("/track") || part.startsWith("/order-page");
     if (!isLink) return <span key={`${part}-${index}`}>{part}</span>;
+    const appHref = part.startsWith("/track") ? "/app/orders" : part.startsWith("/order-page") ? "/app" : part;
 
     return (
-      <Link key={`${part}-${index}`} href={part} className="font-black underline underline-offset-2">
-        {part}
+      <Link key={`${part}-${index}`} href={appHref} className="font-black underline underline-offset-2">
+        {appHref}
       </Link>
     );
   });
@@ -639,12 +640,6 @@ export function ClientAppHome({
   const pisoWifiServices = useMemo(() => services.filter(isPisoWifiService), [services]);
 
   const openServiceDetails = useCallback((service: AppService) => {
-    const parsed = parseDescription(service.description);
-    if (parsed?.redirect_url) {
-      window.location.assign(String(parsed.redirect_url));
-      return;
-    }
-
     setPresetQuantity(isSingleQuantityService(service) ? 1 : 1000);
     setDetailsService(service);
   }, []);
@@ -687,7 +682,7 @@ export function ClientAppHome({
     }
 
     if (candidate.id === "order-page") {
-      requireLogin(() => window.location.assign("/order-page?from=app"), { type: "candidate", id: candidate.id });
+      requireLogin(() => openCatalog("custom facebook page"), { type: "candidate", id: candidate.id });
       return;
     }
 
@@ -737,7 +732,8 @@ export function ClientAppHome({
         }
 
         if (candidate.id === "order-page") {
-          window.location.assign("/order-page?from=app");
+          setCatalogSearch("custom facebook page");
+          setCatalogOpen(true);
           return;
         }
 
