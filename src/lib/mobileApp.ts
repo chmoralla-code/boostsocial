@@ -11,7 +11,9 @@ export type MobileAppSettings = {
   appSubtitle: string;
   heroTitle: string;
   heroDescription: string;
+  appBanner: string;
   updateMessage: string;
+  updateHistory: string;
   defaultTheme: MobileAppTheme;
   updatedAt: string;
   lastPublishedAt: string;
@@ -25,7 +27,9 @@ export const DEFAULT_MOBILE_APP_SETTINGS: MobileAppSettings = {
   appSubtitle: "Simple mobile app",
   heroTitle: "Choose a service",
   heroDescription: "Pick what you need, add your link, then track the order. No extra website effects inside the APK.",
+  appBanner: "Fastest services are shown first. Login before buying so your orders stay saved.",
   updateMessage: "New app content is ready. Tap Update to refresh your APK view.",
+  updateHistory: "1.0 - Initial APK app release with services, wallet, orders, dark mode, and AI help.",
   defaultTheme: "light",
   updatedAt: "",
   lastPublishedAt: "",
@@ -35,6 +39,11 @@ function stringValue(value: unknown, fallback: string) {
   if (typeof value !== "string") return fallback;
   const trimmed = value.trim();
   return trimmed || fallback;
+}
+
+function optionalStringValue(value: unknown, fallback: string) {
+  if (typeof value !== "string") return fallback;
+  return value.trim();
 }
 
 function booleanValue(value: unknown, fallback: boolean) {
@@ -64,7 +73,9 @@ export function normalizeMobileAppSettings(value: unknown): MobileAppSettings {
     appSubtitle: stringValue(input.appSubtitle, DEFAULT_MOBILE_APP_SETTINGS.appSubtitle),
     heroTitle: stringValue(input.heroTitle, DEFAULT_MOBILE_APP_SETTINGS.heroTitle),
     heroDescription: stringValue(input.heroDescription, DEFAULT_MOBILE_APP_SETTINGS.heroDescription),
+    appBanner: optionalStringValue(input.appBanner, DEFAULT_MOBILE_APP_SETTINGS.appBanner),
     updateMessage: stringValue(input.updateMessage, DEFAULT_MOBILE_APP_SETTINGS.updateMessage),
+    updateHistory: optionalStringValue(input.updateHistory, DEFAULT_MOBILE_APP_SETTINGS.updateHistory),
     defaultTheme: themeValue(input.defaultTheme),
     updatedAt: stringValue(input.updatedAt, ""),
     lastPublishedAt: stringValue(input.lastPublishedAt, ""),
@@ -80,7 +91,9 @@ export function didMobileAppContentChange(
     next.appSubtitle !== previous.appSubtitle ||
     next.heroTitle !== previous.heroTitle ||
     next.heroDescription !== previous.heroDescription ||
+    next.appBanner !== previous.appBanner ||
     next.updateMessage !== previous.updateMessage ||
+    next.updateHistory !== previous.updateHistory ||
     next.defaultTheme !== previous.defaultTheme
   );
 }

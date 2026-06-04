@@ -70,7 +70,9 @@ export async function POST(req: NextRequest) {
         ...existing,
         latestVersion: nextVersion,
         updateAvailable: true,
+        appBanner: body.appBanner || existing.appBanner,
         updateMessage: body.updateMessage || existing.updateMessage,
+        updateHistory: body.updateHistory || existing.updateHistory,
         updatedAt: now,
         lastPublishedAt: now,
       });
@@ -83,7 +85,9 @@ export async function POST(req: NextRequest) {
       appSubtitle: body.appSubtitle,
       heroTitle: body.heroTitle,
       heroDescription: body.heroDescription,
+      appBanner: body.appBanner,
       updateMessage: body.updateMessage,
+      updateHistory: body.updateHistory,
       defaultTheme: body.defaultTheme,
       updatedAt: now,
     });

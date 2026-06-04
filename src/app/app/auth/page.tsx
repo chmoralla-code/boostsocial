@@ -12,6 +12,11 @@ function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
 }
 
+function getAppReturnPath() {
+  if (typeof window === "undefined") return "/app";
+  return new URLSearchParams(window.location.search).get("return") === "1" ? "/app?resume=1" : "/app";
+}
+
 export default function AppAuthPage() {
   const [mode, setMode] = useState<AuthMode>(() => {
     if (typeof window === "undefined") return "login";
@@ -34,7 +39,7 @@ export default function AppAuthPage() {
       }
 
       supabase.auth.getUser().then(({ data }) => {
-        if (data.user) router.replace("/app");
+        if (data.user) router.replace(getAppReturnPath());
       }).catch(() => undefined);
     }, 0);
 
@@ -78,7 +83,7 @@ export default function AppAuthPage() {
       });
 
       if (signInError) throw signInError;
-      router.replace("/app");
+      router.replace(getAppReturnPath());
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {

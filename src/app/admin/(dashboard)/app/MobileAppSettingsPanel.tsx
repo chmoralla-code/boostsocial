@@ -27,7 +27,9 @@ const EMPTY_SETTINGS: MobileAppSettings = {
   appSubtitle: "Simple mobile app",
   heroTitle: "Choose a service",
   heroDescription: "Pick what you need, add your link, then track the order. No extra website effects inside the APK.",
+  appBanner: "Fastest services are shown first. Login before buying so your orders stay saved.",
   updateMessage: "New app content is ready. Tap Update to refresh your APK view.",
+  updateHistory: "1.0 - Initial APK app release with services, wallet, orders, dark mode, and AI help.",
   defaultTheme: "light",
   updatedAt: "",
   lastPublishedAt: "",
@@ -211,9 +213,19 @@ export function MobileAppSettingsPanel() {
             onChange={(value) => updateField("heroDescription", value)}
           />
           <TextAreaField
+            label="App Banner"
+            value={settings.appBanner}
+            onChange={(value) => updateField("appBanner", value)}
+          />
+          <TextAreaField
             label="Update Message"
             value={settings.updateMessage}
             onChange={(value) => updateField("updateMessage", value)}
+          />
+          <TextAreaField
+            label="Version History"
+            value={settings.updateHistory}
+            onChange={(value) => updateField("updateHistory", value)}
           />
         </div>
 

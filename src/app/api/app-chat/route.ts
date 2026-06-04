@@ -86,6 +86,7 @@ async function findOrder(message: string) {
     `Target: ${data.target_url || "Not set"}`,
     `Amount: PHP ${Number(data.amount || 0).toFixed(2)}`,
     `Status: ${data.status}`,
+    "Open /app/orders to view this inside the APK.",
     data.status === "Pending"
       ? "Next step: wait for admin payment verification, or upload the correct GCash receipt if missing."
       : data.status === "Processing"
@@ -99,15 +100,15 @@ async function findOrder(message: string) {
 function localFallback(message: string) {
   const text = message.toLowerCase();
   if (text.includes("gcash") || text.includes("payment") || text.includes("bayad")) {
-    return "We accept GCash. Login first, choose a service, submit your target link, then upload the payment receipt during checkout.";
+    return "We accept GCash. Login first at /app/auth?mode=login, choose a service at /app, submit your target link, then upload the payment receipt during checkout.";
   }
   if (text.includes("login") || text.includes("register") || text.includes("account")) {
-    return "Use the Login or Register button inside the app. Buying is locked until your account is logged in, then you will return to /app.";
+    return "Use /app/auth?mode=login or /app/auth?mode=register. Buying is locked until your account is logged in, then you will return to /app.";
   }
   if (text.includes("pisowifi") || text.includes("piso wifi")) {
-    return "Open SERVICES, tap PISOWIFI PACKAGE, then choose the package. Login is required before checkout.";
+    return "Open /app, tap PISOWIFI PACKAGE under SERVICES, then choose the package. Login is required before checkout.";
   }
-  return "Open SERVICES and choose the matching card. I can also answer prices, recommend services, or track orders if you send a Tracking ID like BS-D5D1D849.";
+  return "Open /app and choose the matching SERVICES card. I can also answer prices, recommend services, or track orders at /app/orders if you send a Tracking ID like BS-D5D1D849.";
 }
 
 export async function POST(request: Request) {
@@ -142,7 +143,8 @@ export async function POST(request: Request) {
           "You are the PinoyBoosting mobile app AI assistant.",
           "Be smarter and clearer than a generic support bot.",
           "Answer in concise English, Taglish when natural, and never invent services.",
-          "Always mention the exact app link /app for service cards, /app/auth?mode=login for login, and /track for orders when relevant.",
+          "Always mention the exact app link /app for service cards, /app/auth?mode=login for login, /app/auth?mode=register for signup, and /app/orders for orders when relevant.",
+          "When a client asks for a specific service, name the closest live candidate or stored service exactly, include the price/rate if available, and include /app as the tappable service link.",
           "Buying is prohibited until the client logs in or registers.",
           "Keep answers short: 3-6 useful sentences or a few short bullets.",
           "Live candidate services:",
