@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { parseDescription } from "@/utils/serviceHelpers";
+import { findServiceLandingPageForQuery } from "@/lib/serviceLandingPages";
 
 type ServiceKind = "smm" | "gemini" | "pisowifi" | "eap" | "software" | "none";
 
@@ -32,6 +33,7 @@ type Recommendation = {
   smmServiceId?: string;
   searchKeyword?: string;
   priceLabel?: string;
+  actionLabel?: string;
 };
 
 const STOP_WORDS = new Set([
@@ -214,6 +216,7 @@ function buildRecommendationFromSmm(service: SmmCatalogService): Recommendation 
     smmServiceId: service.id,
     searchKeyword: service.id,
     priceLabel: pricePer1k(service),
+    actionLabel: "Open service",
   };
 }
 
@@ -227,6 +230,7 @@ function buildRecommendationFromStored(service: OfferedService, kind: Exclude<Se
     action: "open_order",
     serviceId: service.id,
     priceLabel: service.starting_price ? `Starts at PHP ${Number(service.starting_price).toFixed(2)}` : undefined,
+    actionLabel: "Open checkout",
   };
 }
 
@@ -290,6 +294,7 @@ export async function POST(req: NextRequest) {
 
     const detected = detectQuery(query);
     const recommendations: Recommendation[] = [];
+    const landingPage = findServiceLandingPageForQuery(query);
     let service: ServiceKind = "none";
     let searchKeyword = "";
 
@@ -322,6 +327,7 @@ export async function POST(req: NextRequest) {
           href: `/?smm_search=${encodeURIComponent(searchKeyword)}`,
           action: "open_catalog",
           searchKeyword,
+          actionLabel: "Open catalog",
         });
       }
     }
@@ -333,6 +339,19 @@ export async function POST(req: NextRequest) {
         description: "Page setup package with profile assets, cover assets, bio, and followers option.",
         href: "/order-page",
         action: "open_page",
+        actionLabel: "Open page order",
+      });
+    }
+
+    if (landingPage && !recommendations.some((item) => item.href === `/services/${landingPage.slug}`)) {
+      recommendations.splice(Math.min(1, recommendations.length), 0, {
+        kind: "page",
+        title: `${landingPage.shortTitle} Service Guide`,
+        description: landingPage.description,
+        href: `/services/${landingPage.slug}`,
+        action: "open_page",
+        searchKeyword: landingPage.searchQuery,
+        actionLabel: "Read guide",
       });
     }
 

@@ -126,7 +126,7 @@ export function Header() {
             <Crown size={14} />
             VIP
           </Link>
-          <Link href="#services" className="hover:text-white transition-colors">Services</Link>
+          <Link href="/services" className="hover:text-white transition-colors">Services</Link>
           <Link href="/track" className="hover:text-white transition-colors">Status Tracker</Link>
         </nav>
 

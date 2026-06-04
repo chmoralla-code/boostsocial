@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { X, ExternalLink, Copy, Check } from "lucide-react";
+import { X, ExternalLink, Copy, Check, ClipboardList, LogIn, Search } from "lucide-react";
 import { OrderModal } from "./OrderModal";
 import { SmmCatalogModal } from "./SmmCatalogModal";
 
@@ -27,6 +27,7 @@ type AiSearchRecommendation = {
   smmServiceId?: string;
   searchKeyword?: string;
   priceLabel?: string;
+  actionLabel?: string;
 };
 
 type AiSearchResult = {
@@ -330,7 +331,7 @@ export function HeroSearch({ services }: HeroSearchProps) {
                         className="inline-flex items-center justify-center gap-2 bg-[#1DB954] hover:bg-[#1ed760] text-black font-extrabold px-4 py-2.5 rounded-full text-[10px] uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap"
                       >
                         <ExternalLink size={13} />
-                        Open
+                        {recommendation.actionLabel || "Open"}
                       </button>
                       <button
                         type="button"
@@ -358,6 +359,28 @@ export function HeroSearch({ services }: HeroSearchProps) {
               ))}
             </div>
           )}
+
+          <div className="mb-6 grid grid-cols-1 gap-2 sm:grid-cols-3">
+            <a href="/login" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-slate-800 bg-black/35 px-4 py-2.5 text-[10px] font-black uppercase tracking-wider text-slate-250 transition hover:border-[#1DB954]/35 hover:text-white">
+              <LogIn size={14} />
+              Login/Register
+            </a>
+            <a href="/track" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-slate-800 bg-black/35 px-4 py-2.5 text-[10px] font-black uppercase tracking-wider text-slate-250 transition hover:border-[#1DB954]/35 hover:text-white">
+              <ClipboardList size={14} />
+              Track Order
+            </a>
+            <button
+              type="button"
+              onClick={() => {
+                setCatalogPrefill(aiRecommend.search_keyword || sectionSearchQuery);
+                setIsSmmCatalogModalOpen(true);
+              }}
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-[#1DB954]/25 bg-[#1DB954]/10 px-4 py-2.5 text-[10px] font-black uppercase tracking-wider text-[#1DB954] transition hover:bg-[#1DB954] hover:text-black"
+            >
+              <Search size={14} />
+              Open Catalog
+            </button>
+          </div>
 
           {/* Render dynamically matched Service recommendation card */}
           {aiRecommend.service === "smm" && (

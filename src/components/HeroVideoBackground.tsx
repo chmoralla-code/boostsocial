@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 interface HeroVideoBackgroundProps {
   videoUrl?: string;
@@ -9,6 +9,7 @@ interface HeroVideoBackgroundProps {
 
 export function HeroVideoBackground({ videoUrl, opacity }: HeroVideoBackgroundProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const [allowMotion, setAllowMotion] = useState(false);
 
   const activeOpacity = opacity !== undefined ? opacity : 0.45;
 
@@ -28,6 +29,15 @@ export function HeroVideoBackground({ videoUrl, opacity }: HeroVideoBackgroundPr
   const isImg = isImage(videoUrl);
 
   useEffect(() => {
+    const media = window.matchMedia("(min-width: 640px) and (prefers-reduced-motion: no-preference)");
+    const update = () => setAllowMotion(media.matches);
+    update();
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
+
+  useEffect(() => {
+    if (!allowMotion) return;
     // Reload video source and autoplay when videoUrl changes and is not an image
     if (!isImg) {
       const video = videoRef.current;
@@ -39,7 +49,7 @@ export function HeroVideoBackground({ videoUrl, opacity }: HeroVideoBackgroundPr
         });
       }
     }
-  }, [videoUrl, isImg]);
+  }, [videoUrl, isImg, allowMotion]);
 
   return (
     <div className="hero-video-wrapper">
@@ -50,7 +60,7 @@ export function HeroVideoBackground({ videoUrl, opacity }: HeroVideoBackgroundPr
           alt="Hero background"
           style={{ opacity: activeOpacity }}
         />
-      ) : (
+      ) : allowMotion ? (
         <video
           ref={videoRef}
           className="hero-video"
@@ -64,6 +74,8 @@ export function HeroVideoBackground({ videoUrl, opacity }: HeroVideoBackgroundPr
         >
           <source src={videoUrl || "/hero-bg.mp4"} />
         </video>
+      ) : (
+        <div className="hero-video bg-[radial-gradient(circle_at_25%_20%,rgba(29,185,84,0.18),transparent_38%),linear-gradient(135deg,#08110c,#050505_55%,#0b0b0b)]" style={{ opacity: activeOpacity }} />
       )}
       {/* Dark gradient overlay to keep text readable */}
       <div className="hero-video-overlay" />

@@ -8,6 +8,8 @@ import { PendingOrderBanner } from "@/components/PendingOrderBanner";
 import { OnboardingRedirect } from "@/components/OnboardingRedirect";
 import { FeatureBadgesGrid } from "@/components/FeatureBadgesGrid";
 import { getEnv } from "@/utils/env";
+import Link from "next/link";
+import { ClipboardList, LogIn, Rocket, Smartphone } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -203,6 +205,25 @@ export default async function Home() {
             
             <div className="w-full max-w-xl animate-fade-in-up-3 mb-8 sm:mb-10">
               <HeroSearch services={services || []} />
+            </div>
+
+            <div className="w-full max-w-xl grid grid-cols-2 gap-2 sm:grid-cols-4 animate-fade-in-up-3 mb-8 sm:mb-10">
+              <Link href="#services" className="flex min-h-14 flex-col items-center justify-center gap-1.5 rounded-2xl border border-[#1DB954]/25 bg-[#1DB954]/12 px-3 py-3 text-center text-[10px] font-black uppercase tracking-wider text-[#1DB954] transition hover:bg-[#1DB954] hover:text-black">
+                <Rocket size={16} />
+                Browse Services
+              </Link>
+              <Link href="/app" className="flex min-h-14 flex-col items-center justify-center gap-1.5 rounded-2xl border border-slate-800 bg-white/[0.04] px-3 py-3 text-center text-[10px] font-black uppercase tracking-wider text-slate-200 transition hover:border-[#1DB954]/50 hover:text-white">
+                <Smartphone size={16} />
+                Open App
+              </Link>
+              <Link href="/track" className="flex min-h-14 flex-col items-center justify-center gap-1.5 rounded-2xl border border-slate-800 bg-white/[0.04] px-3 py-3 text-center text-[10px] font-black uppercase tracking-wider text-slate-200 transition hover:border-[#1DB954]/50 hover:text-white">
+                <ClipboardList size={16} />
+                Track Order
+              </Link>
+              <Link href="/login" className="flex min-h-14 flex-col items-center justify-center gap-1.5 rounded-2xl border border-slate-800 bg-white/[0.04] px-3 py-3 text-center text-[10px] font-black uppercase tracking-wider text-slate-200 transition hover:border-[#1DB954]/50 hover:text-white">
+                <LogIn size={16} />
+                Login/Register
+              </Link>
             </div>
 
             {/* Value Propositions / Trust Highlights */}

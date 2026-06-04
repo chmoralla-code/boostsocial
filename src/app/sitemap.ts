@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+import { SERVICE_LANDING_PAGES } from "@/lib/serviceLandingPages";
 
 const baseUrl = "https://pinoyboosting.com";
 
@@ -12,6 +13,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
     "/track",
     "/affiliate",
     "/login",
+    "/services",
+    ...SERVICE_LANDING_PAGES.map((page) => `/services/${page.slug}`),
   ];
 
   return routes.map((route) => ({

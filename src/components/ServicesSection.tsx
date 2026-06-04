@@ -177,7 +177,8 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
     return Number((amount * (100 - vipDiscountPercent) / 100).toFixed(2));
   };
 
-  useEffect(() => {
+  const ensureSmmServices = () => {
+    if (smmServices.length > 0 || loadingSmm) return;
     setLoadingSmm(true);
     fetch("/api/smm/services")
       .then((res) => res.json())
@@ -188,7 +189,19 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
       })
       .catch((err) => console.error("Error loading direct SMM services:", err))
       .finally(() => setLoadingSmm(false));
-  }, []);
+  };
+
+  const openPlatformServices = (platform: PlatformType) => {
+    setPlatformSubModalType(platform);
+    ensureSmmServices();
+    setPlatformSubModalOpen(true);
+  };
+
+  const openSmmCatalog = (prefill?: string) => {
+    if (prefill !== undefined) setSmmPrefilledSearch(prefill);
+    ensureSmmServices();
+    setIsSmmCatalogModalOpen(true);
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -687,7 +700,7 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
       >
         {/* Services Section Background Video/Media */}
         {servicesBg && servicesBg.videoUrl && (
-          <div className="absolute inset-0 overflow-hidden pointer-events-none -z-10 select-none">
+          <div className="absolute inset-0 hidden overflow-hidden pointer-events-none -z-10 select-none md:block">
             {(() => {
               const isImage = (url: string) => {
                 const cleanUrl = url.split("?")[0].toLowerCase();
@@ -716,6 +729,7 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
                     muted
                     loop
                     playsInline
+                    preload="metadata"
                     className="absolute inset-0 w-full h-full object-cover select-none"
                     style={{ opacity: servicesBg.opacity }}
                   />
@@ -742,25 +756,13 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
             // Determine button click action
             let clickAction = () => {};
             if (card.id === "facebook") {
-              clickAction = () => {
-                setPlatformSubModalType("facebook");
-                setPlatformSubModalOpen(true);
-              };
+              clickAction = () => openPlatformServices("facebook");
             } else if (card.id === "instagram") {
-              clickAction = () => {
-                setPlatformSubModalType("instagram");
-                setPlatformSubModalOpen(true);
-              };
+              clickAction = () => openPlatformServices("instagram");
             } else if (card.id === "tiktok") {
-              clickAction = () => {
-                setPlatformSubModalType("tiktok");
-                setPlatformSubModalOpen(true);
-              };
+              clickAction = () => openPlatformServices("tiktok");
             } else if (card.id === "youtube") {
-              clickAction = () => {
-                setPlatformSubModalType("youtube");
-                setPlatformSubModalOpen(true);
-              };
+              clickAction = () => openPlatformServices("youtube");
             } else if (card.id === "order-page") {
               clickAction = () => {
                 window.location.href = "/order-page";
@@ -778,7 +780,7 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
                 setIsOtherModalOpen(true);
               };
             } else if (card.id === "catalog") {
-              clickAction = () => setIsSmmCatalogModalOpen(true);
+              clickAction = () => openSmmCatalog();
             }
 
             // Determine button bg and text colors
@@ -1205,7 +1207,7 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
                   return (
                     <div className="text-center py-16 bg-[#161616]/30 border border-slate-800 border-dashed rounded-2xl">
                       <p className="text-slate-500 font-extrabold uppercase tracking-wider text-sm">Reseller catalog timing list loading...</p>
-                      <p className="text-xs text-slate-650 mt-1">If this persists, click 'View Other Services' below to browse the backup database.</p>
+                      <p className="text-xs text-slate-650 mt-1">If this persists, click &quot;View Other Services&quot; below to browse the backup database.</p>
                     </div>
                   );
                 }
@@ -1278,8 +1280,7 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
                                   // Auto-checkout flow: Close this modal and open SMM Modal prefilled with the service ID
                                   setPlatformSubModalOpen(false);
                                   setPlatformSubModalType(null);
-                                  setSmmPrefilledSearch(s.id);
-                                  setIsSmmCatalogModalOpen(true);
+                                  openSmmCatalog(s.id);
                                 }}
                                 type="button"
                                 className="w-full bg-[#1DB954]/10 hover:bg-[#1DB954] text-[#1DB954] hover:text-black border border-[#1DB954]/30 hover:border-[#1DB954] font-extrabold py-2 rounded-xl transition-all text-xs uppercase tracking-widest cursor-pointer text-center"
@@ -1320,8 +1321,7 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
                               onClick={() => {
                                 setPlatformSubModalOpen(false);
                                 setPlatformSubModalType(null);
-                                setSmmPrefilledSearch(service ? String(service.id) : `${platformSubModalType} ${reaction.search}`);
-                                setIsSmmCatalogModalOpen(true);
+                                openSmmCatalog(service ? String(service.id) : `${platformSubModalType} ${reaction.search}`);
                               }}
                               className="group/reaction text-left rounded-2xl border border-slate-800 bg-black/25 hover:bg-black/45 hover:border-[#1DB954]/35 p-3.5 transition-all duration-300 cursor-pointer min-h-[138px] flex flex-col"
                             >
@@ -1359,8 +1359,7 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
                         onClick={() => {
                           setPlatformSubModalOpen(false);
                           setPlatformSubModalType(null);
-                          setSmmPrefilledSearch(platformSubModalType); // Prefill search with platform name
-                          setIsSmmCatalogModalOpen(true);
+                          openSmmCatalog(platformSubModalType); // Prefill search with platform name
                         }}
                         type="button"
                         className="w-full bg-slate-850 hover:bg-slate-800 border border-slate-800 text-slate-350 hover:text-white font-extrabold py-3.5 rounded-full transition-all duration-300 uppercase text-xs tracking-wider cursor-pointer text-center"

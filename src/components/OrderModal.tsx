@@ -596,6 +596,29 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
             {isPisoWifiService ? "Submit your PisoWiFi package details for GCash verification." : "Process your amplification request securely."}
           </p>
 
+          {!success && (
+            <div className="mb-6 rounded-2xl border border-[#1DB954]/20 bg-[#101010] p-4">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <span className="text-[10px] font-black uppercase tracking-widest text-[#1DB954]">Secure checkout flow</span>
+                <span className="text-[9px] font-black uppercase tracking-wider text-slate-500">GCash + Tracking</span>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  ["1", "Choose", "Service locked"],
+                  ["2", "Details", "Link or setup info"],
+                  ["3", "Pay", "GCash or wallet"],
+                  ["4", "Track", "Use Tracking ID"],
+                ].map(([step, label, caption]) => (
+                  <div key={step} className="rounded-xl border border-slate-850 bg-black/35 p-3">
+                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#1DB954]/12 text-[10px] font-black text-[#1DB954]">{step}</span>
+                    <p className="mt-2 text-[11px] font-black uppercase tracking-wider text-white">{label}</p>
+                    <p className="mt-0.5 text-[9px] font-bold leading-4 text-slate-500">{caption}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {success ? (
             <div className="bg-[#121212] text-white p-5 rounded-xl border border-slate-800 text-center space-y-4 animate-in zoom-in duration-300 max-h-[72vh] overflow-y-auto">
               <div className="w-10 h-10 bg-green-500/10 border border-green-500/20 text-[#1877F2] rounded-full flex items-center justify-center mx-auto">
@@ -1426,7 +1449,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                     <span className="text-sm mt-0.5">🛡️</span>
                     <p className="text-[10px] text-slate-355 leading-relaxed font-bold text-left">
                       <span className="text-[#1DB954] uppercase tracking-wider block mb-0.5">🔒 100% Monetization Safe Guarantee</span>
-                      Your campaign passes through CYNETWORK's proprietary filters to exclude toxic bot pools that trigger restrictions. Safe for Facebook Adsense & organic page growth.
+                      Your campaign passes through CYNETWORK&apos;s proprietary filters to exclude toxic bot pools that trigger restrictions. Safe for Facebook Adsense & organic page growth.
                     </p>
                   </div>
 )}
