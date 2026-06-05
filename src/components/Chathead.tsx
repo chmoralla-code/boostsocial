@@ -131,7 +131,7 @@ const renderMessageContent = (content: string, isUser: boolean) => {
 export function Chathead() {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
-    { role: 'assistant', content: 'Hi there! 👋 I am your CYNETWORK assistant. How can I help you amplify your reach today? If you have an Order ID, just send it over and I can track it for you!' }
+    { role: 'assistant', content: 'Hi, welcome to PinoyBoosting. Tell me what you need, like Facebook followers, reactions, GCash help, or send a Tracking ID and I can check it for you.' }
   ]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -483,7 +483,7 @@ export function Chathead() {
           }).join('\n')
         : `- Facebook Followers: ₱10 per 1,000 followers.\n- Post Reactions (Likes, Hearts, etc.): ₱5 per 1,000 reactions.\n- Video Views (for Reels, Stories, etc.): ₱13 per 1,000 views.`;
 
-      const systemContext = `You are a helpful, extremely concise customer support AI for CYNETWORK, a platform that boosts Facebook followers, reactions, and views. Keep responses brief (1-3 sentences max). You can perfectly understand and reply in English, Tagalog, and Taglish/Bisaya!
+      const systemContext = `You are PinoyBoosting's customer support assistant. Sound like a calm, helpful support rep: warm, direct, and natural, but never pretend to be a real human. Start with the answer, then give the next step. Keep replies brief unless the customer asks for detail. Use English, Tagalog, Taglish, or Bisaya based on the customer's wording. Avoid robotic phrases, hype, and repeated exclamation marks.
 
 Our live real-time core services and pricing catalog (fetched dynamically from our active database):
 ${servicesCatalogText}
@@ -498,7 +498,11 @@ CYNETWORK CRITICAL STORE POLICIES & INFORMATION:
 7. **Status Tracking:** Every order has a Tracking ID (e.g. BS-D5D1D849). Typing it in this chathead instantly queries our live database status (Pending, Processing, Completed).
 8. **Why we win against direct panels like RixeySMM:** Standard wholesale panels require crypto, provide zero Taglish support, and deliver foreign bots that trigger page bans. CYNETWORK has GCash support, Taglish developer care, and safety filtering.
 
-Format list items on separate lines with simple bullets (e.g. * **Item:** text). Always keep answers concise and fully aligned with CYNETWORK policies.`;
+Tone rules:
+- Use the customer's words where possible, like "No worries", "Got you", or "Sure" only when it feels natural.
+- If the question is vague, ask one simple follow-up instead of dumping a long menu.
+- Never invent prices, order statuses, discounts, timelines, or policies.
+- Format list items on separate lines with simple bullets only when a list is genuinely helpful.`;
 
       // Slice messages history to the last 4 exchanges to keep request size tiny and super fast!
       const recentMessages = messages.slice(-4);
@@ -543,13 +547,13 @@ Format list items on separate lines with simple bullets (e.g. * **Item:** text).
         // Safe, smart local fallback context based on user keywords
         const text = userMsg.toLowerCase();
         if (text.includes("price") || text.includes("cost") || text.includes("magkano") || text.includes("pricing") || text.includes("package")) {
-          responseText = `Our live prices start at just:\n- **Followers:** ₱10 per 1,000\n- **Reactions:** ₱5 per 1,000\n- **Views:** ₱13 per 1,000\n\nYou can view and select packages on the home screen! 🚀`;
+          responseText = `Sure. Prices depend on the exact service and quantity, so the best step is to open SERVICES and pick the package that matches your goal.\n\nTell me the platform, like Facebook followers or TikTok views, and I can narrow it down for you.`;
         } else if (text.includes("payment") || text.includes("gcash") || text.includes("bayad")) {
-          responseText = `We accept GCash! You can pay by scanning the QR code at checkout and uploading your receipt screenshot directly in this chat. 🙏`;
+          responseText = `Yes, GCash is accepted. After checkout, upload the receipt screenshot here or on the payment step so admin can verify it and start processing your order.`;
         } else if (text.includes("who") || text.includes("owner") || text.includes("create") || text.includes("develop") || text.includes("make")) {
-          responseText = `CYNETWORK was fully created and developed by **Cyrhiel Moralla**! 💻✨`;
+          responseText = `PinoyBoosting/CYNETWORK was created and developed by **Cyrhiel Moralla**. He also handles manual verification and support workflows.`;
         } else {
-          responseText = `Thank you for your message! Please check out our packages on the main page, or enter your Order ID (e.g. BS-D5D1D849) to track your order status instantly! ⚡`;
+          responseText = `Got you. Tell me what you want to grow or set up, like followers, reactions, views, PisoWiFi, or wallet top-up. If you have an order already, send a Tracking ID like BS-D5D1D849 and I can check it.`;
         }
       }
 
@@ -570,7 +574,7 @@ Format list items on separate lines with simple bullets (e.g. * **Item:** text).
 
     } catch (err: unknown) {
       console.error(err);
-      setMessages(prev => [...prev, { role: 'assistant', content: `Error connecting to AI: ${getErrorMessage(err)}` }]);
+      setMessages(prev => [...prev, { role: 'assistant', content: `Sorry, I had trouble connecting for a moment. Please try again, or send your Tracking ID if you want me to check an order.` }]);
     } finally {
       setIsLoading(false);
     }

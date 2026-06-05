@@ -213,21 +213,21 @@ function liveDataFallback(
 ) {
   if (matchedServices.length > 0) {
     return [
-      "Here are the closest live services I found:",
+      "Got you. I checked the live services and these are the closest matches:",
       ...matchedServices.slice(0, 4).map((service) =>
         `- ${service.title}: ${servicePriceLabel(service)}. Open ${serviceAppLink(service)}`
       ),
-      "Login is required before checkout.",
+      "You can browse first, but login is needed before checkout. If you want, I can also help you pick the cheapest or safest option.",
     ].join("\n");
   }
 
   if (matchedCandidates.length > 0) {
     return [
-      "Here are the closest service categories I found:",
+      "Sure. I found a few service categories that fit what you asked:",
       ...matchedCandidates.slice(0, 4).map((candidate) =>
         `- ${candidate.title}: ${candidate.rate_text || "Rate varies"}. Open /app`
       ),
-      "Login is required before buying any service.",
+      "Open /app to view them. Login is only required when you are ready to buy.",
     ].join("\n");
   }
 
@@ -259,6 +259,7 @@ async function findOrder(message: string) {
 
   const displayId = `BS-${data.id.slice(0, 8).toUpperCase()}`;
   return [
+    "I found your order.",
     `Tracking ID: ${displayId}`,
     `Service: ${data.services?.title || "Service"}`,
     `Quantity: ${Number(data.quantity || 0).toLocaleString()}`,
@@ -267,30 +268,30 @@ async function findOrder(message: string) {
     `Status: ${data.status}`,
     "Open /app/orders to view this inside the APK.",
     data.status === "Pending"
-      ? "Next step: wait for admin payment verification, or upload the correct GCash receipt if missing."
+      ? "Next step: wait for admin payment verification. If the receipt is missing or wrong, upload the correct GCash screenshot."
       : data.status === "Processing"
-        ? "Your order is already processing and delivery is active."
+        ? "Your order is already processing, so delivery is active now."
         : data.status === "Completed"
-          ? "Your order is completed."
-          : "Please contact support if this status looks wrong.",
+          ? "Your order is completed. Please check the target link when you have a moment."
+          : "If this status looks wrong, send a message to support and we will check it.",
   ].join("\n");
 }
 
 function localFallback(message: string) {
   const text = message.toLowerCase();
   if (text.includes("top up") || text.includes("top-up") || text.includes("topup") || text.includes("wallet")) {
-    return "Login first at /app/auth?mode=login, then open /app/profile to top up your app wallet. Upload your GCash receipt there and admin can approve it from the app dashboard or Telegram top-up bot.";
+    return "Sure. Login at /app/auth?mode=login, then open /app/profile to top up your wallet. Upload your GCash receipt there, and admin can approve it from the app dashboard or Telegram top-up report.";
   }
   if (text.includes("gcash") || text.includes("payment") || text.includes("bayad")) {
-    return "We accept GCash. Login first at /app/auth?mode=login, choose a service at /app, submit your target link, then upload the payment receipt during checkout.";
+    return "Yes, GCash is accepted. Choose a service in /app, submit your target link, then upload the payment receipt during checkout so admin can verify it.";
   }
   if (text.includes("login") || text.includes("register") || text.includes("account")) {
-    return "Use /app/auth?mode=login or /app/auth?mode=register. Buying is locked until your account is logged in, then you will return to /app.";
+    return "No problem. Use /app/auth?mode=login if you already have an account, or /app/auth?mode=register if you are new. After login, you will return to the app and buying will be unlocked.";
   }
   if (text.includes("pisowifi") || text.includes("piso wifi")) {
-    return "Open /app, tap PISOWIFI PACKAGE under SERVICES, then choose the package. Login is required before checkout.";
+    return "Yes, PisoWiFi packages are available. Open /app, tap PISOWIFI PACKAGE under SERVICES, then choose Starter, Professional, or Enterprise. Login is required only before checkout.";
   }
-  return "Open /app and choose the matching SERVICES card. I can also answer prices, recommend services, or track orders at /app/orders if you send a Tracking ID like BS-D5D1D849.";
+  return "I can help with that. Open /app to browse SERVICES, or tell me the platform and goal, like Facebook followers, TikTok views, PisoWiFi, or top-up help. If you have an order, send a Tracking ID like BS-D5D1D849 and I will check it.";
 }
 
 export async function POST(request: Request) {
@@ -328,13 +329,15 @@ export async function POST(request: Request) {
       {
         role: "system",
         content: [
-          "You are the PinoyBoosting mobile app AI assistant.",
+          "You are the PinoyBoosting mobile app AI assistant. Sound like a calm, friendly human support rep, but never pretend to be a real human.",
           "Use Pollinations AI, but your accuracy must come from the live data below. Do not invent packages, prices, discounts, durations, or policies.",
-          "Answer in concise English, Taglish when natural. If live data is missing, say exactly what is available and suggest the nearest app action.",
+          "Answer in concise English, Taglish when natural. Use warm phrases like 'Got you', 'Sure', or 'No worries' only when they fit. Avoid stiff chatbot lines.",
+          "Start with the direct answer, then give the useful next step. If the user is vague, ask one simple follow-up question instead of listing too much.",
+          "If live data is missing, say exactly what is available and suggest the nearest app action.",
           "Always mention the exact app link from live service rows, /app for general service cards, /app/profile for wallet top-ups, /app/auth?mode=login for login, /app/auth?mode=register for signup, and /app/orders for orders when relevant.",
           "When a client asks for a specific service, name the closest live candidate or stored service exactly, include the price/rate if available, and include the exact /app?service=... link when one is available. If multiple services match, recommend the most relevant 2-4.",
           "Buying is prohibited until the client logs in or registers.",
-          "Keep answers short: 3-6 useful sentences or a few short bullets. Do not mention internal provider IDs unless the user gives a Tracking ID or asks for admin details.",
+          "Keep answers short: 3-6 useful sentences or a few short bullets. Do not overuse exclamation marks. Do not mention internal provider IDs unless the user gives a Tracking ID or asks for admin details.",
           `Realtime snapshot: ${new Date().toISOString()}`,
           `Mobile app name: ${appSettings.appName}`,
           `Mobile app banner: ${appSettings.appBanner || "None"}`,

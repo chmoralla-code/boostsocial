@@ -345,7 +345,7 @@ function AppAiAssistant({
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       role: "assistant",
-      content: "Hi! I am the PinoyBoosting realtime AI. Ask for live prices, best services, GCash help, or send a Tracking ID like BS-D5D1D849.",
+      content: "Hi, welcome to PinoyBoosting. Tell me what you need, like Facebook likes, PisoWiFi packages, GCash top-up help, or send a Tracking ID like BS-D5D1D849.",
     },
   ]);
   const [input, setInput] = useState("");
@@ -374,12 +374,12 @@ function AppAiAssistant({
         body: JSON.stringify({ messages: nextMessages.slice(-8) }),
       });
       const data = await res.json();
-      const content = data.content || "I could not reach the cloud AI right now. Try again in a moment.";
+      const content = data.content || "Sorry, I could not get a clear answer from the cloud AI just now. Tell me the service you need and I will still guide you from the live app data.";
       setMessages((previous) => [...previous, { role: "assistant", content }]);
     } catch {
       setMessages((previous) => [
         ...previous,
-        { role: "assistant", content: "Connection issue. Please try again, or open Services and choose a package directly." },
+        { role: "assistant", content: "Sorry, the chat connection dipped for a moment. You can try again, or open Services and choose a package directly." },
       ]);
     } finally {
       setLoading(false);
