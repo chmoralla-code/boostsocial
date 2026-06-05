@@ -53,19 +53,27 @@ function scoreText(haystack: string, words: string[]) {
   return words.reduce((score, word) => score + (cleanHaystack.includes(word) ? 1 : 0), 0);
 }
 
-function priceLine(service: ServiceRow) {
-  const parsed = parseDescription(service.description);
+function servicePriceLabel(service: ServiceRow) {
   const single = service.title.toLowerCase().includes("page")
     || service.title.toLowerCase().includes("gemini")
     || service.title.toLowerCase().includes("pisowifi")
     || service.title.toLowerCase().includes("software")
     || service.title.toLowerCase().includes("license");
   const price = Number(service.starting_price || 0);
-  const label = single ? `PHP ${price.toFixed(2)} per unit` : `PHP ${(price * 1000).toFixed(2)} per 1k`;
+  return single ? `PHP ${price.toFixed(2)} per unit` : `PHP ${(price * 1000).toFixed(2)} per 1k`;
+}
+
+function serviceAppLink(service: ServiceRow) {
+  return `/app?service=${encodeURIComponent(service.id)}`;
+}
+
+function priceLine(service: ServiceRow) {
+  const parsed = parseDescription(service.description);
+  const label = servicePriceLabel(service);
   return [
     `- ${service.title}`,
     `Price: ${label}`,
-    `App link: /app?service=${encodeURIComponent(service.id)}`,
+    `App link: ${serviceAppLink(service)}`,
     parsed?.subtitle || parsed?.description || "",
     parsed?.button_text ? `Button: ${parsed.button_text}` : "",
     parsed?.smm_original_name ? `Provider name: ${parsed.smm_original_name}` : "",
@@ -183,7 +191,10 @@ async function askPollinations(messages: ChatMessage[]) {
         signal: AbortSignal.timeout(14000),
       });
 
-      if (!res.ok) continue;
+      if (!res.ok) {
+        console.warn("Pollinations app chat returned non-OK status:", request.url, res.status);
+        continue;
+      }
       const data = await res.json();
       const content = data.choices?.[0]?.message?.content;
       if (typeof content === "string" && content.trim()) return content.trim();
@@ -193,6 +204,34 @@ async function askPollinations(messages: ChatMessage[]) {
   }
 
   return "";
+}
+
+function liveDataFallback(
+  matchedServices: ServiceRow[],
+  matchedCandidates: Awaited<ReturnType<typeof readServiceCandidatesFromAnyDatabase>>,
+  message: string
+) {
+  if (matchedServices.length > 0) {
+    return [
+      "Here are the closest live services I found:",
+      ...matchedServices.slice(0, 4).map((service) =>
+        `- ${service.title}: ${servicePriceLabel(service)}. Open ${serviceAppLink(service)}`
+      ),
+      "Login is required before checkout.",
+    ].join("\n");
+  }
+
+  if (matchedCandidates.length > 0) {
+    return [
+      "Here are the closest service categories I found:",
+      ...matchedCandidates.slice(0, 4).map((candidate) =>
+        `- ${candidate.title}: ${candidate.rate_text || "Rate varies"}. Open /app`
+      ),
+      "Login is required before buying any service.",
+    ].join("\n");
+  }
+
+  return localFallback(message);
 }
 
 async function findOrder(message: string) {
@@ -312,7 +351,7 @@ export async function POST(request: Request) {
 
     const content = await askPollinations(promptMessages);
     return NextResponse.json({
-      content: content || localFallback(userMessage),
+      content: content || liveDataFallback(matchedServices, matchedCandidates, userMessage),
     });
   } catch (error) {
     console.error("App chat route failed:", error);
