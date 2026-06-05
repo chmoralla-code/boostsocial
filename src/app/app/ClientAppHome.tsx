@@ -345,7 +345,7 @@ function AppAiAssistant({
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       role: "assistant",
-      content: "Hi! I am the PinoyBoosting app AI. Ask for prices, best services, GCash help, or send a Tracking ID like BS-D5D1D849.",
+      content: "Hi! I am the PinoyBoosting realtime AI. Ask for live prices, best services, GCash help, or send a Tracking ID like BS-D5D1D849.",
     },
   ]);
   const [input, setInput] = useState("");
@@ -399,9 +399,9 @@ function AppAiAssistant({
               <Bot size={20} />
             </span>
             <div>
-              <p className="text-sm font-black">App AI Assistant</p>
+              <p className="text-sm font-black">Pollinations Realtime AI</p>
               <p className={`text-[11px] font-semibold ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>
-                Smart service links and order status
+                Live services, wallet help, and order status
               </p>
             </div>
           </div>
@@ -643,6 +643,21 @@ export function ClientAppHome({
     setPresetQuantity(isSingleQuantityService(service) ? 1 : 1000);
     setDetailsService(service);
   }, []);
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      const serviceId = new URLSearchParams(window.location.search).get("service");
+      if (!serviceId) return;
+
+      const service = services.find((item) => item.id === serviceId);
+      if (!service) return;
+
+      openServiceDetails(service);
+      window.history.replaceState(null, "", "/app");
+    }, 0);
+
+    return () => window.clearTimeout(timeout);
+  }, [openServiceDetails, services]);
 
   const requireLogin = (action: () => void, pendingAction?: PendingAppAction) => {
     if (authReady && user) {

@@ -7,6 +7,8 @@ import { useRouter } from "next/navigation";
 import {
   AlertCircle,
   ArrowLeft,
+  Bell,
+  BellRing,
   CheckCircle,
   ClipboardList,
   Copy,
@@ -37,6 +39,8 @@ type AppProfile = {
 const GCASH_NUMBER = "09505339963";
 const GCASH_NAME = "Henry S.";
 
+type PushStatus = "checking" | "unsupported" | "disabled" | "saving" | "enabled" | "blocked" | "setup";
+
 function money(value: number | string | null | undefined) {
   const amount = Number(value || 0);
   return `PHP ${Number.isFinite(amount) ? amount.toFixed(2) : "0.00"}`;
@@ -47,6 +51,19 @@ function readableDate(value?: string | null) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "Not active";
   return date.toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" });
+}
+
+function urlBase64ToUint8Array(base64String: string) {
+  const padding = "=".repeat((4 - base64String.length % 4) % 4);
+  const base64 = `${base64String}${padding}`.replace(/-/g, "+").replace(/_/g, "/");
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+
+  for (let index = 0; index < rawData.length; index++) {
+    outputArray[index] = rawData.charCodeAt(index);
+  }
+
+  return outputArray;
 }
 
 export default function AppProfilePage() {
@@ -64,6 +81,8 @@ export default function AppProfilePage() {
   const [topUpSuccess, setTopUpSuccess] = useState("");
   const [copied, setCopied] = useState(false);
   const [copiedGcash, setCopiedGcash] = useState(false);
+  const [pushStatus, setPushStatus] = useState<PushStatus>("checking");
+  const [pushMessage, setPushMessage] = useState("Checking phone notification support...");
 
   const loadProfile = useCallback(async (currentUser: User | null) => {
     if (!currentUser?.id) {
@@ -109,6 +128,58 @@ export default function AppProfilePage() {
       window.clearTimeout(fallback);
     };
   }, [loadProfile, supabase.auth]);
+
+  useEffect(() => {
+    let alive = true;
+
+    async function syncPushStatus() {
+      await Promise.resolve();
+      if (!alive) return;
+
+      if (!user) {
+        setPushStatus("disabled");
+        setPushMessage("Login to enable phone status updates.");
+        return;
+      }
+
+      if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) {
+        setPushStatus("unsupported");
+        setPushMessage("This phone browser does not support push notifications.");
+        return;
+      }
+
+      if (Notification.permission === "denied") {
+        setPushStatus("blocked");
+        setPushMessage("Notifications are blocked in your phone settings.");
+        return;
+      }
+
+      try {
+        const registration = await navigator.serviceWorker.getRegistration("/sw.js")
+          || await navigator.serviceWorker.register("/sw.js");
+        const subscription = await registration.pushManager.getSubscription();
+        if (!alive) return;
+
+        if (subscription && Notification.permission === "granted") {
+          setPushStatus("enabled");
+          setPushMessage("Phone alerts are enabled for order status updates.");
+        } else {
+          setPushStatus("disabled");
+          setPushMessage("Enable phone alerts for Processing, Completed, Rejected, or Cancelled orders.");
+        }
+      } catch {
+        if (!alive) return;
+        setPushStatus("disabled");
+        setPushMessage("Enable phone alerts for order status updates.");
+      }
+    }
+
+    void syncPushStatus();
+
+    return () => {
+      alive = false;
+    };
+  }, [user]);
 
   const activePlan = getActiveVipPlan(profile);
 
@@ -192,6 +263,62 @@ export default function AppProfilePage() {
       setTopUpError(err instanceof Error ? err.message : "Failed to submit top-up request.");
     } finally {
       setTopUpSubmitting(false);
+    }
+  };
+
+  const enablePhoneNotifications = async () => {
+    if (!user) return;
+
+    if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) {
+      setPushStatus("unsupported");
+      setPushMessage("This phone browser does not support push notifications.");
+      return;
+    }
+
+    setPushStatus("saving");
+    setPushMessage("Preparing phone notifications...");
+
+    try {
+      const keyRes = await fetch("/api/push/vapid-public-key", { cache: "no-store" });
+      const keyData = (await keyRes.json()) as { enabled?: boolean; publicKey?: string; error?: string };
+
+      if (!keyRes.ok || !keyData.enabled || !keyData.publicKey) {
+        throw new Error(keyData.error || "Phone notification server setup is not ready yet.");
+      }
+
+      const permission = await Notification.requestPermission();
+      if (permission !== "granted") {
+        setPushStatus(permission === "denied" ? "blocked" : "disabled");
+        setPushMessage(permission === "denied"
+          ? "Notifications are blocked in your phone settings."
+          : "Phone notifications were not enabled.");
+        return;
+      }
+
+      const registration = await navigator.serviceWorker.register("/sw.js");
+      const existingSubscription = await registration.pushManager.getSubscription();
+      const subscription = existingSubscription || await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(keyData.publicKey),
+      });
+
+      const saveRes = await fetch("/api/push/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ subscription: subscription.toJSON() }),
+      });
+      const saveData = (await saveRes.json().catch(() => ({}))) as { error?: string };
+
+      if (!saveRes.ok) {
+        throw new Error(saveData.error || "Could not save phone notification subscription.");
+      }
+
+      setPushStatus("enabled");
+      setPushMessage("Phone alerts are enabled for order status updates.");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Unable to enable phone notifications.";
+      setPushStatus(message.toLowerCase().includes("migration") || message.toLowerCase().includes("setup") ? "setup" : "disabled");
+      setPushMessage(message);
     }
   };
 
@@ -285,6 +412,33 @@ export default function AppProfilePage() {
               </button>
             </div>
             {copied && <p className="mt-2 text-xs font-bold text-emerald-700">Referral code copied.</p>}
+          </article>
+
+          <article className="rounded-3xl border border-zinc-200 bg-white p-4 shadow-sm">
+            <div className="flex items-start gap-3">
+              <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${
+                pushStatus === "enabled" ? "bg-emerald-600 text-white" : "bg-zinc-100 text-zinc-700"
+              }`}>
+                {pushStatus === "enabled" ? <BellRing size={20} /> : <Bell size={20} />}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-black">Phone status alerts</p>
+                <p className="mt-1 text-xs font-semibold leading-5 text-zinc-500">{pushMessage}</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={enablePhoneNotifications}
+              disabled={pushStatus === "enabled" || pushStatus === "saving" || pushStatus === "unsupported" || pushStatus === "blocked"}
+              className={`mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-2xl text-sm font-black ${
+                pushStatus === "enabled"
+                  ? "bg-emerald-50 text-emerald-700"
+                  : "bg-zinc-950 text-white disabled:bg-zinc-100 disabled:text-zinc-400"
+              }`}
+            >
+              {pushStatus === "saving" && <Loader2 size={16} className="animate-spin" />}
+              {pushStatus === "enabled" ? "Enabled" : pushStatus === "saving" ? "Enabling" : "Enable phone alerts"}
+            </button>
           </article>
 
           <button type="button" onClick={signOut} className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-zinc-200 bg-white text-sm font-black text-zinc-700">

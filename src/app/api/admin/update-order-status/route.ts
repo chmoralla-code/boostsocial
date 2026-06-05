@@ -5,7 +5,30 @@ import { sendOrderCompleteNotification } from "@/lib/telegram";
 import { syncBackupAdminClients } from "@/utils/supabase/dual-db";
 import { creditReferralCommission } from "@/utils/referrals";
 import { resolveSmmServiceTitle } from "@/lib/smmServiceResolver";
-import { notifyCustomer, orderStatusNotification } from "@/lib/customerNotifications";
+import { notifyOrderStatusCustomer } from "@/lib/customerNotifications";
+
+type JoinedService = { title?: string | null } | { title?: string | null }[] | null | undefined;
+
+type AdminOrderRow = {
+  status: string;
+  service_id: string;
+  target_url: string;
+  quantity: number;
+  external_order_id?: string | null;
+  customer_email?: string | null;
+  amount?: number | string | null;
+  payment_method?: string | null;
+  smm_service_id?: string | number | null;
+  services?: JoinedService;
+};
+
+function getJoinedServiceTitle(services: JoinedService) {
+  return Array.isArray(services) ? services[0]?.title : services?.title;
+}
+
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : String(error);
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -49,6 +72,7 @@ export async function POST(req: NextRequest) {
     if (fetchError || !order) {
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
+    const orderRow = order as AdminOrderRow;
 
     // 2. Update order status in the database
     const { error: updateError } = await supabase
@@ -66,10 +90,11 @@ export async function POST(req: NextRequest) {
     }, "admin order status sync");
 
     const trackingId = `BS-${orderId.slice(0, 8).toUpperCase()}`;
-    notifyCustomer({
+    notifyOrderStatusCustomer({
       client: supabase,
-      email: order.customer_email,
-      message: orderStatusNotification(trackingId, newStatus),
+      email: orderRow.customer_email,
+      trackingId,
+      status: newStatus,
     }).catch((notificationErr) => {
       console.error("Admin order status customer notification failed:", notificationErr);
     });
@@ -80,18 +105,18 @@ export async function POST(req: NextRequest) {
     if (newStatus === "Processing" || newStatus === "Completed") {
       creditReferralCommission({
         primaryClient: supabase,
-        customerEmail: order.customer_email,
+        customerEmail: orderRow.customer_email,
         source: "order",
-        amount: Number(order.amount),
+        amount: Number(orderRow.amount),
         referenceId: orderId,
       }).catch((err) => {
         console.error("Admin referral order commission failed:", err);
       });
     }
 
-    if (newStatus === "Processing" && !order.external_order_id) {
+    if (newStatus === "Processing" && !orderRow.external_order_id) {
       // autoPlaceRixeyOrder has its own guard to only run for the Followers service ID
-      autoPlaceRixeyOrder(orderId, order.service_id, order.target_url, order.quantity).catch((err) => {
+      autoPlaceRixeyOrder(orderId, orderRow.service_id, orderRow.target_url, orderRow.quantity).catch((err) => {
         console.error("Async auto-placement on RixeySMM from admin status update failed:", err);
       });
     }
@@ -99,16 +124,16 @@ export async function POST(req: NextRequest) {
     // 4. Fire Telegram completion notification if:
     // - Order status is updated to 'Completed'
     if (newStatus === "Completed") {
-      const serviceTitle = (order as any).services?.title || "SMM Service";
-      const resolvedServiceTitle = await resolveSmmServiceTitle((order as any).smm_service_id, serviceTitle);
+      const serviceTitle = getJoinedServiceTitle(orderRow.services) || "SMM Service";
+      const resolvedServiceTitle = await resolveSmmServiceTitle(orderRow.smm_service_id, serviceTitle);
       sendOrderCompleteNotification({
         trackingId,
         service: resolvedServiceTitle,
-        email: order.customer_email,
-        quantity: order.quantity,
-        amount: Number(order.amount),
-        paymentMethod: order.payment_method || "GCash",
-        details: order.target_url,
+        email: orderRow.customer_email || "",
+        quantity: orderRow.quantity,
+        amount: Number(orderRow.amount),
+        paymentMethod: orderRow.payment_method || "GCash",
+        details: orderRow.target_url,
       }).catch((err) => {
         console.error("Async sendOrderCompleteNotification failed from admin update:", err);
       });
@@ -116,9 +141,9 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ success: true });
 
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("Update order status endpoint failed:", err);
-    return NextResponse.json({ error: err.message || err.toString() }, { status: 500 });
+    return NextResponse.json({ error: getErrorMessage(err) }, { status: 500 });
   }
 }
 

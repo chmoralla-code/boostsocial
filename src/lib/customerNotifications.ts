@@ -1,5 +1,6 @@
 import { SupabaseClient } from "@supabase/supabase-js";
 import { syncBackupAdminClients } from "@/utils/supabase/dual-db";
+import { isOrderPushStatus, sendOrderStatusPush } from "@/lib/webPush";
 
 type NotifyCustomerInput = {
   client: SupabaseClient;
@@ -30,6 +31,35 @@ export async function notifyCustomer({ client, email, message, sender = "system"
   await syncBackupAdminClients(async (backupClient) => {
     return backupClient.from("customer_messages").insert([payload]);
   }, "customer notification sync");
+}
+
+export async function notifyOrderStatusCustomer({
+  client,
+  email,
+  trackingId,
+  status,
+}: {
+  client: SupabaseClient;
+  email?: string | null;
+  trackingId: string;
+  status: string;
+}) {
+  const message = orderStatusNotification(trackingId, status);
+
+  await notifyCustomer({
+    client,
+    email,
+    message,
+  });
+
+  if (isOrderPushStatus(status)) {
+    await sendOrderStatusPush({
+      client,
+      email,
+      trackingId,
+      status,
+    });
+  }
 }
 
 export function orderStatusNotification(trackingId: string, status: string) {

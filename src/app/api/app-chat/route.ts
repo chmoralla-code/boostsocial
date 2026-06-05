@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { parseDescription } from "@/utils/serviceHelpers";
 import { fallbackRead } from "@/utils/supabase/dual-db";
 import { readServiceCandidatesFromAnyDatabase } from "@/lib/serviceCandidatesServer";
+import { readMobileAppSettingsFromAnyDatabase } from "@/lib/mobileAppServer";
 
 type ChatMessage = {
   role: "user" | "assistant" | "system";
@@ -13,6 +14,7 @@ type ServiceRow = {
   title: string;
   description: unknown;
   starting_price: number | string;
+  icon_type?: string | null;
 };
 
 type OrderRow = {
@@ -32,6 +34,25 @@ function latestUserMessage(messages: ChatMessage[]) {
   return [...messages].reverse().find((message) => message.role === "user")?.content?.trim() || "";
 }
 
+function normalizeWords(text: string) {
+  const stopWords = new Set([
+    "the", "and", "for", "with", "what", "how", "can", "you", "ako", "po", "ng", "sa", "is", "are", "best", "service",
+    "services", "price", "rate", "need", "want", "buy", "order", "please", "send", "link",
+  ]);
+
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, " ")
+    .split(/\s+/)
+    .map((word) => word.trim())
+    .filter((word) => word.length > 2 && !stopWords.has(word));
+}
+
+function scoreText(haystack: string, words: string[]) {
+  const cleanHaystack = haystack.toLowerCase();
+  return words.reduce((score, word) => score + (cleanHaystack.includes(word) ? 1 : 0), 0);
+}
+
 function priceLine(service: ServiceRow) {
   const parsed = parseDescription(service.description);
   const single = service.title.toLowerCase().includes("page")
@@ -41,18 +62,137 @@ function priceLine(service: ServiceRow) {
     || service.title.toLowerCase().includes("license");
   const price = Number(service.starting_price || 0);
   const label = single ? `PHP ${price.toFixed(2)} per unit` : `PHP ${(price * 1000).toFixed(2)} per 1k`;
-  return `- ${service.title}: ${label}. Link: /app. ${parsed?.subtitle || parsed?.description || ""}`;
+  return [
+    `- ${service.title}`,
+    `Price: ${label}`,
+    `App link: /app?service=${encodeURIComponent(service.id)}`,
+    parsed?.subtitle || parsed?.description || "",
+    parsed?.button_text ? `Button: ${parsed.button_text}` : "",
+    parsed?.smm_original_name ? `Provider name: ${parsed.smm_original_name}` : "",
+  ].filter(Boolean).join(". ");
 }
 
 async function readServices() {
   const { data } = await fallbackRead<ServiceRow[]>(async (client) =>
     await client
       .from("services")
-      .select("id,title,description,starting_price")
+      .select("id,title,description,starting_price,icon_type")
       .order("created_at", { ascending: true })
   );
 
   return Array.isArray(data) ? data : [];
+}
+
+function topServicesForQuery(services: ServiceRow[], message: string) {
+  const words = normalizeWords(message);
+  if (words.length === 0) return services.slice(0, 18);
+
+  return [...services]
+    .map((service) => {
+      const parsed = parseDescription(service.description);
+      const text = [
+        service.title,
+        service.icon_type,
+        parsed?.subtitle,
+        parsed?.description,
+        parsed?.button_text,
+        parsed?.smm_original_name,
+      ].filter(Boolean).join(" ");
+
+      return { service, score: scoreText(text, words) };
+    })
+    .filter((item) => item.score > 0)
+    .sort((a, b) => b.score - a.score || String(a.service.title).localeCompare(String(b.service.title)))
+    .slice(0, 18)
+    .map((item) => item.service);
+}
+
+function topCandidatesForQuery(candidates: Awaited<ReturnType<typeof readServiceCandidatesFromAnyDatabase>>, message: string) {
+  const words = normalizeWords(message);
+  if (words.length === 0) return candidates;
+
+  const matched = [...candidates]
+    .map((candidate) => ({
+      candidate,
+      score: scoreText([
+        candidate.id,
+        candidate.tag,
+        candidate.title,
+        candidate.caption,
+        candidate.description,
+        candidate.rate_text,
+      ].filter(Boolean).join(" "), words),
+    }))
+    .filter((item) => item.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .map((item) => item.candidate);
+
+  return matched.length > 0 ? matched : candidates;
+}
+
+async function readProviderBalance() {
+  const apiKey = process.env.RIXEYSMM_API_KEY;
+  if (!apiKey) return "Not configured";
+
+  try {
+    const res = await fetch("https://rixeysmm.shop/api/v2", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        key: apiKey,
+        action: "balance",
+      }),
+      signal: AbortSignal.timeout(6500),
+    });
+
+    if (!res.ok) return "Unavailable";
+    const data = await res.json();
+    const balance = Number(data.balance || 0);
+    return Number.isFinite(balance) ? `PHP ${balance.toFixed(2)}` : "Unavailable";
+  } catch {
+    return "Unavailable";
+  }
+}
+
+async function askPollinations(messages: ChatMessage[]) {
+  const model = process.env.POLLINATIONS_MODEL || "openai";
+  const requests = [
+    {
+      url: "https://gen.pollinations.ai/v1/chat/completions",
+      headers: {
+        "Content-Type": "application/json",
+        ...(process.env.POLLINATIONS_API_KEY ? { Authorization: `Bearer ${process.env.POLLINATIONS_API_KEY}` } : {}),
+      },
+    },
+    {
+      url: "https://text.pollinations.ai/openai",
+      headers: { "Content-Type": "application/json" },
+    },
+  ];
+
+  for (const request of requests) {
+    try {
+      const res = await fetch(request.url, {
+        method: "POST",
+        headers: request.headers,
+        body: JSON.stringify({
+          model,
+          messages,
+          temperature: 0.2,
+        }),
+        signal: AbortSignal.timeout(14000),
+      });
+
+      if (!res.ok) continue;
+      const data = await res.json();
+      const content = data.choices?.[0]?.message?.content;
+      if (typeof content === "string" && content.trim()) return content.trim();
+    } catch (error) {
+      console.warn("Pollinations app chat request failed:", error);
+    }
+  }
+
+  return "";
 }
 
 async function findOrder(message: string) {
@@ -131,13 +271,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ content: orderReply });
     }
 
-    const [services, candidates] = await Promise.all([
+    const [services, candidates, appSettings, providerBalance] = await Promise.all([
       readServices(),
       readServiceCandidatesFromAnyDatabase(),
+      readMobileAppSettingsFromAnyDatabase(),
+      readProviderBalance(),
     ]);
 
-    const serviceContext = services.slice(0, 60).map(priceLine).join("\n");
-    const candidateContext = candidates.map((candidate) =>
+    const matchedServices = topServicesForQuery(services, userMessage);
+    const matchedCandidates = topCandidatesForQuery(candidates, userMessage);
+    const serviceContext = matchedServices.map(priceLine).join("\n");
+    const candidateContext = matchedCandidates.slice(0, 12).map((candidate) =>
       `- ${candidate.tag || candidate.title}: ${candidate.title}. ${candidate.description}. Rate: ${candidate.rate_text || "varies"}. App link: /app`
     ).join("\n");
 
@@ -146,39 +290,29 @@ export async function POST(request: Request) {
         role: "system",
         content: [
           "You are the PinoyBoosting mobile app AI assistant.",
-          "Be smarter and clearer than a generic support bot.",
-          "Answer in concise English, Taglish when natural, and never invent services.",
-          "Always mention the exact app link /app for service cards, /app/profile for wallet top-ups, /app/auth?mode=login for login, /app/auth?mode=register for signup, and /app/orders for orders when relevant.",
-          "When a client asks for a specific service, name the closest live candidate or stored service exactly, include the price/rate if available, and include /app as the tappable service link.",
+          "Use Pollinations AI, but your accuracy must come from the live data below. Do not invent packages, prices, discounts, durations, or policies.",
+          "Answer in concise English, Taglish when natural. If live data is missing, say exactly what is available and suggest the nearest app action.",
+          "Always mention the exact app link from live service rows, /app for general service cards, /app/profile for wallet top-ups, /app/auth?mode=login for login, /app/auth?mode=register for signup, and /app/orders for orders when relevant.",
+          "When a client asks for a specific service, name the closest live candidate or stored service exactly, include the price/rate if available, and include the exact /app?service=... link when one is available. If multiple services match, recommend the most relevant 2-4.",
           "Buying is prohibited until the client logs in or registers.",
-          "Keep answers short: 3-6 useful sentences or a few short bullets.",
-          "Live candidate services:",
+          "Keep answers short: 3-6 useful sentences or a few short bullets. Do not mention internal provider IDs unless the user gives a Tracking ID or asks for admin details.",
+          `Realtime snapshot: ${new Date().toISOString()}`,
+          `Mobile app name: ${appSettings.appName}`,
+          `Mobile app banner: ${appSettings.appBanner || "None"}`,
+          `Current provider balance: ${providerBalance}`,
+          "Live candidate services matching this question:",
           candidateContext,
-          "Live stored services:",
+          "Live stored services matching this question:",
           serviceContext,
+          services.length > matchedServices.length ? `Total stored services available: ${services.length}` : "",
         ].join("\n"),
       },
       ...messages.slice(-6),
     ];
 
-    const res = await fetch("https://text.pollinations.ai/openai", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "openai",
-        messages: promptMessages,
-      }),
-      signal: AbortSignal.timeout(12000),
-    });
-
-    if (!res.ok) {
-      return NextResponse.json({ content: localFallback(userMessage) });
-    }
-
-    const data = await res.json();
-    const content = data.choices?.[0]?.message?.content;
+    const content = await askPollinations(promptMessages);
     return NextResponse.json({
-      content: typeof content === "string" && content.trim() ? content.trim() : localFallback(userMessage),
+      content: content || localFallback(userMessage),
     });
   } catch (error) {
     console.error("App chat route failed:", error);

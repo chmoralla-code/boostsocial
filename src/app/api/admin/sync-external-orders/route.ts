@@ -1,13 +1,44 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { sendOrderCompleteNotification } from "@/lib/telegram";
 import { syncBackupAdminClients } from "@/utils/supabase/dual-db";
 import { resolveSmmServiceTitle } from "@/lib/smmServiceResolver";
-import { notifyCustomer, orderStatusNotification } from "@/lib/customerNotifications";
+import { notifyOrderStatusCustomer } from "@/lib/customerNotifications";
 
 const RIXEYSMM_API_URL = "https://rixeysmm.shop/api/v2";
 
-export async function POST(req: NextRequest) {
+type JoinedService = { title?: string | null } | { title?: string | null }[] | null | undefined;
+
+type SyncResult = {
+  id: string;
+  oldStatus: string;
+  newStatus: string;
+  externalStatus: string;
+};
+
+type ExternalOrderRow = {
+  id: string;
+  status: string;
+  external_order_id: string;
+  external_status?: string | null;
+  customer_email?: string | null;
+  target_url?: string | null;
+  quantity?: number | null;
+  amount?: number | string | null;
+  payment_method?: string | null;
+  smm_service_id?: string | number | null;
+  services?: JoinedService;
+};
+
+function getJoinedServiceTitle(services: JoinedService) {
+  return Array.isArray(services) ? services[0]?.title : services?.title;
+}
+
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : String(error);
+}
+
+export async function POST() {
   try {
     const apiKey = process.env.RIXEYSMM_API_KEY;
     if (!apiKey) {
@@ -55,11 +86,11 @@ export async function POST(req: NextRequest) {
     }
 
     let updatedCount = 0;
-    const syncResults: any[] = [];
+    const syncResults: SyncResult[] = [];
 
     // 2. Poll the status for each active order (run concurrently)
     await Promise.all(
-      activeOrders.map(async (order) => {
+      activeOrders.map(async (order: ExternalOrderRow) => {
         try {
           const res = await fetch(RIXEYSMM_API_URL, {
             method: "POST",
@@ -132,33 +163,38 @@ export async function POST(req: NextRequest) {
                 externalStatus: externalStatusUpdate,
               });
 
+              if (dbStatusUpdate !== order.status) {
+                const trackingId = `BS-${order.id.slice(0, 8).toUpperCase()}`;
+                notifyOrderStatusCustomer({
+                  client: supabase,
+                  email: order.customer_email,
+                  trackingId,
+                  status: dbStatusUpdate,
+                }).catch((notificationErr) => {
+                  console.error(`Customer status notification failed for order ${order.id}:`, notificationErr);
+                });
+              }
+
               // Fire order complete Telegram notification!
               if (dbStatusUpdate === "Completed") {
                 const trackingId = `BS-${order.id.slice(0, 8).toUpperCase()}`;
-                const serviceTitle = (order as any).services?.title || "SMM Service";
-                const resolvedServiceTitle = await resolveSmmServiceTitle((order as any).smm_service_id, serviceTitle);
-                notifyCustomer({
-                  client: supabase,
-                  email: order.customer_email,
-                  message: orderStatusNotification(trackingId, "Completed"),
-                }).catch((notificationErr) => {
-                  console.error(`Customer completion notification failed for order ${order.id}:`, notificationErr);
-                });
+                const serviceTitle = getJoinedServiceTitle(order.services) || "SMM Service";
+                const resolvedServiceTitle = await resolveSmmServiceTitle(order.smm_service_id, serviceTitle);
                 sendOrderCompleteNotification({
                   trackingId,
                   service: resolvedServiceTitle,
-                  email: order.customer_email,
-                  quantity: order.quantity,
+                  email: order.customer_email || "",
+                  quantity: Number(order.quantity || 0),
                   amount: Number(order.amount),
                   paymentMethod: order.payment_method || "GCash",
-                  details: order.target_url,
+                  details: order.target_url || "",
                 }).catch((err) => {
                   console.error(`Async sendOrderCompleteNotification failed for order ${order.id} in sync:`, err);
                 });
               }
             }
           }
-        } catch (err: any) {
+        } catch (err: unknown) {
           console.error(`Error syncing SMM order ${order.external_order_id} for order ${order.id}:`, err);
         }
       })
@@ -170,8 +206,8 @@ export async function POST(req: NextRequest) {
       syncResults,
     });
 
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("Sync external orders endpoint failed:", err);
-    return NextResponse.json({ error: err.message || err.toString() }, { status: 500 });
+    return NextResponse.json({ error: getErrorMessage(err) }, { status: 500 });
   }
 }

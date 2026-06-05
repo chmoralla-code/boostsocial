@@ -5,13 +5,18 @@ import { syncBackupAdminClients } from "@/utils/supabase/dual-db";
 import { enforceRateLimit } from "@/utils/security/rate-limit";
 import { creditReferralCommission } from "@/utils/referrals";
 import { resolveSmmServiceTitle } from "@/lib/smmServiceResolver";
-import { notifyCustomer, orderStatusNotification } from "@/lib/customerNotifications";
+import { notifyCustomer, notifyOrderStatusCustomer } from "@/lib/customerNotifications";
 
 const CONFIG_BUCKET = "receipts";
 const ORDER_CONFIG_PATH = "admin-config/telegram.png";
 const TOPUP_CONFIG_PATH = "admin-config/telegram-topup.png";
 
 type TelegramConfig = { bot_token: string; chat_id: string };
+type JoinedService = { title?: string | null } | { title?: string | null }[] | null | undefined;
+
+function getJoinedServiceTitle(services: JoinedService) {
+  return Array.isArray(services) ? services[0]?.title : services?.title;
+}
 
 const getSupabase = () =>
   createClient(
@@ -92,7 +97,7 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({ ok: true });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("Telegram webhook error:", err);
     return NextResponse.json({ ok: true });
   }
@@ -282,16 +287,15 @@ async function handleOrderAction(callbackData: string, chatId: number, messageId
       .eq("id", orderId);
   }, "telegram order status sync");
 
-  const serviceTitle = Array.isArray((order as any).services)
-    ? (order as any).services[0]?.title
-    : (order as any).services?.title;
+  const serviceTitle = getJoinedServiceTitle(order.services);
   const resolvedServiceTitle = await resolveSmmServiceTitle(order.smm_service_id, serviceTitle || "SMM Service");
   const trackingId = `BS-${orderId.slice(0, 8).toUpperCase()}`;
 
-  notifyCustomer({
+  notifyOrderStatusCustomer({
     client: supabase,
     email: order.customer_email,
-    message: orderStatusNotification(trackingId, newStatus),
+    trackingId,
+    status: newStatus,
   }).catch((notificationErr) => {
     console.error("Telegram order status customer notification failed:", notificationErr);
   });

@@ -2,7 +2,7 @@ import { SupabaseClient } from "@supabase/supabase-js";
 import { sendAdminAlert } from "@/lib/telegram";
 
 const ALERT_SETTINGS_KEY = "rixeysmm_low_balance_alert";
-const DEFAULT_LOW_BALANCE_THRESHOLD = 500;
+const DEFAULT_LOW_BALANCE_THRESHOLD = 100;
 const ALERT_COOLDOWN_MS = 6 * 60 * 60 * 1000;
 
 let memoryLastAlertAt = 0;
