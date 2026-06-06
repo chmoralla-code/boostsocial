@@ -247,48 +247,58 @@ async function readProviderBalance() {
   }
 }
 
-async function askPollinations(messages: ChatMessage[]) {
-  const model = process.env.POLLINATIONS_MODEL || "openai";
-  const requests = [
-    {
-      url: "https://gen.pollinations.ai/v1/chat/completions",
-      headers: {
-        "Content-Type": "application/json",
-        ...(process.env.POLLINATIONS_API_KEY ? { Authorization: `Bearer ${process.env.POLLINATIONS_API_KEY}` } : {}),
-      },
-    },
-    {
-      url: "https://text.pollinations.ai/openai",
-      headers: { "Content-Type": "application/json" },
-    },
-  ];
+function limitText(value: string, maxLength: number) {
+  if (value.length <= maxLength) return value;
+  return `${value.slice(0, maxLength - 20).trim()}\n[truncated]`;
+}
 
-  for (const request of requests) {
-    try {
-      const res = await fetch(request.url, {
-        method: "POST",
-        headers: request.headers,
-        body: JSON.stringify({
-          model,
-          messages,
-          temperature: 0.2,
-        }),
-        signal: AbortSignal.timeout(14000),
-      });
+function textPromptFromMessages(messages: ChatMessage[]) {
+  const system = messages.find((message) => message.role === "system")?.content || "";
+  const recentChat = messages
+    .filter((message) => message.role !== "system")
+    .slice(-6)
+    .map((message) => `${message.role.toUpperCase()}: ${message.content}`)
+    .join("\n\n");
 
-      if (!res.ok) {
-        console.warn("Pollinations app chat returned non-OK status:", request.url, res.status);
-        continue;
-      }
-      const data = await res.json();
-      const content = data.choices?.[0]?.message?.content;
-      if (typeof content === "string" && content.trim()) return content.trim();
-    } catch (error) {
-      console.warn("Pollinations app chat request failed:", error);
+  return [
+    "Return only the assistant reply. Do not include role labels.",
+    "Answer naturally and humanlike. Keep it accurate, concise, and helpful.",
+    `SYSTEM AND LIVE PINOYBOOSTING DATA:\n${limitText(system, 4800)}`,
+    `RECENT CHAT:\n${limitText(recentChat, 1600)}`,
+    "ASSISTANT:",
+  ].join("\n\n");
+}
+
+async function askPollinationsText(messages: ChatMessage[]) {
+  const model = process.env.POLLINATIONS_TEXT_MODEL || process.env.POLLINATIONS_MODEL || "openai";
+  const prompt = textPromptFromMessages(messages);
+  const params = new URLSearchParams({
+    model,
+    seed: String(Date.now()),
+    referrer: "pinoyboosting-apk",
+  });
+  const url = `https://text.pollinations.ai/${encodeURIComponent(prompt)}?${params.toString()}`;
+
+  try {
+    const res = await fetch(url, {
+      method: "GET",
+      headers: { Accept: "text/plain" },
+      signal: AbortSignal.timeout(14000),
+      cache: "no-store",
+    });
+
+    if (!res.ok) {
+      console.warn("Pollinations no-key text endpoint returned non-OK status:", res.status);
+      return "";
     }
-  }
 
-  return "";
+    const content = (await res.text()).trim();
+    if (!content || content.startsWith("{\"error\"")) return "";
+    return content;
+  } catch (error) {
+    console.warn("Pollinations no-key text request failed:", error);
+    return "";
+  }
 }
 
 function liveDataFallback(
@@ -434,7 +444,7 @@ export async function POST(request: Request) {
         role: "system",
         content: [
           "You are the PinoyBoosting mobile app AI assistant. Sound like a calm, friendly human support rep, but never pretend to be a real human.",
-          "Use Pollinations AI, but your accuracy must come from the live data below. Do not invent packages, prices, discounts, durations, or policies.",
+          "Your accuracy must come from the live data below. Do not invent packages, prices, discounts, durations, or policies.",
           "You may answer general questions outside PinoyBoosting too. For non-service questions, answer normally and humanlike without forcing a sales answer.",
           "Answer in concise English, Taglish when natural. Use warm phrases like 'Got you', 'Sure', or 'No worries' only when they fit. Avoid stiff chatbot lines.",
           "Start with the direct answer, then give the useful next step. If the user is vague, ask one simple follow-up question instead of listing too much.",
@@ -457,7 +467,7 @@ export async function POST(request: Request) {
       ...messages.slice(-6),
     ];
 
-    const content = await askPollinations(promptMessages);
+    const content = await askPollinationsText(promptMessages);
     return NextResponse.json({
       content: content || (pinoyBoostingQuestion
         ? liveDataFallback(matchedServices, matchedCandidates, userMessage)
