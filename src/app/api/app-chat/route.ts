@@ -329,23 +329,6 @@ function liveDataFallback(
   return localFallback(message);
 }
 
-function buildClientFallbackPrompt(messages: ChatMessage[], message: string) {
-  const recent = messages
-    .filter((item) => item.role !== "system")
-    .slice(-6)
-    .map((item) => `${item.role}: ${item.content}`)
-    .join("\n");
-
-  return [
-    "Answer like a calm, friendly human assistant for a mobile app user.",
-    "You can answer general knowledge, everyday, school, tech, business, and support questions.",
-    "Be honest if you are unsure. Keep it concise unless the user asks for detail.",
-    "Do not pretend to be a real human. For high-stakes medical, legal, or financial questions, give general info and suggest a qualified professional.",
-    `Recent chat:\n${recent || `user: ${message}`}`,
-    `User question: ${message}`,
-  ].join("\n\n");
-}
-
 async function findOrder(message: string) {
   const uuidMatch = message.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
   const trackMatch = message.match(/BS-([0-9a-f]{8})/i);
@@ -468,11 +451,12 @@ export async function POST(request: Request) {
     ];
 
     const content = await askPollinationsText(promptMessages);
+    const fallbackContent = pinoyBoostingQuestion
+      ? liveDataFallback(matchedServices, matchedCandidates, userMessage)
+      : "I can help with that, but the free no-key AI text service is busy right now. I will keep you inside the app, no outside redirect. Please send the question again in a few seconds, or ask me about services, wallet top-up, or an order Tracking ID.";
+
     return NextResponse.json({
-      content: content || (pinoyBoostingQuestion
-        ? liveDataFallback(matchedServices, matchedCandidates, userMessage)
-        : "I can answer that. The cloud AI is a bit busy right now, so I will try the app AI fallback for you."),
-      clientFallbackPrompt: !content && !pinoyBoostingQuestion ? buildClientFallbackPrompt(messages, userMessage) : "",
+      content: content || fallbackContent,
     });
   } catch (error) {
     console.error("App chat route failed:", error);

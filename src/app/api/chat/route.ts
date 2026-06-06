@@ -87,23 +87,6 @@ function isSupportQuestion(message: string) {
   return SUPPORT_INTENT_WORDS.some((word) => includesIntentWord(normalized, word));
 }
 
-function buildClientFallbackPrompt(messages: ChatMessage[], message: string) {
-  const recent = messages
-    .filter((item) => item.role !== "system")
-    .slice(-6)
-    .map((item) => `${item.role}: ${item.content}`)
-    .join("\n");
-
-  return [
-    "Answer like a calm, friendly assistant.",
-    "You can answer general knowledge, everyday, school, tech, business, and support questions.",
-    "Be honest if unsure. Keep it concise unless the user asks for detail.",
-    "Do not pretend to be a real human. For high-stakes medical, legal, or financial questions, give general info and suggest a qualified professional.",
-    `Recent chat:\n${recent || `user: ${message}`}`,
-    `User question: ${message}`,
-  ].join("\n\n");
-}
-
 export async function POST(req: Request) {
   try {
     const { messages } = await req.json();
@@ -173,8 +156,7 @@ export async function POST(req: Request) {
     return NextResponse.json({
       content: supportQuestion
         ? humanFallback(latestMessage)
-        : "I can answer that. The cloud AI is a bit busy right now, so I will try the browser AI fallback for you.",
-      clientFallbackPrompt: supportQuestion ? "" : buildClientFallbackPrompt(cleanMessages, latestMessage),
+        : "I can help with that, but the free AI text service is busy right now. I will keep you here in the chat with no outside redirect. Please try again in a few seconds, or ask me about PinoyBoosting services, payments, wallet top-up, or order tracking.",
     });
 
   } catch (err: unknown) {

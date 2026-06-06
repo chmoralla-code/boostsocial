@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import Script from "next/script";
 import dynamic from "next/dynamic";
 import {
   ArrowLeft,
@@ -95,17 +94,6 @@ type ChatMessage = {
 
 type AppChatApiResponse = {
   content?: string;
-  clientFallbackPrompt?: string;
-};
-
-type PuterChatResponse = { message?: { content?: string } } | string | null | undefined;
-
-type PuterWindow = Window & {
-  puter?: {
-    ai?: {
-      chat: (messages: unknown[], options?: Record<string, string>) => Promise<PuterChatResponse>;
-    };
-  };
 };
 
 const PENDING_APP_ACTION_KEY = "pinoyboosting:pending-app-action";
@@ -389,28 +377,7 @@ function AppAiAssistant({
         body: JSON.stringify({ messages: nextMessages.slice(-8) }),
       });
       const data = (await res.json()) as AppChatApiResponse;
-      let content = data.content || "Sorry, I could not get a clear answer from the cloud AI just now. Tell me the service you need and I will still guide you from the live app data.";
-
-      if (data.clientFallbackPrompt) {
-        const puter = (window as PuterWindow).puter;
-        if (puter?.ai?.chat) {
-          try {
-            const response = await puter.ai.chat([
-              {
-                role: "system",
-                content: "Answer naturally and helpfully. Keep it humanlike, concise, and honest.",
-              },
-              { role: "user", content: data.clientFallbackPrompt },
-            ], { model: "claude-3.5-sonnet" });
-            const fallbackContent = typeof response === "string" ? response : response?.message?.content;
-            if (fallbackContent?.trim()) {
-              content = fallbackContent.trim();
-            }
-          } catch (clientAiError) {
-            console.warn("Client AI fallback failed:", clientAiError);
-          }
-        }
-      }
+      const content = data.content || "Sorry, I could not get a clear answer from the cloud AI just now. Tell me the service you need and I will still guide you from the live app data.";
 
       setMessages((previous) => [...previous, { role: "assistant", content }]);
     } catch {
@@ -950,8 +917,6 @@ export function ClientAppHome({
 
   return (
     <main className={`min-h-screen ${isDark ? "bg-[#101112] text-zinc-100" : "bg-[#f7f8f5] text-[#191919]"}`}>
-      <Script src="https://js.puter.com/v2/" strategy="afterInteractive" />
-
       <header className={`sticky top-0 z-40 border-b px-4 pb-3 pt-[calc(env(safe-area-inset-top)+0.75rem)] ${
         isDark ? "border-zinc-800 bg-[#101112]" : "border-zinc-200 bg-[#f7f8f5]"
       }`}>

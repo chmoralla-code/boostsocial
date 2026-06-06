@@ -1,6 +1,5 @@
 "use client";
 
-import Script from "next/script";
 import { usePathname } from "next/navigation";
 import { Chathead } from "@/components/Chathead";
 import { LiveOrderTicker } from "@/components/LiveOrderTicker";
@@ -21,12 +20,7 @@ export function FloatingSiteWidgets() {
 
   return (
     <>
-      {visibility.chathead && (
-        <>
-          <Script src="https://js.puter.com/v2/" strategy="afterInteractive" />
-          <Chathead />
-        </>
-      )}
+      {visibility.chathead && <Chathead />}
       <AnnouncementModal />
       {visibility.liveTicker && <LiveOrderTicker />}
     </>

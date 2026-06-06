@@ -5,18 +5,6 @@ import { X, Send, Loader2, Image } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { parseDescription } from "@/utils/serviceHelpers";
 
-declare global {
-  interface Window {
-    puter?: {
-      ai?: {
-        chat: (messages: unknown[], options?: Record<string, string>) => Promise<PuterChatResponse>;
-      };
-    };
-  }
-}
-
-type PuterChatResponse = { message?: { content?: string } } | string | null | undefined;
-
 interface Message {
   role: 'user' | 'assistant' | 'system';
   content: string;
@@ -525,39 +513,11 @@ Tone rules:
         if (res.ok) {
           const data = await res.json();
           responseText = data.content || "";
-          if (data.clientFallbackPrompt && typeof window !== "undefined" && window.puter?.ai?.chat) {
-            try {
-              const response = await window.puter.ai.chat([
-                {
-                  role: "system",
-                  content: "Answer naturally and helpfully. Keep it humanlike, concise, and honest.",
-                },
-                { role: "user", content: data.clientFallbackPrompt },
-              ], { model: 'claude-3.5-sonnet' });
-              const fallbackContent = typeof response === "string" ? response : response?.message?.content ?? "";
-              if (fallbackContent.trim()) {
-                responseText = fallbackContent.trim();
-              }
-            } catch (puterErr) {
-              console.error("Puter fallback for general question failed:", puterErr);
-            }
-          }
         } else {
           console.warn(`Server AI route returned status ${res.status}`);
         }
       } catch (fetchErr) {
-        console.error("Failed to query server AI route, attempting Puter fallback...", fetchErr);
-      }
-
-      // Puter AI Claude 3.5 Client-side Fallback
-      if (!responseText && typeof window !== "undefined" && window.puter?.ai?.chat) {
-        try {
-          console.log("Attempting Puter AI Claude 3.5 fallback...");
-          const response = await window.puter.ai.chat(apiMessages, { model: 'claude-3.5-sonnet' });
-          responseText = typeof response === "string" ? response : response?.message?.content ?? "";
-        } catch (puterErr) {
-          console.error("Puter Claude 3.5 fallback failed:", puterErr);
-        }
+        console.error("Failed to query server AI route:", fetchErr);
       }
 
       if (!responseText) {
