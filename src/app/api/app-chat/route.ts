@@ -3,6 +3,7 @@ import { parseDescription } from "@/utils/serviceHelpers";
 import { fallbackRead } from "@/utils/supabase/dual-db";
 import { readServiceCandidatesFromAnyDatabase } from "@/lib/serviceCandidatesServer";
 import { readMobileAppSettingsFromAnyDatabase } from "@/lib/mobileAppServer";
+import { resolveSmmServiceTitle } from "@/lib/smmServiceResolver";
 
 type ChatMessage = {
   role: "user" | "assistant" | "system";
@@ -23,8 +24,17 @@ type OrderRow = {
   target_url: string;
   amount: number | string;
   status: string;
+  smm_service_id?: string | number | null;
   services?: { title?: string } | null;
 };
+
+const PINOYBOOSTING_INTENT_WORDS = [
+  "pinoyboosting", "cynetwork", "service", "services", "price", "pricing", "rate", "rates", "magkano", "package",
+  "order", "tracking", "track", "status", "gcash", "payment", "receipt", "wallet", "topup", "top-up", "login",
+  "register", "account", "facebook", "fb", "instagram", "ig", "tiktok", "youtube", "telegram", "followers",
+  "follower", "likes", "like", "reactions", "reaction", "views", "view", "comments", "shares", "subscribers",
+  "pisowifi", "piso wifi", "wifi", "gemini", "software", "autocad", "sketchup", "revit", "eap", "tp-link",
+];
 
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
@@ -51,6 +61,23 @@ function normalizeWords(text: string) {
 function scoreText(haystack: string, words: string[]) {
   const cleanHaystack = haystack.toLowerCase();
   return words.reduce((score, word) => score + (cleanHaystack.includes(word) ? 1 : 0), 0);
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function includesIntentWord(text: string, word: string) {
+  const cleanWord = word.toLowerCase();
+  if (/^[a-z0-9-]+$/.test(cleanWord) && cleanWord.length <= 4) {
+    return new RegExp(`(^|[^a-z0-9])${escapeRegExp(cleanWord)}([^a-z0-9]|$)`).test(text);
+  }
+  return text.includes(cleanWord);
+}
+
+function isPinoyBoostingQuestion(message: string) {
+  const normalized = message.toLowerCase();
+  return PINOYBOOSTING_INTENT_WORDS.some((word) => includesIntentWord(normalized, word));
 }
 
 function servicePriceLabel(service: ServiceRow) {
@@ -117,7 +144,7 @@ function topServicesForQuery(services: ServiceRow[], message: string) {
 
 function topCandidatesForQuery(candidates: Awaited<ReturnType<typeof readServiceCandidatesFromAnyDatabase>>, message: string) {
   const words = normalizeWords(message);
-  if (words.length === 0) return candidates;
+  if (words.length === 0) return isPinoyBoostingQuestion(message) ? candidates : [];
 
   const matched = [...candidates]
     .map((candidate) => ({
@@ -135,7 +162,7 @@ function topCandidatesForQuery(candidates: Awaited<ReturnType<typeof readService
     .sort((a, b) => b.score - a.score)
     .map((item) => item.candidate);
 
-  return matched.length > 0 ? matched : candidates;
+  return matched.length > 0 ? matched : isPinoyBoostingQuestion(message) ? candidates : [];
 }
 
 async function readProviderBalance() {
@@ -234,13 +261,30 @@ function liveDataFallback(
   return localFallback(message);
 }
 
+function buildClientFallbackPrompt(messages: ChatMessage[], message: string) {
+  const recent = messages
+    .filter((item) => item.role !== "system")
+    .slice(-6)
+    .map((item) => `${item.role}: ${item.content}`)
+    .join("\n");
+
+  return [
+    "Answer like a calm, friendly human assistant for a mobile app user.",
+    "You can answer general knowledge, everyday, school, tech, business, and support questions.",
+    "Be honest if you are unsure. Keep it concise unless the user asks for detail.",
+    "Do not pretend to be a real human. For high-stakes medical, legal, or financial questions, give general info and suggest a qualified professional.",
+    `Recent chat:\n${recent || `user: ${message}`}`,
+    `User question: ${message}`,
+  ].join("\n\n");
+}
+
 async function findOrder(message: string) {
   const uuidMatch = message.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
   const trackMatch = message.match(/BS-([0-9a-f]{8})/i);
   if (!uuidMatch && !trackMatch) return null;
 
   const { data } = await fallbackRead<OrderRow>(async (client) => {
-    let query = client.from("orders").select("id,quantity,target_url,amount,status,services(title)");
+    let query = client.from("orders").select("id,quantity,target_url,amount,status,smm_service_id,services(title)");
     if (uuidMatch) {
       query = query.eq("id", uuidMatch[0]);
     } else if (trackMatch) {
@@ -258,10 +302,11 @@ async function findOrder(message: string) {
   }
 
   const displayId = `BS-${data.id.slice(0, 8).toUpperCase()}`;
+  const serviceTitle = await resolveSmmServiceTitle(data.smm_service_id, data.services?.title || "Service");
   return [
     "I found your order.",
     `Tracking ID: ${displayId}`,
-    `Service: ${data.services?.title || "Service"}`,
+    `Service: ${serviceTitle}`,
     `Quantity: ${Number(data.quantity || 0).toLocaleString()}`,
     `Target: ${data.target_url || "Not set"}`,
     `Amount: PHP ${Number(data.amount || 0).toFixed(2)}`,
@@ -320,6 +365,7 @@ export async function POST(request: Request) {
 
     const matchedServices = topServicesForQuery(services, userMessage);
     const matchedCandidates = topCandidatesForQuery(candidates, userMessage);
+    const pinoyBoostingQuestion = isPinoyBoostingQuestion(userMessage);
     const serviceContext = matchedServices.map(priceLine).join("\n");
     const candidateContext = matchedCandidates.slice(0, 12).map((candidate) =>
       `- ${candidate.tag || candidate.title}: ${candidate.title}. ${candidate.description}. Rate: ${candidate.rate_text || "varies"}. App link: /app`
@@ -331,6 +377,7 @@ export async function POST(request: Request) {
         content: [
           "You are the PinoyBoosting mobile app AI assistant. Sound like a calm, friendly human support rep, but never pretend to be a real human.",
           "Use Pollinations AI, but your accuracy must come from the live data below. Do not invent packages, prices, discounts, durations, or policies.",
+          "You may answer general questions outside PinoyBoosting too. For non-service questions, answer normally and humanlike without forcing a sales answer.",
           "Answer in concise English, Taglish when natural. Use warm phrases like 'Got you', 'Sure', or 'No worries' only when they fit. Avoid stiff chatbot lines.",
           "Start with the direct answer, then give the useful next step. If the user is vague, ask one simple follow-up question instead of listing too much.",
           "If live data is missing, say exactly what is available and suggest the nearest app action.",
@@ -354,7 +401,10 @@ export async function POST(request: Request) {
 
     const content = await askPollinations(promptMessages);
     return NextResponse.json({
-      content: content || liveDataFallback(matchedServices, matchedCandidates, userMessage),
+      content: content || (pinoyBoostingQuestion
+        ? liveDataFallback(matchedServices, matchedCandidates, userMessage)
+        : "I can answer that. The cloud AI is a bit busy right now, so I will try the app AI fallback for you."),
+      clientFallbackPrompt: !content && !pinoyBoostingQuestion ? buildClientFallbackPrompt(messages, userMessage) : "",
     });
   } catch (error) {
     console.error("App chat route failed:", error);

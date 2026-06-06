@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, ClipboardList, Copy, Home, LogIn, RefreshCw, Search, UserPlus, X } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/utils/supabase/client";
+import { formatSmmServiceName } from "@/utils/serviceHelpers";
 
 type AppOrder = {
   id: string;
@@ -14,7 +15,15 @@ type AppOrder = {
   amount?: number | string | null;
   status?: string | null;
   target_url?: string | null;
+  smm_service_id?: string | number | null;
   services?: { title?: string | null } | null;
+};
+
+type SmmCatalogService = {
+  id: string;
+  name: string;
+  category?: string;
+  desc?: string;
 };
 
 function trackingId(id: string) {
@@ -41,6 +50,26 @@ function statusClass(status?: string | null) {
   return "bg-amber-50 text-amber-700 border-amber-100";
 }
 
+function isGenericServiceTitle(title?: string | null) {
+  return /^(all services|smm catalog explorer|smm service|boost campaign)$/i.test(String(title || "").trim());
+}
+
+function orderServiceTitle(order: AppOrder, smmServiceNames: Record<string, string>) {
+  const joinedTitle = order.services?.title?.trim() || "";
+  const smmServiceId = order.smm_service_id === undefined || order.smm_service_id === null
+    ? ""
+    : String(order.smm_service_id).trim();
+  const resolvedSmmTitle = smmServiceId ? smmServiceNames[smmServiceId] : "";
+
+  if (resolvedSmmTitle && (!joinedTitle || isGenericServiceTitle(joinedTitle))) {
+    return resolvedSmmTitle;
+  }
+
+  if (joinedTitle && !isGenericServiceTitle(joinedTitle)) return joinedTitle;
+  if (smmServiceId) return `SMM Service ID ${smmServiceId}`;
+  return "PinoyBoosting Service";
+}
+
 export default function AppOrdersPage() {
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
@@ -51,6 +80,7 @@ export default function AppOrdersPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<AppOrder | null>(null);
   const [copiedTracking, setCopiedTracking] = useState(false);
+  const [smmServiceNames, setSmmServiceNames] = useState<Record<string, string>>({});
 
   const loadOrders = useCallback(async (currentUser: User | null) => {
     if (!currentUser?.email) {
@@ -62,7 +92,7 @@ export default function AppOrdersPage() {
     setRefreshing(true);
     const { data } = await supabase
       .from("orders")
-      .select("id,created_at,quantity,amount,status,target_url,services(title)")
+      .select("id,created_at,quantity,amount,status,target_url,smm_service_id,services(title)")
       .eq("customer_email", currentUser.email)
       .order("created_at", { ascending: false })
       .limit(40);
@@ -98,21 +128,48 @@ export default function AppOrdersPage() {
     };
   }, [loadOrders, supabase.auth]);
 
+  useEffect(() => {
+    let alive = true;
+
+    fetch("/api/smm/services", { cache: "no-store" })
+      .then((res) => res.ok ? res.json() : [])
+      .then((data) => {
+        if (!alive || !Array.isArray(data)) return;
+        const nextMap: Record<string, string> = {};
+        for (const service of data as SmmCatalogService[]) {
+          if (!service.id || !service.name) continue;
+          nextMap[String(service.id)] = formatSmmServiceName(
+            service.name,
+            service.id,
+            service.desc || service.category || ""
+          );
+        }
+        setSmmServiceNames(nextMap);
+      })
+      .catch(() => undefined);
+
+    return () => {
+      alive = false;
+    };
+  }, []);
+
   const filteredOrders = useMemo(() => {
     const cleanQuery = query.trim().toLowerCase();
     if (!cleanQuery) return orders;
 
     return orders.filter((order) => {
+      const displayTitle = orderServiceTitle(order, smmServiceNames);
       const haystack = [
         order.id,
         trackingId(order.id),
         order.status,
-        order.services?.title,
+        displayTitle,
+        order.smm_service_id,
         order.target_url,
       ].join(" ").toLowerCase();
       return haystack.includes(cleanQuery);
     });
-  }, [orders, query]);
+  }, [orders, query, smmServiceNames]);
 
   const copySelectedTracking = async () => {
     if (!selectedOrder) return;
@@ -178,7 +235,7 @@ export default function AppOrdersPage() {
                 <article key={order.id} className="rounded-3xl border border-zinc-200 bg-white p-4 shadow-sm">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-black">{order.services?.title || "PinoyBoosting Service"}</p>
+                      <p className="truncate text-sm font-black">{orderServiceTitle(order, smmServiceNames)}</p>
                       <p className="mt-1 text-xs font-bold text-zinc-500">{trackingId(order.id)} - {shortDate(order.created_at)}</p>
                     </div>
                     <span className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-black uppercase ${statusClass(order.status)}`}>
@@ -257,7 +314,7 @@ export default function AppOrdersPage() {
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="text-[10px] font-black uppercase tracking-wider text-zinc-400">Service</p>
-                    <h3 className="mt-1 line-clamp-2 text-base font-black">{selectedOrder.services?.title || "PinoyBoosting Service"}</h3>
+                    <h3 className="mt-1 line-clamp-2 text-base font-black">{orderServiceTitle(selectedOrder, smmServiceNames)}</h3>
                   </div>
                   <span className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-black uppercase ${statusClass(selectedOrder.status)}`}>
                     {selectedOrder.status || "Pending"}

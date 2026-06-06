@@ -10,6 +10,7 @@ const HUMAN_SUPPORT_SYSTEM: ChatMessage = {
   content: [
     "You are PinoyBoosting's customer support assistant.",
     "Sound natural, warm, and humanlike, but never claim to be a real human.",
+    "You can answer general questions outside PinoyBoosting too. For non-service questions, answer normally instead of forcing a sales or support answer.",
     "Start with the direct answer, then give the next step. Keep it short unless the customer asks for detail.",
     "Use light Taglish when it fits the customer's wording. Avoid robotic phrases, hype, and repeated exclamation marks.",
     "Never invent prices, order statuses, discounts, timelines, or policies. If unsure, say what you can verify and ask one simple follow-up.",
@@ -17,6 +18,14 @@ const HUMAN_SUPPORT_SYSTEM: ChatMessage = {
     "For orders, ask for a Tracking ID like BS-D5D1D849 if they did not provide one.",
   ].join(" "),
 };
+
+const SUPPORT_INTENT_WORDS = [
+  "pinoyboosting", "cynetwork", "service", "services", "price", "pricing", "rate", "rates", "magkano", "package",
+  "order", "tracking", "track", "status", "gcash", "payment", "receipt", "wallet", "topup", "top-up", "login",
+  "register", "account", "facebook", "fb", "instagram", "ig", "tiktok", "youtube", "telegram", "followers",
+  "follower", "likes", "like", "reactions", "reaction", "views", "view", "comments", "shares", "subscribers",
+  "pisowifi", "piso wifi", "wifi", "gemini", "software", "autocad", "sketchup", "revit", "eap", "tp-link",
+];
 
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
@@ -59,6 +68,40 @@ function humanFallback(message: string) {
   }
 
   return "Got you. Tell me what you want to grow or set up, like Facebook followers, reactions, views, PisoWiFi, or wallet top-up, and I will guide you to the right next step.";
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function includesIntentWord(text: string, word: string) {
+  const cleanWord = word.toLowerCase();
+  if (/^[a-z0-9-]+$/.test(cleanWord) && cleanWord.length <= 4) {
+    return new RegExp(`(^|[^a-z0-9])${escapeRegExp(cleanWord)}([^a-z0-9]|$)`).test(text);
+  }
+  return text.includes(cleanWord);
+}
+
+function isSupportQuestion(message: string) {
+  const normalized = message.toLowerCase();
+  return SUPPORT_INTENT_WORDS.some((word) => includesIntentWord(normalized, word));
+}
+
+function buildClientFallbackPrompt(messages: ChatMessage[], message: string) {
+  const recent = messages
+    .filter((item) => item.role !== "system")
+    .slice(-6)
+    .map((item) => `${item.role}: ${item.content}`)
+    .join("\n");
+
+  return [
+    "Answer like a calm, friendly assistant.",
+    "You can answer general knowledge, everyday, school, tech, business, and support questions.",
+    "Be honest if unsure. Keep it concise unless the user asks for detail.",
+    "Do not pretend to be a real human. For high-stakes medical, legal, or financial questions, give general info and suggest a qualified professional.",
+    `Recent chat:\n${recent || `user: ${message}`}`,
+    `User question: ${message}`,
+  ].join("\n\n");
 }
 
 export async function POST(req: Request) {
@@ -126,7 +169,10 @@ export async function POST(req: Request) {
     }
 
     console.warn('Pollinations AI unavailable, returning human fallback:', getErrorMessage(lastError));
-    return NextResponse.json({ content: humanFallback(latestMessage) });
+    return NextResponse.json({
+      content: humanFallback(latestMessage),
+      clientFallbackPrompt: isSupportQuestion(latestMessage) ? "" : buildClientFallbackPrompt(cleanMessages, latestMessage),
+    });
 
   } catch (err: unknown) {
     console.error('Chat endpoint error:', err);

@@ -483,7 +483,7 @@ export function Chathead() {
           }).join('\n')
         : `- Facebook Followers: ₱10 per 1,000 followers.\n- Post Reactions (Likes, Hearts, etc.): ₱5 per 1,000 reactions.\n- Video Views (for Reels, Stories, etc.): ₱13 per 1,000 views.`;
 
-      const systemContext = `You are PinoyBoosting's customer support assistant. Sound like a calm, helpful support rep: warm, direct, and natural, but never pretend to be a real human. Start with the answer, then give the next step. Keep replies brief unless the customer asks for detail. Use English, Tagalog, Taglish, or Bisaya based on the customer's wording. Avoid robotic phrases, hype, and repeated exclamation marks.
+      const systemContext = `You are PinoyBoosting's customer support assistant. Sound like a calm, helpful support rep: warm, direct, and natural, but never pretend to be a real human. You can answer general questions outside PinoyBoosting too; for non-service questions, answer normally instead of forcing a sales answer. Start with the answer, then give the next step. Keep replies brief unless the customer asks for detail. Use English, Tagalog, Taglish, or Bisaya based on the customer's wording. Avoid robotic phrases, hype, and repeated exclamation marks.
 
 Our live real-time core services and pricing catalog (fetched dynamically from our active database):
 ${servicesCatalogText}
@@ -525,6 +525,23 @@ Tone rules:
         if (res.ok) {
           const data = await res.json();
           responseText = data.content || "";
+          if (data.clientFallbackPrompt && typeof window !== "undefined" && window.puter?.ai?.chat) {
+            try {
+              const response = await window.puter.ai.chat([
+                {
+                  role: "system",
+                  content: "Answer naturally and helpfully. Keep it humanlike, concise, and honest.",
+                },
+                { role: "user", content: data.clientFallbackPrompt },
+              ], { model: 'claude-3.5-sonnet' });
+              const fallbackContent = typeof response === "string" ? response : response?.message?.content ?? "";
+              if (fallbackContent.trim()) {
+                responseText = fallbackContent.trim();
+              }
+            } catch (puterErr) {
+              console.error("Puter fallback for general question failed:", puterErr);
+            }
+          }
         } else {
           console.warn(`Server AI route returned status ${res.status}`);
         }
