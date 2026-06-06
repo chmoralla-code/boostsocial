@@ -169,9 +169,12 @@ export async function POST(req: Request) {
     }
 
     console.warn('Pollinations AI unavailable, returning human fallback:', getErrorMessage(lastError));
+    const supportQuestion = isSupportQuestion(latestMessage);
     return NextResponse.json({
-      content: humanFallback(latestMessage),
-      clientFallbackPrompt: isSupportQuestion(latestMessage) ? "" : buildClientFallbackPrompt(cleanMessages, latestMessage),
+      content: supportQuestion
+        ? humanFallback(latestMessage)
+        : "I can answer that. The cloud AI is a bit busy right now, so I will try the browser AI fallback for you.",
+      clientFallbackPrompt: supportQuestion ? "" : buildClientFallbackPrompt(cleanMessages, latestMessage),
     });
 
   } catch (err: unknown) {
