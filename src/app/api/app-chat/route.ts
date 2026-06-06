@@ -98,7 +98,35 @@ function isGenericServiceTitle(title: string) {
   return /^(all services|smm catalog explorer|smm service|boost campaign)$/i.test(title.trim());
 }
 
-function serviceDisplayTitle(service: ServiceRow) {
+function compactServiceNameFromText(text: string) {
+  const combined = text.toLowerCase();
+  const platform =
+    /\bfacebook\b|\bfb\b/.test(combined) ? "FB" :
+    /\binstagram\b|\big\b/.test(combined) ? "IG" :
+    combined.includes("tiktok") ? "TikTok" :
+    /\byoutube\b|\byt\b/.test(combined) ? "YT" :
+    combined.includes("telegram") ? "Telegram" :
+    combined.includes("twitter") ? "Twitter" :
+    combined.includes("threads") ? "Threads" :
+    combined.includes("spotify") ? "Spotify" :
+    "";
+
+  const serviceType =
+    combined.includes("subscriber") ? "Subscribers" :
+    combined.includes("follower") ? "Followers" :
+    combined.includes("reaction") || combined.includes("react") ? "Reactions" :
+    combined.includes("like") ? "Likes" :
+    combined.includes("view") || combined.includes("play") ? "Views" :
+    combined.includes("comment") ? "Comments" :
+    combined.includes("share") ? "Shares" :
+    combined.includes("member") ? "Members" :
+    combined.includes("watch hour") ? "Watch Hours" :
+    "Boost";
+
+  return [platform || "SMM", serviceType].filter(Boolean).join(" ");
+}
+
+function serviceDisplayTitle(service: ServiceRow, message = "") {
   const parsed = parseDescription(service.description);
   const smmServiceId = parsed?.smm_service_id ?? parsed?.smmServiceId ?? parsed?.provider_service_id;
   const providerName = parsed?.smm_original_name ?? parsed?.provider_name ?? parsed?.name;
@@ -110,15 +138,23 @@ function serviceDisplayTitle(service: ServiceRow) {
     }
     if (providerName) return String(providerName);
     if (smmServiceId) return `SMM Service ID ${smmServiceId}`;
+
+    return compactServiceNameFromText([
+      message,
+      service.icon_type,
+      parsed?.subtitle,
+      parsed?.description,
+      parsed?.button_text,
+    ].filter(Boolean).join(" "));
   }
 
   return service.title;
 }
 
-function priceLine(service: ServiceRow) {
+function priceLine(service: ServiceRow, message = "") {
   const parsed = parseDescription(service.description);
   const label = servicePriceLabel(service);
-  const title = serviceDisplayTitle(service);
+  const title = serviceDisplayTitle(service, message);
   return [
     `- ${title}`,
     `Price: ${label}`,
@@ -264,7 +300,7 @@ function liveDataFallback(
     return [
       "Got you. I checked the live services and these are the closest matches:",
       ...matchedServices.slice(0, 4).map((service) =>
-        `- ${serviceDisplayTitle(service)}: ${servicePriceLabel(service)}. Open ${serviceAppLink(service)}`
+        `- ${serviceDisplayTitle(service, message)}: ${servicePriceLabel(service)}. Open ${serviceAppLink(service)}`
       ),
       "You can browse first, but login is needed before checkout. If you want, I can also help you pick the cheapest or safest option.",
     ].join("\n");
@@ -388,7 +424,7 @@ export async function POST(request: Request) {
     const matchedServices = topServicesForQuery(services, userMessage);
     const matchedCandidates = topCandidatesForQuery(candidates, userMessage);
     const pinoyBoostingQuestion = isPinoyBoostingQuestion(userMessage);
-    const serviceContext = matchedServices.map(priceLine).join("\n");
+    const serviceContext = matchedServices.map((service) => priceLine(service, userMessage)).join("\n");
     const candidateContext = matchedCandidates.slice(0, 12).map((candidate) =>
       `- ${candidate.tag || candidate.title}: ${candidate.title}. ${candidate.description}. Rate: ${candidate.rate_text || "varies"}. App link: /app`
     ).join("\n");
