@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { parseDescription } from "@/utils/serviceHelpers";
+import { formatSmmServiceName, parseDescription } from "@/utils/serviceHelpers";
 import { fallbackRead } from "@/utils/supabase/dual-db";
 import { readServiceCandidatesFromAnyDatabase } from "@/lib/serviceCandidatesServer";
 import { readMobileAppSettingsFromAnyDatabase } from "@/lib/mobileAppServer";
@@ -94,11 +94,33 @@ function serviceAppLink(service: ServiceRow) {
   return `/app?service=${encodeURIComponent(service.id)}`;
 }
 
+function isGenericServiceTitle(title: string) {
+  return /^(all services|smm catalog explorer|smm service|boost campaign)$/i.test(title.trim());
+}
+
+function serviceDisplayTitle(service: ServiceRow) {
+  const parsed = parseDescription(service.description);
+  const smmServiceId = parsed?.smm_service_id ?? parsed?.smmServiceId ?? parsed?.provider_service_id;
+  const providerName = parsed?.smm_original_name ?? parsed?.provider_name ?? parsed?.name;
+  const providerDescription = parsed?.description ?? parsed?.subtitle ?? "";
+
+  if (isGenericServiceTitle(service.title)) {
+    if (providerName && smmServiceId) {
+      return formatSmmServiceName(String(providerName), String(smmServiceId), String(providerDescription));
+    }
+    if (providerName) return String(providerName);
+    if (smmServiceId) return `SMM Service ID ${smmServiceId}`;
+  }
+
+  return service.title;
+}
+
 function priceLine(service: ServiceRow) {
   const parsed = parseDescription(service.description);
   const label = servicePriceLabel(service);
+  const title = serviceDisplayTitle(service);
   return [
-    `- ${service.title}`,
+    `- ${title}`,
     `Price: ${label}`,
     `App link: ${serviceAppLink(service)}`,
     parsed?.subtitle || parsed?.description || "",
@@ -242,7 +264,7 @@ function liveDataFallback(
     return [
       "Got you. I checked the live services and these are the closest matches:",
       ...matchedServices.slice(0, 4).map((service) =>
-        `- ${service.title}: ${servicePriceLabel(service)}. Open ${serviceAppLink(service)}`
+        `- ${serviceDisplayTitle(service)}: ${servicePriceLabel(service)}. Open ${serviceAppLink(service)}`
       ),
       "You can browse first, but login is needed before checkout. If you want, I can also help you pick the cheapest or safest option.",
     ].join("\n");
