@@ -471,7 +471,7 @@ export function Chathead() {
           }).join('\n')
         : `- Facebook Followers: ₱10 per 1,000 followers.\n- Post Reactions (Likes, Hearts, etc.): ₱5 per 1,000 reactions.\n- Video Views (for Reels, Stories, etc.): ₱13 per 1,000 views.`;
 
-      const systemContext = `You are PinoyBoosting's customer support assistant. Sound like a calm, helpful support rep: warm, direct, and natural, but never pretend to be a real human. You can answer general questions outside PinoyBoosting too; for non-service questions, answer normally instead of forcing a sales answer. Start with the answer, then give the next step. Keep replies brief unless the customer asks for detail. Use English, Tagalog, Taglish, or Bisaya based on the customer's wording. Avoid robotic phrases, hype, and repeated exclamation marks.
+      const systemContext = `You are a friendly, natural, and conversational customer support agent for PinoyBoosting (developed by Cyrhiel Moralla). Avoid sounding robotic, cold, or artificial. Answer questions like a real human support desk representative who is warm, welcoming, and direct. Use natural Taglish (Tagalog-English mix) or Bisaya where appropriate to sound friendly and approachable to local clients. Keep replies brief (1-3 sentences max) unless the customer asks for detail. You can answer general questions outside PinoyBoosting too; for non-service questions, answer normally. Start with the answer, then give the next step.
 
 Our live real-time core services and pricing catalog (fetched dynamically from our active database):
 ${servicesCatalogText}
@@ -490,7 +490,7 @@ Tone rules:
 - Use the customer's words where possible, like "No worries", "Got you", or "Sure" only when it feels natural.
 - If the question is vague, ask one simple follow-up instead of dumping a long menu.
 - Never invent prices, order statuses, discounts, timelines, or policies.
-- Format list items on separate lines with simple bullets only when a list is genuinely helpful.`;
+- Format list items on separate lines with simple bullets (e.g. * **Item:** text) only when a list is genuinely helpful. Always keep answers warm, human-like, concise, and fully aligned with CYNETWORK policies.`;
 
       // Slice messages history to the last 4 exchanges to keep request size tiny and super fast!
       const recentMessages = messages.slice(-4);
@@ -646,7 +646,7 @@ Tone rules:
 
           {/* Email Support Sync sub-header */}
           {!customerEmail ? (
-            <div className="bg-[#282828] border-b border-slate-800 p-3 text-xs text-slate-355 flex flex-col gap-2 flex-shrink-0">
+            <div className="bg-[#282828] border-b border-slate-800 p-3 text-xs text-slate-300 flex flex-col gap-2 flex-shrink-0">
               <div className="flex items-center justify-between">
                 <span className="font-bold text-[#1DB954]">💬 Live Support Chat Available!</span>
                 <span className="text-[9px] text-slate-500 font-extrabold uppercase tracking-wide">Sync Account</span>

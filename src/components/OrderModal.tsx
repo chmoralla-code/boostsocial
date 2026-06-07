@@ -672,7 +672,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                       </span>
                     </div>
                     
-                    <div className="space-y-3 text-xs text-slate-350 bg-[#121212]/80 border border-slate-850 p-4 rounded-xl">
+                    <div className="space-y-3 text-xs text-slate-300 bg-[#121212]/80 border border-slate-850 p-4 rounded-xl">
                       <span className="text-[10px] font-black uppercase tracking-widest text-[#1877F2] block mb-1 font-extrabold">
                         📋 Next Steps
                       </span>
@@ -1044,7 +1044,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                         </span>
                       </div>
 
-                      <p className="text-[11px] text-slate-350 leading-relaxed font-semibold">
+                      <p className="text-[11px] text-slate-300 leading-relaxed font-semibold">
                         This software requires secure remote installation. Please download and install **UltraViewer** on your computer if you do not have it yet.
                       </p>
 
@@ -1080,7 +1080,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                                 ...customFieldValues,
                                 "UltraViewer Partner ID": e.target.value
                               })}
-                              className="w-full px-3 py-2 rounded-lg bg-[#282828] border border-slate-750 focus:outline-none focus:ring-1 focus:ring-[#1877F2] text-white text-xs font-semibold"
+                              className="w-full px-3 py-2 rounded-lg bg-[#282828] border border-slate-700 focus:outline-none focus:ring-1 focus:ring-[#1877F2] text-white text-xs font-semibold"
                               placeholder="e.g. 12 345 678"
                             />
                           </div>
@@ -1095,7 +1095,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                                 ...customFieldValues,
                                 "UltraViewer Password": e.target.value
                               })}
-                              className="w-full px-3 py-2 rounded-lg bg-[#282828] border border-slate-750 focus:outline-none focus:ring-1 focus:ring-[#1877F2] text-white text-xs font-semibold"
+                              className="w-full px-3 py-2 rounded-lg bg-[#282828] border border-slate-700 focus:outline-none focus:ring-1 focus:ring-[#1877F2] text-white text-xs font-semibold"
                               placeholder="e.g. 1234"
                             />
                           </div>
@@ -1175,7 +1175,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                               className={`flex flex-col items-center justify-center p-2 rounded-xl border-2 transition-all duration-200 active:scale-95 ${
                                 isSelected 
                                   ? "bg-[#181818] text-white" 
-                                  : "bg-[#282828] border-slate-850 hover:border-slate-750 text-slate-400 hover:text-slate-200"
+                                  : "bg-[#282828] border-slate-850 hover:border-slate-700 text-slate-400 hover:text-slate-200"
                               }`}
                             >
                               <span className="text-2xl mb-1 select-none transform hover:scale-125 transition-transform duration-200">{rx.emoji}</span>
@@ -1433,7 +1433,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                   <div className="bg-amber-500/10 border border-amber-500/25 p-3.5 rounded-xl flex items-start gap-2.5 animate-in slide-in-from-bottom-2 duration-300 mt-3 text-left">
                     <span className="text-base leading-none">⏳</span>
                     <div className="space-y-0.5">
-                      <span className="text-[10px] font-black uppercase tracking-wider text-amber-550 block">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-amber-500 block">
                         🇵🇭 PH Base Delivery Protocol
                       </span>
                       <p className="text-[10px] text-slate-300 leading-relaxed font-semibold">
@@ -1447,7 +1447,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
 {featureBadges && !isPisoWifiService && (
                   <div className="bg-[#1DB954]/5 border border-[#1DB954]/10 p-3.5 rounded-xl flex items-start gap-2 mt-3 animate-in fade-in duration-300">
                     <span className="text-sm mt-0.5">🛡️</span>
-                    <p className="text-[10px] text-slate-355 leading-relaxed font-bold text-left">
+                    <p className="text-[10px] text-slate-300 leading-relaxed font-bold text-left">
                       <span className="text-[#1DB954] uppercase tracking-wider block mb-0.5">🔒 100% Monetization Safe Guarantee</span>
                       Your campaign passes through CYNETWORK&apos;s proprietary filters to exclude toxic bot pools that trigger restrictions. Safe for Facebook Adsense & organic page growth.
                     </p>

@@ -201,7 +201,7 @@ function matchesExactly(name: string, cat: string, config: CoreServiceConfig): b
 
 export async function POST(req: NextRequest) {
   try {
-    const { markupPercent } = await req.json();
+    const { markupPercent, serviceId } = await req.json();
     const markup = markupPercent !== undefined ? Number(markupPercent) : 90; // default to 90% markup
 
     if (isNaN(markup) || markup < 0) {
@@ -254,7 +254,7 @@ export async function POST(req: NextRequest) {
         const regex = /data-filter-table-service-id="(\d+)"/g;
         let match;
         while ((match = regex.exec(html)) !== null) {
-          const serviceId = match[1];
+          const serviceIdStr = match[1];
           const startIndex = match.index;
           const startTr = html.lastIndexOf("<tr", startIndex);
           const endTr = html.indexOf("</tr>", startIndex);
@@ -263,7 +263,7 @@ export async function POST(req: NextRequest) {
             const cells = trHtml.split(/<td[^>]*>/i);
             if (cells.length >= 7) {
               const avgTimeCell = cells[6].split("</td>")[0].trim();
-              averageTimes[serviceId] = avgTimeCell;
+              averageTimes[serviceIdStr] = avgTimeCell;
             }
           }
         }
@@ -277,8 +277,125 @@ export async function POST(req: NextRequest) {
 
     const syncResults: any = {};
 
+    // Filter services to sync if serviceId is provided
+    let servicesToSync = Object.entries(CORE_SERVICES);
+    let isCustomSync = false;
+
+    if (serviceId) {
+      servicesToSync = servicesToSync.filter(([_, config]) => config.dbId === serviceId);
+      if (servicesToSync.length === 0) {
+        isCustomSync = true;
+      }
+    }
+
+    if (isCustomSync) {
+      const { data: dbService, error: fetchErr } = await supabase
+        .from("services")
+        .select("*")
+        .eq("id", serviceId)
+        .single();
+      
+      if (!fetchErr && dbService) {
+        const parsed = parseDescription(dbService.description);
+        const titleLower = dbService.title.toLowerCase();
+        
+        let platform = "";
+        if (titleLower.includes("facebook") || titleLower.includes("fb")) platform = "facebook";
+        else if (titleLower.includes("instagram") || titleLower.includes("ig")) platform = "instagram";
+        else if (titleLower.includes("tiktok") || titleLower.includes("tt") || titleLower.includes("tik tok")) platform = "tiktok";
+        else if (titleLower.includes("youtube") || titleLower.includes("yt")) platform = "youtube";
+        
+        const keywords: string[] = [];
+        if (titleLower.includes("follower")) keywords.push("follower", "followers");
+        if (titleLower.includes("like") || titleLower.includes("heart") || titleLower.includes("reaction") || titleLower.includes("react")) {
+          keywords.push("like", "likes", "reaction", "reactions", "react", "reacts");
+        }
+        if (titleLower.includes("view") || titleLower.includes("play")) keywords.push("view", "views", "play", "plays");
+        if (titleLower.includes("subscriber") || titleLower.includes("sub")) keywords.push("subscriber", "subscribers");
+
+        let cheapest: any = null;
+        if (platform && keywords.length > 0) {
+          const candidates = smmServices.filter(s => {
+            const name = (s.name || "").toLowerCase();
+            const cat = (s.category || "").toLowerCase();
+            const desc = (s.desc || "").toLowerCase();
+            
+            if (!isTargetPlatform(name, cat, platform)) return false;
+            
+            const matchesKeyword = keywords.some(kw => name.includes(kw) || cat.includes(kw));
+            if (!matchesKeyword) return false;
+            
+            const isNoData = name.includes("no data") || name.includes("no speed") || desc.includes("no data") || desc.includes("no speed");
+            if (isNoData) return false;
+            
+            return true;
+          });
+          
+          if (candidates.length > 0) {
+            candidates.sort((a, b) => Number(a.rate) - Number(b.rate));
+            cheapest = candidates[0];
+          }
+        }
+        
+        if (!cheapest && parsed && parsed.smm_service_id) {
+          cheapest = smmServices.find(s => String(s.service) === String(parsed.smm_service_id));
+        }
+
+        if (cheapest) {
+          const smmRate = Number(cheapest.rate);
+          const calculatedPerPiece = (smmRate / 1000) * 2;
+          let descriptionObj = parsed || { description: dbService.description };
+          
+          descriptionObj.smm_service_id = cheapest.service;
+          descriptionObj.smm_original_rate = smmRate;
+          descriptionObj.smm_markup_percent = markup;
+          descriptionObj.smm_original_name = cheapest.name;
+          descriptionObj.min_quantity = Number(cheapest.min);
+          descriptionObj.smm_min = Number(cheapest.min);
+          descriptionObj.smm_max = Number(cheapest.max);
+          descriptionObj.smm_average_time = averageTimes[String(cheapest.service)] || "No data";
+
+          const { error: updateErr } = await supabase
+            .from("services")
+            .update({
+              starting_price: calculatedPerPiece,
+              description: JSON.stringify(descriptionObj)
+            })
+            .eq("id", serviceId);
+
+          await syncBackupAdminClients(async (backupClient) => {
+            await backupClient
+              .from("services")
+              .update({
+                starting_price: calculatedPerPiece,
+                description: JSON.stringify(descriptionObj)
+              })
+              .eq("id", serviceId);
+          }, "sync-smm custom service update");
+
+          if (updateErr) {
+            return NextResponse.json({ error: `Supabase update failed: ${updateErr.message}` }, { status: 500 });
+          }
+
+          syncResults[dbService.title] = {
+            success: true,
+            smmServiceId: cheapest.service,
+            smmRate,
+            smmOriginalName: cheapest.name,
+            newStartingPrice: calculatedPerPiece,
+            markupPercent: markup
+          };
+          return NextResponse.json({ success: true, results: syncResults });
+        } else {
+          return NextResponse.json({ error: "No suitable SMM service candidate found for custom service" }, { status: 404 });
+        }
+      } else {
+        return NextResponse.json({ error: "Service record not found in Supabase" }, { status: 404 });
+      }
+    }
+
     // 2. Process each core service type
-    for (const [key, config] of Object.entries(CORE_SERVICES)) {
+    for (const [key, config] of servicesToSync) {
       // Filter all candidates first without strict average time filter
       const allCandidates = smmServices.filter(s => {
         const name = (s.name || "").toLowerCase();

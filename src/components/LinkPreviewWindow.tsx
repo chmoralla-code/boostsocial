@@ -204,7 +204,7 @@ export function LinkPreviewWindow({ targetUrl, orderStatus, serviceTitle }: Link
         </div>
         <div className="truncate">
           <span className="block text-[9px] font-black uppercase tracking-wider text-emerald-400">Target Link Verified</span>
-          <span className="block text-[10px] font-bold text-slate-350 truncate mt-0.5 leading-snug">{previewUrl}</span>
+          <span className="block text-[10px] font-bold text-slate-300 truncate mt-0.5 leading-snug">{previewUrl}</span>
         </div>
       </div>
     );

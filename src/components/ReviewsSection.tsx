@@ -167,7 +167,7 @@ export function ReviewsSection() {
                       <Star 
                         size={22} 
                         fill={star <= rating ? "#eab308" : "none"} 
-                        className={star <= rating ? "text-yellow-500" : "text-slate-650"}
+                        className={star <= rating ? "text-yellow-500" : "text-slate-600"}
                       />
                     </button>
                   ))}

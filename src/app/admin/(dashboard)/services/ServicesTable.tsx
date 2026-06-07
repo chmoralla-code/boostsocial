@@ -81,6 +81,7 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
 
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState("");
+  const [rowSyncingId, setRowSyncingId] = useState<string | null>(null);
 
   const handleSyncSmmServices = async () => {
     setIsSyncing(true);
@@ -111,6 +112,40 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
     } finally {
       setIsSyncing(false);
       setSyncMessage("");
+    }
+  };
+
+  const handleSyncSingleService = async (serviceId: string) => {
+    setRowSyncingId(serviceId);
+    try {
+      const res = await fetch("/api/admin/sync-smm-services", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          markupPercent: 90,
+          serviceId: serviceId 
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to sync service");
+      }
+      
+      const { data: dbData, error: dbErr } = await supabase
+        .from("services")
+        .select("*")
+        .eq("id", serviceId)
+        .single();
+         
+      if (dbErr) throw dbErr;
+      if (dbData) {
+        setServices(prev => prev.map(s => s.id === serviceId ? dbData : s));
+        alert(`Successfully synced ${dbData.title} cheapest rate!`);
+      }
+    } catch (err: any) {
+      alert("Sync error: " + err.message);
+    } finally {
+      setRowSyncingId(null);
     }
   };
 
@@ -545,6 +580,19 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
                     } <span className="text-[10px] text-slate-500 font-bold uppercase">/ pc</span>
                   </td>
                   <td className="py-4 px-6 text-sm text-right whitespace-nowrap space-x-2">
+                    <button
+                      onClick={() => handleSyncSingleService(service.id)}
+                      disabled={rowSyncingId === service.id}
+                      className="px-2.5 py-1.5 bg-blue-500/10 border border-blue-500/15 hover:border-blue-500/30 hover:bg-blue-500/20 text-blue-400 disabled:text-slate-500 disabled:border-slate-800 rounded-lg transition-all text-xs font-bold inline-flex items-center gap-1.5"
+                      title="Sync Cheapest Rate"
+                    >
+                      {rowSyncingId === service.id ? (
+                        <Loader2 size={13} className="animate-spin" />
+                      ) : (
+                        <RefreshCw size={13} />
+                      )}
+                      Sync Cheapest
+                    </button>
                     <button
                       onClick={() => openEditModal(service)}
                       className="px-2.5 py-1.5 bg-[#1DB954]/10 border border-[#1DB954]/15 hover:border-[#1DB954]/30 hover:bg-[#1DB954]/25 text-[#1DB954] rounded-lg transition-all text-xs font-bold inline-flex items-center gap-1.5"

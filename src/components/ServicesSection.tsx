@@ -247,27 +247,31 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
       const smmId = parsed?.smm_service_id ? String(parsed.smm_service_id) : null;
       if (!smmId) return;
 
-      const isFB = titleLower.includes("fb followers") || titleLower.includes("facebook followers") || titleLower.includes("fb reactions") || titleLower.includes("facebook reactions") || titleLower.includes("fb views") || titleLower.includes("facebook views");
-      const isIG = titleLower.includes("ig followers") || titleLower.includes("instagram followers") || titleLower.includes("ig likes") || titleLower.includes("instagram likes") || titleLower.includes("ig views") || titleLower.includes("instagram views");
-      const isTT = titleLower.includes("tiktok followers") || titleLower.includes("tiktok likes") || titleLower.includes("tiktok views");
-      const isYT = titleLower.includes("yt subscribers") || titleLower.includes("youtube subscribers") || titleLower.includes("yt likes") || titleLower.includes("youtube likes") || titleLower.includes("yt views") || titleLower.includes("youtube views");
+      const containsFB = titleLower.includes("facebook") || titleLower.includes("fb");
+      const containsIG = titleLower.includes("instagram") || titleLower.includes("ig");
+      const containsTT = titleLower.includes("tiktok") || titleLower.includes("tt") || titleLower.includes("tik tok");
+      const containsYT = titleLower.includes("youtube") || titleLower.includes("yt");
 
-      if (platform === "facebook" && isFB) {
-        if (titleLower.includes("follower")) targetFollowerSmmId = smmId;
-        if (titleLower.includes("reaction") || titleLower.includes("like")) targetLikeSmmId = smmId;
-        if (titleLower.includes("view")) targetViewSmmId = smmId;
-      } else if (platform === "instagram" && isIG) {
-        if (titleLower.includes("follower")) targetFollowerSmmId = smmId;
-        if (titleLower.includes("like")) targetLikeSmmId = smmId;
-        if (titleLower.includes("view")) targetViewSmmId = smmId;
-      } else if (platform === "tiktok" && isTT) {
-        if (titleLower.includes("follower")) targetFollowerSmmId = smmId;
-        if (titleLower.includes("like") || titleLower.includes("heart")) targetLikeSmmId = smmId;
-        if (titleLower.includes("view")) targetViewSmmId = smmId;
-      } else if (platform === "youtube" && isYT) {
-        if (titleLower.includes("subscriber") || titleLower.includes("sub")) targetFollowerSmmId = smmId;
-        if (titleLower.includes("like")) targetLikeSmmId = smmId;
-        if (titleLower.includes("view")) targetViewSmmId = smmId;
+      const isFollower = titleLower.includes("follower") || titleLower.includes("subscriber") || titleLower.includes("sub");
+      const isLike = titleLower.includes("like") || titleLower.includes("reaction") || titleLower.includes("react") || titleLower.includes("heart");
+      const isView = titleLower.includes("view") || titleLower.includes("play");
+
+      if (platform === "facebook" && containsFB) {
+        if (isFollower) targetFollowerSmmId = smmId;
+        else if (isLike) targetLikeSmmId = smmId;
+        else if (isView) targetViewSmmId = smmId;
+      } else if (platform === "instagram" && containsIG) {
+        if (isFollower) targetFollowerSmmId = smmId;
+        else if (isLike) targetLikeSmmId = smmId;
+        else if (isView) targetViewSmmId = smmId;
+      } else if (platform === "tiktok" && containsTT) {
+        if (isFollower) targetFollowerSmmId = smmId;
+        else if (isLike) targetLikeSmmId = smmId;
+        else if (isView) targetViewSmmId = smmId;
+      } else if (platform === "youtube" && containsYT) {
+        if (isFollower) targetFollowerSmmId = smmId;
+        else if (isLike) targetLikeSmmId = smmId;
+        else if (isView) targetViewSmmId = smmId;
       }
     });
 
@@ -781,6 +785,10 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
               };
             } else if (card.id === "catalog") {
               clickAction = () => openSmmCatalog();
+            } else {
+              clickAction = () => {
+                openSmmCatalog(card.tag || card.title || "");
+              };
             }
 
             // Determine button bg and text colors
@@ -977,7 +985,7 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
           <div className="hidden md:grid grid-cols-3 border-b border-slate-800/80 bg-black/40 py-5 px-8 text-xs font-black uppercase tracking-wider text-slate-400 text-left">
             <div>Core Feature</div>
             <div className="text-[#1DB954] flex items-center gap-1.5">🟢 CYNETWORK Curation</div>
-            <div className="text-slate-555 flex items-center gap-1.5">🔴 Faceless Wholesale SMM Panels</div>
+            <div className="text-slate-500 flex items-center gap-1.5">🔴 Faceless Wholesale SMM Panels</div>
           </div>
 
           {/* Feature 1 */}
@@ -990,12 +998,12 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
               <span className="text-xs font-black text-[#1ed760] flex items-center gap-1.5">
                 🛡️ 100% Adsense & Compliant
               </span>
-              <p className="text-xs text-slate-350 leading-relaxed font-semibold">
+              <p className="text-xs text-slate-300 leading-relaxed font-semibold">
                 Filters out toxic direct-bot server pools that trigger platform restrictions or monetization bans.
               </p>
             </div>
             <div className="flex flex-col gap-1">
-              <span className="text-xs font-black text-slate-550 flex items-center gap-1.5">
+              <span className="text-xs font-black text-slate-500 flex items-center gap-1.5">
                 ⚠️ Raw Unfiltered Delivery
               </span>
               <p className="text-xs text-slate-500 leading-relaxed font-semibold">
@@ -1014,12 +1022,12 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
               <span className="text-xs font-black text-[#1ed760] flex items-center gap-1.5">
                 🇵🇭 Curated PH Base & Organic Realism
               </span>
-              <p className="text-xs text-slate-350 leading-relaxed font-semibold">
+              <p className="text-xs text-slate-300 leading-relaxed font-semibold">
                 Curates realistic local accounts with actual human avatars and activity histories for maximum retention.
               </p>
             </div>
             <div className="flex flex-col gap-1">
-              <span className="text-xs font-black text-slate-550 flex items-center gap-1.5">
+              <span className="text-xs font-black text-slate-500 flex items-center gap-1.5">
                 🤖 Sterile Foreign Bot Spams
               </span>
               <p className="text-xs text-slate-500 leading-relaxed font-semibold">
@@ -1038,12 +1046,12 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
               <span className="text-xs font-black text-[#1ed760] flex items-center gap-1.5">
                 📲 Seamless GCash Direct QR
               </span>
-              <p className="text-xs text-slate-350 leading-relaxed font-semibold">
+              <p className="text-xs text-slate-300 leading-relaxed font-semibold">
                 Frictionless manual GCash payment scans with instant developer approval. No processing fee.
               </p>
             </div>
             <div className="flex flex-col gap-1">
-              <span className="text-xs font-black text-slate-550 flex items-center gap-1.5">
+              <span className="text-xs font-black text-slate-500 flex items-center gap-1.5">
                 💳 Crypto & High Deposits
               </span>
               <p className="text-xs text-slate-500 leading-relaxed font-semibold">
@@ -1062,12 +1070,12 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
               <span className="text-xs font-black text-[#1ed760] flex items-center gap-1.5">
                 💬 24/7 Developer Handshake
               </span>
-              <p className="text-xs text-slate-350 leading-relaxed font-semibold">
+              <p className="text-xs text-slate-300 leading-relaxed font-semibold">
                 Direct client support backed by Cyrhiel Moralla. Real human answers in quick Taglish/English.
               </p>
             </div>
             <div className="flex flex-col gap-1">
-              <span className="text-xs font-black text-slate-550 flex items-center gap-1.5">
+              <span className="text-xs font-black text-slate-500 flex items-center gap-1.5">
                 🤖 Delayed Robotic Tickets
               </span>
               <p className="text-xs text-slate-500 leading-relaxed font-semibold">
@@ -1207,7 +1215,7 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
                   return (
                     <div className="text-center py-16 bg-[#161616]/30 border border-slate-800 border-dashed rounded-2xl">
                       <p className="text-slate-500 font-extrabold uppercase tracking-wider text-sm">Reseller catalog timing list loading...</p>
-                      <p className="text-xs text-slate-650 mt-1">If this persists, click &quot;View Other Services&quot; below to browse the backup database.</p>
+                      <p className="text-xs text-slate-500 mt-1">If this persists, click &quot;View Other Services&quot; below to browse the backup database.</p>
                     </div>
                   );
                 }
@@ -1362,7 +1370,7 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
                           openSmmCatalog(platformSubModalType); // Prefill search with platform name
                         }}
                         type="button"
-                        className="w-full bg-slate-850 hover:bg-slate-800 border border-slate-800 text-slate-350 hover:text-white font-extrabold py-3.5 rounded-full transition-all duration-300 uppercase text-xs tracking-wider cursor-pointer text-center"
+                        className="w-full bg-slate-850 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white font-extrabold py-3.5 rounded-full transition-all duration-300 uppercase text-xs tracking-wider cursor-pointer text-center"
                       >
                         View Other {platformSubModalType.charAt(0).toUpperCase() + platformSubModalType.slice(1)} Services Inside
                       </button>

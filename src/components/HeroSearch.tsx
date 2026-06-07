@@ -508,7 +508,7 @@ export function HeroSearch({ services }: HeroSearchProps) {
                     setCatalogPrefill("");
                     setIsSmmCatalogModalOpen(true);
                   }}
-                  className="w-full sm:w-auto bg-slate-850 hover:bg-slate-800 border border-slate-800 text-slate-350 hover:text-white font-extrabold px-4 py-2 rounded-xl text-[10px] uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap text-center shadow-sm"
+                  className="w-full sm:w-auto bg-slate-850 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white font-extrabold px-4 py-2 rounded-xl text-[10px] uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap text-center shadow-sm"
                 >
                   Browse All Services
 

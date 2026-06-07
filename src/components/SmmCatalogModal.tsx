@@ -106,6 +106,7 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
   const [categories, setCategories] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState<"cheapest" | "expensive" | "alpha" | "id">("cheapest");
   const [isOrganicFilter, setIsOrganicFilter] = useState(true);
+  const [originFilter, setOriginFilter] = useState<"all" | "ph" | "foreigner">("all");
 
   
   // Checkout flow state
@@ -263,7 +264,21 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
 
     const matchesQuality = matchesServiceQualityFilter(s.name, s.desc || "", s.category, isOrganicFilter);
 
-    return matchesSearch && matchesPlatform && matchesCategory && matchesQuality;
+    // Origin filtering
+    const combined = `${s.name} ${s.category} ${s.desc || ""}`.toLowerCase();
+    const isPh = combined.includes("ph base") || 
+                 combined.includes("philippine") || 
+                 combined.includes("phbase") ||
+                 combined.includes("pilipino") ||
+                 combined.includes("🇵🇭") ||
+                 combined.includes("ph-base");
+
+    const matchesOrigin = 
+      originFilter === "all" ||
+      (originFilter === "ph" && isPh) ||
+      (originFilter === "foreigner" && !isPh);
+
+    return matchesSearch && matchesPlatform && matchesCategory && matchesQuality && matchesOrigin;
   });
 
 
@@ -590,7 +605,7 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
                     <span className="text-xs">🔥</span>
                     <span className="text-xs font-black uppercase tracking-wider text-[#1DB954]">New User Quick Guide</span>
                   </div>
-                  <p className="text-slate-350 text-[11px] font-semibold leading-snug">
+                  <p className="text-slate-300 text-[11px] font-semibold leading-snug">
                     Looking for the cheapest options? Click any popular boost below to instantly view our absolute lowest direct reseller pricing:
                   </p>
                 </div>
@@ -621,22 +636,68 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
 
               {/* Search and Filters */}
               <div className="flex flex-col lg:flex-row gap-3 justify-between items-center bg-[#181818]/60 p-4 rounded-2xl border border-slate-800/60 shadow-md w-full">
-                <div className="relative w-full lg:flex-1">
-                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
-                  <input
-                    type="text"
-                    placeholder="Search from 1,100+ services (e.g. Followers, Views, Likes)..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 rounded-xl bg-[#090909] border border-slate-800 focus:outline-none focus:border-[#1DB954] focus:ring-2 focus:ring-[#1DB954]/25 transition-all text-slate-250 font-semibold placeholder-slate-650 text-xs sm:text-sm hover:border-slate-750"
-                  />
+                <div className="flex flex-col sm:flex-row gap-3 w-full lg:flex-1">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
+                    <input
+                      type="text"
+                      placeholder="Search from 1,100+ services (e.g. Followers, Views, Likes)..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2 rounded-xl bg-[#090909] border border-slate-800 focus:outline-none focus:border-[#1DB954] focus:ring-2 focus:ring-[#1DB954]/25 transition-all text-slate-250 font-semibold placeholder-slate-500 text-xs sm:text-sm hover:border-slate-700"
+                    />
+                  </div>
+                  
+                  {/* Origin Toggle Segmented Control */}
+                  <div className="relative flex p-0.5 bg-[#0a0a0a] border border-slate-800/80 rounded-full w-full sm:w-72 shadow-inner">
+                    {/* Sliding indicator */}
+                    <div
+                      className={`absolute top-0.5 bottom-0.5 rounded-full bg-gradient-to-r transition-all duration-300 ease-out pointer-events-none ${
+                        originFilter === "all"
+                          ? "left-0.5 w-[32%] from-slate-700/20 to-slate-600/20 border border-slate-600/35"
+                          : originFilter === "ph"
+                          ? "left-[34%] w-[32%] from-[#1DB954]/20 to-[#1ed760]/20 border border-[#1DB954]/30"
+                          : "left-[67.5%] w-[32%] from-indigo-500/20 to-purple-500/20 border border-indigo-500/30"
+                      }`}
+                    ></div>
+                    
+                    <button
+                      onClick={() => setOriginFilter("all")}
+                      type="button"
+                      className={`flex-1 py-1.5 text-[9px] font-black uppercase tracking-wider rounded-full transition-all duration-200 z-10 cursor-pointer flex items-center justify-center gap-1 ${
+                        originFilter === "all" ? "text-white" : "text-slate-400 hover:text-slate-200"
+                      }`}
+                    >
+                      🌐 All
+                    </button>
+                    
+                    <button
+                      onClick={() => setOriginFilter("ph")}
+                      type="button"
+                      className={`flex-1 py-1.5 text-[9px] font-black uppercase tracking-wider rounded-full transition-all duration-200 z-10 cursor-pointer flex items-center justify-center gap-1 ${
+                        originFilter === "ph" ? "text-[#1DB954]" : "text-slate-400 hover:text-slate-200"
+                      }`}
+                    >
+                      🇵🇭 PH Base
+                    </button>
+                    
+                    <button
+                      onClick={() => setOriginFilter("foreigner")}
+                      type="button"
+                      className={`flex-1 py-1.5 text-[9px] font-black uppercase tracking-wider rounded-full transition-all duration-200 z-10 cursor-pointer flex items-center justify-center gap-1 ${
+                        originFilter === "foreigner" ? "text-indigo-400" : "text-slate-400 hover:text-slate-200"
+                      }`}
+                    >
+                      👽 Foreigner
+                    </button>
+                  </div>
                 </div>
                 
                 <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
                   <select
                     value={selectedCategory}
                     onChange={(e) => setSelectedCategory(e.target.value)}
-                    className="w-full sm:w-56 px-4 py-2 rounded-xl bg-[#090909] border border-slate-800 focus:outline-none focus:border-[#1DB954] focus:ring-2 focus:ring-[#1DB954]/25 text-white font-extrabold cursor-pointer text-xs sm:text-sm transition-all hover:border-slate-750"
+                    className="w-full sm:w-56 px-4 py-2 rounded-xl bg-[#090909] border border-slate-800 focus:outline-none focus:border-[#1DB954] focus:ring-2 focus:ring-[#1DB954]/25 text-white font-extrabold cursor-pointer text-xs sm:text-sm transition-all hover:border-slate-700"
                   >
                     <option value="all">
                       {selectedPlatform === "all" ? "All Categories" : `All ${selectedPlatform.charAt(0).toUpperCase() + selectedPlatform.slice(1)}`} ({filteredCategories.length})
@@ -649,7 +710,7 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
                   <select
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value as any)}
-                    className="w-full sm:w-48 px-4 py-2 rounded-xl bg-[#090909] border border-slate-800 focus:outline-none focus:border-[#1DB954] focus:ring-2 focus:ring-[#1DB954]/25 text-[#1DB954] font-extrabold cursor-pointer text-xs sm:text-sm transition-all hover:border-slate-750"
+                    className="w-full sm:w-48 px-4 py-2 rounded-xl bg-[#090909] border border-slate-800 focus:outline-none focus:border-[#1DB954] focus:ring-2 focus:ring-[#1DB954]/25 text-[#1DB954] font-extrabold cursor-pointer text-xs sm:text-sm transition-all hover:border-slate-700"
                   >
                     <option value="cheapest">Cheapest First ₱</option>
                     <option value="expensive">Highest Price ₱</option>
@@ -1009,7 +1070,7 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
               </div>
 
               {isWalletPayment ? (
-                <div className="bg-[#1DB954]/5 border border-[#1DB954]/20 p-4 rounded-xl text-left space-y-2 text-xs font-semibold text-slate-350">
+                <div className="bg-[#1DB954]/5 border border-[#1DB954]/20 p-4 rounded-xl text-left space-y-2 text-xs font-semibold text-slate-300">
                   <span className="text-[10px] font-black uppercase tracking-widest text-[#1DB954] block">
                     ✓ Balance Deducted Successful!
                   </span>
@@ -1027,7 +1088,7 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
                   )}
                 </div>
               ) : (
-                <div className="bg-slate-900/60 border border-slate-800 p-4 rounded-xl text-left space-y-2.5 text-xs font-semibold text-slate-350">
+                <div className="bg-slate-900/60 border border-slate-800 p-4 rounded-xl text-left space-y-2.5 text-xs font-semibold text-slate-300">
                   <span className="text-[10px] font-black uppercase tracking-widest text-[#1DB954] block">
                     📋 Next Steps for Approval
                   </span>
@@ -1041,7 +1102,7 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
               )}
 
               {isPhBase && (
-                <div className="bg-[#1DB954]/10 border border-[#1DB954]/25 p-4 rounded-xl text-left space-y-1.5 text-xs font-semibold text-slate-350 mt-3 animate-in slide-in-from-bottom-2">
+                <div className="bg-[#1DB954]/10 border border-[#1DB954]/25 p-4 rounded-xl text-left space-y-1.5 text-xs font-semibold text-slate-300 mt-3 animate-in slide-in-from-bottom-2">
                   <span className="text-[10px] font-black uppercase tracking-widest text-[#1DB954] block">
                     🇵🇭 PH Base Organic Delivery Notice
                   </span>
