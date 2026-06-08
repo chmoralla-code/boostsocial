@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 import { createClient as createServerClient } from "@/utils/supabase/server";
 import { isAdminEmail } from "@/utils/security/admin";
 import { enforceRateLimit } from "@/utils/security/rate-limit";
@@ -31,18 +30,6 @@ async function requireAdmin(req: NextRequest) {
 }
 
 
-async function readTelegramConfig(path: string): Promise<TelegramConfig | null> {
-  try {
-    const supabase = getSupabase();
-    const { data, error } = await supabase.storage
-      .from(CONFIG_BUCKET)
-      .download(path);
-
-    if (error || !data) return null;
-    return JSON.parse(await data.text());
-  } catch {
-    return null;
-  }
 }
 
 async function setWebhook(botToken: string, webhookUrl: string, secretToken: string) {
