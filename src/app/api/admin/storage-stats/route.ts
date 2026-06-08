@@ -83,30 +83,36 @@ async function collectProjectMetrics(
   }
 
   if (dbUrl) {
+    let sql: SqlClient | null = null;
     try {
-      const sql = postgres(dbUrl, { ssl: "require" });
+      sql = postgres(dbUrl, { ssl: "require" });
       sqlClients.push(sql);
 
       const sizeRes = await sql`SELECT pg_database_size(current_database()) / 1024.0 / 1024.0 AS size_mb;`;
       if (sizeRes?.[0]) {
         dbSizeMB = parseFloat(sizeRes[0].size_mb) || 0.05;
       }
-
-      const usersRes = await sql`SELECT count(*)::integer AS user_count FROM auth.users;`;
-      if (usersRes?.[0]) {
-        users = usersRes[0].user_count || 0;
-      }
       active = true;
     } catch (err) {
-      console.error("Failed direct postgres metrics fetch:", err);
+      console.error("Failed direct postgres size metrics fetch:", err);
+    }
+
+    if (sql) {
       try {
-        const { count, error } = await client.from("profiles").select("*", { count: "exact", head: true });
-        if (!error) {
-          users = count || 0;
-          active = true;
+        const usersRes = await sql`SELECT count(*)::integer AS user_count FROM auth.users;`;
+        if (usersRes?.[0]) {
+          users = usersRes[0].user_count || 0;
         }
-      } catch (err2) {
-        console.error("Failed fallback REST profiles fetch:", err2);
+      } catch (err) {
+        // Fallback for databases like DigitalOcean which don't have the auth.users schema
+        try {
+          const { count, error } = await client.from("profiles").select("*", { count: "exact", head: true });
+          if (!error) {
+            users = count || 0;
+          }
+        } catch (err2) {
+          console.error("Failed fallback REST profiles fetch:", err2);
+        }
       }
     }
   } else {
@@ -131,9 +137,16 @@ export async function GET() {
     const primaryMetrics = await collectProjectMetrics({
       url: process.env.NEXT_PUBLIC_SUPABASE_URL,
       key: process.env.SUPABASE_SERVICE_ROLE_KEY,
-      dbUrl: process.env.DATABASE_URL,
+      dbUrl: process.env.DIGITALOCEAN_DATABASE_URL || process.env.DATABASE_URL,
       sqlClients,
       requireCredentials: true,
+    });
+
+    const backup1Metrics = await collectProjectMetrics({
+      url: process.env.NEXT_PUBLIC_SUPABASE_URL,
+      key: process.env.SUPABASE_SERVICE_ROLE_KEY,
+      dbUrl: process.env.DATABASE_URL,
+      sqlClients,
     });
 
     const backupMetrics = await collectProjectMetrics({
@@ -174,6 +187,7 @@ export async function GET() {
       dbSizeMB: primaryMetrics.dbSizeMB,
       dbRemainingMB: primaryMetrics.dbRemainingMB,
       dbPercentage: primaryMetrics.dbPercentage,
+      backup1: backup1Metrics,
       backup: backupMetrics,
       backup3: backup3Metrics,
       backup4: backup4Metrics,

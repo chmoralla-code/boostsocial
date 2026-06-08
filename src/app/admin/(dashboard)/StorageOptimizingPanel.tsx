@@ -14,6 +14,7 @@ type ProjectMetrics = {
 
 type StorageStats = ProjectMetrics & {
   success?: boolean;
+  backup1?: ProjectMetrics;
   backup?: ProjectMetrics;
   backup3?: ProjectMetrics;
   backup4?: ProjectMetrics;
@@ -139,7 +140,7 @@ export function StorageOptimizingPanel() {
 
   const telemetryCards = [
     {
-      title: "Primary Database",
+      title: "DigitalOcean Primary",
       metrics: stats,
       active: true,
       accent: "text-[#1DB954]",
@@ -148,7 +149,15 @@ export function StorageOptimizingPanel() {
       primary: true,
     },
     {
-      title: "Backup 2",
+      title: "Backup 1 (Supabase)",
+      metrics: stats?.backup1,
+      active: Boolean(stats?.backup1?.active),
+      accent: "text-blue-400",
+      barAccent: "bg-blue-400",
+      dbAccent: "bg-indigo-500",
+    },
+    {
+      title: "Backup 2 (Supabase)",
       metrics: stats?.backup,
       active: Boolean(stats?.backup?.active),
       accent: "text-blue-400",
@@ -156,7 +165,7 @@ export function StorageOptimizingPanel() {
       dbAccent: "bg-purple-500",
     },
     {
-      title: "Backup 3",
+      title: "Backup 3 (Supabase)",
       metrics: stats?.backup3,
       active: Boolean(stats?.backup3?.active),
       accent: "text-emerald-400",
@@ -164,7 +173,7 @@ export function StorageOptimizingPanel() {
       dbAccent: "bg-teal-500",
     },
     {
-      title: "Backup 4",
+      title: "Backup 4 (Supabase)",
       metrics: stats?.backup4,
       active: Boolean(stats?.backup4?.active),
       accent: "text-cyan-400",
@@ -172,7 +181,7 @@ export function StorageOptimizingPanel() {
       dbAccent: "bg-sky-500",
     },
     {
-      title: "Backup 5",
+      title: "Backup 5 (Supabase)",
       metrics: stats?.backup5,
       active: Boolean(stats?.backup5?.active),
       accent: "text-amber-400",
@@ -214,7 +223,7 @@ export function StorageOptimizingPanel() {
           </button>
         </div>
 
-        <div className="flex-1 grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-5 gap-4 border-t xl:border-t-0 xl:border-l border-slate-850 pt-6 xl:pt-0 xl:pl-6">
+        <div className="flex-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-6 gap-4 border-t xl:border-t-0 xl:border-l border-slate-850 pt-6 xl:pt-0 xl:pl-6">
           {telemetryCards.map((card) => (
             <TelemetryCard
               key={card.title}
