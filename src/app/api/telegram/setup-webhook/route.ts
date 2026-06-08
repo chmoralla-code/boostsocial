@@ -30,7 +30,6 @@ async function requireAdmin(req: NextRequest) {
 }
 
 
-}
 
 async function setWebhook(botToken: string, webhookUrl: string, secretToken: string) {
   const res = await fetch(`https://api.telegram.org/bot${botToken}/setWebhook`, {
