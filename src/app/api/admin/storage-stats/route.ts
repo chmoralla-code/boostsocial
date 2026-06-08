@@ -96,14 +96,29 @@ async function collectProjectMetrics(
       if (usersRes?.[0]) {
         users = usersRes[0].user_count || 0;
       }
+      active = true;
     } catch (err) {
       console.error("Failed direct postgres metrics fetch:", err);
-      const { count } = await client.from("profiles").select("*", { count: "exact", head: true });
-      users = count || 0;
+      try {
+        const { count, error } = await client.from("profiles").select("*", { count: "exact", head: true });
+        if (!error) {
+          users = count || 0;
+          active = true;
+        }
+      } catch (err2) {
+        console.error("Failed fallback REST profiles fetch:", err2);
+      }
     }
   } else {
-    const { count } = await client.from("profiles").select("*", { count: "exact", head: true });
-    users = count || 0;
+    try {
+      const { count, error } = await client.from("profiles").select("*", { count: "exact", head: true });
+      if (!error) {
+        users = count || 0;
+        active = true;
+      }
+    } catch (err) {
+      console.error("Failed REST profiles fetch:", err);
+    }
   }
 
   return toMetrics(sizeBytes, filesCount, users, dbSizeMB, active);

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { syncBackupAdminClients } from "@/utils/supabase/dual-db";
+import { syncBackupAdminClients, fallbackRead } from "@/utils/supabase/dual-db";
 import { getSupabaseServiceRoleKey, getSupabaseUrl } from "@/utils/env";
 import { getVipPlanById } from "@/utils/vip";
 import { notifyCustomer } from "@/lib/customerNotifications";
@@ -29,11 +29,13 @@ export async function POST(req: NextRequest) {
       auth: { persistSession: false },
     });
 
-    const { data: subscription, error: subError } = await supabase
-      .from("vip_subscriptions")
-      .select("*")
-      .eq("id", subscriptionId)
-      .single();
+    const { data: subscription, error: subError } = await fallbackRead(async (db) => {
+      return db
+        .from("vip_subscriptions")
+        .select("*")
+        .eq("id", subscriptionId)
+        .single();
+    });
 
     if (subError) throw subError;
     if (!subscription) {
@@ -50,13 +52,15 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === "approve") {
-      const { data: profile, error: profileError } = await supabase
-        .from("profiles")
-        .select("vip_plan, vip_expires_at")
-        .eq("id", subscription.user_id)
-        .single();
+      const { data: profile, error: profileError } = await fallbackRead(async (db) => {
+        return db
+          .from("profiles")
+          .select("vip_plan, vip_expires_at")
+          .eq("id", subscription.user_id)
+          .single();
+      });
 
-      if (profileError) throw profileError;
+      if (profileError || !profile) throw profileError || new Error("Profile not found");
 
       const now = new Date();
       const startAt = new Date(subscription.created_at || now).getTime();
@@ -67,30 +71,8 @@ export async function POST(req: NextRequest) {
       const expiresAt = new Date(baseStart);
       expiresAt.setDate(expiresAt.getDate() + selectedPlan.durationDays);
 
-      const { error: profileUpdateError } = await supabase
-        .from("profiles")
-        .update({
-          vip_plan: selectedPlan.id,
-          vip_started_at: new Date(baseStart).toISOString(),
-          vip_expires_at: expiresAt.toISOString(),
-        })
-        .eq("id", subscription.user_id);
-
-      if (profileUpdateError) throw profileUpdateError;
-
-      const { error: subUpdateError } = await supabase
-        .from("vip_subscriptions")
-        .update({
-          status: "approved",
-          reviewed_at: new Date().toISOString(),
-          reviewed_by: "admin",
-        })
-        .eq("id", subscriptionId);
-
-      if (subUpdateError) throw subUpdateError;
-
-      await syncBackupAdminClients(async (backupClient) => {
-        await backupClient
+      await syncBackupAdminClients(async (db) => {
+        await db
           .from("profiles")
           .update({
             vip_plan: selectedPlan.id,
@@ -99,7 +81,7 @@ export async function POST(req: NextRequest) {
           })
           .eq("id", subscription.user_id);
 
-        await backupClient
+        await db
           .from("vip_subscriptions")
           .update({
             status: "approved",
@@ -125,19 +107,8 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === "reject") {
-      const { error: subUpdateError } = await supabase
-        .from("vip_subscriptions")
-        .update({
-          status: "rejected",
-          reviewed_at: new Date().toISOString(),
-          reviewed_by: "admin",
-        })
-        .eq("id", subscriptionId);
-
-      if (subUpdateError) throw subUpdateError;
-
-      await syncBackupAdminClients(async (backupClient) => {
-        await backupClient
+      await syncBackupAdminClients(async (db) => {
+        await db
           .from("vip_subscriptions")
           .update({
             status: "rejected",

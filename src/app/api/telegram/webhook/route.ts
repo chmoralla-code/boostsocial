@@ -1,18 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { autoPlaceRixeyOrder } from "@/lib/rixeysmm";
-import { syncBackupAdminClients } from "@/utils/supabase/dual-db";
+import { syncBackupAdminClients, fallbackRead } from "@/utils/supabase/dual-db";
 import { enforceRateLimit } from "@/utils/security/rate-limit";
-import { getOrderTelegramConfig, getTopupTelegramConfig } from "@/lib/telegram-config";
-import type { TelegramConfig } from "@/lib/telegram-config";
-
-const CONFIG_BUCKET = "receipts";
 import { creditReferralCommission } from "@/utils/referrals";
 import { resolveSmmServiceTitle } from "@/lib/smmServiceResolver";
 import { notifyCustomer, notifyOrderStatusCustomer } from "@/lib/customerNotifications";
 
-
+type TelegramConfig = { bot_token: string; chat_id: string };
 type JoinedService = { title?: string | null } | { title?: string | null }[] | null | undefined;
+const CONFIG_BUCKET = "receipts";
 
 function getJoinedServiceTitle(services: JoinedService) {
   return Array.isArray(services) ? services[0]?.title : services?.title;
@@ -25,29 +22,32 @@ const getSupabase = () =>
     { auth: { persistSession: false } }
   );
 
-async function getTelegramConfig(path: string): Promise<TelegramConfig | null> {
+async function getTelegramConfig(type: "order" | "topup"): Promise<TelegramConfig | null> {
   try {
-    const supabase = getSupabase();
-    const { data, error } = await supabase.storage
-      .from(CONFIG_BUCKET)
-      .download(path);
-
-    if (error || !data) return null;
-    const text = await data.text();
-    return JSON.parse(text);
+    const key = type === "order" ? "telegram_order_config" : "telegram_topup_config";
+    const { data } = await fallbackRead(async (db) => {
+      return db.from("settings").select("value").eq("key", key).single();
+    });
+    if (data?.value) {
+      return {
+        bot_token: data.value.bot_token || "",
+        chat_id: data.value.chat_id || "",
+      };
+    }
+    return null;
   } catch {
     return null;
   }
 }
 
 async function getOrderActionConfig() {
-  return await getTopupTelegramConfig() || await getOrderTelegramConfig();
+  return await getTelegramConfig("topup") || await getTelegramConfig("order");
 }
 
 async function getOrderActionConfigs() {
   const configs = [
-    await getTopupTelegramConfig(),
-    await getOrderTelegramConfig(),
+    await getTelegramConfig("topup"),
+    await getTelegramConfig("order"),
   ].filter((config): config is TelegramConfig => Boolean(config?.bot_token));
 
   return configs.filter((config, index, all) =>
@@ -104,18 +104,20 @@ export async function POST(req: NextRequest) {
 }
 
 async function handleTopupAction(callbackData: string, chatId: number, messageId: number, callbackQueryId: string) {
-  const config = await getTopupTelegramConfig();
+  const config = await getTelegramConfig("topup");
   if (!config?.bot_token) return;
 
   const isApprove = callbackData.startsWith("topup_approve_");
   const topupId = callbackData.replace("topup_approve_", "").replace("topup_reject_", "");
   const supabase = getSupabase();
 
-  const { data: topup, error: topupError } = await supabase
-    .from("topups")
-    .select("*")
-    .eq("id", topupId)
-    .single();
+  const { data: topup, error: topupError } = await fallbackRead(async (db) => {
+    return db
+      .from("topups")
+      .select("*")
+      .eq("id", topupId)
+      .single();
+  });
 
   if (topupError || !topup) {
     await answerCallback(config.bot_token, callbackQueryId, "Top-up not found.");
@@ -129,11 +131,13 @@ async function handleTopupAction(callbackData: string, chatId: number, messageId
   }
 
   if (isApprove) {
-    const { data: profile, error: profileError } = await supabase
-      .from("profiles")
-      .select("balance, referred_by")
-      .eq("id", topup.user_id)
-      .single();
+    const { data: profile, error: profileError } = await fallbackRead(async (db) => {
+      return db
+        .from("profiles")
+        .select("balance, referred_by")
+        .eq("id", topup.user_id)
+        .single();
+    });
 
     if (profileError || !profile) {
       await answerCallback(config.bot_token, callbackQueryId, "User profile not found.");
@@ -143,15 +147,17 @@ async function handleTopupAction(callbackData: string, chatId: number, messageId
     const topupAmount = Number(topup.amount);
     const newBalance = Number(profile.balance || 0) + topupAmount;
 
-    await supabase
-      .from("profiles")
-      .update({ balance: newBalance })
-      .eq("id", topup.user_id);
+    await syncBackupAdminClients(async (db) => {
+      await db
+        .from("profiles")
+        .update({ balance: newBalance })
+        .eq("id", topup.user_id);
 
-    await supabase
-      .from("topups")
-      .update({ status: "approved" })
-      .eq("id", topupId);
+      await db
+        .from("topups")
+        .update({ status: "approved" })
+        .eq("id", topupId);
+    }, "telegram topup approval sync");
 
     try {
       await creditReferralCommission({
@@ -180,10 +186,12 @@ async function handleTopupAction(callbackData: string, chatId: number, messageId
       `TOP-UP APPROVED\n\nCustomer: ${topup.email}\nAmount: PHP ${topupAmount.toFixed(2)}\nNew Balance: PHP ${newBalance.toFixed(2)}\n\nApproved via Telegram by Admin.`
     );
   } else {
-    await supabase
-      .from("topups")
-      .update({ status: "rejected" })
-      .eq("id", topupId);
+    await syncBackupAdminClients(async (db) => {
+      await db
+        .from("topups")
+        .update({ status: "rejected" })
+        .eq("id", topupId);
+    }, "telegram topup rejection sync");
 
     await answerCallback(config.bot_token, callbackQueryId, "Top-up rejected.");
     notifyCustomer({
@@ -213,24 +221,26 @@ async function handleOrderAction(callbackData: string, chatId: number, messageId
   const orderId = callbackData.replace("order_approve_", "").replace("order_reject_", "");
   const supabase = getSupabase();
 
-  const { data: order, error: orderError } = await supabase
-    .from("orders")
-    .select(`
-      status,
-      service_id,
-      target_url,
-      quantity,
-      external_order_id,
-      customer_email,
-      amount,
-      payment_method,
-      smm_service_id,
-      services (
-        title
-      )
-    `)
-    .eq("id", orderId)
-    .single();
+  const { data: order, error: orderError } = await fallbackRead(async (db) => {
+    return db
+      .from("orders")
+      .select(`
+        status,
+        service_id,
+        target_url,
+        quantity,
+        external_order_id,
+        customer_email,
+        amount,
+        payment_method,
+        smm_service_id,
+        services (
+          title
+        )
+      `)
+      .eq("id", orderId)
+      .single();
+  });
 
   if (orderError || !order) {
     await answerCallback(config.bot_token, callbackQueryId, "Order not found.");
@@ -261,16 +271,27 @@ async function handleOrderAction(callbackData: string, chatId: number, messageId
   }
 
   const newStatus = isApprove ? "Processing" : "Rejected";
-  const { data: updatedOrder, error: updateError } = await supabase
-    .from("orders")
-    .update({ status: newStatus })
-    .eq("id", orderId)
-    .eq("status", "Pending")
-    .select("id")
-    .maybeSingle();
+  let updateError = null;
+  let updatedOrder = null;
+
+  try {
+    await syncBackupAdminClients(async (db) => {
+      const { data, error } = await db
+        .from("orders")
+        .update({ status: newStatus })
+        .eq("id", orderId)
+        .eq("status", "Pending")
+        .select("id")
+        .maybeSingle();
+      if (error) throw error;
+      if (data) updatedOrder = data;
+    }, "telegram order status sync");
+  } catch (err: any) {
+    updateError = err;
+  }
 
   if (updateError) {
-    await answerWithOrderBots(configs, callbackQueryId, `Failed to update order: ${updateError.message}`);
+    await answerWithOrderBots(configs, callbackQueryId, `Failed to update order: ${updateError.message || updateError}`);
     return;
   }
 
@@ -279,13 +300,6 @@ async function handleOrderAction(callbackData: string, chatId: number, messageId
     await removeButtonsWithOrderBots(configs, chatId, messageId);
     return;
   }
-
-  await syncBackupAdminClients(async (backupClient) => {
-    await backupClient
-      .from("orders")
-      .update({ status: newStatus })
-      .eq("id", orderId);
-  }, "telegram order status sync");
 
   const serviceTitle = getJoinedServiceTitle(order.services);
   const resolvedServiceTitle = await resolveSmmServiceTitle(order.smm_service_id, serviceTitle || "SMM Service");

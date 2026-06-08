@@ -26,15 +26,8 @@ export async function POST(req: NextRequest) {
       auth: { persistSession: false }
     });
 
-    const { error: updateError } = await supabase
-      .from("profiles")
-      .update({ balance: numericBalance })
-      .eq("id", userId);
-
-    if (updateError) throw updateError;
-
-    await syncBackupAdminClients(async (backupClient) => {
-      await backupClient
+    await syncBackupAdminClients(async (db) => {
+      return db
         .from("profiles")
         .update({ balance: numericBalance })
         .eq("id", userId);

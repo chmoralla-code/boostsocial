@@ -579,8 +579,12 @@ export default async function AdminOverview() {
             
             <div className="space-y-3 mt-4 text-xs font-semibold">
               <div className="flex justify-between py-2 border-b border-slate-850/40">
-                <span className="text-slate-500">Database Engine</span>
-                <span className="text-white font-mono">Postgres 15.x</span>
+                <span className="text-slate-500">Primary Database</span>
+                <span className="text-[#1DB954] font-bold">DigitalOcean Managed</span>
+              </div>
+              <div className="flex justify-between py-2 border-b border-slate-850/40">
+                <span className="text-slate-500">Replica & Auth</span>
+                <span className="text-white font-mono">Supabase</span>
               </div>
               <div className="flex justify-between py-2 border-b border-slate-850/40">
                 <span className="text-slate-500">CDN Edge Networks</span>

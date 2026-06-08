@@ -94,13 +94,39 @@ export function ServiceCard({ id, title, description, startingPrice, iconType, v
   const getGlowClass = () => {
     switch (iconType) {
       case "followers":
-        return "hover:shadow-[0_0_35px_rgba(29,185,84,0.15)] hover:border-[#1DB954]/30";
+        return "hover:shadow-[0_0_40px_rgba(29,185,84,0.2)] hover:border-[#1DB954]/40 hover:bg-[#1DB954]/[0.02]";
       case "reactions":
-        return "hover:shadow-[0_0_35px_rgba(24,119,242,0.18)] hover:border-[#1877F2]/30";
+        return "hover:shadow-[0_0_40px_rgba(24,119,242,0.25)] hover:border-[#1877F2]/40 hover:bg-[#1877F2]/[0.02]";
       case "views":
-        return "hover:shadow-[0_0_35px_rgba(29,185,84,0.15)] hover:border-[#1ed760]/30";
+        return "hover:shadow-[0_0_40px_rgba(29,185,84,0.2)] hover:border-[#1ed760]/40 hover:bg-[#1ed760]/[0.02]";
       default:
-        return "hover:shadow-[0_0_35px_rgba(99,102,241,0.15)] hover:border-indigo-500/30";
+        return "hover:shadow-[0_0_40px_rgba(99,102,241,0.2)] hover:border-indigo-500/40 hover:bg-indigo-500/[0.02]";
+    }
+  };
+
+  const getButtonClass = () => {
+    switch (iconType) {
+      case "followers":
+        return "bg-[#1DB954] hover:bg-[#1ed760] text-black shadow-emerald-500/10";
+      case "reactions":
+        return "bg-[#1877F2] hover:bg-[#4e8df5] text-white shadow-blue-500/10";
+      case "views":
+        return "bg-gradient-to-r from-[#1DB954] to-[#1ed760] hover:brightness-110 text-black shadow-emerald-500/10";
+      default:
+        return "bg-gradient-to-r from-[#1877F2] to-[#1DB954] hover:brightness-110 text-white shadow-blue-500/10";
+    }
+  };
+
+  const getOutlineButtonClass = () => {
+    switch (iconType) {
+      case "followers":
+        return "border-[#1DB954]/60 hover:border-[#1DB954] text-[#1DB954] hover:bg-[#1DB954]/10";
+      case "reactions":
+        return "border-[#1877F2]/60 hover:border-[#1877F2] text-[#1877F2] hover:bg-[#1877F2]/10";
+      case "views":
+        return "border-[#1ed760]/60 hover:border-[#1ed760] text-[#1ed760] hover:bg-[#1ed760]/10";
+      default:
+        return "border-indigo-500/60 hover:border-indigo-500 text-indigo-400 hover:bg-indigo-500/10";
     }
   };
 
@@ -196,7 +222,7 @@ export function ServiceCard({ id, title, description, startingPrice, iconType, v
       {parsed.redirect_url ? (
         <button 
           onClick={() => onOrder(id, title, startingPrice)}
-          className="w-full bg-transparent hover:bg-[#1877F2]/10 text-[#1877F2] font-extrabold py-3.5 rounded-full transition-all duration-300 uppercase text-xs tracking-wider transform group-hover:scale-[1.02] border-2 border-[#1877F2]/60 hover:border-[#1877F2] flex items-center justify-center gap-2 cursor-pointer"
+          className={`w-full bg-transparent font-extrabold py-3.5 rounded-full transition-all duration-300 uppercase text-xs tracking-wider transform group-hover:scale-[1.02] border-2 flex items-center justify-center gap-2 cursor-pointer ${getOutlineButtonClass()}`}
         >
           <ExternalLink size={14} />
           {parsed.button_text || "Visit Site"}
@@ -204,7 +230,7 @@ export function ServiceCard({ id, title, description, startingPrice, iconType, v
       ) : (
         <button 
           onClick={() => onOrder(id, title, startingPrice)}
-          className="w-full bg-[#1877F2] hover:bg-[#4e8df5] text-white font-extrabold py-3.5 rounded-full transition-all duration-300 uppercase text-xs tracking-wider transform group-hover:scale-[1.02] shadow-lg shadow-blue-500/5 cursor-pointer"
+          className={`w-full font-extrabold py-3.5 rounded-full transition-all duration-300 uppercase text-xs tracking-wider transform group-hover:scale-[1.02] shadow-lg cursor-pointer ${getButtonClass()}`}
         >
           {parsed.button_text}
         </button>

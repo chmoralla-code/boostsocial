@@ -6,7 +6,7 @@ export function Footer() {
       <div className="flex justify-center gap-4 text-xs font-semibold uppercase tracking-wider">
         <Link href="/" className="hover:text-[#1877F2] transition-colors">Home</Link>
         <span className="text-slate-700">|</span>
-        <Link href="#pricing" className="hover:text-[#1877F2] transition-colors">Pricing</Link>
+        <Link href="#services" className="hover:text-[#1877F2] transition-colors">Services</Link>
         <span className="text-slate-700">|</span>
         <Link href="#about" className="hover:text-[#1877F2] transition-colors">About</Link>
         <span className="text-slate-700">|</span>

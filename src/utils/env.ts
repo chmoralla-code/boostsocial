@@ -32,3 +32,7 @@ export function getSupabaseAnonKey() {
 export function getSupabaseServiceRoleKey() {
   return requireEnv("SUPABASE_SERVICE_ROLE_KEY");
 }
+
+export function getDigitalOceanDatabaseUrl() {
+  return requireEnv("DIGITALOCEAN_DATABASE_URL");
+}

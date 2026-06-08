@@ -2,12 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient as createServerClient } from "@/utils/supabase/server";
 import { isAdminEmail } from "@/utils/security/admin";
 import { enforceRateLimit } from "@/utils/security/rate-limit";
-import { getOrderTelegramConfig, getTopupTelegramConfig } from "@/lib/telegram-config";
-import type { TelegramConfig } from "@/lib/telegram-config";
+import { fallbackRead } from "@/utils/supabase/dual-db";
 
-const CONFIG_BUCKET = "receipts";
-
-
+type TelegramConfig = { bot_token?: string; chat_id?: string };
 
 async function requireAdmin(req: NextRequest) {
   const configuredSecret = process.env.TELEGRAM_WEBHOOK_SECRET?.trim();
@@ -29,7 +26,20 @@ async function requireAdmin(req: NextRequest) {
   return null;
 }
 
-
+async function readTelegramConfig(type: "order" | "topup"): Promise<TelegramConfig | null> {
+  try {
+    const key = type === "order" ? "telegram_order_config" : "telegram_topup_config";
+    const { data } = await fallbackRead(async (db) => {
+      return db.from("settings").select("value").eq("key", key).single();
+    });
+    if (data?.value) {
+      return data.value;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
 
 async function setWebhook(botToken: string, webhookUrl: string, secretToken: string) {
   const res = await fetch(`https://api.telegram.org/bot${botToken}/setWebhook`, {
@@ -81,8 +91,8 @@ export async function POST(req: NextRequest) {
     }
 
     const configs = [
-      { name: "Order bot", config: await getOrderTelegramConfig() },
-      { name: "Top-up bot", config: await getTopupTelegramConfig() },
+      { name: "Order bot", config: await readTelegramConfig("order") },
+      { name: "Top-up bot", config: await readTelegramConfig("topup") },
     ].filter((item) => item.config?.bot_token);
 
     if (configs.length === 0) {
@@ -115,8 +125,8 @@ export async function GET(req: NextRequest) {
     const adminResponse = await requireAdmin(req);
     if (adminResponse) return adminResponse;
 
-    const topupConfig = await getTopupTelegramConfig();
-    const orderConfig = await getOrderTelegramConfig();
+    const topupConfig = await readTelegramConfig("topup");
+    const orderConfig = await readTelegramConfig("order");
     const config = topupConfig?.bot_token ? topupConfig : orderConfig;
 
     if (!config?.bot_token) {

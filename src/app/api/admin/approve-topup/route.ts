@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { syncBackupAdminClients } from "@/utils/supabase/dual-db";
+import { syncBackupAdminClients, fallbackRead } from "@/utils/supabase/dual-db";
 import { creditReferralCommission } from "@/utils/referrals";
 import { notifyCustomer } from "@/lib/customerNotifications";
 
@@ -24,11 +24,13 @@ export async function POST(req: NextRequest) {
     });
 
     // 1. Fetch the topup record
-    const { data: topup, error: topupError } = await supabase
-      .from("topups")
-      .select("*")
-      .eq("id", topupId)
-      .single();
+    const { data: topup, error: topupError } = await fallbackRead(async (db) => {
+      return db
+        .from("topups")
+        .select("*")
+        .eq("id", topupId)
+        .single();
+    });
 
     if (topupError || !topup) {
       return NextResponse.json({ error: "Top-up request not found" }, { status: 404 });
@@ -44,13 +46,15 @@ export async function POST(req: NextRequest) {
       }
 
       // 2. Fetch current profile including who referred them
-      const { data: profile, error: profileError } = await supabase
-        .from("profiles")
-        .select("balance, referred_by")
-        .eq("id", topup.user_id)
-        .single();
+      const { data: profile, error: profileError } = await fallbackRead(async (db) => {
+        return db
+          .from("profiles")
+          .select("balance, referred_by")
+          .eq("id", topup.user_id)
+          .single();
+      });
 
-      if (profileError) throw profileError;
+      if (profileError || !profile) throw profileError || new Error("Profile not found");
 
       let finalAmount = Number(topup.amount);
       if (amount !== undefined) {
@@ -60,42 +64,29 @@ export async function POST(req: NextRequest) {
         }
         
         // Update top-up amount in the database
-        const { error: amtError } = await supabase
-          .from("topups")
-          .update({ amount: numericAmount })
-          .eq("id", topupId);
+        await syncBackupAdminClients(async (db) => {
+          return db
+            .from("topups")
+            .update({ amount: numericAmount })
+            .eq("id", topupId);
+        }, "top-up amount change");
         
-        if (amtError) throw amtError;
         finalAmount = numericAmount;
       }
 
       const newBalance = Number(profile.balance || 0) + finalAmount;
 
       // 3. Update profile balance
-      const { error: updateProfileError } = await supabase
-        .from("profiles")
-        .update({ balance: newBalance })
-        .eq("id", topup.user_id);
-
-      if (updateProfileError) throw updateProfileError;
-
-      await syncBackupAdminClients(async (backupClient) => {
-        await backupClient
+      await syncBackupAdminClients(async (db) => {
+        return db
           .from("profiles")
           .update({ balance: newBalance })
           .eq("id", topup.user_id);
       }, "top-up profile balance sync");
 
       // 4. Update topup status
-      const { error: updateTopupError } = await supabase
-        .from("topups")
-        .update({ status: 'approved' })
-        .eq("id", topupId);
-
-      if (updateTopupError) throw updateTopupError;
-
-      await syncBackupAdminClients(async (backupClient) => {
-        await backupClient
+      await syncBackupAdminClients(async (db) => {
+        return db
           .from("topups")
           .update({ status: 'approved', amount: finalAmount })
           .eq("id", topupId);
@@ -124,15 +115,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true, newBalance });
     } else if (action === 'reject') {
       // Just update topup status
-      const { error: updateTopupError } = await supabase
-        .from("topups")
-        .update({ status: 'rejected' })
-        .eq("id", topupId);
-
-      if (updateTopupError) throw updateTopupError;
-
-      await syncBackupAdminClients(async (backupClient) => {
-        await backupClient
+      await syncBackupAdminClients(async (db) => {
+        return db
           .from("topups")
           .update({ status: 'rejected' })
           .eq("id", topupId);

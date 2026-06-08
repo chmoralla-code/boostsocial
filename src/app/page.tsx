@@ -270,6 +270,72 @@ export default async function Home() {
         <PendingOrderBanner />
 
         <ServicesSection services={services || []} servicesBg={servicesBg} servicesCandidates={servicesCandidates} />
+
+      {/* 🌟 Premium About & Contact Section */}
+      <section id="about" className="w-full max-w-7xl mx-auto px-4 sm:px-6 md:px-8 py-16 sm:py-24 border-t border-slate-800/40 relative z-10">
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-blue-500/2 to-transparent opacity-30 pointer-events-none blur-3xl"></div>
+        
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-16 items-start">
+          {/* About CYNETWORK */}
+          <div className="lg:col-span-6 space-y-6 text-left">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/[0.03] border border-white/[0.08] text-[10px] font-black tracking-widest text-[#1877F2] uppercase">
+              🚀 About CYNETWORK
+            </div>
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-black uppercase tracking-tight text-white leading-none">
+              Next-Gen <span className="fb-shimmer-text">Social Amplification</span> Engine
+            </h2>
+            <p className="text-slate-400 text-sm leading-relaxed font-semibold">
+              CYNETWORK is the leading platform for instant social media boosting services in the Philippines. We specialize in providing lightning-fast, high-retention reactions, active followers, and organic views to kickstart your online brand presence.
+            </p>
+            <p className="text-slate-400 text-sm leading-relaxed font-semibold">
+              By pairing advanced API integration (such as RixeySMM workflows) with reliable master/replica databases, we ensure 100% service availability, automatic order fulfillment, and secure GCash transactions.
+            </p>
+            
+            <div className="grid grid-cols-2 gap-4 pt-4">
+              <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/[0.04] space-y-1">
+                <div className="text-lg font-black text-[#1DB954]">100% Safe</div>
+                <div className="text-xs text-slate-500">No account password required. Only profile URL/links.</div>
+              </div>
+              <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/[0.04] space-y-1">
+                <div className="text-lg font-black text-[#1877F2]">Instant Queue</div>
+                <div className="text-xs text-slate-500">Most orders kickstart within 5-15 minutes of approval.</div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Contact & Support */}
+          <div id="contact" className="lg:col-span-6 w-full rounded-[2rem] bg-gradient-to-br from-white/[0.04] to-white/[0.01] border border-white/[0.08] p-6 sm:p-8 backdrop-blur-xl shadow-2xl relative">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/5 rounded-full blur-2xl pointer-events-none"></div>
+            
+            <h3 className="text-xl font-black text-white uppercase mb-2 tracking-tight">📬 Contact & Support</h3>
+            <p className="text-slate-400 text-xs mb-6">Have questions or need order assistance? Shoot us a message directly!</p>
+            
+            <div className="space-y-4 text-left">
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase text-slate-500 tracking-wider">Email Address</label>
+                <div className="w-full bg-[#121212] border border-slate-800/80 rounded-xl px-4 py-3 text-xs text-slate-300 font-semibold select-all">
+                  support@cynetwork.ph
+                </div>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase text-slate-500 tracking-wider">Help Desk & Live Chat</label>
+                <p className="text-slate-400 text-xs leading-relaxed">
+                  Registered users can open a live chat ticket directly in the app sidebar navigation by clicking on the Chat widget.
+                </p>
+              </div>
+              
+              <div className="pt-4 flex flex-col sm:flex-row gap-3">
+                <Link href="/login" className="flex-1 bg-[#1877F2] hover:bg-[#4e8df5] text-white text-center font-extrabold py-3.5 rounded-xl transition-all duration-300 uppercase text-xs tracking-wider flex items-center justify-center gap-2">
+                  Create Account
+                </Link>
+                <a href="mailto:support@cynetwork.ph" className="flex-1 border border-slate-800 bg-[#282828]/50 hover:bg-[#333]/50 text-slate-300 text-center font-extrabold py-3.5 rounded-xl transition-all duration-300 uppercase text-xs tracking-wider flex items-center justify-center gap-2">
+                  Email Support
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
       </main>
 
       <Footer />
