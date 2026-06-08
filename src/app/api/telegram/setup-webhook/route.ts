@@ -7,8 +7,6 @@ import type { TelegramConfig } from "@/lib/telegram-config";
 
 const CONFIG_BUCKET = "receipts";
 
-
-
 async function requireAdmin(req: NextRequest) {
   const configuredSecret = process.env.TELEGRAM_WEBHOOK_SECRET?.trim();
   const receivedSecret = req.headers.get("x-telegram-setup-secret")?.trim();
@@ -27,10 +25,6 @@ async function requireAdmin(req: NextRequest) {
   }
 
   return null;
-}
-
-
-}
 
 async function setWebhook(botToken: string, webhookUrl: string, secretToken: string) {
   const res = await fetch(`https://api.telegram.org/bot${botToken}/setWebhook`, {
@@ -45,7 +39,6 @@ async function setWebhook(botToken: string, webhookUrl: string, secretToken: str
   });
 
   return res.json();
-}
 
 export async function POST(req: NextRequest) {
   try {
@@ -109,7 +102,6 @@ export async function POST(req: NextRequest) {
     console.error("Setup webhook error:", err);
     return NextResponse.json({ error: err.message || err.toString() }, { status: 500 });
   }
-}
 
 export async function GET(req: NextRequest) {
   try {
@@ -131,4 +123,3 @@ export async function GET(req: NextRequest) {
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
-}
