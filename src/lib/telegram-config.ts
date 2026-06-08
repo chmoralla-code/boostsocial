@@ -70,7 +70,11 @@ export async function getResilientTelegramConfig(
   const primaryConfig = await readFromPrimary(path);
   if (primaryConfig?.bot_token) return primaryConfig;
 
-  return readFromBackups(path);
+  const backupConfig = await readFromBackups(path);
+  if (!backupConfig) {
+    console.warn(`[telegram-config] All config sources failed for path: ${path}. Set TELEGRAM_ORDER_BOT_TOKEN/TELEGRAM_ORDER_CHAT_ID or TELEGRAM_TOPUP_BOT_TOKEN/TELEGRAM_TOPUP_CHAT_ID env vars, or ensure Supabase Storage is accessible.`);
+  }
+  return backupConfig;
 }
 
 export async function getOrderTelegramConfig(): Promise<TelegramConfig | null> {
