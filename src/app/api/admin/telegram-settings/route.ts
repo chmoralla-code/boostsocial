@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { getOrderTelegramConfig, getTopupTelegramConfig } from "@/lib/telegram-config";
 
 const CONFIG_BUCKET = "receipts";
 const CONFIG_PATH = "admin-config/telegram.png";
@@ -15,47 +16,14 @@ const getSupabase = () =>
 // GET — read both configs from storage
 export async function GET() {
   try {
-    const supabase = getSupabase();
-    
-    // Read standard config
-    let bot_token = "";
-    let chat_id = "";
-    try {
-      const { data, error } = await supabase.storage
-        .from(CONFIG_BUCKET)
-        .download(CONFIG_PATH);
-      if (!error && data) {
-        const text = await data.text();
-        const config = JSON.parse(text);
-        bot_token = config.bot_token || "";
-        chat_id = config.chat_id || "";
-      }
-    } catch (e) {
-      console.error("Error reading standard telegram config:", e);
-    }
-
-    // Read topup config
-    let topup_bot_token = "";
-    let topup_chat_id = "";
-    try {
-      const { data, error } = await supabase.storage
-        .from(CONFIG_BUCKET)
-        .download(TOPUP_CONFIG_PATH);
-      if (!error && data) {
-        const text = await data.text();
-        const config = JSON.parse(text);
-        topup_bot_token = config.bot_token || "";
-        topup_chat_id = config.chat_id || "";
-      }
-    } catch (e) {
-      console.error("Error reading topup telegram config:", e);
-    }
+    const orderConfig = await getOrderTelegramConfig();
+    const topupConfig = await getTopupTelegramConfig();
 
     return NextResponse.json({
-      bot_token,
-      chat_id,
-      topup_bot_token,
-      topup_chat_id
+      bot_token: orderConfig?.bot_token || "",
+      chat_id: orderConfig?.chat_id || "",
+      topup_bot_token: topupConfig?.bot_token || "",
+      topup_chat_id: topupConfig?.chat_id || ""
     });
   } catch (err) {
     return NextResponse.json({ bot_token: "", chat_id: "", topup_bot_token: "", topup_chat_id: "" });

@@ -3,12 +3,12 @@ import { createClient } from "@supabase/supabase-js";
 import { createClient as createServerClient } from "@/utils/supabase/server";
 import { isAdminEmail } from "@/utils/security/admin";
 import { enforceRateLimit } from "@/utils/security/rate-limit";
+import { getOrderTelegramConfig, getTopupTelegramConfig } from "@/lib/telegram-config";
+import type { TelegramConfig } from "@/lib/telegram-config";
 
 const CONFIG_BUCKET = "receipts";
-const ORDER_CONFIG_PATH = "admin-config/telegram.png";
-const TOPUP_CONFIG_PATH = "admin-config/telegram-topup.png";
 
-type TelegramConfig = { bot_token?: string; chat_id?: string };
+
 
 async function requireAdmin(req: NextRequest) {
   const configuredSecret = process.env.TELEGRAM_WEBHOOK_SECRET?.trim();
@@ -101,8 +101,8 @@ export async function POST(req: NextRequest) {
     }
 
     const configs = [
-      { name: "Order bot", config: await readTelegramConfig(ORDER_CONFIG_PATH) },
-      { name: "Top-up bot", config: await readTelegramConfig(TOPUP_CONFIG_PATH) },
+      { name: "Order bot", config: await getOrderTelegramConfig() },
+      { name: "Top-up bot", config: await getTopupTelegramConfig() },
     ].filter((item) => item.config?.bot_token);
 
     if (configs.length === 0) {
@@ -135,8 +135,8 @@ export async function GET(req: NextRequest) {
     const adminResponse = await requireAdmin(req);
     if (adminResponse) return adminResponse;
 
-    const topupConfig = await readTelegramConfig(TOPUP_CONFIG_PATH);
-    const orderConfig = await readTelegramConfig(ORDER_CONFIG_PATH);
+    const topupConfig = await getTopupTelegramConfig();
+    const orderConfig = await getOrderTelegramConfig();
     const config = topupConfig?.bot_token ? topupConfig : orderConfig;
 
     if (!config?.bot_token) {

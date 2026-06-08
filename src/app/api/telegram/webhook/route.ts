@@ -3,15 +3,15 @@ import { createClient } from "@supabase/supabase-js";
 import { autoPlaceRixeyOrder } from "@/lib/rixeysmm";
 import { syncBackupAdminClients } from "@/utils/supabase/dual-db";
 import { enforceRateLimit } from "@/utils/security/rate-limit";
+import { getOrderTelegramConfig, getTopupTelegramConfig } from "@/lib/telegram-config";
+import type { TelegramConfig } from "@/lib/telegram-config";
+
+const CONFIG_BUCKET = "receipts";
 import { creditReferralCommission } from "@/utils/referrals";
 import { resolveSmmServiceTitle } from "@/lib/smmServiceResolver";
 import { notifyCustomer, notifyOrderStatusCustomer } from "@/lib/customerNotifications";
 
-const CONFIG_BUCKET = "receipts";
-const ORDER_CONFIG_PATH = "admin-config/telegram.png";
-const TOPUP_CONFIG_PATH = "admin-config/telegram-topup.png";
 
-type TelegramConfig = { bot_token: string; chat_id: string };
 type JoinedService = { title?: string | null } | { title?: string | null }[] | null | undefined;
 
 function getJoinedServiceTitle(services: JoinedService) {
@@ -41,13 +41,13 @@ async function getTelegramConfig(path: string): Promise<TelegramConfig | null> {
 }
 
 async function getOrderActionConfig() {
-  return await getTelegramConfig(TOPUP_CONFIG_PATH) || await getTelegramConfig(ORDER_CONFIG_PATH);
+  return await getTopupTelegramConfig() || await getOrderTelegramConfig();
 }
 
 async function getOrderActionConfigs() {
   const configs = [
-    await getTelegramConfig(TOPUP_CONFIG_PATH),
-    await getTelegramConfig(ORDER_CONFIG_PATH),
+    await getTopupTelegramConfig(),
+    await getOrderTelegramConfig(),
   ].filter((config): config is TelegramConfig => Boolean(config?.bot_token));
 
   return configs.filter((config, index, all) =>
@@ -104,7 +104,7 @@ export async function POST(req: NextRequest) {
 }
 
 async function handleTopupAction(callbackData: string, chatId: number, messageId: number, callbackQueryId: string) {
-  const config = await getTelegramConfig(TOPUP_CONFIG_PATH);
+  const config = await getTopupTelegramConfig();
   if (!config?.bot_token) return;
 
   const isApprove = callbackData.startsWith("topup_approve_");
