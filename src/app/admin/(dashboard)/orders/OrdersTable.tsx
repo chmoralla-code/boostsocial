@@ -530,7 +530,7 @@ export function OrdersTable({ initialOrders, receiptFiles = [] }: { initialOrder
       {previewImageUrl && (
         <div 
           onClick={() => setPreviewImageUrl(null)}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm p-4 animate-in fade-in duration-200 cursor-zoom-out"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[#090909]/90 backdrop-blur-sm p-4 animate-in fade-in duration-200 cursor-zoom-out"
         >
           <div 
             onClick={(e) => e.stopPropagation()}
@@ -562,7 +562,7 @@ export function OrdersTable({ initialOrders, receiptFiles = [] }: { initialOrder
       {/* Facebook Page Specs Details Modal */}
       {selectedPageSpecs && (
         <div 
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm p-4 animate-in fade-in duration-200"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[#090909]/90 backdrop-blur-sm p-4 animate-in fade-in duration-200"
         >
           <div 
             className="relative max-w-2xl w-full bg-[#181818] border border-slate-800 rounded-3xl overflow-hidden shadow-2xl p-6 sm:p-8 flex flex-col animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto text-slate-300"

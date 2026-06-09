@@ -17,7 +17,7 @@ export default function ServicesLandingIndexPage() {
   return (
     <>
       <Header />
-      <main className="min-h-screen bg-bg px-4 py-14 text-white sm:px-6 lg:px-8">
+      <main className="min-h-screen bg-[#0a0a0a] px-4 py-14 text-white sm:px-6 lg:px-8">
         <section className="mx-auto max-w-6xl">
           <div className="max-w-3xl">
             <p className="text-xs font-black uppercase tracking-[0.24em] text-[#1DB954]">Service directory</p>

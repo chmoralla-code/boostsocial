@@ -1102,7 +1102,7 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
 
       {/* 7. Other Services Selection Sub-Modal */}
       {isOtherModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4 animate-in fade-in duration-300">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#090909]/90 backdrop-blur-md p-4 animate-in fade-in duration-300">
           <div className="bg-elevated/95 border border-border/80 rounded-3xl w-full max-w-5xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] overflow-hidden relative transform transition-all animate-in zoom-in-95 duration-300 max-h-[90vh] flex flex-col">
             <button 
               onClick={() => {
@@ -1171,7 +1171,7 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
 
       {/* 9. Platform-Specific SMM Timing Candidates Sub-Modal */}
       {platformSubModalOpen && platformSubModalType && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4 animate-in fade-in duration-300">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#090909]/90 backdrop-blur-md p-4 animate-in fade-in duration-300">
           <div className="bg-elevated/95 border border-border/80 rounded-3xl w-full max-w-5xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] overflow-hidden relative transform transition-all animate-in zoom-in-95 duration-300 max-h-[90vh] flex flex-col">
             
             {/* Close Button */}
@@ -1187,7 +1187,7 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
             </button>
             
             {/* Header */}
-            <div className="p-8 sm:p-10 border-b border-border/60 bg-card/40 flex-shrink-0">
+            <div className="p-8 sm:p-10 border-b border-border/60 bg-[#161616]/40 flex-shrink-0">
               <div className="flex items-center gap-3">
                 <span className="text-3xl sm:text-4xl">
                   {platformSubModalType === "facebook" ? "📘" : platformSubModalType === "instagram" ? "📸" : platformSubModalType === "tiktok" ? "🎵" : "🎥"}
@@ -1213,7 +1213,7 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
                 const hasReactionOptions = candidates.reactions.length > 0;
                 if (!candidates.follower && !candidates.like && !candidates.view && !hasReactionOptions) {
                   return (
-                    <div className="text-center py-16 bg-card/30 border border-border border-dashed rounded-2xl">
+                    <div className="text-center py-16 bg-[#161616]/30 border border-border border-dashed rounded-2xl">
                       <p className="text-muted font-extrabold uppercase tracking-wider text-sm">Reseller catalog timing list loading...</p>
                       <p className="text-xs text-muted mt-1">If this persists, click &quot;View Other Services&quot; below to browse the backup database.</p>
                     </div>
@@ -1301,7 +1301,7 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
                       })}
                     </div>
 
-                    <div className="max-w-4xl mx-auto bg-card/35 border border-border/80 rounded-3xl p-5 sm:p-6">
+                    <div className="max-w-4xl mx-auto bg-[#161616]/35 border border-border/80 rounded-3xl p-5 sm:p-6">
                       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2 mb-4">
                         <div>
                           <h3 className="text-sm font-black text-fg uppercase tracking-widest">

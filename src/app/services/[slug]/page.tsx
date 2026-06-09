@@ -119,7 +119,7 @@ export default async function ServiceLandingPageRoute({ params }: PageProps) {
   return (
     <>
       <Header />
-      <main className="min-h-screen overflow-hidden bg-bg text-white">
+      <main className="min-h-screen overflow-hidden bg-[#0a0a0a] text-white">
         <section className="relative px-4 py-14 sm:px-6 lg:px-8 lg:py-20">
           <div className="absolute inset-0 -z-0 bg-[linear-gradient(rgba(255,255,255,0.025)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.025)_1px,transparent_1px)] bg-[size:46px_46px]" />
           <div className="relative z-10 mx-auto grid max-w-7xl grid-cols-1 gap-10 lg:grid-cols-12 lg:items-center">

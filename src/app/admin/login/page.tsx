@@ -65,7 +65,7 @@ export default function AdminLoginPage() {
   };
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-bg px-4 py-6 relative overflow-hidden">
+    <div className="min-h-screen w-full flex items-center justify-center bg-[#0a0a0a] px-4 py-6 relative overflow-hidden">
       {/* Premium Cyberpunk Glow Effects */}
       <div className="absolute top-[-20%] left-[-10%] w-[500px] h-[500px] rounded-full bg-emerald-500/10 blur-[120px] -z-10 pointer-events-none"></div>
       <div className="absolute bottom-[-20%] right-[-10%] w-[500px] h-[500px] rounded-full bg-blue-500/10 blur-[120px] -z-10 pointer-events-none"></div>
@@ -117,7 +117,7 @@ export default function AdminLoginPage() {
                 placeholder="e.g. admin"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full min-w-0 bg-bg border border-slate-800/80 pl-11 pr-4 py-3 rounded-xl focus:outline-none focus:border-[#1DB954] text-white text-sm transition-all"
+                className="w-full min-w-0 bg-[#0a0a0a] border border-slate-800/80 pl-11 pr-4 py-3 rounded-xl focus:outline-none focus:border-[#1DB954] text-white text-sm transition-all"
               />
             </div>
           </div>
@@ -134,7 +134,7 @@ export default function AdminLoginPage() {
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full min-w-0 bg-bg border border-slate-800/80 pl-11 pr-10 py-3 rounded-xl focus:outline-none focus:border-[#1DB954] text-white text-sm transition-all"
+                className="w-full min-w-0 bg-[#0a0a0a] border border-slate-800/80 pl-11 pr-10 py-3 rounded-xl focus:outline-none focus:border-[#1DB954] text-white text-sm transition-all"
               />
               <button
                 type="button"

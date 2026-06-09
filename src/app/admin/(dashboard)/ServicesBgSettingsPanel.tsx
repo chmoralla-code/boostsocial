@@ -369,7 +369,7 @@ export function ServicesBgSettingsPanel() {
               }
             } else {
               return (
-                <div className="absolute inset-0 w-full h-full bg-bg flex items-center justify-center rounded-xl transition-opacity duration-300">
+                <div className="absolute inset-0 w-full h-full bg-[#0a0a0a] flex items-center justify-center rounded-xl transition-opacity duration-300">
                   <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">No background video (transparent grid)</span>
                 </div>
               );

@@ -480,7 +480,7 @@ export function CustomersList({
 
       {/* Edit Balance Modal */}
       {editingCustomer && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#090909]/80 backdrop-blur-md p-4 animate-in fade-in duration-200">
           <div className="bg-[#181818] border border-slate-800/80 rounded-2xl w-full max-w-md shadow-2xl p-6 relative transform transition-all animate-in zoom-in-95 duration-200 text-slate-350">
             <h3 className="text-xl font-black text-white mb-2 flex items-center gap-2">
               Edit Wallet Balance

@@ -23,10 +23,10 @@ function getDisplayId(orderId: string) {
 
 function getStatusClass(status: string) {
   const normalized = status.toLowerCase();
-  if (normalized === "completed") return "border-emerald-400/25 bg-emerald-400/10 text-emerald-700 dark:text-emerald-300";
-  if (normalized === "processing") return "border-blue-400/25 bg-blue-400/10 text-blue-700 dark:text-blue-300";
-  if (normalized === "cancelled") return "border-red-400/25 bg-red-400/10 text-red-700 dark:text-red-300";
-  return "border-orange-400/25 bg-orange-400/10 text-orange-700 dark:text-orange-300";
+  if (normalized === "completed") return "border-emerald-400/25 bg-emerald-400/10 text-emerald-300";
+  if (normalized === "processing") return "border-blue-400/25 bg-blue-400/10 text-blue-300";
+  if (normalized === "cancelled") return "border-red-400/25 bg-red-400/10 text-red-300";
+  return "border-orange-400/25 bg-orange-400/10 text-orange-300";
 }
 
 export function PendingOrderBanner() {
@@ -239,7 +239,7 @@ export function PendingOrderBanner() {
     <>
       {/* Real-time Order Status Float Toast */}
       {statusToast && statusToast.visible && (
-        <div className="fixed top-24 right-6 z-[99999] max-w-sm w-full bg-card/92 border border-border/90 p-5 rounded-2xl shadow-[0_12px_45px_rgba(0,0,0,0.5)] backdrop-blur-xl animate-in slide-in-from-right-5 duration-300 flex items-start gap-4 select-none">
+        <div className="fixed top-24 right-6 z-[99999] max-w-sm w-full bg-[#161616]/92 border border-border/90 p-5 rounded-2xl shadow-[0_12px_45px_rgba(0,0,0,0.5)] backdrop-blur-xl animate-in slide-in-from-right-5 duration-300 flex items-start gap-4 select-none">
           <div className={`p-2.5 rounded-xl flex-shrink-0 flex items-center justify-center border text-base ${
             statusToast.status === 'Pending' ? 'bg-[#ff9800]/10 border-[#ff9800]/25 text-[#ff9800]' :
             statusToast.status === 'Processing' ? 'bg-blue-500/10 border-blue-500/25 text-blue-400' :
@@ -267,7 +267,7 @@ export function PendingOrderBanner() {
       )}
 
       <section className="relative z-10 w-full max-w-7xl px-4 sm:px-6 md:px-8 -mt-4 mb-10">
-      <div className="overflow-hidden rounded-2xl border border-primary/20 bg-card/92 shadow-2xl shadow-emerald-500/5 backdrop-blur-xl">
+      <div className="overflow-hidden rounded-2xl border border-[#1DB954]/20 bg-[#101010]/92 shadow-2xl shadow-emerald-500/5 backdrop-blur-xl">
         <div className="flex flex-col gap-4 p-4 sm:p-5 md:flex-row md:items-center md:justify-between">
           <div className="flex min-w-0 gap-3 text-left">
             <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl border border-[#1DB954]/25 bg-[#1DB954]/10 text-[#1DB954]">
