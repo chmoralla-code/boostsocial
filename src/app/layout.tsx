@@ -116,7 +116,7 @@ export default function RootLayout({
       <head>
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var t=localStorage.getItem('site-theme');if(t==='light'){document.documentElement.classList.add('light-mode')}}catch(e){}})()`,
+            __html: `(function(){try{var t=localStorage.getItem('site-theme');if(!t)t=window.matchMedia('(prefers-color-scheme:light)').matches?'light':'dark';document.documentElement.setAttribute('data-theme',t||'dark')}catch(e){}})()`,
           }}
         />
       </head>
