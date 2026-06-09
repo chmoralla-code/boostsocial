@@ -35,7 +35,7 @@ export default function AffiliatePage() {
   return (
     <>
       <Header />
-      <main className="min-h-screen bg-[#0a0a0a] px-4 py-8 text-slate-100 sm:px-6 lg:px-8">
+      <main className="min-h-screen bg-bg px-4 py-8 text-slate-100 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-6xl">
           {loading ? (
             <div className="rounded-2xl border border-slate-800 bg-[#121212] p-8 text-center text-sm font-bold text-slate-400">

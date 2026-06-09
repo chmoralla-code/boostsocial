@@ -11,7 +11,7 @@ export default async function MobileAppDownloadPage() {
   const updateAvailable = settings.updateAvailable && settings.latestVersion !== settings.appVersion;
 
   return (
-    <main className="min-h-screen bg-[#0a0a0a] text-white relative overflow-hidden px-5 py-8">
+    <main className="min-h-screen bg-bg text-white relative overflow-hidden px-5 py-8">
       <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.012)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.012)_1px,transparent_1px)] bg-[size:44px_44px] pointer-events-none" />
       <div className="absolute -top-32 left-1/2 h-80 w-80 -translate-x-1/2 rounded-full bg-[#1DB954]/15 blur-[90px]" />
 
@@ -77,7 +77,7 @@ export default async function MobileAppDownloadPage() {
           </div>
 
           <div className="rounded-2xl border border-slate-800/80 bg-[#121212]/90 p-5 shadow-2xl">
-            <div className="rounded-xl border border-slate-800 bg-[#0a0a0a] p-5">
+            <div className="rounded-xl border border-slate-800 bg-bg p-5">
               <div className="mb-5 flex items-center justify-between">
                 <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#1DB954] text-sm font-black text-black">
                   P

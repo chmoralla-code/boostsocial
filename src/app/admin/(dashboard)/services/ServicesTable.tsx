@@ -624,7 +624,7 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
 
       {/* Add / Edit Glassmorphic Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#090909]/80 backdrop-blur-md p-4 animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-200">
           <div className="bg-[#181818] border border-slate-800/80 rounded-2xl w-full max-w-lg shadow-2xl p-6 relative transform transition-all animate-in zoom-in-95 duration-200 text-slate-350 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center pb-4 border-b border-slate-850/60 mb-6">
               <h3 className="text-lg font-black text-white">
@@ -1065,7 +1065,7 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
 
       {/* Syncing Overlay Spinner */}
       {isSyncing && (
-        <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-[#090909]/85 backdrop-blur-md p-4 animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-in fade-in duration-200">
           <div className="bg-[#181818] border border-slate-800/80 rounded-2xl w-full max-w-sm shadow-2xl p-6 text-center space-y-4 animate-in zoom-in-95 duration-200">
             <div className="w-12 h-12 bg-[#1DB954]/10 border border-[#1DB954]/20 text-[#1DB954] rounded-full flex items-center justify-center mx-auto animate-spin">
               <RefreshCw size={24} />

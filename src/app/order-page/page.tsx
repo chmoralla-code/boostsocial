@@ -350,7 +350,7 @@ export default function OrderPage() {
   return (
     <>
       <Header />
-      <main className="min-h-screen bg-[#0a0a0a] text-slate-200 relative overflow-hidden px-4 py-10 sm:px-6 lg:px-8">
+      <main className="min-h-screen bg-bg text-slate-200 relative overflow-hidden px-4 py-10 sm:px-6 lg:px-8">
         <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.018)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.018)_1px,transparent_1px)] bg-[size:48px_48px] pointer-events-none" />
         <div className="absolute -top-40 left-1/2 h-96 w-96 -translate-x-1/2 rounded-full bg-[#1877F2]/15 blur-[100px] pointer-events-none" />
         <div className="absolute top-64 right-0 h-80 w-80 rounded-full bg-[#1DB954]/10 blur-[100px] pointer-events-none" />

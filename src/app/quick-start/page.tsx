@@ -473,7 +473,7 @@ export default function QuickStartPage() {
   });
 
   return (
-    <main className="flex-grow flex flex-col items-center pt-10 sm:pt-20 bg-[#0a0a0a] min-h-screen text-slate-300 relative overflow-hidden">
+    <main className="flex-grow flex flex-col items-center pt-10 sm:pt-20 bg-bg min-h-screen text-slate-300 relative overflow-hidden">
       {/* Dynamic tech glow backdrops */}
       <div className="absolute top-0 left-0 w-full h-[600px] overflow-hidden pointer-events-none -z-10">
         <div className="absolute top-[-30%] left-[10%] w-[500px] h-[500px] rounded-full fb-glow-blob opacity-30"></div>
@@ -579,7 +579,7 @@ export default function QuickStartPage() {
               <div 
                 className={`w-9 h-9 rounded-full flex items-center justify-center font-black text-xs border transition-all duration-350 ${
                   step > st.num ? "bg-[#1DB954] border-[#1DB954] text-black" :
-                  step === st.num ? "bg-[#0a0a0a] border-[#1DB954] text-[#1DB954] shadow-[0_0_12px_rgba(29,185,84,0.35)]" :
+                  step === st.num ? "bg-bg border-[#1DB954] text-[#1DB954] shadow-[0_0_12px_rgba(29,185,84,0.35)]" :
                   "bg-[#121212] border-slate-800 text-slate-500"
                 }`}
               >
@@ -624,7 +624,7 @@ export default function QuickStartPage() {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#0a0a0a] border border-slate-850 focus:outline-none focus:border-[#1DB954] focus:ring-1 focus:ring-[#1DB954]/20 text-xs font-semibold text-white placeholder-slate-650 transition-all"
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-bg border border-slate-850 focus:outline-none focus:border-[#1DB954] focus:ring-1 focus:ring-[#1DB954]/20 text-xs font-semibold text-white placeholder-slate-650 transition-all"
                     placeholder="Enter your email address"
                   />
                 </div>
@@ -655,7 +655,7 @@ export default function QuickStartPage() {
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#0a0a0a] border border-slate-850 focus:outline-none focus:border-[#1DB954] focus:ring-1 focus:ring-[#1DB954]/20 text-xs font-semibold text-white placeholder-slate-650 transition-all"
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-bg border border-slate-850 focus:outline-none focus:border-[#1DB954] focus:ring-1 focus:ring-[#1DB954]/20 text-xs font-semibold text-white placeholder-slate-650 transition-all"
                     placeholder="••••••••"
                   />
                 </div>
@@ -754,7 +754,7 @@ export default function QuickStartPage() {
                     placeholder="Search package (e.g. Followers)..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2 rounded-xl bg-[#0a0a0a] border border-slate-850 focus:outline-none focus:border-[#1DB954] text-xs font-semibold text-white placeholder-slate-650"
+                    className="w-full pl-9 pr-3 py-2 rounded-xl bg-bg border border-slate-850 focus:outline-none focus:border-[#1DB954] text-xs font-semibold text-white placeholder-slate-650"
                   />
                 </div>
               </div>
@@ -879,7 +879,7 @@ export default function QuickStartPage() {
                     required
                     value={targetUrl}
                     onChange={(e) => setTargetUrl(e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl bg-[#0a0a0a] border border-slate-850 focus:outline-none focus:ring-1 focus:ring-[#1DB954] text-xs font-semibold text-white transition-all placeholder-slate-650"
+                    className="w-full px-4 py-2.5 rounded-xl bg-bg border border-slate-850 focus:outline-none focus:ring-1 focus:ring-[#1DB954] text-xs font-semibold text-white transition-all placeholder-slate-650"
                     placeholder="https://facebook.com/your-target-url"
                   />
                   <p className="text-[9px] text-slate-500 mt-1 italic font-semibold">Verify page or post is set to Public.</p>
@@ -904,7 +904,7 @@ export default function QuickStartPage() {
                     max={selectedService.max}
                     value={quantity || ""}
                     onChange={(e) => setQuantity(parseInt(e.target.value) || 0)}
-                    className="w-full px-4 py-2.5 rounded-xl bg-[#0a0a0a] border border-slate-850 focus:outline-none focus:ring-1 focus:ring-[#1DB954] text-xs font-black text-white transition-all placeholder-slate-700"
+                    className="w-full px-4 py-2.5 rounded-xl bg-bg border border-slate-850 focus:outline-none focus:ring-1 focus:ring-[#1DB954] text-xs font-black text-white transition-all placeholder-slate-700"
                     placeholder={`Min: ${selectedService.min}`}
                   />
                   <p className="text-[9px] text-slate-500 mt-1 font-semibold">
@@ -913,7 +913,7 @@ export default function QuickStartPage() {
                 </div>
 
                 <div className="flex flex-col justify-end">
-                  <div className="bg-[#0a0a0a]/90 px-4 py-2.5 rounded-xl border border-slate-850 flex justify-between items-center h-[38px]">
+                  <div className="bg-bg/90 px-4 py-2.5 rounded-xl border border-slate-850 flex justify-between items-center h-[38px]">
                     <span className="text-[9px] font-extrabold text-slate-550 uppercase tracking-wider">Estimated Price:</span>
                     <span className="text-xs font-black text-white">₱{calculatedCost.toFixed(2)} PHP</span>
                   </div>
@@ -921,7 +921,7 @@ export default function QuickStartPage() {
               </div>
 
               {/* GCash Payment Instructions & Scan QR */}
-              <div className="bg-[#0a0a0a]/60 border border-slate-850 p-4 rounded-2xl text-left space-y-3">
+              <div className="bg-bg/60 border border-slate-850 p-4 rounded-2xl text-left space-y-3">
                 <span className="text-[10px] font-black uppercase tracking-widest text-[#1DB954] block mb-1">
                   📱 Step 1: Scan GCash QR Code to Pay ₱{calculatedCost.toFixed(2)}
                 </span>
@@ -944,7 +944,7 @@ export default function QuickStartPage() {
               </div>
 
               {/* Strict Payment Receipt Screenshot upload input */}
-              <div className="space-y-2 bg-[#0a0a0a] border border-slate-850 p-4.5 rounded-2xl text-left">
+              <div className="space-y-2 bg-bg border border-slate-850 p-4.5 rounded-2xl text-left">
                 <label className="block text-[10px] font-black text-slate-450 uppercase tracking-widest flex justify-between items-center">
                   <span>📱 Step 2: Upload Payment Receipt <span className="text-red-500">*</span></span>
                   <span className="text-[8px] font-black uppercase text-red-500 animate-pulse">Strictly Required</span>
