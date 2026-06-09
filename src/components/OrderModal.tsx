@@ -580,19 +580,19 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#090909]/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-      <div className="bg-[#181818] border border-slate-800/80 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden relative transform transition-all animate-in zoom-in-95 duration-200">
+      <div className="bg-card border border-border rounded-2xl w-full max-w-md shadow-2xl overflow-hidden relative transform transition-all animate-in zoom-in-95 duration-200">
         <button 
           onClick={onClose}
-          className="absolute top-4 right-4 text-slate-400 hover:text-white transition-colors p-1 hover:bg-slate-800/50 rounded-lg"
+          className="absolute top-4 right-4 text-muted hover:text-fg transition-colors p-1 hover:bg-elevated/50 rounded-lg"
         >
           <X size={20} />
         </button>
         
         <div className="p-6 sm:p-8 max-h-[85vh] overflow-y-auto">
-          <h2 className="text-2xl font-black text-white mb-1.5 tracking-tight flex items-center gap-2">
+          <h2 className="text-2xl font-black text-fg mb-1.5 tracking-tight flex items-center gap-2">
             Order <span className="text-[#1877F2]">{serviceTitle}</span>
           </h2>
-          <p className="text-slate-400 text-sm mb-6">
+          <p className="text-muted text-sm mb-6">
             {isPisoWifiService ? "Submit your PisoWiFi package details for GCash verification." : "Process your amplification request securely."}
           </p>
 
@@ -600,7 +600,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
             <div className="mb-6 rounded-2xl border border-[#1DB954]/20 bg-[#101010] p-4">
               <div className="mb-3 flex items-center justify-between gap-3">
                 <span className="text-[10px] font-black uppercase tracking-widest text-[#1DB954]">Secure checkout flow</span>
-                <span className="text-[9px] font-black uppercase tracking-wider text-slate-500">GCash + Tracking</span>
+                <span className="text-[9px] font-black uppercase tracking-wider text-muted">GCash + Tracking</span>
               </div>
               <div className="grid grid-cols-2 gap-2">
                 {[
@@ -609,10 +609,10 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                   ["3", "Pay", "GCash or wallet"],
                   ["4", "Track", "Use Tracking ID"],
                 ].map(([step, label, caption]) => (
-                  <div key={step} className="rounded-xl border border-slate-850 bg-black/35 p-3">
+                  <div key={step} className="rounded-xl border border-border bg-black/35 p-3">
                     <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#1DB954]/12 text-[10px] font-black text-[#1DB954]">{step}</span>
-                    <p className="mt-2 text-[11px] font-black uppercase tracking-wider text-white">{label}</p>
-                    <p className="mt-0.5 text-[9px] font-bold leading-4 text-slate-500">{caption}</p>
+                    <p className="mt-2 text-[11px] font-black uppercase tracking-wider text-fg">{label}</p>
+                    <p className="mt-0.5 text-[9px] font-bold leading-4 text-muted">{caption}</p>
                   </div>
                 ))}
               </div>
@@ -620,13 +620,13 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
           )}
 
           {success ? (
-            <div className="bg-[#121212] text-white p-5 rounded-xl border border-slate-800 text-center space-y-4 animate-in zoom-in duration-300 max-h-[72vh] overflow-y-auto">
+            <div className="bg-elevated text-fg p-5 rounded-xl border border-border text-center space-y-4 animate-in zoom-in duration-300 max-h-[72vh] overflow-y-auto">
               <div className="w-10 h-10 bg-green-500/10 border border-green-500/20 text-[#1877F2] rounded-full flex items-center justify-center mx-auto">
                 <ShieldCheck size={24} />
               </div>
               <div>
-                <p className="text-base font-bold text-white">Order Registered!</p>
-                <p className="text-[11px] text-slate-400 mt-0.5">Please copy your Tracking ID for real-time support tracking:</p>
+                <p className="text-base font-bold text-fg">Order Registered!</p>
+                <p className="text-[11px] text-muted mt-0.5">Please copy your Tracking ID for real-time support tracking:</p>
               </div>
               
               <div className="space-y-3">
@@ -634,13 +634,13 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                 <div className="space-y-1 text-left">
                   <span className="text-[10px] font-black uppercase tracking-widest text-[#1877F2] block mb-1">Your Tracking ID</span>
                   <div className="flex gap-2 items-center w-full">
-                    <div className="flex-grow bg-[#282828] border border-slate-700/80 p-2.5 rounded-xl font-mono text-xs sm:text-sm text-[#1877F2] font-black tracking-widest text-center select-all">
+                    <div className="flex-grow bg-card border border-border p-2.5 rounded-xl font-mono text-xs sm:text-sm text-[#1877F2] font-black tracking-widest text-center select-all">
                       BS-{orderId.slice(0, 8).toUpperCase()}
                     </div>
                     <button
                       onClick={handleCopy}
                       type="button"
-                      className="bg-[#282828] hover:bg-[#333] border border-slate-700/80 p-2.5 rounded-xl text-slate-400 hover:text-white transition-all flex items-center justify-center flex-shrink-0"
+                      className="bg-card hover:bg-elevated border border-border p-2.5 rounded-xl text-muted hover:text-fg transition-all flex items-center justify-center flex-shrink-0"
                       title="Copy Tracking ID"
                     >
                       {copied ? <Check size={16} className="text-[#1877F2]" /> : <Copy size={16} />}
@@ -649,9 +649,9 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                 </div>
 
                 {/* Technical Order ID */}
-                <div className="space-y-1 text-left bg-[#121212] border border-slate-800/80 p-2.5 rounded-xl">
-                  <span className="text-[9px] font-bold uppercase tracking-widest text-slate-500 block mb-0.5">Technical Order ID</span>
-                  <span className="font-mono text-[10px] text-slate-400 select-all break-all block">{orderId}</span>
+                <div className="space-y-1 text-left bg-elevated border border-border p-2.5 rounded-xl">
+                  <span className="text-[9px] font-bold uppercase tracking-widest text-muted block mb-0.5">Technical Order ID</span>
+                  <span className="font-mono text-[10px] text-muted select-all break-all block">{orderId}</span>
                 </div>
               </div>
 
@@ -662,17 +662,17 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                     <h3 className="text-xs font-black uppercase tracking-widest text-[#1877F2] flex items-center gap-1.5">
                       🎉 Balance Payment Successful!
                     </h3>
-                    <p className="text-xs text-slate-300 leading-relaxed font-semibold">
-                      We deducted <strong className="text-white">₱{formatPrice(payableTotal)} PHP</strong> directly from your account wallet balance. Your order is registered!
+                    <p className="text-xs text-fg leading-relaxed font-semibold">
+                      We deducted <strong className="text-fg">₱{formatPrice(payableTotal)} PHP</strong> directly from your account wallet balance. Your order is registered!
                     </p>
-                    <div className="bg-[#121212] border border-slate-800/80 p-3.5 rounded-lg text-xs space-y-1 text-center">
-                      <span className="text-[9px] text-slate-500 font-black uppercase tracking-widest block">Remote Setup Protocol</span>
+                    <div className="bg-elevated border border-border p-3.5 rounded-lg text-xs space-y-1 text-center">
+                      <span className="text-[9px] text-muted font-black uppercase tracking-widest block">Remote Setup Protocol</span>
                       <span className="text-green-400 font-black uppercase tracking-wider flex items-center justify-center gap-1.5 animate-pulse">
                         ⚡ PREPPED FOR INSTALLATION
                       </span>
                     </div>
                     
-                    <div className="space-y-3 text-xs text-slate-300 bg-[#121212]/80 border border-slate-850 p-4 rounded-xl">
+                    <div className="space-y-3 text-xs text-fg bg-elevated/80 border border-border p-4 rounded-xl">
                       <span className="text-[10px] font-black uppercase tracking-widest text-[#1877F2] block mb-1 font-extrabold">
                         📋 Next Steps
                       </span>
@@ -706,10 +706,10 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                     </h3>
                     {smmBalance <= 0 ? (
                       <>
-                        <p className="text-xs text-slate-300 leading-relaxed font-semibold">
-                          We deducted <strong className="text-white">₱{formatPrice(payableTotal)} PHP</strong> directly from your account wallet balance. Your boost has been securely registered and queued!
+                        <p className="text-xs text-fg leading-relaxed font-semibold">
+                          We deducted <strong className="text-fg">₱{formatPrice(payableTotal)} PHP</strong> directly from your account wallet balance. Your boost has been securely registered and queued!
                         </p>
-                        <div className="bg-[#121212] border border-slate-800/80 p-3.5 rounded-lg text-xs space-y-1 text-center">
+                        <div className="bg-elevated border border-border p-3.5 rounded-lg text-xs space-y-1 text-center">
                           <span className="text-[9px] text-slate-550 font-black uppercase tracking-widest block">Amplification Flow Status</span>
                           <span className="text-[#ff9800] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 animate-pulse">
                             ⏳ IN QUEUE (HIGH VOLUME)
@@ -721,11 +721,11 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                       </>
                     ) : (
                       <>
-                        <p className="text-xs text-slate-300 leading-relaxed font-semibold">
-                          We deducted <strong className="text-white">₱{formatPrice(payableTotal)} PHP</strong> directly from your account wallet balance. Your uploaded receipt is attached and your boost is queued for verified processing.
+                        <p className="text-xs text-fg leading-relaxed font-semibold">
+                          We deducted <strong className="text-fg">₱{formatPrice(payableTotal)} PHP</strong> directly from your account wallet balance. Your uploaded receipt is attached and your boost is queued for verified processing.
                         </p>
-                        <div className="bg-[#121212] border border-slate-800/80 p-3.5 rounded-lg text-xs space-y-1 text-center">
-                          <span className="text-[9px] text-slate-500 font-black uppercase tracking-widest block">Amplification Flow Status</span>
+                        <div className="bg-elevated border border-border p-3.5 rounded-lg text-xs space-y-1 text-center">
+                          <span className="text-[9px] text-muted font-black uppercase tracking-widest block">Amplification Flow Status</span>
                           <span className="text-[#1877F2] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 animate-pulse">
                             ⚡ ACTIVE & PROCESSING
                           </span>
@@ -751,10 +751,10 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
               ) : (
                 isSoftwareService ? (
                   <>
-                    <div className="text-left bg-[#181818] border border-slate-850 p-4 rounded-xl space-y-3.5">
+                    <div className="text-left bg-card border border-border p-4 rounded-xl space-y-3.5">
                       <h3 className="text-xs font-black uppercase tracking-widest text-[#1877F2]">💳 Payment & Setup Steps</h3>
                       
-                      <div className="space-y-3 text-xs text-slate-300">
+                      <div className="space-y-3 text-xs text-fg">
                         <div className="flex gap-2">
                           <span className="bg-[#1877F2]/10 text-[#1877F2] font-bold w-4 h-4 rounded-full flex items-center justify-center text-[10px] flex-shrink-0 mt-0.5">1</span>
                           <p>
@@ -786,16 +786,16 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                     </div>
 
                     {/* 📷 GCash QR Code Image */}
-                    <div className="space-y-2 pt-2 border-t border-slate-800/80">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 block">GCash InstaPay QR Code</span>
-                      <div className="bg-white p-2 rounded-xl inline-block shadow-md max-w-[200px] mx-auto overflow-hidden border border-slate-700/20">
+                    <div className="space-y-2 pt-2 border-t border-border">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-muted block">GCash InstaPay QR Code</span>
+                      <div className="bg-white p-2 rounded-xl inline-block shadow-md max-w-[200px] mx-auto overflow-hidden border border-border">
                         <img 
                           src="/gcash-qr.png" 
                           alt="GCash QR Code" 
                           className="w-full h-auto rounded-lg object-contain mx-auto"
                         />
                       </div>
-                      <p className="text-[10px] text-slate-400 italic">Transfer fees may apply • Account Name: Henry S.</p>
+                      <p className="text-[10px] text-muted italic">Transfer fees may apply • Account Name: Henry S.</p>
                       <div className="flex items-center justify-center gap-2 mt-2 bg-[#1877F2]/10 border border-[#1877F2]/20 px-3 py-1.5 rounded-lg">
                         <span className="text-[10px] font-black text-[#1877F2] tracking-wider">📞 09505339963</span>
                         <button type="button" onClick={() => { navigator.clipboard.writeText('09505339963'); }} className="text-[8px] bg-[#1877F2]/20 hover:bg-[#1877F2]/40 text-[#1877F2] font-black uppercase tracking-wider px-2 py-0.5 rounded-md transition-all cursor-pointer active:scale-95">Copy</button>
@@ -813,10 +813,10 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                   </>
                 ) : (
                   <>
-                    <div className="text-left bg-[#181818] border border-slate-850 p-4 rounded-xl space-y-3">
+                    <div className="text-left bg-card border border-border p-4 rounded-xl space-y-3">
                       <h3 className="text-xs font-black uppercase tracking-widest text-[#1877F2]">💳 Payment Steps</h3>
                       
-                      <div className="space-y-2.5 text-xs text-slate-300">
+                      <div className="space-y-2.5 text-xs text-fg">
                         {parsedDetails.free_trial_amount > 0 && (
                           <div className="flex gap-2">
                             <span className="bg-[#1877F2]/10 text-[#1877F2] font-bold w-4 h-4 rounded-full flex items-center justify-center text-[10px] flex-shrink-0 mt-0.5">1</span>
@@ -843,16 +843,16 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                     </div>
 
                     {/* 📷 GCash QR Code Image */}
-                    <div className="space-y-2 pt-2 border-t border-slate-800/80">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 block">GCash InstaPay QR Code</span>
-                      <div className="bg-white p-2 rounded-xl inline-block shadow-md max-w-[200px] mx-auto overflow-hidden border border-slate-700/20">
+                    <div className="space-y-2 pt-2 border-t border-border">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-muted block">GCash InstaPay QR Code</span>
+                      <div className="bg-white p-2 rounded-xl inline-block shadow-md max-w-[200px] mx-auto overflow-hidden border border-border">
                         <img 
                           src="/gcash-qr.png" 
                           alt="GCash QR Code" 
                           className="w-full h-auto rounded-lg object-contain mx-auto"
                         />
                       </div>
-                      <p className="text-[10px] text-slate-400 italic">Transfer fees may apply • Account Name: Henry S.</p>
+                      <p className="text-[10px] text-muted italic">Transfer fees may apply • Account Name: Henry S.</p>
                       <div className="flex items-center justify-center gap-2 mt-2 bg-[#1877F2]/10 border border-[#1877F2]/20 px-3 py-1.5 rounded-lg">
                         <span className="text-[10px] font-black text-[#1877F2] tracking-wider">📞 09505339963</span>
                         <button type="button" onClick={() => { navigator.clipboard.writeText('09505339963'); }} className="text-[8px] bg-[#1877F2]/20 hover:bg-[#1877F2]/40 text-[#1877F2] font-black uppercase tracking-wider px-2 py-0.5 rounded-md transition-all cursor-pointer active:scale-95">Copy</button>
@@ -895,12 +895,12 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
               {isCheckingAuth ? (
-                <div className="flex justify-center items-center py-4 bg-[#1e1e1e]/50 border border-slate-800/80 rounded-xl h-[86px]">
+                <div className="flex justify-center items-center py-4 bg-[#1e1e1e]/50 border border-border rounded-xl h-[86px]">
                   <Loader2 size={24} className="text-[#1877F2] animate-spin" />
                 </div>
               ) : user ? (
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5 flex justify-between items-center">
+                  <label className="block text-xs font-bold text-muted uppercase tracking-widest mb-1.5 flex justify-between items-center">
                     <span>Email Address</span>
                     <span className="text-[#1877F2] text-[10px] font-black uppercase tracking-wider">✓ Active Profile</span>
                   </label>
@@ -909,38 +909,38 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                     required
                     disabled
                     value={email}
-                    className="w-full px-4 py-3 rounded-xl bg-[#1e1e1e] border border-[#1877F2]/30 text-slate-400 cursor-not-allowed text-sm font-medium"
+                    className="w-full px-4 py-3 rounded-xl bg-[#1e1e1e] border border-[#1877F2]/30 text-muted cursor-not-allowed text-sm font-medium"
                   />
                 </div>
               ) : (
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5">Email Address</label>
+                  <label className="block text-xs font-bold text-muted uppercase tracking-widest mb-1.5">Email Address</label>
                   <input 
                     type="email" 
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl bg-[#282828] border border-slate-700/60 focus:outline-none focus:ring-2 focus:ring-[#1877F2] text-white transition-all text-sm font-medium"
+                    className="w-full px-4 py-3 rounded-xl bg-card border border-border focus:outline-none focus:ring-2 focus:ring-[#1877F2] text-fg transition-all text-sm font-medium"
                     placeholder="you@example.com"
                   />
-                  <p className="text-[10px] text-slate-400 mt-1.5 leading-relaxed text-left">
+                  <p className="text-[10px] text-muted mt-1.5 leading-relaxed text-left">
                     💡 Want to track orders automatically? <a href="/login" className="text-[#1877F2] font-extrabold hover:underline">Sign In / Register</a> first!
                   </p>
                 </div>
               )}
               
               {parsedDetails.custom_fields && parsedDetails.custom_fields.length > 0 ? (
-                <div className="space-y-4 bg-[#121212] border border-slate-800/80 p-4 rounded-xl">
+                <div className="space-y-4 bg-elevated border border-border p-4 rounded-xl">
                   {isEapService ? (
                     <>
-                      <span className="text-[10px] font-black uppercase tracking-widest text-[#1877F2] block border-b border-slate-850 pb-2">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-[#1877F2] block border-b border-border pb-2">
                         📋 EAP Adaptation Specifications ({eapDeviceCount} {eapDeviceCount === 1 ? 'item' : 'items'})
                       </span>
                       {Array.from({ length: eapDeviceCount }).map((_, index) => {
                         const itemNum = index + 1;
                         return (
-                          <div key={index} className="space-y-4 bg-[#181818] border border-slate-800/80 p-4 rounded-xl mt-3 shadow-md animate-in fade-in duration-200">
-                            <div className="flex justify-between items-center border-b border-slate-850/50 pb-1.5">
+                          <div key={index} className="space-y-4 bg-card border border-border p-4 rounded-xl mt-3 shadow-md animate-in fade-in duration-200">
+                            <div className="flex justify-between items-center border-b border-border pb-1.5">
                               <span className="text-[10px] font-black uppercase tracking-widest text-[#1877F2] font-extrabold">
                                 ⚙️ EAP TP-Link Device #{itemNum}
                               </span>
@@ -958,7 +958,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                               const uniqueKey = `Device #${itemNum} - ${field.label}`;
                               return (
                                 <div key={field.id}>
-                                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">
+                                  <label className="block text-[10px] font-bold text-muted uppercase tracking-widest mb-1.5">
                                     {field.label}
                                   </label>
                                   <input 
@@ -966,7 +966,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                                     required
                                     value={customFieldValues[uniqueKey] || ""}
                                     onChange={(e) => setCustomFieldValues({...customFieldValues, [uniqueKey]: e.target.value})}
-                                    className="w-full px-4 py-3 rounded-xl bg-[#282828] border border-slate-700/60 focus:outline-none focus:ring-2 focus:ring-[#1877F2] text-white transition-all text-xs font-semibold"
+                                    className="w-full px-4 py-3 rounded-xl bg-card border border-border focus:outline-none focus:ring-2 focus:ring-[#1877F2] text-fg transition-all text-xs font-semibold"
                                     placeholder={`Enter ${field.label.toLowerCase()} for device #${itemNum}`}
                                   />
                                 </div>
@@ -978,14 +978,14 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                       <button
                         type="button"
                         onClick={() => setEapDeviceCount(prev => prev + 1)}
-                        className="flex items-center justify-center gap-2 w-full mt-4 py-3 px-4 rounded-xl border border-dashed border-slate-700 hover:border-[#1877F2] text-slate-400 hover:text-white transition-all text-xs font-black uppercase tracking-widest bg-transparent hover:bg-[#1877F2]/5 active:scale-[0.98]"
+                        className="flex items-center justify-center gap-2 w-full mt-4 py-3 px-4 rounded-xl border border-dashed border-border hover:border-[#1877F2] text-muted hover:text-fg transition-all text-xs font-black uppercase tracking-widest bg-transparent hover:bg-[#1877F2]/5 active:scale-[0.98]"
                       >
                         ➕ ADD NEW TPLINK DEVICE
                       </button>
                     </>
                   ) : (
                     <>
-                      <span className="text-[10px] font-black uppercase tracking-widest text-[#1877F2] block border-b border-slate-850 pb-2">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-[#1877F2] block border-b border-border pb-2">
                         {isPisoWifiService ? "PisoWiFi Installation Details" : "Custom Request Specifications"}
                       </span>
                       {parsedDetails.custom_fields.map((field: {id: string, label: string, type?: string, options?: string[], required?: boolean}) => {
@@ -993,11 +993,11 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                         const fieldType = String(field.type || "").toLowerCase();
                         const fieldValue = customFieldValues[field.label] || "";
                         const updateField = (value: string) => setCustomFieldValues({...customFieldValues, [field.label]: value});
-                        const commonClass = "w-full px-4 py-3 rounded-xl bg-[#282828] border border-slate-700/60 focus:outline-none focus:ring-2 focus:ring-[#1877F2] text-white transition-all text-sm font-medium";
+                        const commonClass = "w-full px-4 py-3 rounded-xl bg-card border border-border focus:outline-none focus:ring-2 focus:ring-[#1877F2] text-fg transition-all text-sm font-medium";
 
                         return (
                           <div key={field.id}>
-                            <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5">{field.label}</label>
+                            <label className="block text-xs font-bold text-muted uppercase tracking-widest mb-1.5">{field.label}</label>
                             {fieldType === 'select' && field.options ? (
                               <select
                                 required={fieldRequired}
@@ -1036,15 +1036,15 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                   )}
 
                   {isSoftwareService && (
-                    <div className="bg-[#1e1e1e] border border-slate-800 p-4 rounded-xl space-y-4 mt-4 text-left shadow-lg">
-                      <div className="flex items-center gap-2 border-b border-slate-800 pb-2">
+                    <div className="bg-[#1e1e1e] border border-border p-4 rounded-xl space-y-4 mt-4 text-left shadow-lg">
+                      <div className="flex items-center gap-2 border-b border-border pb-2">
                         <Laptop size={18} className="text-[#1877F2] shrink-0" />
-                        <span className="text-xs font-bold text-white uppercase tracking-wider">
+                        <span className="text-xs font-bold text-fg uppercase tracking-wider">
                           🖥️ Remote Installation Setup
                         </span>
                       </div>
 
-                      <p className="text-[11px] text-slate-300 leading-relaxed font-semibold">
+                      <p className="text-[11px] text-fg leading-relaxed font-semibold">
                         This software requires secure remote installation. Please download and install **UltraViewer** on your computer if you do not have it yet.
                       </p>
 
@@ -1058,13 +1058,13 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                         Download UltraViewer
                       </a>
 
-                      <div className="bg-[#121212] p-3 rounded-lg border border-slate-850 space-y-3">
+                      <div className="bg-elevated p-3 rounded-lg border border-border space-y-3">
                         <div className="flex items-center gap-1.5">
-                          <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                          <span className="text-[10px] font-black uppercase tracking-widest text-muted">
                             ⚡ Instant Handshake (Optional)
                           </span>
                         </div>
-                        <p className="text-[9px] text-slate-500 leading-normal">
+                        <p className="text-[9px] text-muted leading-normal">
                           If UltraViewer is already running, you can enter your details below so the admin can connect and set it up immediately without waiting!
                         </p>
 
@@ -1080,7 +1080,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                                 ...customFieldValues,
                                 "UltraViewer Partner ID": e.target.value
                               })}
-                              className="w-full px-3 py-2 rounded-lg bg-[#282828] border border-slate-700 focus:outline-none focus:ring-1 focus:ring-[#1877F2] text-white text-xs font-semibold"
+                              className="w-full px-3 py-2 rounded-lg bg-card border border-border focus:outline-none focus:ring-1 focus:ring-[#1877F2] text-fg text-xs font-semibold"
                               placeholder="e.g. 12 345 678"
                             />
                           </div>
@@ -1095,7 +1095,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                                 ...customFieldValues,
                                 "UltraViewer Password": e.target.value
                               })}
-                              className="w-full px-3 py-2 rounded-lg bg-[#282828] border border-slate-700 focus:outline-none focus:ring-1 focus:ring-[#1877F2] text-white text-xs font-semibold"
+                              className="w-full px-3 py-2 rounded-lg bg-card border border-border focus:outline-none focus:ring-1 focus:ring-[#1877F2] text-fg text-xs font-semibold"
                               placeholder="e.g. 1234"
                             />
                           </div>
@@ -1103,8 +1103,8 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                       </div>
 
                       <div className="bg-[#1877F2]/5 border border-[#1877F2]/10 p-3 rounded-lg">
-                        <p className="text-[10px] text-slate-400 leading-relaxed font-bold">
-                          💡 <strong className="text-white">Note:</strong> After placing your order, please wait for our admin (<strong className="text-[#1877F2]">Cyrhiel Moralla</strong>) to chat you on the Facebook link you provided above. Keep UltraViewer active on your PC.
+                        <p className="text-[10px] text-muted leading-relaxed font-bold">
+                          💡 <strong className="text-fg">Note:</strong> After placing your order, please wait for our admin (<strong className="text-[#1877F2]">Cyrhiel Moralla</strong>) to chat you on the Facebook link you provided above. Keep UltraViewer active on your PC.
                         </p>
                       </div>
                     </div>
@@ -1115,7 +1115,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                       <span className="text-[10px] font-black uppercase tracking-widest text-blue-400 block mb-1">
                         📨 Email Invitation Protocol
                       </span>
-                      <p className="text-[10px] text-slate-300 leading-relaxed font-semibold">
+                      <p className="text-[10px] text-fg leading-relaxed font-semibold">
                         After your payment is confirmed, you will receive an **invitation link** at the email address provided above. 
                         Simply click the link to join and instantly activate your Gemini Pro subscription!
                       </p>
@@ -1125,13 +1125,13 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
               ) : !isPageService ? (
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5">{inputLabel}</label>
+                    <label className="block text-xs font-bold text-muted uppercase tracking-widest mb-1.5">{inputLabel}</label>
                     <input 
                       type="url" 
                       required
                       value={url}
                       onChange={(e) => setUrl(e.target.value)}
-                      className="w-full px-4 py-3 rounded-xl bg-[#282828] border border-slate-700/60 focus:outline-none focus:ring-2 focus:ring-[#1877F2] text-white transition-all text-sm font-medium"
+                      className="w-full px-4 py-3 rounded-xl bg-card border border-border focus:outline-none focus:ring-2 focus:ring-[#1877F2] text-fg transition-all text-sm font-medium"
                       placeholder={inputPlaceholder}
                     />
 
@@ -1146,15 +1146,15 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                   </div>
 
                   {isReactionService && (
-                    <div className="space-y-3 bg-[#121212] border border-slate-800/80 p-4 rounded-xl animate-in slide-in-from-bottom-2">
-                      <div className="flex justify-between items-center border-b border-slate-850 pb-2">
+                    <div className="space-y-3 bg-elevated border border-border p-4 rounded-xl animate-in slide-in-from-bottom-2">
+                      <div className="flex justify-between items-center border-b border-border pb-2">
                         <span className="text-[10px] font-black uppercase tracking-widest text-[#1877F2] flex items-center gap-1.5">
                           🎭 Reaction Types Selection
                         </span>
                         <button
                           type="button"
                           onClick={toggleAllReactions}
-                          className="text-[9px] font-black uppercase tracking-widest text-slate-400 hover:text-[#1877F2] transition-colors"
+                          className="text-[9px] font-black uppercase tracking-widest text-muted hover:text-[#1877F2] transition-colors"
                         >
                           {selectedReactions.length === REACTION_OPTIONS.length ? "Reset to Like" : "Select All"}
                         </button>
@@ -1174,8 +1174,8 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                               }}
                               className={`flex flex-col items-center justify-center p-2 rounded-xl border-2 transition-all duration-200 active:scale-95 ${
                                 isSelected 
-                                  ? "bg-[#181818] text-white" 
-                                  : "bg-[#282828] border-slate-850 hover:border-slate-700 text-slate-400 hover:text-slate-200"
+                                  ? "bg-card text-fg" 
+                                  : "bg-card border-border hover:border-border text-muted hover:text-fg"
                               }`}
                             >
                               <span className="text-2xl mb-1 select-none transform hover:scale-125 transition-transform duration-200">{rx.emoji}</span>
@@ -1190,37 +1190,37 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                           );
                         })}
                       </div>
-                      <p className="text-[9px] text-slate-400 leading-relaxed font-semibold italic text-center">
+                      <p className="text-[9px] text-muted leading-relaxed font-semibold italic text-center">
                         Selected: {selectedReactions.join(", ")}
                       </p>
                     </div>
                   )}
                 </div>
               ) : (
-                <div className="space-y-4 bg-[#121212] border border-slate-800/80 p-4 rounded-xl">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-[#1877F2] block border-b border-slate-850 pb-2">
+                <div className="space-y-4 bg-elevated border border-border p-4 rounded-xl">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-[#1877F2] block border-b border-border pb-2">
                     📋 Pre-made Page Specifications
                   </span>
                   
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wide mb-1.5">Desired Page Name</label>
+                    <label className="block text-[11px] font-bold text-muted uppercase tracking-wide mb-1.5">Desired Page Name</label>
                     <input 
                       type="text" 
                       required
                       value={desiredName}
                       onChange={(e) => setDesiredName(e.target.value)}
-                      className="w-full px-4 py-3 rounded-xl bg-[#282828] border border-slate-700/60 focus:outline-none focus:ring-2 focus:ring-[#1877F2] text-white transition-all text-xs font-semibold"
+                      className="w-full px-4 py-3 rounded-xl bg-card border border-border focus:outline-none focus:ring-2 focus:ring-[#1877F2] text-fg transition-all text-xs font-semibold"
                       placeholder="e.g. Cyrhiel's Gaming Hub"
                     />
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wide mb-1.5">Niche/Category</label>
+                      <label className="block text-[11px] font-bold text-muted uppercase tracking-wide mb-1.5">Niche/Category</label>
                       <select 
                         value={pageCategory}
                         onChange={(e) => setPageCategory(e.target.value)}
-                        className="w-full px-4 py-3 rounded-xl bg-[#282828] border border-slate-700/60 focus:outline-none focus:ring-2 focus:ring-[#1877F2] text-white transition-all text-xs font-semibold cursor-pointer"
+                        className="w-full px-4 py-3 rounded-xl bg-card border border-border focus:outline-none focus:ring-2 focus:ring-[#1877F2] text-fg transition-all text-xs font-semibold cursor-pointer"
                       >
                         <option value="eCommerce / Store">eCommerce / Store</option>
                         <option value="Gaming / Creator">Gaming / Creator</option>
@@ -1231,11 +1231,11 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                     </div>
 
                     <div>
-                      <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wide mb-1.5">Demographics</label>
+                      <label className="block text-[11px] font-bold text-muted uppercase tracking-wide mb-1.5">Demographics</label>
                       <select 
                         value={demographics}
                         onChange={(e) => setDemographics(e.target.value)}
-                        className="w-full px-4 py-3 rounded-xl bg-[#282828] border border-slate-700/60 focus:outline-none focus:ring-2 focus:ring-[#1877F2] text-white transition-all text-xs font-semibold cursor-pointer"
+                        className="w-full px-4 py-3 rounded-xl bg-card border border-border focus:outline-none focus:ring-2 focus:ring-[#1877F2] text-fg transition-all text-xs font-semibold cursor-pointer"
                       >
                         <option value="Philippines (Local)">Philippines (Local)</option>
                         <option value="United States (US Tier)">United States (US Tier)</option>
@@ -1245,23 +1245,23 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wide mb-1.5 flex justify-between items-center">
+                    <label className="block text-[11px] font-bold text-muted uppercase tracking-wide mb-1.5 flex justify-between items-center">
                       <span>Personal FB Link or Name</span>
-                      <span className="text-slate-500 text-[9px] font-bold lowercase tracking-wider">Required for Admin Migration</span>
+                      <span className="text-muted text-[9px] font-bold lowercase tracking-wider">Required for Admin Migration</span>
                     </label>
                     <input 
                       type="text" 
                       required
                       value={fbProfile}
                       onChange={(e) => setFbProfile(e.target.value)}
-                      className="w-full px-4 py-3 rounded-xl bg-[#282828] border border-slate-700/60 focus:outline-none focus:ring-2 focus:ring-[#1877F2] text-white transition-all text-xs font-semibold"
+                      className="w-full px-4 py-3 rounded-xl bg-card border border-border focus:outline-none focus:ring-2 focus:ring-[#1877F2] text-fg transition-all text-xs font-semibold"
                       placeholder="e.g. facebook.com/cyrhiel.moralla or Cyrhiel Moralla"
                     />
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wide mb-1.5">Profile Picture</label>
+                      <label className="block text-[11px] font-bold text-muted uppercase tracking-wide mb-1.5">Profile Picture</label>
                       <div className="relative">
                         <input 
                           type="file" 
@@ -1272,7 +1272,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                         />
                         <label 
                           htmlFor="profile-pic-upload"
-                          className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-[#282828] border border-dashed border-slate-700 hover:border-[#1877F2] text-slate-300 hover:text-white cursor-pointer transition-all text-xs font-bold"
+                          className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-card border border-dashed border-border hover:border-[#1877F2] text-fg hover:text-fg cursor-pointer transition-all text-xs font-bold"
                         >
                           {profilePic ? "✓ Selected" : "📁 Choose Profile"}
                         </label>
@@ -1285,7 +1285,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                     </div>
 
                     <div>
-                      <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wide mb-1.5">Cover Photo</label>
+                      <label className="block text-[11px] font-bold text-muted uppercase tracking-wide mb-1.5">Cover Photo</label>
                       <div className="relative">
                         <input 
                           type="file" 
@@ -1296,7 +1296,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                         />
                         <label 
                           htmlFor="cover-pic-upload"
-                          className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-[#282828] border border-dashed border-slate-700 hover:border-[#1877F2] text-slate-300 hover:text-white cursor-pointer transition-all text-xs font-bold"
+                          className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-card border border-dashed border-border hover:border-[#1877F2] text-fg hover:text-fg cursor-pointer transition-all text-xs font-bold"
                         >
                           {coverPic ? "✓ Selected" : "📁 Choose Cover"}
                         </label>
@@ -1310,14 +1310,14 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wide mb-1.5">
+                    <label className="block text-[11px] font-bold text-muted uppercase tracking-wide mb-1.5">
                       Additional Requirements / Notes
                     </label>
                     <textarea 
                       value={notes}
                       onChange={(e) => setNotes(e.target.value)}
                       rows={2}
-                      className="w-full px-4 py-3 rounded-xl bg-[#282828] border border-slate-700/60 focus:outline-none focus:ring-2 focus:ring-[#1877F2] text-white transition-all text-xs font-medium resize-none"
+                      className="w-full px-4 py-3 rounded-xl bg-card border border-border focus:outline-none focus:ring-2 focus:ring-[#1877F2] text-fg transition-all text-xs font-medium resize-none"
                       placeholder="e.g. Include custom logo request, theme colors, etc."
                     />
                   </div>
@@ -1327,7 +1327,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                     <span className="text-[10px] font-black uppercase tracking-widest text-[#1877F2] block mb-1">
                       ⏳ Delivery & Transfer Protocol
                     </span>
-                    <p className="text-[10px] text-slate-300 leading-relaxed font-semibold">
+                    <p className="text-[10px] text-fg leading-relaxed font-semibold">
                       Your custom Facebook Page will be fully created, boosted with 10k followers, and transferred securely to you **within 24 hours**. 
                       You will receive an email invitation containing the Facebook link and direct message from **Cyrhiel Moralla (Admin)** as soon as the page is ready. You can track your progress live anytime!
                     </p>
@@ -1337,7 +1337,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
 
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest">
+                  <label className="block text-xs font-bold text-muted uppercase tracking-widest">
                     Quantity
                   </label>
                   <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-[#1877F2]/10 text-[#1877F2] border border-[#1877F2]/20 shadow-[0_0_8px_rgba(24,119,242,0.15)] animate-pulse">
@@ -1346,9 +1346,9 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                 </div>
                 
                 {isEapService ? (
-                  <div className="bg-[#1e1e1e] border border-slate-800/80 p-3.5 rounded-xl text-center text-xs font-semibold text-slate-400">
+                  <div className="bg-[#1e1e1e] border border-border p-3.5 rounded-xl text-center text-xs font-semibold text-muted">
                     Quantity locked to device count: <strong className="text-[#1877F2] font-black">{eapDeviceCount}</strong>
-                    <span className="block text-[10px] text-slate-500 mt-1">Managed dynamically via the device list above.</span>
+                    <span className="block text-[10px] text-muted mt-1">Managed dynamically via the device list above.</span>
                   </div>
                 ) : (
                   <div className="relative rounded-xl shadow-sm">
@@ -1359,10 +1359,10 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                       step="1"
                       value={quantity || ""}
                       onChange={(e) => setQuantity(parseInt(e.target.value) || 0)}
-                      className={`w-full px-4 py-3 rounded-xl bg-[#282828] text-white transition-all text-sm font-bold border ${
+                      className={`w-full px-4 py-3 rounded-xl bg-card text-fg transition-all text-sm font-bold border ${
                         (quantity > 0 && quantity < minQty)
                           ? "border-[#1877F2]/50 focus:ring-2 focus:ring-[#1877F2] focus:outline-none" 
-                          : "border-slate-700/60 focus:border-[#1877F2] focus:ring-2 focus:ring-[#1877F2] focus:outline-none"
+                          : "border-border focus:border-[#1877F2] focus:ring-2 focus:ring-[#1877F2] focus:outline-none"
                       }`}
                       placeholder={String(minQty)}
                     />
@@ -1374,13 +1374,13 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                     <div className="bg-[#1877F2]/10 border border-[#1877F2]/25 p-3 rounded-xl flex items-start gap-2 animate-in slide-in-from-top-2 duration-300">
                       <span className="text-sm mt-0.5">💡</span>
                       <p className="text-[10px] text-[#1877F2] leading-relaxed font-bold text-left">
-                        Below Minimum Limit: The minimum order size for this service is <strong className="text-white">{minQty.toLocaleString()}</strong>. Your order will be automatically upgraded to the minimum quantity of <strong className="text-white">{minQty.toLocaleString()}</strong> units at the standard minimum price.
+                        Below Minimum Limit: The minimum order size for this service is <strong className="text-fg">{minQty.toLocaleString()}</strong>. Your order will be automatically upgraded to the minimum quantity of <strong className="text-fg">{minQty.toLocaleString()}</strong> units at the standard minimum price.
                       </p>
                     </div>
                   ) : (
                     <div className="bg-[#1877F2]/5 border border-[#1877F2]/10 p-3 rounded-xl flex items-start gap-2 animate-in fade-in duration-300">
                       <span className="text-sm mt-0.5">💡</span>
-                      <p className="text-[10px] text-slate-400 leading-relaxed font-semibold text-left">
+                      <p className="text-[10px] text-muted leading-relaxed font-semibold text-left">
                         {isPisoWifiService ? (
                           <>1 unit = 1 {unitSingle}. Increase quantity only when buying multiple PisoWiFi packages.</>
                         ) : (
@@ -1394,9 +1394,9 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                   )
                 )}
 
-                <div className="flex justify-between items-center mt-3 bg-[#121212] px-3.5 py-2.5 rounded-lg border border-slate-800">
+                <div className="flex justify-between items-center mt-3 bg-elevated px-3.5 py-2.5 rounded-lg border border-border">
                   <div className="flex flex-col text-left">
-                    <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Estimated Total:</span>
+                    <span className="text-xs font-bold uppercase tracking-wider text-muted">Estimated Total:</span>
                     {hasVipDiscount ? (
                       <span className="text-[10px] text-[#1DB954] font-black uppercase tracking-wider mt-0.5">
                         VIP {vipSummary.discountPercent}% discount applied
@@ -1410,7 +1410,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                   <div className="text-right">
                     {hasVipDiscount ? (
                       <>
-                        <span className="text-[11px] text-slate-500 font-mono line-through block leading-tight">
+                        <span className="text-[11px] text-muted font-mono line-through block leading-tight">
                           Regular ₱{formatPrice(totalPrice)}
                         </span>
                         <span className="text-lg font-black text-[#1DB954] block">VIP ₱{formatPrice(payableTotal)}</span>
@@ -1419,12 +1419,12 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                         </span>
                       </>
                     ) : fakeDiscountPercent > 0 && (
-                      <span className="text-[11px] text-slate-500 font-mono line-through block leading-tight">
+                      <span className="text-[11px] text-muted font-mono line-through block leading-tight">
                         ₱{formatPrice(fakeOriginalPrice)}
                       </span>
                     )}
                     {!hasVipDiscount && (
-                      <span className="text-lg font-black text-white block">₱{formatPrice(totalPrice)}</span>
+                      <span className="text-lg font-black text-fg block">₱{formatPrice(totalPrice)}</span>
                     )}
                   </div>
                 </div>
@@ -1436,7 +1436,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                       <span className="text-[10px] font-black uppercase tracking-wider text-amber-500 block">
                         🇵🇭 PH Base Delivery Protocol
                       </span>
-                      <p className="text-[10px] text-slate-300 leading-relaxed font-semibold">
+                      <p className="text-[10px] text-fg leading-relaxed font-semibold">
                         Since organic targeted Philippine accounts require verified distribution and staggered delivery to ensure safety, this PH Base service will be securely queued, processed, and completed within **24 hours**. Thank you for your patience!
                       </p>
                     </div>
@@ -1447,7 +1447,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
 {featureBadges && !isPisoWifiService && (
                   <div className="bg-[#1DB954]/5 border border-[#1DB954]/10 p-3.5 rounded-xl flex items-start gap-2 mt-3 animate-in fade-in duration-300">
                     <span className="text-sm mt-0.5">🛡️</span>
-                    <p className="text-[10px] text-slate-300 leading-relaxed font-bold text-left">
+                    <p className="text-[10px] text-fg leading-relaxed font-bold text-left">
                       <span className="text-[#1DB954] uppercase tracking-wider block mb-0.5">🔒 100% Monetization Safe Guarantee</span>
                       Your campaign passes through CYNETWORK&apos;s proprietary filters to exclude toxic bot pools that trigger restrictions. Safe for Facebook Adsense & organic page growth.
                     </p>
@@ -1455,8 +1455,8 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
 )}
 
                 {/* GCash Payment Receipt Upload */}
-                <div className="space-y-2 bg-[#121212] border border-slate-800 p-4 rounded-xl mt-3 text-left">
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest flex justify-between items-center">
+                <div className="space-y-2 bg-elevated border border-border p-4 rounded-xl mt-3 text-left">
+                  <label className="block text-[10px] font-black text-muted uppercase tracking-widest flex justify-between items-center">
                     <span>GCash Payment Receipt Screenshot {!hasWalletBalanceForOrder && <span className="text-red-500">*</span>}</span>
                     <span className="text-[8px] font-black uppercase text-red-500">
                       {hasWalletBalanceForOrder ? "Optional for Wallet" : "Strictly Required"}
@@ -1472,7 +1472,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                     />
                     <label 
                       htmlFor="checkout-receipt-upload"
-                      className="w-full flex items-center justify-center gap-2.5 px-4 py-3 rounded-xl bg-[#282828] border border-dashed border-slate-700 hover:border-[#1877F2]/50 text-slate-305 hover:text-white cursor-pointer transition-all text-xs font-black uppercase tracking-wider active:scale-95"
+                      className="w-full flex items-center justify-center gap-2.5 px-4 py-3 rounded-xl bg-card border border-dashed border-border hover:border-[#1877F2]/50 text-slate-305 hover:text-fg cursor-pointer transition-all text-xs font-black uppercase tracking-wider active:scale-95"
                     >
                       <span>📁</span> {receiptFile ? `Receipt: ${receiptFile.name}` : "Attach Payment Screenshot"}
                     </label>
@@ -1486,26 +1486,26 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
 
                 {/* GCash Quick QR for all manual checkouts to ensure the GCash payment flow is easily accessible */}
                 {!hasWalletBalanceForOrder && (
-                  <div className="bg-[#121212] border border-slate-800/80 p-4 rounded-xl space-y-3 mt-3 animate-in fade-in duration-200">
-                    <div className="flex justify-between items-center border-b border-slate-850 pb-2">
+                  <div className="bg-elevated border border-border p-4 rounded-xl space-y-3 mt-3 animate-in fade-in duration-200">
+                    <div className="flex justify-between items-center border-b border-border pb-2">
                       <span className="text-[10px] font-black uppercase tracking-widest text-[#1877F2] flex items-center gap-1.5">
                         📱 Instant GCash Checkout QR
                       </span>
                       <span className="text-[9px] text-slate-550 font-bold tracking-wider">Account: Henry S.</span>
                     </div>
-                    <p className="text-[10px] text-slate-300 leading-relaxed font-semibold text-left">
+                    <p className="text-[10px] text-fg leading-relaxed font-semibold text-left">
                       {isSoftwareService ? (
                         <>
-                          Pay <strong className="text-white">₱{formatPrice(payableTotal)} PHP</strong> directly using the GCash QR code below. Once your order is placed, send your Tracking ID to our support chatbot, download **UltraViewer**, and wait for remote setup!
+                          Pay <strong className="text-fg">₱{formatPrice(payableTotal)} PHP</strong> directly using the GCash QR code below. Once your order is placed, send your Tracking ID to our support chatbot, download **UltraViewer**, and wait for remote setup!
                         </>
                       ) : (
                         <>
-                          Pay <strong className="text-white">₱{formatPrice(payableTotal)} PHP</strong> directly using the GCash QR code below. Once your order is placed, send your Tracking ID and payment receipt in our support chatbot for instant verification and activation!
+                          Pay <strong className="text-fg">₱{formatPrice(payableTotal)} PHP</strong> directly using the GCash QR code below. Once your order is placed, send your Tracking ID and payment receipt in our support chatbot for instant verification and activation!
                         </>
                       )}
                     </p>
                     <div className="text-center">
-                      <div className="bg-white p-1.5 rounded-xl inline-block shadow-md max-w-[130px] mx-auto overflow-hidden border border-slate-700/20">
+                      <div className="bg-white p-1.5 rounded-xl inline-block shadow-md max-w-[130px] mx-auto overflow-hidden border border-border">
                         <img 
                           src="/gcash-qr.png" 
                           alt="GCash QR Code" 

@@ -221,7 +221,7 @@ export function HeroSearch({ services }: HeroSearchProps) {
       {/* 2. Premium AI Search bar */}
       <div className="w-full flex flex-col sm:flex-row gap-3 items-center">
         <div className="relative flex-grow w-full">
-          <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 flex items-center">
+          <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted flex items-center">
             <span className="text-base">🔍</span>
           </div>
           <input
@@ -235,7 +235,7 @@ export function HeroSearch({ services }: HeroSearchProps) {
             onKeyDown={(e) => {
               if (e.key === "Enter") handleAiSearch();
             }}
-            className="w-full pl-10 pr-14 py-3.5 rounded-full bg-[#121212]/95 border border-slate-800 hover:border-[#1DB954]/40 focus:outline-none focus:border-[#1DB954] focus:ring-2 focus:ring-[#1DB954]/15 transition-all text-slate-200 font-extrabold placeholder-slate-600 text-xs sm:text-sm tracking-wide shadow-2xl"
+            className="w-full pl-10 pr-14 py-3.5 rounded-full bg-elevated/95 border border-border hover:border-[#1DB954]/40 focus:outline-none focus:border-[#1DB954] focus:ring-2 focus:ring-[#1DB954]/15 transition-all text-fg font-extrabold placeholder-slate-600 text-xs sm:text-sm tracking-wide shadow-2xl"
           />
           {isSearchActive && (
             <button
@@ -243,7 +243,7 @@ export function HeroSearch({ services }: HeroSearchProps) {
                 setSectionSearchQuery("");
                 setAiRecommend(null);
               }}
-              className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white transition-colors text-xs font-black bg-transparent border-0 cursor-pointer"
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-muted hover:text-fg transition-colors text-xs font-black bg-transparent border-0 cursor-pointer"
             >
               CLEAR
             </button>
@@ -253,7 +253,7 @@ export function HeroSearch({ services }: HeroSearchProps) {
         <button
           onClick={handleAiSearch}
           disabled={!sectionSearchQuery.trim() || isAiLoading}
-          className="w-full sm:w-auto px-7 py-3.5 rounded-full bg-[#1DB954] hover:bg-[#1ed760] disabled:bg-slate-850 disabled:text-slate-500 disabled:border-slate-800 disabled:shadow-none text-black font-extrabold text-xs uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-[#1DB954]/15 active:scale-95 transition-all"
+          className="w-full sm:w-auto px-7 py-3.5 rounded-full bg-[#1DB954] hover:bg-[#1ed760] disabled:bg-elevated disabled:text-muted disabled:border-border disabled:shadow-none text-black font-extrabold text-xs uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-[#1DB954]/15 active:scale-95 transition-all"
         >
           {isAiLoading ? (
             <>
@@ -271,12 +271,12 @@ export function HeroSearch({ services }: HeroSearchProps) {
 
       {/* 3. CYNETWORK AI Smart Recommendation Box */}
       {aiRecommend && (
-        <div className="mt-8 w-full bg-[#121212]/95 border border-[#1DB954]/30 rounded-3xl p-6 sm:p-7 shadow-[0_20px_50px_rgba(29,185,84,0.15)] backdrop-blur-md animate-in slide-in-from-top-4 duration-350 text-left relative overflow-hidden group">
+        <div className="mt-8 w-full bg-elevated/95 border border-[#1DB954]/30 rounded-3xl p-6 sm:p-7 shadow-[0_20px_50px_rgba(29,185,84,0.15)] backdrop-blur-md animate-in slide-in-from-top-4 duration-350 text-left relative overflow-hidden group">
           <div className="absolute -right-16 -top-16 w-32 h-32 bg-[#1DB954]/5 rounded-full blur-2xl group-hover:bg-[#1DB954]/10 transition-all duration-500" />
           
           <button
             onClick={() => setAiRecommend(null)}
-            className="absolute top-5 right-5 text-slate-500 hover:text-white transition-colors p-1 hover:bg-slate-850 rounded-lg cursor-pointer"
+            className="absolute top-5 right-5 text-muted hover:text-fg transition-colors p-1 hover:bg-elevated rounded-lg cursor-pointer"
             title="Close recommendation"
           >
             <X size={16} />
@@ -289,7 +289,7 @@ export function HeroSearch({ services }: HeroSearchProps) {
             </span>
           </div>
 
-          <p className="text-slate-300 text-[11px] sm:text-xs leading-relaxed font-semibold mb-6 bg-black/45 p-4 rounded-2xl border border-slate-850">
+          <p className="text-fg text-[11px] sm:text-xs leading-relaxed font-semibold mb-6 bg-black/45 p-4 rounded-2xl border border-border">
             {aiRecommend.explanation}
           </p>
 
@@ -299,7 +299,7 @@ export function HeroSearch({ services }: HeroSearchProps) {
                 <span className="text-[10px] font-black uppercase tracking-widest text-[#1DB954]">
                   Matched service links
                 </span>
-                <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">
+                <span className="text-[9px] font-black uppercase tracking-widest text-muted">
                   {aiRecommend.confidence || "smart match"}
                 </span>
               </div>
@@ -307,14 +307,14 @@ export function HeroSearch({ services }: HeroSearchProps) {
               {aiRecommend.recommendations.slice(0, 3).map((recommendation) => (
                 <div
                   key={`${recommendation.kind}-${recommendation.href}-${recommendation.title}`}
-                  className="bg-[#161616] border border-slate-800 p-4 rounded-2xl flex flex-col gap-3 hover:border-[#1DB954]/30 transition-all"
+                  className="bg-[#161616] border border-border p-4 rounded-2xl flex flex-col gap-3 hover:border-[#1DB954]/30 transition-all"
                 >
                   <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                     <div className="min-w-0">
-                      <h4 className="text-xs font-black text-white uppercase tracking-wider">
+                      <h4 className="text-xs font-black text-fg uppercase tracking-wider">
                         {recommendation.title}
                       </h4>
-                      <p className="text-[10px] text-slate-500 mt-1 leading-normal font-semibold">
+                      <p className="text-[10px] text-muted mt-1 leading-normal font-semibold">
                         {recommendation.description}
                       </p>
                       {recommendation.priceLabel && (
@@ -336,7 +336,7 @@ export function HeroSearch({ services }: HeroSearchProps) {
                       <button
                         type="button"
                         onClick={() => copyServiceLink(recommendation.href)}
-                        className="inline-flex items-center justify-center gap-2 bg-slate-850 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white font-extrabold px-4 py-2.5 rounded-full text-[10px] uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap"
+                        className="inline-flex items-center justify-center gap-2 bg-elevated hover:bg-elevated border border-border text-fg hover:text-fg font-extrabold px-4 py-2.5 rounded-full text-[10px] uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap"
                       >
                         {copiedLink === recommendation.href ? <Check size={13} /> : <Copy size={13} />}
                         {copiedLink === recommendation.href ? "Copied" : "Copy"}
@@ -350,7 +350,7 @@ export function HeroSearch({ services }: HeroSearchProps) {
                       event.preventDefault();
                       openRecommendation(recommendation);
                     }}
-                    className="block text-[10px] text-slate-500 hover:text-[#1DB954] font-mono truncate bg-black/35 border border-slate-900 rounded-xl px-3 py-2 transition-colors"
+                    className="block text-[10px] text-muted hover:text-[#1DB954] font-mono truncate bg-black/35 border border-slate-900 rounded-xl px-3 py-2 transition-colors"
                     title={getAbsoluteHref(recommendation.href)}
                   >
                     {getAbsoluteHref(recommendation.href)}
@@ -361,11 +361,11 @@ export function HeroSearch({ services }: HeroSearchProps) {
           )}
 
           <div className="mb-6 grid grid-cols-1 gap-2 sm:grid-cols-3">
-            <a href="/login" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-slate-800 bg-black/35 px-4 py-2.5 text-[10px] font-black uppercase tracking-wider text-slate-250 transition hover:border-[#1DB954]/35 hover:text-white">
+            <a href="/login" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-border bg-black/35 px-4 py-2.5 text-[10px] font-black uppercase tracking-wider text-fg transition hover:border-[#1DB954]/35 hover:text-fg">
               <LogIn size={14} />
               Login/Register
             </a>
-            <a href="/track" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-slate-800 bg-black/35 px-4 py-2.5 text-[10px] font-black uppercase tracking-wider text-slate-250 transition hover:border-[#1DB954]/35 hover:text-white">
+            <a href="/track" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-border bg-black/35 px-4 py-2.5 text-[10px] font-black uppercase tracking-wider text-fg transition hover:border-[#1DB954]/35 hover:text-fg">
               <ClipboardList size={14} />
               Track Order
             </a>
@@ -384,11 +384,11 @@ export function HeroSearch({ services }: HeroSearchProps) {
 
           {/* Render dynamically matched Service recommendation card */}
           {aiRecommend.service === "smm" && (
-            <div className="bg-[#161616] border border-slate-800 p-4 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:border-[#1DB954]/30 transition-all">
+            <div className="bg-[#161616] border border-border p-4 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:border-[#1DB954]/30 transition-all">
               <div className="text-left">
                 <h4 className="text-xs font-black text-[#1DB954] uppercase tracking-wider">Social Media Platform Boost</h4>
-                <h5 className="text-sm font-bold text-white mt-0.5">ALL SERVICES</h5>
-                <p className="text-[10px] text-slate-500 mt-1 leading-normal font-semibold">Reseller API access to 1,100+ bulk boosts for Facebook, Instagram, TikTok, YouTube, & more.</p>
+                <h5 className="text-sm font-bold text-fg mt-0.5">ALL SERVICES</h5>
+                <p className="text-[10px] text-muted mt-1 leading-normal font-semibold">Reseller API access to 1,100+ bulk boosts for Facebook, Instagram, TikTok, YouTube, & more.</p>
               </div>
               <button
                 onClick={() => {
@@ -404,11 +404,11 @@ export function HeroSearch({ services }: HeroSearchProps) {
           )}
 
           {aiRecommend.service === "gemini" && (
-            <div className="bg-[#161616] border border-slate-800 p-4 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:border-blue-500/30 transition-all">
+            <div className="bg-[#161616] border border-border p-4 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:border-blue-500/30 transition-all">
               <div className="text-left">
                 <h4 className="text-xs font-black text-[#1877F2] uppercase tracking-wider">Premium AI Subscription</h4>
-                <h5 className="text-sm font-bold text-white mt-0.5">GEMINI PRO PREMIUM PLAN</h5>
-                <p className="text-[10px] text-slate-500 mt-1 leading-normal font-semibold">Enterprise-grade multi-modal artificial intelligence with instant invite link delivery.</p>
+                <h5 className="text-sm font-bold text-fg mt-0.5">GEMINI PRO PREMIUM PLAN</h5>
+                <p className="text-[10px] text-muted mt-1 leading-normal font-semibold">Enterprise-grade multi-modal artificial intelligence with instant invite link delivery.</p>
               </div>
               <button
                 onClick={() => {
@@ -423,11 +423,11 @@ export function HeroSearch({ services }: HeroSearchProps) {
           )}
 
           {aiRecommend.service === "pisowifi" && (
-            <div className="bg-[#161616] border border-slate-800 p-4 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:border-blue-500/30 transition-all">
+            <div className="bg-[#161616] border border-border p-4 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:border-blue-500/30 transition-all">
               <div className="text-left">
                 <h4 className="text-xs font-black text-[#1877F2] uppercase tracking-wider">Smart Hardware Integration</h4>
-                <h5 className="text-sm font-bold text-white mt-0.5">PISOWIFI CLOUD CUSTOM SETUP</h5>
-                <p className="text-[10px] text-slate-500 mt-1 leading-normal font-semibold">Pre-configured local PisoWiFi captive portals and remote administration controller setups.</p>
+                <h5 className="text-sm font-bold text-fg mt-0.5">PISOWIFI CLOUD CUSTOM SETUP</h5>
+                <p className="text-[10px] text-muted mt-1 leading-normal font-semibold">Pre-configured local PisoWiFi captive portals and remote administration controller setups.</p>
               </div>
               <button
                 onClick={() => {
@@ -442,11 +442,11 @@ export function HeroSearch({ services }: HeroSearchProps) {
           )}
 
           {aiRecommend.service === "eap" && (
-            <div className="bg-[#161616] border border-slate-800 p-4 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:border-blue-500/30 transition-all">
+            <div className="bg-[#161616] border border-border p-4 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:border-blue-500/30 transition-all">
               <div className="text-left">
                 <h4 className="text-xs font-black text-[#1877F2] uppercase tracking-wider">Enterprise Controller Setups</h4>
-                <h5 className="text-sm font-bold text-white mt-0.5">EAP TP-LINK CLOUD INTEGRATION</h5>
-                <p className="text-[10px] text-slate-500 mt-1 leading-normal font-semibold">Omada EAP cloud controller setups, remote hotspot design, and client network setups.</p>
+                <h5 className="text-sm font-bold text-fg mt-0.5">EAP TP-LINK CLOUD INTEGRATION</h5>
+                <p className="text-[10px] text-muted mt-1 leading-normal font-semibold">Omada EAP cloud controller setups, remote hotspot design, and client network setups.</p>
               </div>
               <button
                 onClick={() => {
@@ -461,11 +461,11 @@ export function HeroSearch({ services }: HeroSearchProps) {
           )}
 
           {aiRecommend.service === "software" && (
-            <div className="bg-[#161616] border border-slate-800 p-4 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:border-blue-500/30 transition-all">
+            <div className="bg-[#161616] border border-border p-4 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:border-blue-500/30 transition-all">
               <div className="text-left">
                 <h4 className="text-xs font-black text-[#1877F2] uppercase tracking-wider">Lifetime Active License</h4>
-                <h5 className="text-sm font-bold text-white mt-0.5">ARCHITECTURAL DESIGN SOFTWARE</h5>
-                <p className="text-[10px] text-slate-500 mt-1 leading-normal font-semibold">Pre-activated license bundles for AutoCAD, Lumion, SketchUp, D5 Render, and V-Ray plugins.</p>
+                <h5 className="text-sm font-bold text-fg mt-0.5">ARCHITECTURAL DESIGN SOFTWARE</h5>
+                <p className="text-[10px] text-muted mt-1 leading-normal font-semibold">Pre-activated license bundles for AutoCAD, Lumion, SketchUp, D5 Render, and V-Ray plugins.</p>
               </div>
               <button
                 onClick={() => {
@@ -484,7 +484,7 @@ export function HeroSearch({ services }: HeroSearchProps) {
               {/* Google Search Gradient glow backdrop */}
               <div className="absolute -right-20 -top-20 w-44 h-44 bg-[#3b82f6]/5 rounded-full blur-2xl group-hover:bg-[#3b82f6]/10 transition-all duration-500" />
               
-              <div className="flex items-center gap-2 border-b border-slate-850/60 pb-3">
+              <div className="flex items-center gap-2 border-b border-border/60 pb-3">
                 <span className="text-sm">🌐</span>
                 <span className="text-[10px] font-black uppercase tracking-widest text-[#3b82f6] flex items-center gap-1 font-mono">
                   Google Search style AI Overview
@@ -494,13 +494,13 @@ export function HeroSearch({ services }: HeroSearchProps) {
                 </span>
               </div>
               
-              <p className="text-slate-300 text-[11px] sm:text-xs leading-relaxed font-semibold whitespace-pre-wrap animate-in fade-in duration-300">
+              <p className="text-fg text-[11px] sm:text-xs leading-relaxed font-semibold whitespace-pre-wrap animate-in fade-in duration-300">
                 {aiRecommend.explanation}
               </p>
               
               {/* SMM Platform Quick Suggestion CTA in case they want a boost as well */}
-              <div className="border-t border-slate-850/50 pt-4 mt-2 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-                <span className="text-[9px] text-slate-500 font-extrabold uppercase tracking-wide leading-tight">
+              <div className="border-t border-border/50 pt-4 mt-2 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                <span className="text-[9px] text-muted font-extrabold uppercase tracking-wide leading-tight">
                   Looking for digital growth? You can also explore our 1,100+ services catalog:
                 </span>
                 <button
@@ -508,7 +508,7 @@ export function HeroSearch({ services }: HeroSearchProps) {
                     setCatalogPrefill("");
                     setIsSmmCatalogModalOpen(true);
                   }}
-                  className="w-full sm:w-auto bg-slate-850 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white font-extrabold px-4 py-2 rounded-xl text-[10px] uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap text-center shadow-sm"
+                  className="w-full sm:w-auto bg-elevated hover:bg-elevated border border-border text-fg hover:text-fg font-extrabold px-4 py-2 rounded-xl text-[10px] uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap text-center shadow-sm"
                 >
                   Browse All Services
 

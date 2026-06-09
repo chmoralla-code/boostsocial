@@ -579,12 +579,12 @@ Tone rules:
         <button
           type="button"
           onClick={() => openSupportChat()}
-          className="fixed bottom-[calc(env(safe-area-inset-bottom)+4.25rem)] right-3 z-50 max-w-[250px] rounded-2xl border border-red-400/25 bg-[#181818] px-4 py-3 text-left shadow-2xl shadow-red-500/10 transition-all hover:border-red-400/45 hover:bg-[#1f1f1f] sm:bottom-24 sm:right-6"
+          className="fixed bottom-[calc(env(safe-area-inset-bottom)+4.25rem)] right-3 z-50 max-w-[250px] rounded-2xl border border-red-400/25 bg-card px-4 py-3 text-left shadow-2xl shadow-red-500/10 transition-all hover:border-red-400/45 hover:bg-elevated sm:bottom-24 sm:right-6"
         >
           <span className="block text-[10px] font-black uppercase tracking-widest text-red-300">
             Admin replied
           </span>
-          <span className="mt-1 block truncate text-xs font-semibold text-slate-200">
+          <span className="mt-1 block truncate text-xs font-semibold text-fg">
             {adminNotice || "Open chat to read the message."}
           </span>
         </button>
@@ -632,33 +632,33 @@ Tone rules:
 
       {/* Chat Window */}
       {isOpen && (
-        <div className="fixed bottom-[calc(env(safe-area-inset-bottom)+4.25rem)] left-3 right-3 z-50 h-[500px] max-h-[78vh] bg-[#181818] border border-slate-800/80 rounded-2xl shadow-2xl flex flex-col overflow-hidden sm:left-auto sm:bottom-24 sm:right-6 sm:w-96 sm:max-h-[80vh]">
+        <div className="fixed bottom-[calc(env(safe-area-inset-bottom)+4.25rem)] left-3 right-3 z-50 h-[500px] max-h-[78vh] bg-card border border-border/80 rounded-2xl shadow-2xl flex flex-col overflow-hidden sm:left-auto sm:bottom-24 sm:right-6 sm:w-96 sm:max-h-[80vh]">
           {/* Header */}
-          <div className="bg-[#121212] border-b border-slate-800 p-4 text-white flex items-center justify-between">
+          <div className="bg-elevated border-b border-border p-4 text-fg flex items-center justify-between">
             <div>
-              <h3 className="font-bold text-sm tracking-tight text-white">CY<span className="text-[#1DB954]">NETWORK</span> Support</h3>
+              <h3 className="font-bold text-sm tracking-tight text-fg">CY<span className="text-[#1DB954]">NETWORK</span> Support</h3>
               <p className="text-[10px] text-[#1877F2] font-semibold mt-0.5 tracking-wider uppercase">Powered by Free Open AI</p>
             </div>
-            <button onClick={() => setIsOpen(false)} className="text-slate-400 hover:text-white transition-colors">
+            <button onClick={() => setIsOpen(false)} className="text-muted hover:text-fg transition-colors">
               <X size={18} />
             </button>
           </div>
 
           {/* Email Support Sync sub-header */}
           {!customerEmail ? (
-            <div className="bg-[#282828] border-b border-slate-800 p-3 text-xs text-slate-300 flex flex-col gap-2 flex-shrink-0">
+            <div className="bg-card border-b border-border p-3 text-xs text-fg flex flex-col gap-2 flex-shrink-0">
               <div className="flex items-center justify-between">
                 <span className="font-bold text-[#1DB954]">💬 Live Support Chat Available!</span>
-                <span className="text-[9px] text-slate-500 font-extrabold uppercase tracking-wide">Sync Account</span>
+                <span className="text-[9px] text-muted font-extrabold uppercase tracking-wide">Sync Account</span>
               </div>
-              <p className="text-[10px] text-slate-400 leading-normal">Link your email to instantly message our admin desk and load your previous message history!</p>
+              <p className="text-[10px] text-muted leading-normal">Link your email to instantly message our admin desk and load your previous message history!</p>
               <div className="flex gap-1.5 mt-0.5">
                 <input
                   type="email"
                   placeholder="Enter email to connect..."
                   value={emailInput}
                   onChange={(e) => setEmailInput(e.target.value)}
-                  className="flex-1 bg-[#121212] border border-slate-800 text-white rounded-lg px-2.5 py-1 text-xs focus:outline-none focus:border-[#1DB954] font-medium"
+                  className="flex-1 bg-elevated border border-border text-fg rounded-lg px-2.5 py-1 text-xs focus:outline-none focus:border-[#1DB954] font-medium"
                 />
                 <button
                   type="button"
@@ -680,7 +680,7 @@ Tone rules:
               </div>
             </div>
           ) : (
-            <div className="bg-[#1DB954]/5 border-b border-[#1DB954]/15 p-2.5 px-4 flex items-center justify-between text-slate-400 text-[10px] font-bold flex-shrink-0">
+            <div className="bg-[#1DB954]/5 border-b border-[#1DB954]/15 p-2.5 px-4 flex items-center justify-between text-muted text-[10px] font-bold flex-shrink-0">
               <span className="flex items-center gap-1.5 text-[#1DB954] truncate max-w-[200px]">
                 <span className="relative flex h-2 w-2 flex-shrink-0">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#1DB954] opacity-75"></span>
@@ -707,14 +707,14 @@ Tone rules:
           )}
 
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-[#121212]">
+          <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-elevated">
             {messages.map((msg, i) => (
               <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                 <div 
                   className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm shadow-sm ${
                     msg.role === 'user' 
-                      ? 'bg-[#1877F2] text-white font-semibold rounded-br-none' 
-                      : 'bg-[#282828] border border-slate-800/60 text-slate-200 rounded-bl-none'
+                      ? 'bg-[#1877F2] text-fg font-semibold rounded-br-none' 
+                      : 'bg-card border border-border/60 text-fg rounded-bl-none'
                   }`}
                 >
                   {renderMessageContent(msg.content, msg.role === 'user')}
@@ -723,7 +723,7 @@ Tone rules:
             ))}
             {isLoading && (
               <div className="flex justify-start">
-                <div className="bg-[#282828] border border-slate-800/60 text-slate-300 rounded-2xl rounded-bl-none px-4 py-2 text-sm flex items-center gap-2">
+                <div className="bg-card border border-border/60 text-fg rounded-2xl rounded-bl-none px-4 py-2 text-sm flex items-center gap-2">
                   <Loader2 size={16} className="animate-spin text-[#1877F2]" /> Thinking...
                 </div>
               </div>
@@ -733,12 +733,12 @@ Tone rules:
 
           {/* Input Area */}
           {/* Quick Action Chips */}
-          <div className="px-3 py-2 bg-[#121212] border-t border-slate-800/50 flex gap-2 overflow-x-auto select-none no-scrollbar">
+          <div className="px-3 py-2 bg-elevated border-t border-border/50 flex gap-2 overflow-x-auto select-none no-scrollbar">
             <button
               type="button"
               onClick={() => handleQuickAction("track my order")}
               disabled={isLoading || uploading}
-              className="text-[11px] font-semibold bg-[#282828] hover:bg-[#333] border border-slate-800 text-slate-300 hover:text-white px-3 py-1.5 rounded-full transition-all duration-200 cursor-pointer flex items-center gap-1 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
+              className="text-[11px] font-semibold bg-card hover:bg-elevated border border-border text-fg hover:text-fg px-3 py-1.5 rounded-full transition-all duration-200 cursor-pointer flex items-center gap-1 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
             >
               🔍 Track My Order
             </button>
@@ -746,13 +746,13 @@ Tone rules:
               type="button"
               onClick={() => handleQuickAction("order status")}
               disabled={isLoading || uploading}
-              className="text-[11px] font-semibold bg-[#282828] hover:bg-[#333] border border-slate-800 text-slate-300 hover:text-white px-3 py-1.5 rounded-full transition-all duration-200 cursor-pointer flex items-center gap-1 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
+              className="text-[11px] font-semibold bg-card hover:bg-elevated border border-border text-fg hover:text-fg px-3 py-1.5 rounded-full transition-all duration-200 cursor-pointer flex items-center gap-1 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
             >
               ⚡ Order Status
             </button>
           </div>
 
-          <form onSubmit={handleSubmit} className="p-3 bg-[#181818] border-t border-slate-800 flex gap-2 items-center">
+          <form onSubmit={handleSubmit} className="p-3 bg-card border-t border-border flex gap-2 items-center">
             <input 
               type="file"
               ref={fileInputRef}
@@ -764,7 +764,7 @@ Tone rules:
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={isLoading || uploading}
-              className="bg-[#282828] hover:bg-[#333] border border-slate-700/80 text-slate-400 hover:text-white p-2.5 rounded-xl transition-colors flex items-center justify-center flex-shrink-0"
+              className="bg-card hover:bg-elevated border border-slate-700/80 text-muted hover:text-fg p-2.5 rounded-xl transition-colors flex items-center justify-center flex-shrink-0"
               title="Attach GCash Screenshot"
             >
               {uploading ? (
@@ -779,13 +779,13 @@ Tone rules:
               onChange={(e) => setInput(e.target.value)}
               onPaste={handlePaste}
               placeholder={uploading ? "Uploading receipt..." : "Type message or paste screenshot..."}
-              className="flex-1 px-4 py-2 bg-[#282828] border border-slate-700/80 text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1877F2] text-sm font-medium placeholder-slate-500"
+              className="flex-1 px-4 py-2 bg-card border border-slate-700/80 text-fg rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1877F2] text-sm font-medium placeholder-muted"
               disabled={isLoading || uploading}
             />
             <button 
               type="submit" 
               disabled={isLoading || uploading || !input.trim()}
-              className="bg-[#1877F2] hover:bg-[#4e8df5] disabled:bg-slate-800 text-white font-bold p-2.5 rounded-xl transition-colors flex items-center justify-center flex-shrink-0"
+              className="bg-[#1877F2] hover:bg-[#4e8df5] disabled:bg-slate-800 text-fg font-bold p-2.5 rounded-xl transition-colors flex items-center justify-center flex-shrink-0"
             >
               <Send size={16} />
             </button>

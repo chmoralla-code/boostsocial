@@ -149,7 +149,7 @@ export function LiveOrderTicker() {
 
   return (
     <div
-      className={`fixed bottom-6 left-6 z-[90] w-[320px] max-w-[calc(100vw-3rem)] bg-[#181818]/95 backdrop-blur-md border border-slate-800/80 rounded-2xl p-4 shadow-[0_10px_30px_rgba(0,0,0,0.5)] transition-all duration-500 transform ${
+      className={`fixed bottom-6 left-6 z-[90] w-[320px] max-w-[calc(100vw-3rem)] bg-card/95 backdrop-blur-md border border-border/80 rounded-2xl p-4 shadow-[0_10px_30px_rgba(0,0,0,0.5)] transition-all duration-500 transform ${
         isVisible 
           ? "translate-x-0 opacity-100 scale-100" 
           : "-translate-x-12 opacity-0 scale-95 pointer-events-none"
@@ -167,21 +167,21 @@ export function LiveOrderTicker() {
           <span className="bg-[#1877F2]/15 text-[#1877F2] border border-[#1877F2]/10 text-[9px] font-black uppercase px-2 py-0.5 rounded-full inline-flex items-center gap-1">
             <TrendingUp size={8} /> LIVE BOOST
           </span>
-          <span className="text-[10px] text-slate-500 font-semibold">{notification.timestamp}</span>
+          <span className="text-[10px] text-muted font-semibold">{notification.timestamp}</span>
         </div>
-        <p className="text-xs font-bold text-white leading-relaxed">
+        <p className="text-xs font-bold text-fg leading-relaxed">
           Someone in <span className="text-[#1877F2] font-extrabold">{notification.location}</span>
         </p>
-        <p className="text-[11px] text-slate-400 mt-0.5 leading-relaxed">
-          ordered <span className="text-white font-extrabold">{notification.quantity.toLocaleString()}</span> units of{" "}
-          <span className="text-white font-black">{notification.serviceName}</span>
+        <p className="text-[11px] text-muted mt-0.5 leading-relaxed">
+          ordered <span className="text-fg font-extrabold">{notification.quantity.toLocaleString()}</span> units of{" "}
+          <span className="text-fg font-black">{notification.serviceName}</span>
         </p>
       </div>
 
       {/* Close button */}
       <button
         onClick={() => setIsVisible(false)}
-        className="text-slate-500 hover:text-white p-1 hover:bg-[#282828] rounded-lg transition-all flex-shrink-0 cursor-pointer"
+        className="text-muted hover:text-fg p-1 hover:bg-card rounded-lg transition-all flex-shrink-0 cursor-pointer"
         title="Dismiss alert"
       >
         <X size={14} />

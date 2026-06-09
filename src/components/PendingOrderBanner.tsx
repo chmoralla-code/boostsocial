@@ -239,7 +239,7 @@ export function PendingOrderBanner() {
     <>
       {/* Real-time Order Status Float Toast */}
       {statusToast && statusToast.visible && (
-        <div className="fixed top-24 right-6 z-[99999] max-w-sm w-full bg-[#161616]/92 border border-slate-800/90 p-5 rounded-2xl shadow-[0_12px_45px_rgba(0,0,0,0.5)] backdrop-blur-xl animate-in slide-in-from-right-5 duration-300 flex items-start gap-4 select-none">
+        <div className="fixed top-24 right-6 z-[99999] max-w-sm w-full bg-[#161616]/92 border border-border/90 p-5 rounded-2xl shadow-[0_12px_45px_rgba(0,0,0,0.5)] backdrop-blur-xl animate-in slide-in-from-right-5 duration-300 flex items-start gap-4 select-none">
           <div className={`p-2.5 rounded-xl flex-shrink-0 flex items-center justify-center border text-base ${
             statusToast.status === 'Pending' ? 'bg-[#ff9800]/10 border-[#ff9800]/25 text-[#ff9800]' :
             statusToast.status === 'Processing' ? 'bg-blue-500/10 border-blue-500/25 text-blue-400' :
@@ -252,14 +252,14 @@ export function PendingOrderBanner() {
           </div>
           <div className="space-y-1 text-left flex-grow">
             <span className="text-[10px] font-black uppercase tracking-widest text-[#1DB954] block">Campaign Status Update</span>
-            <h4 className="text-xs font-black text-white">Order {statusToast.status}!</h4>
-            <p className="text-[10px] text-slate-400 font-semibold leading-relaxed">
-              Your boost order <strong className="font-mono text-[#1DB954]">BS-{statusToast.id.slice(0, 8).toUpperCase()}</strong> is now marked as <strong className="text-white">{statusToast.status}</strong>.
+            <h4 className="text-xs font-black text-fg">Order {statusToast.status}!</h4>
+            <p className="text-[10px] text-muted font-semibold leading-relaxed">
+              Your boost order <strong className="font-mono text-[#1DB954]">BS-{statusToast.id.slice(0, 8).toUpperCase()}</strong> is now marked as <strong className="text-fg">{statusToast.status}</strong>.
             </p>
           </div>
           <button 
             onClick={() => setStatusToast(prev => prev ? { ...prev, visible: false } : null)}
-            className="text-slate-500 hover:text-white transition-colors text-xs font-bold font-sans cursor-pointer p-1 hover:bg-[#282828] rounded-md"
+            className="text-muted hover:text-fg transition-colors text-xs font-bold font-sans cursor-pointer p-1 hover:bg-card rounded-md"
           >
             ✕
           </button>
@@ -282,10 +282,10 @@ export function PendingOrderBanner() {
                   {status}
                 </span>
               </div>
-              <h2 className="mt-1 text-base font-black tracking-tight text-white sm:text-lg">
+              <h2 className="mt-1 text-base font-black tracking-tight text-fg sm:text-lg">
                 {trackingId} is ready to track
               </h2>
-              <p className="mt-1 text-xs font-semibold leading-relaxed text-slate-400">
+              <p className="mt-1 text-xs font-semibold leading-relaxed text-muted">
                 {serviceTitle} | Qty {Number(order.quantity || 0).toLocaleString()} | PHP {Number(order.amount || 0).toFixed(2)}.
                 Track this anytime in the Support Chatbot or the Status Tracker button above.
               </p>
@@ -296,7 +296,7 @@ export function PendingOrderBanner() {
             <button
               type="button"
               onClick={copyTrackingId}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-700/70 bg-[#181818] px-3 py-2 text-[11px] font-black uppercase tracking-wider text-slate-200 transition-colors hover:border-slate-500"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-700/70 bg-card px-3 py-2 text-[11px] font-black uppercase tracking-wider text-slate-200 transition-colors hover:border-slate-500"
             >
               {copied ? <CheckCircle2 size={14} /> : <Copy size={14} />}
               {copied ? "Copied" : "Copy ID"}
@@ -319,7 +319,7 @@ export function PendingOrderBanner() {
             <button
               type="button"
               onClick={() => setIsDismissed(true)}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-700/60 bg-[#181818] text-slate-400 transition-colors hover:text-white"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-700/60 bg-card text-muted transition-colors hover:text-fg"
               aria-label="Hide pending order panel"
             >
               <X size={15} />

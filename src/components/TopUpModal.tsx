@@ -61,14 +61,14 @@ export function TopUpModal({ isOpen, onClose, user, onTopUpSuccess }: { isOpen: 
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-      <div className="bg-[#121212] w-full max-w-md rounded-2xl border border-slate-800 shadow-2xl overflow-hidden relative animate-in fade-in zoom-in duration-300">
+      <div className="bg-elevated w-full max-w-md rounded-2xl border border-border shadow-2xl overflow-hidden relative animate-in fade-in zoom-in duration-300">
         
         {/* Header */}
-        <div className="flex justify-between items-center p-6 border-b border-slate-800/60 bg-[#181818]">
-          <h2 className="text-xl font-black text-white tracking-tight flex items-center gap-2">
+        <div className="flex justify-between items-center p-6 border-b border-border/60 bg-card">
+          <h2 className="text-xl font-black text-fg tracking-tight flex items-center gap-2">
             <Wallet className="text-[#1877F2]" size={24} /> Top Up Wallet
           </h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors bg-slate-800/50 hover:bg-slate-700/50 p-1.5 rounded-full">
+          <button onClick={onClose} className="text-muted hover:text-fg transition-colors bg-elevated/50 hover:bg-elevated/50 p-1.5 rounded-full">
             <X size={20} />
           </button>
         </div>
@@ -80,7 +80,7 @@ export function TopUpModal({ isOpen, onClose, user, onTopUpSuccess }: { isOpen: 
                 <Wallet size={32} />
               </div>
               <h3 className="text-lg font-bold text-[#1877F2]">Top-Up Submitted!</h3>
-              <p className="text-sm text-slate-300 font-medium leading-relaxed">
+              <p className="text-sm text-fg font-medium leading-relaxed">
                 Your GCash receipt has been securely uploaded. An admin will verify the payment and credit ₱{Number(amount).toFixed(0)} to your wallet shortly.
               </p>
             </div>
@@ -94,24 +94,24 @@ export function TopUpModal({ isOpen, onClose, user, onTopUpSuccess }: { isOpen: 
 
               {/* Amount Input */}
               <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Amount (PHP)</label>
+                <label className="text-xs font-bold text-muted uppercase tracking-wider">Amount (PHP)</label>
                 <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">₱</span>
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted font-bold">₱</span>
                   <input 
                     type="number" 
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
-                    className="w-full bg-[#282828] text-white border border-slate-700 rounded-xl py-3 pl-8 pr-4 focus:outline-none focus:border-[#1877F2] font-semibold transition-colors"
+                    className="w-full bg-card text-fg border border-border rounded-xl py-3 pl-8 pr-4 focus:outline-none focus:border-[#1877F2] font-semibold transition-colors"
                     placeholder="0.00"
                   />
                 </div>
               </div>
 
               {/* QR Code section */}
-              <div className="bg-[#181818] p-5 rounded-xl border border-slate-800 flex flex-col items-center gap-4">
+              <div className="bg-card p-5 rounded-xl border border-border flex flex-col items-center gap-4">
                 <div className="text-center space-y-1">
-                  <p className="text-sm font-bold text-slate-300">Scan to Pay via GCash</p>
-                  <p className="text-xs text-slate-500">Send exactly the amount entered above</p>
+                  <p className="text-sm font-bold text-fg">Scan to Pay via GCash</p>
+                  <p className="text-xs text-muted">Send exactly the amount entered above</p>
                 </div>
                 <div className="w-48 h-48 bg-white p-2 rounded-xl flex items-center justify-center">
                   <img src="/gcash-qr.png" alt="GCash QR" className="w-full h-full object-contain" />
@@ -124,11 +124,11 @@ export function TopUpModal({ isOpen, onClose, user, onTopUpSuccess }: { isOpen: 
 
               {/* File Upload */}
               <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Upload GCash Receipt</label>
-                <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-slate-700 border-dashed rounded-xl cursor-pointer hover:bg-[#282828] hover:border-[#1877F2] transition-all group">
+                <label className="text-xs font-bold text-muted uppercase tracking-wider">Upload GCash Receipt</label>
+                <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-border border-dashed rounded-xl cursor-pointer hover:bg-card hover:border-[#1877F2] transition-all group">
                   <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                    <Upload className="w-6 h-6 mb-2 text-slate-400 group-hover:text-[#1877F2] transition-colors" />
-                    <p className="text-xs text-slate-400 font-medium group-hover:text-slate-300">
+                    <Upload className="w-6 h-6 mb-2 text-muted group-hover:text-[#1877F2] transition-colors" />
+                    <p className="text-xs text-muted font-medium group-hover:text-fg">
                       {file ? <span className="text-[#1877F2] font-bold">{file.name}</span> : "Click to select screenshot"}
                     </p>
                   </div>

@@ -632,7 +632,7 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
           <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[#1DB954] mb-2 select-none">
             🌱 Service Quality Filter
           </span>
-          <div className="relative flex p-1 bg-[#121212] border border-slate-800/80 rounded-full w-full shadow-inner select-none">
+          <div className="relative flex p-1 bg-elevated border border-border/80 rounded-full w-full shadow-inner select-none">
             {/* Sliding indicator */}
             <div
               className={`absolute top-1 bottom-1 rounded-full bg-gradient-to-r transition-all duration-300 ease-out pointer-events-none ${
@@ -645,7 +645,7 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
             <button
               onClick={() => setIsOrganicFilter(true)}
               className={`flex-1 py-2.5 text-[11px] font-black uppercase tracking-wider rounded-full transition-all duration-200 z-10 cursor-pointer flex items-center justify-center gap-1.5 ${
-                isOrganicFilter ? "text-[#1DB954]" : "text-slate-400 hover:text-slate-200"
+                isOrganicFilter ? "text-[#1DB954]" : "text-muted hover:text-fg"
               }`}
             >
               🌿 Organic
@@ -654,7 +654,7 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
             <button
               onClick={() => setIsOrganicFilter(false)}
               className={`flex-1 py-2.5 text-[11px] font-black uppercase tracking-wider rounded-full transition-all duration-200 z-10 cursor-pointer flex items-center justify-center gap-1.5 ${
-                !isOrganicFilter ? "text-indigo-400" : "text-slate-400 hover:text-slate-200"
+                !isOrganicFilter ? "text-indigo-400" : "text-muted hover:text-fg"
               }`}
             >
               🤖 Non-Organic
@@ -679,7 +679,7 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
             <div className="flex justify-center -mt-10 mb-16">
               <button
                 onClick={() => setShowCalculator(false)}
-                className="px-6 py-2.5 rounded-full border border-slate-800 hover:border-slate-700 bg-slate-900/90 text-slate-400 hover:text-white transition-all duration-300 text-xs font-black uppercase tracking-wider cursor-pointer shadow-lg"
+                className="px-6 py-2.5 rounded-full border border-border hover:border-border bg-slate-900/90 text-muted hover:text-fg transition-all duration-300 text-xs font-black uppercase tracking-wider cursor-pointer shadow-lg"
               >
                 Hide Calculator
               </button>
@@ -746,10 +746,10 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
         )}
 
         <div className="flex flex-col items-center mb-10">
-          <h2 className="text-3xl md:text-4xl font-black text-center text-white tracking-tight">
+          <h2 className="text-3xl md:text-4xl font-black text-center text-fg tracking-tight">
             Choose Your <span className="text-[#1877F2]">Boost Tier</span>
           </h2>
-          <p className="text-slate-400 text-xs mt-2 text-center max-w-md">
+          <p className="text-muted text-xs mt-2 text-center max-w-md">
             Premium growth bundles, high-speed reseller SMM boosts, and smart local hardware integration setups.
           </p>
         </div>
@@ -808,7 +808,7 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
             return (
               <div 
                 key={card.id} 
-                className={`bg-[#121212]/50 hover:bg-[#161616]/90 backdrop-blur-md rounded-3xl ${cardPaddingClass} ${cardLayoutClass} flex flex-col items-start text-left w-full border border-white/[0.04] shadow-[0_12px_40px_rgba(0,0,0,0.4)] transition-all duration-500 transform hover:-translate-y-2 group`}
+                className={`bg-elevated/50 hover:bg-elevated/90 backdrop-blur-md rounded-3xl ${cardPaddingClass} ${cardLayoutClass} flex flex-col items-start text-left w-full border border-white/[0.04] shadow-[0_12px_40px_rgba(0,0,0,0.4)] transition-all duration-500 transform hover:-translate-y-2 group`}
                 style={{ 
                   boxShadow: `0 12px 40px rgba(0,0,0,0.4)`
                 }}
@@ -874,7 +874,7 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
                 </h3>
                 
                 <h4 
-                  className="text-xl font-bold text-white mb-3 transition-colors group-hover:text-white"
+                  className="text-xl font-bold text-fg mb-3 transition-colors group-hover:text-fg"
                   onMouseEnter={(e) => e.currentTarget.style.color = card.theme_color}
                   onMouseLeave={(e) => e.currentTarget.style.color = "white"}
                 >
@@ -890,13 +890,13 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
                   </p>
                 )}
                 
-                <p className="text-slate-400 text-sm leading-relaxed mb-8 flex-grow">
+                <p className="text-muted text-sm leading-relaxed mb-8 flex-grow">
                   {card.description}
                 </p>
 
                 {platformChips && (
                   <div className="w-full mb-6">
-                    <span className="block text-slate-500 text-[9px] font-black uppercase tracking-wider mb-2">
+                    <span className="block text-muted text-[9px] font-black uppercase tracking-wider mb-2">
                       Reaction Services Inside
                     </span>
                     <div className="flex flex-wrap gap-1.5">
@@ -916,29 +916,29 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
                   </div>
                 )}
                 
-                <div className="flex justify-between items-end w-full mb-6 pt-4 border-t border-slate-800/60">
+                <div className="flex justify-between items-end w-full mb-6 pt-4 border-t border-border/60">
                   <div className="w-full text-left">
-                    <span className="block text-slate-550 text-[10px] font-bold uppercase tracking-wider mb-1">
+                    <span className="block text-muted text-[10px] font-bold uppercase tracking-wider mb-1">
                       {card.rate_prefix}
                     </span>
                     {hasCandidateVipPrice && candidateRateAmount && candidateVipAmount ? (
                       <span className="block leading-tight">
-                        <span className="block text-[11px] text-slate-500 line-through font-mono">
+                        <span className="block text-[11px] text-muted line-through font-mono">
                           Regular ₱{candidateRateAmount.toFixed(2)}
                         </span>
                         <span className="block text-2xl font-black text-[#1DB954]">
                           VIP ₱{candidateVipAmount.toFixed(2)}
-                          <span className="text-xs text-slate-400 font-normal">
+                          <span className="text-xs text-muted font-normal">
                             {card.id === "order-page" ? " package" : " per 1k"}
                           </span>
                         </span>
                       </span>
                     ) : card.id === "facebook" || card.id === "instagram" || card.id === "tiktok" || card.id === "youtube" ? (
-                      <span className="text-2xl font-black text-white">
-                        {card.rate_text.split(" ")[0]} <span className="text-xs text-slate-400 font-normal">{card.rate_text.split(" ").slice(1).join(" ")}</span>
+                      <span className="text-2xl font-black text-fg">
+                        {card.rate_text.split(" ")[0]} <span className="text-xs text-muted font-normal">{card.rate_text.split(" ").slice(1).join(" ")}</span>
                       </span>
                     ) : (
-                      <span className="block text-slate-500 text-[10px] font-extrabold uppercase tracking-wider line-clamp-2 leading-tight">
+                      <span className="block text-muted text-[10px] font-extrabold uppercase tracking-wider line-clamp-2 leading-tight">
                         {card.rate_text}
                       </span>
                     )}
@@ -972,113 +972,113 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
           <span className="bg-[#1DB954]/10 text-[#1DB954] border border-[#1DB954]/20 font-black text-[10px] tracking-widest uppercase px-3 py-1 rounded-full inline-flex items-center gap-1.5 mb-3">
             ⚖️ Strategic Advantage
           </span>
-          <h2 className="text-3xl md:text-4xl font-black text-center text-white tracking-tight">
+          <h2 className="text-3xl md:text-4xl font-black text-center text-fg tracking-tight">
             How <span className="text-[#1DB954]">CYNETWORK</span> Wins Against Wholesale Panels
           </h2>
-          <p className="text-sm text-slate-400 mt-2 font-medium">
+          <p className="text-sm text-muted mt-2 font-medium">
             Unlike sterile automated direct SMM panels (like RixeySMM), we offer premium curated layers of safety and trust
           </p>
         </div>
 
-        <div className="bg-[#121212]/50 backdrop-blur-xl border border-white/[0.04] rounded-3xl overflow-hidden shadow-2xl">
+        <div className="bg-elevated/50 backdrop-blur-xl border border-white/[0.04] rounded-3xl overflow-hidden shadow-2xl">
           {/* Grid Header (Hidden on Mobile) */}
-          <div className="hidden md:grid grid-cols-3 border-b border-slate-800/80 bg-black/40 py-5 px-8 text-xs font-black uppercase tracking-wider text-slate-400 text-left">
+          <div className="hidden md:grid grid-cols-3 border-b border-border/80 bg-black/40 py-5 px-8 text-xs font-black uppercase tracking-wider text-muted text-left">
             <div>Core Feature</div>
             <div className="text-[#1DB954] flex items-center gap-1.5">🟢 CYNETWORK Curation</div>
-            <div className="text-slate-500 flex items-center gap-1.5">🔴 Faceless Wholesale SMM Panels</div>
+            <div className="text-muted flex items-center gap-1.5">🔴 Faceless Wholesale SMM Panels</div>
           </div>
 
           {/* Feature 1 */}
-          <div className="grid grid-cols-1 md:grid-cols-3 border-b border-slate-900/60 py-6 px-6 sm:px-8 hover:bg-[#161616]/40 transition-colors duration-200 text-left items-start gap-4 md:gap-0">
+          <div className="grid grid-cols-1 md:grid-cols-3 border-b border-slate-900/60 py-6 px-6 sm:px-8 hover:bg-elevated/40 transition-colors duration-200 text-left items-start gap-4 md:gap-0">
             <div>
-              <h4 className="text-sm font-black text-white uppercase tracking-wide">Account Safety</h4>
-              <p className="text-[11px] text-slate-500 mt-0.5 font-medium leading-normal">Compliance & page health protection.</p>
+              <h4 className="text-sm font-black text-fg uppercase tracking-wide">Account Safety</h4>
+              <p className="text-[11px] text-muted mt-0.5 font-medium leading-normal">Compliance & page health protection.</p>
             </div>
             <div className="flex flex-col gap-1 md:pr-4">
               <span className="text-xs font-black text-[#1ed760] flex items-center gap-1.5">
                 🛡️ 100% Adsense & Compliant
               </span>
-              <p className="text-xs text-slate-300 leading-relaxed font-semibold">
+              <p className="text-xs text-fg leading-relaxed font-semibold">
                 Filters out toxic direct-bot server pools that trigger platform restrictions or monetization bans.
               </p>
             </div>
             <div className="flex flex-col gap-1">
-              <span className="text-xs font-black text-slate-500 flex items-center gap-1.5">
+              <span className="text-xs font-black text-muted flex items-center gap-1.5">
                 ⚠️ Raw Unfiltered Delivery
               </span>
-              <p className="text-xs text-slate-500 leading-relaxed font-semibold">
+              <p className="text-xs text-muted leading-relaxed font-semibold">
                 Direct raw bots easily flagged by platform algorithms, risking immediate page deletion or restrictions.
               </p>
             </div>
           </div>
 
           {/* Feature 2 */}
-          <div className="grid grid-cols-1 md:grid-cols-3 border-b border-slate-900/60 py-6 px-6 sm:px-8 hover:bg-[#161616]/40 transition-colors duration-200 text-left items-start gap-4 md:gap-0">
+          <div className="grid grid-cols-1 md:grid-cols-3 border-b border-slate-900/60 py-6 px-6 sm:px-8 hover:bg-elevated/40 transition-colors duration-200 text-left items-start gap-4 md:gap-0">
             <div>
-              <h4 className="text-sm font-black text-white uppercase tracking-wide">Profile Quality</h4>
-              <p className="text-[11px] text-slate-500 mt-0.5 font-medium leading-normal">Retention rates and account realism.</p>
+              <h4 className="text-sm font-black text-fg uppercase tracking-wide">Profile Quality</h4>
+              <p className="text-[11px] text-muted mt-0.5 font-medium leading-normal">Retention rates and account realism.</p>
             </div>
             <div className="flex flex-col gap-1 md:pr-4">
               <span className="text-xs font-black text-[#1ed760] flex items-center gap-1.5">
                 🇵🇭 Curated PH Base & Organic Realism
               </span>
-              <p className="text-xs text-slate-300 leading-relaxed font-semibold">
+              <p className="text-xs text-fg leading-relaxed font-semibold">
                 Curates realistic local accounts with actual human avatars and activity histories for maximum retention.
               </p>
             </div>
             <div className="flex flex-col gap-1">
-              <span className="text-xs font-black text-slate-500 flex items-center gap-1.5">
+              <span className="text-xs font-black text-muted flex items-center gap-1.5">
                 🤖 Sterile Foreign Bot Spams
               </span>
-              <p className="text-xs text-slate-500 leading-relaxed font-semibold">
+              <p className="text-xs text-muted leading-relaxed font-semibold">
                 Uses massive foreign accounts (mixed Russian, Turkish, Vietnamese) with zero local relevance that drop rapidly.
               </p>
             </div>
           </div>
 
           {/* Feature 3 */}
-          <div className="grid grid-cols-1 md:grid-cols-3 border-b border-slate-900/60 py-6 px-6 sm:px-8 hover:bg-[#161616]/40 transition-colors duration-200 text-left items-start gap-4 md:gap-0">
+          <div className="grid grid-cols-1 md:grid-cols-3 border-b border-slate-900/60 py-6 px-6 sm:px-8 hover:bg-elevated/40 transition-colors duration-200 text-left items-start gap-4 md:gap-0">
             <div>
-              <h4 className="text-sm font-black text-white uppercase tracking-wide">Payment & Top-Ups</h4>
-              <p className="text-[11px] text-slate-500 mt-0.5 font-medium leading-normal">Convenience and transaction speed.</p>
+              <h4 className="text-sm font-black text-fg uppercase tracking-wide">Payment & Top-Ups</h4>
+              <p className="text-[11px] text-muted mt-0.5 font-medium leading-normal">Convenience and transaction speed.</p>
             </div>
             <div className="flex flex-col gap-1 md:pr-4">
               <span className="text-xs font-black text-[#1ed760] flex items-center gap-1.5">
                 📲 Seamless GCash Direct QR
               </span>
-              <p className="text-xs text-slate-300 leading-relaxed font-semibold">
+              <p className="text-xs text-fg leading-relaxed font-semibold">
                 Frictionless manual GCash payment scans with instant developer approval. No processing fee.
               </p>
             </div>
             <div className="flex flex-col gap-1">
-              <span className="text-xs font-black text-slate-500 flex items-center gap-1.5">
+              <span className="text-xs font-black text-muted flex items-center gap-1.5">
                 💳 Crypto & High Deposits
               </span>
-              <p className="text-xs text-slate-500 leading-relaxed font-semibold">
+              <p className="text-xs text-muted leading-relaxed font-semibold">
                 Requires crypto wallets, international credit cards, and steep minimum balances to perform single orders.
               </p>
             </div>
           </div>
 
           {/* Feature 4 */}
-          <div className="grid grid-cols-1 md:grid-cols-3 py-6 px-6 sm:px-8 hover:bg-[#161616]/40 transition-colors duration-200 text-left items-start gap-4 md:gap-0">
+          <div className="grid grid-cols-1 md:grid-cols-3 py-6 px-6 sm:px-8 hover:bg-elevated/40 transition-colors duration-200 text-left items-start gap-4 md:gap-0">
             <div>
-              <h4 className="text-sm font-black text-white uppercase tracking-wide">Client Assistance</h4>
-              <p className="text-[11px] text-slate-500 mt-0.5 font-medium leading-normal">Direct human contact and guarantees.</p>
+              <h4 className="text-sm font-black text-fg uppercase tracking-wide">Client Assistance</h4>
+              <p className="text-[11px] text-muted mt-0.5 font-medium leading-normal">Direct human contact and guarantees.</p>
             </div>
             <div className="flex flex-col gap-1 md:pr-4">
               <span className="text-xs font-black text-[#1ed760] flex items-center gap-1.5">
                 💬 24/7 Developer Handshake
               </span>
-              <p className="text-xs text-slate-300 leading-relaxed font-semibold">
+              <p className="text-xs text-fg leading-relaxed font-semibold">
                 Direct client support backed by Cyrhiel Moralla. Real human answers in quick Taglish/English.
               </p>
             </div>
             <div className="flex flex-col gap-1">
-              <span className="text-xs font-black text-slate-500 flex items-center gap-1.5">
+              <span className="text-xs font-black text-muted flex items-center gap-1.5">
                 🤖 Delayed Robotic Tickets
               </span>
-              <p className="text-xs text-slate-500 leading-relaxed font-semibold">
+              <p className="text-xs text-muted leading-relaxed font-semibold">
                 Faceless ticket forms with 48h delay, often replying with generic technical errors that offer zero actual help.
               </p>
             </div>
@@ -1103,20 +1103,20 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
       {/* 7. Other Services Selection Sub-Modal */}
       {isOtherModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#090909]/90 backdrop-blur-md p-4 animate-in fade-in duration-300">
-          <div className="bg-[#121212]/95 border border-slate-800/80 rounded-3xl w-full max-w-5xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] overflow-hidden relative transform transition-all animate-in zoom-in-95 duration-300 max-h-[90vh] flex flex-col">
+          <div className="bg-elevated/95 border border-border/80 rounded-3xl w-full max-w-5xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] overflow-hidden relative transform transition-all animate-in zoom-in-95 duration-300 max-h-[90vh] flex flex-col">
             <button 
               onClick={() => {
                 setIsOtherModalOpen(false);
                 setOtherServiceGroup("utilities");
               }}
-              className="absolute top-6 right-6 text-slate-400 hover:text-white transition-colors p-1.5 hover:bg-slate-850 rounded-xl z-20 cursor-pointer"
+              className="absolute top-6 right-6 text-muted hover:text-fg transition-colors p-1.5 hover:bg-elevated rounded-xl z-20 cursor-pointer"
               title="Close"
             >
               <X size={20} />
             </button>
             
-            <div className="p-8 sm:p-10 border-b border-slate-800/50">
-              <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+            <div className="p-8 sm:p-10 border-b border-border/50">
+              <h2 className="text-2xl sm:text-3xl font-black text-fg tracking-tight">
                 {otherServiceGroup === "pisowifi" ? (
                   <>
                     PISOWIFI <span className="text-[#1877F2]">PACKAGE</span>
@@ -1127,7 +1127,7 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
                   </>
                 )}
               </h2>
-              <p className="text-slate-400 text-sm mt-1.5">
+              <p className="text-muted text-sm mt-1.5">
                 {otherServiceGroup === "pisowifi"
                   ? "Starter, Professional, and Enterprise PisoWiFi bundles with the retained GCash QR checkout."
                   : "Configure your custom activation or specialty utility subscriptions."}
@@ -1172,7 +1172,7 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
       {/* 9. Platform-Specific SMM Timing Candidates Sub-Modal */}
       {platformSubModalOpen && platformSubModalType && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#090909]/90 backdrop-blur-md p-4 animate-in fade-in duration-300">
-          <div className="bg-[#121212]/95 border border-slate-800/80 rounded-3xl w-full max-w-5xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] overflow-hidden relative transform transition-all animate-in zoom-in-95 duration-300 max-h-[90vh] flex flex-col">
+          <div className="bg-elevated/95 border border-border/80 rounded-3xl w-full max-w-5xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] overflow-hidden relative transform transition-all animate-in zoom-in-95 duration-300 max-h-[90vh] flex flex-col">
             
             {/* Close Button */}
             <button 
@@ -1180,23 +1180,23 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
                 setPlatformSubModalOpen(false);
                 setPlatformSubModalType(null);
               }}
-              className="absolute top-6 right-6 text-slate-400 hover:text-white transition-colors p-1.5 hover:bg-slate-850 rounded-xl z-20 cursor-pointer"
+              className="absolute top-6 right-6 text-muted hover:text-fg transition-colors p-1.5 hover:bg-elevated rounded-xl z-20 cursor-pointer"
               title="Close"
             >
               <X size={20} />
             </button>
             
             {/* Header */}
-            <div className="p-8 sm:p-10 border-b border-slate-850/60 bg-[#161616]/40 flex-shrink-0">
+            <div className="p-8 sm:p-10 border-b border-border/60 bg-[#161616]/40 flex-shrink-0">
               <div className="flex items-center gap-3">
                 <span className="text-3xl sm:text-4xl">
                   {platformSubModalType === "facebook" ? "📘" : platformSubModalType === "instagram" ? "📸" : platformSubModalType === "tiktok" ? "🎵" : "🎥"}
                 </span>
                 <div>
-                  <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+                  <h2 className="text-2xl sm:text-3xl font-black text-fg tracking-tight">
                     {platformSubModalType.toUpperCase()} <span className="text-[#1DB954]">CHEAPEST BOOSTS</span>
                   </h2>
-                  <p className="text-slate-400 text-xs sm:text-sm mt-1">Direct reseller pricing on the absolute lowest, organic-timing candidate packages.</p>
+                  <p className="text-muted text-xs sm:text-sm mt-1">Direct reseller pricing on the absolute lowest, organic-timing candidate packages.</p>
                 </div>
               </div>
             </div>
@@ -1206,16 +1206,16 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
               {loadingSmm ? (
                 <div className="flex flex-col justify-center items-center py-20 gap-3">
                   <Loader2 size={36} className="text-[#1DB954] animate-spin" />
-                  <span className="text-xs font-bold text-slate-400 uppercase tracking-widest animate-pulse">Filtering cheapest timing candidates...</span>
+                  <span className="text-xs font-bold text-muted uppercase tracking-widest animate-pulse">Filtering cheapest timing candidates...</span>
                 </div>
               ) : (() => {
                 const candidates = getPlatformSmmCandidates(platformSubModalType);
                 const hasReactionOptions = candidates.reactions.length > 0;
                 if (!candidates.follower && !candidates.like && !candidates.view && !hasReactionOptions) {
                   return (
-                    <div className="text-center py-16 bg-[#161616]/30 border border-slate-800 border-dashed rounded-2xl">
-                      <p className="text-slate-500 font-extrabold uppercase tracking-wider text-sm">Reseller catalog timing list loading...</p>
-                      <p className="text-xs text-slate-500 mt-1">If this persists, click &quot;View Other Services&quot; below to browse the backup database.</p>
+                    <div className="text-center py-16 bg-[#161616]/30 border border-border border-dashed rounded-2xl">
+                      <p className="text-muted font-extrabold uppercase tracking-wider text-sm">Reseller catalog timing list loading...</p>
+                      <p className="text-xs text-muted mt-1">If this persists, click &quot;View Other Services&quot; below to browse the backup database.</p>
                     </div>
                   );
                 }
@@ -1237,11 +1237,11 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
                         return (
                           <div 
                             key={index}
-                            className="bg-[#181818]/60 border border-slate-800 p-6 rounded-2xl flex flex-col justify-between hover:border-[#1DB954]/30 hover:bg-[#1a1a1a] transition-all duration-350 hover:-translate-y-1 hover:shadow-[0_4px_25px_rgba(29,185,84,0.08)]"
+                            className="bg-card/60 border border-border p-6 rounded-2xl flex flex-col justify-between hover:border-[#1DB954]/30 hover:bg-elevated transition-all duration-350 hover:-translate-y-1 hover:shadow-[0_4px_25px_rgba(29,185,84,0.08)]"
                           >
                             <div>
                               <h4 className="text-[10px] font-black uppercase tracking-wider text-[#1DB954] mb-2">{slot.title}</h4>
-                              <h5 className="text-sm font-bold text-white line-clamp-2 leading-snug mb-3">{s.name}</h5>
+                              <h5 className="text-sm font-bold text-fg line-clamp-2 leading-snug mb-3">{s.name}</h5>
                               
                               {/* Timing Indicators */}
                               <div className="flex flex-col gap-1.5 mb-4 select-none">
@@ -1260,26 +1260,26 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
                                 </span>
                               </div>
                               
-                              <p className="text-[10px] text-slate-500 font-extrabold uppercase tracking-wide">
+                              <p className="text-[10px] text-muted font-extrabold uppercase tracking-wide">
                                 SMM ID: #{s.id}
                               </p>
                               {s.desc && (
-                                <p className="text-[10px] text-slate-400 mt-2 bg-black/20 p-2.5 rounded-xl border border-slate-900/60 line-clamp-2 leading-relaxed">
+                                <p className="text-[10px] text-muted mt-2 bg-black/20 p-2.5 rounded-xl border border-slate-900/60 line-clamp-2 leading-relaxed">
                                   {s.desc}
                                 </p>
                               )}
                             </div>
                             
-                            <div className="mt-6 pt-4 border-t border-slate-850/60">
+                            <div className="mt-6 pt-4 border-t border-border/60">
                               <div className="flex justify-between items-baseline mb-4">
-                                <span className="text-[9px] text-slate-500 font-extrabold uppercase tracking-wider">Rate per 1k:</span>
+                                <span className="text-[9px] text-muted font-extrabold uppercase tracking-wider">Rate per 1k:</span>
                                 {hasVipPer1k ? (
                                   <span className="text-right leading-tight">
-                                    <span className="block text-[10px] text-slate-500 line-through font-mono">₱{regularPer1k.toFixed(2)}</span>
+                                    <span className="block text-[10px] text-muted line-through font-mono">₱{regularPer1k.toFixed(2)}</span>
                                     <span className="block text-base font-black text-[#1DB954]">VIP ₱{vipPer1k.toFixed(2)}</span>
                                   </span>
                                 ) : (
-                                  <span className="text-base font-black text-white">₱{regularPer1k.toFixed(2)}</span>
+                                  <span className="text-base font-black text-fg">₱{regularPer1k.toFixed(2)}</span>
                                 )}
                               </div>
                               
@@ -1301,10 +1301,10 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
                       })}
                     </div>
 
-                    <div className="max-w-4xl mx-auto bg-[#161616]/35 border border-slate-850/80 rounded-3xl p-5 sm:p-6">
+                    <div className="max-w-4xl mx-auto bg-[#161616]/35 border border-border/80 rounded-3xl p-5 sm:p-6">
                       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2 mb-4">
                         <div>
-                          <h3 className="text-sm font-black text-white uppercase tracking-widest">
+                          <h3 className="text-sm font-black text-fg uppercase tracking-widest">
                             Reaction Services Inside
                           </h3>
                           <p className="text-xs text-slate-450 mt-1">
@@ -1331,7 +1331,7 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
                                 setPlatformSubModalType(null);
                                 openSmmCatalog(service ? String(service.id) : `${platformSubModalType} ${reaction.search}`);
                               }}
-                              className="group/reaction text-left rounded-2xl border border-slate-800 bg-black/25 hover:bg-black/45 hover:border-[#1DB954]/35 p-3.5 transition-all duration-300 cursor-pointer min-h-[138px] flex flex-col"
+                              className="group/reaction text-left rounded-2xl border border-border bg-black/25 hover:bg-black/45 hover:border-[#1DB954]/35 p-3.5 transition-all duration-300 cursor-pointer min-h-[138px] flex flex-col"
                             >
                               <div className="flex items-center justify-between gap-2 mb-3">
                                 <span className="text-2xl leading-none">{reaction.icon}</span>
@@ -1339,7 +1339,7 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
                                   {service ? `#${service.id}` : "Browse"}
                                 </span>
                               </div>
-                              <span className="text-xs font-black text-white leading-tight">
+                              <span className="text-xs font-black text-fg leading-tight">
                                 {reaction.label}
                               </span>
                               <span className="text-[10px] text-slate-450 leading-snug line-clamp-2 mt-1 flex-grow">
@@ -1347,7 +1347,7 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
                               </span>
                               {hasReactionVipPrice && reactionRegularPer1k && reactionVipPer1k ? (
                                 <span className="text-[10px] font-black text-[#1DB954] mt-3 leading-tight">
-                                  <span className="block text-slate-500 line-through">₱{reactionRegularPer1k.toFixed(2)}</span>
+                                  <span className="block text-muted line-through">₱{reactionRegularPer1k.toFixed(2)}</span>
                                   <span className="block">VIP ₱{reactionVipPer1k.toFixed(2)} / 1k</span>
                                 </span>
                               ) : (
@@ -1370,7 +1370,7 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
                           openSmmCatalog(platformSubModalType); // Prefill search with platform name
                         }}
                         type="button"
-                        className="w-full bg-slate-850 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white font-extrabold py-3.5 rounded-full transition-all duration-300 uppercase text-xs tracking-wider cursor-pointer text-center"
+                        className="w-full bg-slate-850 hover:bg-elevated border border-border text-fg hover:text-fg font-extrabold py-3.5 rounded-full transition-all duration-300 uppercase text-xs tracking-wider cursor-pointer text-center"
                       >
                         View Other {platformSubModalType.charAt(0).toUpperCase() + platformSubModalType.slice(1)} Services Inside
                       </button>

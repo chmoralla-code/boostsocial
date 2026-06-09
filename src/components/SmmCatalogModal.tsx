@@ -508,28 +508,28 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#090909]/85 backdrop-blur-md p-4 animate-in fade-in duration-300">
-      <div className="bg-[#121212]/95 border border-slate-800/80 rounded-3xl w-full max-w-4xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] overflow-hidden relative transform transition-all animate-in zoom-in-95 duration-300 max-h-[85vh] flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-bg/85 backdrop-blur-md p-4 animate-in fade-in duration-300">
+      <div className="bg-elevated/95 border border-border/80 rounded-3xl w-full max-w-4xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] overflow-hidden relative transform transition-all animate-in zoom-in-95 duration-300 max-h-[85vh] flex flex-col">
         {/* Close Button */}
         <button 
           onClick={onClose}
-          className="absolute top-6 right-6 text-slate-400 hover:text-white transition-colors p-1.5 hover:bg-slate-850 rounded-xl z-20 cursor-pointer"
+          className="absolute top-6 right-6 text-muted hover:text-fg transition-colors p-1.5 hover:bg-elevated rounded-xl z-20 cursor-pointer"
           title="Close Catalog"
         >
           <X size={20} />
         </button>
 
         {/* Modal Header */}
-        <div className="p-6 sm:p-8 border-b border-slate-850 bg-[#161616]/40 flex-shrink-0">
+        <div className="p-6 sm:p-8 border-b border-border bg-elevated/40 flex-shrink-0">
           <div className="flex items-center gap-3">
             <div className="bg-[#1DB954]/10 text-[#1DB954] border border-[#1DB954]/25 p-2 rounded-xl">
               <ShoppingBag size={22} />
             </div>
             <div>
-              <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+              <h2 className="text-xl sm:text-2xl font-black text-fg tracking-tight">
                 ALL <span className="text-[#1DB954]">SERVICES</span>
               </h2>
-              <p className="text-slate-400 text-xs mt-0.5">Direct reseller pricing on 1,100+ services with a 60% ROI markup.</p>
+              <p className="text-muted text-xs mt-0.5">Direct reseller pricing on 1,100+ services with a 60% ROI markup.</p>
             </div>
           </div>
         </div>
@@ -539,7 +539,7 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
           {checkoutStep === "catalog" && (
             <div className="space-y-6 h-full flex flex-col">
               {/* Premium Quick Platform Filter Bar */}
-              <div className="flex gap-2 overflow-x-auto pb-2.5 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] snap-x snap-mandatory touch-pan-x select-none border-b border-slate-800/40 scroll-smooth">
+              <div className="flex gap-2 overflow-x-auto pb-2.5 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] snap-x snap-mandatory touch-pan-x select-none border-b border-border/40 scroll-smooth">
                 {PLATFORMS.map((platform) => {
                   const isActive = selectedPlatform === platform.id;
                   return (
@@ -550,7 +550,7 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
                       className={`flex items-center gap-1.5 px-4 py-2 rounded-full border text-[10px] sm:text-xs font-black uppercase tracking-wider transition-all duration-300 transform active:scale-95 whitespace-nowrap snap-start cursor-pointer ${
                         isActive
                            ? "bg-[#1DB954] text-black border-[#1DB954] shadow-[0_0_15px_rgba(29,185,84,0.3)] font-black"
-                          : "bg-[#161616]/60 text-slate-400 border-slate-800/85 hover:text-white hover:border-slate-700 hover:bg-[#1a1a1a]"
+                          : "bg-elevated/60 text-muted border-border/85 hover:text-fg hover:border-border hover:bg-elevated"
                       }`}
                     >
                       <span className="text-xs sm:text-sm">{platform.icon}</span>
@@ -564,7 +564,7 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
 {qualityFilter && (
 
                 <div className="flex justify-center select-none">
-                  <div className="relative flex p-0.5 bg-[#0a0a0a] border border-slate-800/80 rounded-full w-full max-w-[280px] shadow-inner">
+                  <div className="relative flex p-0.5 bg-bg border border-border/80 rounded-full w-full max-w-[280px] shadow-inner">
                     {/* Sliding indicator */}
                     <div
                       className={`absolute top-0.5 bottom-0.5 rounded-full bg-gradient-to-r transition-all duration-300 ease-out pointer-events-none ${
@@ -578,7 +578,7 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
                       onClick={() => setIsOrganicFilter(true)}
                       type="button"
                       className={`flex-1 py-2 text-[10px] font-black uppercase tracking-wider rounded-full transition-all duration-200 z-10 cursor-pointer flex items-center justify-center gap-1.5 ${
-                        isOrganicFilter ? "text-[#1DB954]" : "text-slate-400 hover:text-slate-200"
+                        isOrganicFilter ? "text-[#1DB954]" : "text-muted hover:text-fg"
                       }`}
                     >
                       🌿 Organic
@@ -588,7 +588,7 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
                       onClick={() => setIsOrganicFilter(false)}
                       type="button"
                       className={`flex-1 py-2 text-[10px] font-black uppercase tracking-wider rounded-full transition-all duration-200 z-10 cursor-pointer flex items-center justify-center gap-1.5 ${
-                        !isOrganicFilter ? "text-indigo-400" : "text-slate-400 hover:text-slate-200"
+                        !isOrganicFilter ? "text-indigo-400" : "text-muted hover:text-fg"
                       }`}
                     >
                       🤖 Non-Organic
@@ -605,7 +605,7 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
                     <span className="text-xs">🔥</span>
                     <span className="text-xs font-black uppercase tracking-wider text-[#1DB954]">New User Quick Guide</span>
                   </div>
-                  <p className="text-slate-300 text-[11px] font-semibold leading-snug">
+                  <p className="text-fg text-[11px] font-semibold leading-snug">
                     Looking for the cheapest options? Click any popular boost below to instantly view our absolute lowest direct reseller pricing:
                   </p>
                 </div>
@@ -625,7 +625,7 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
                         setSortBy("cheapest");
                       }}
                       type="button"
-                      className="flex-1 sm:flex-initial flex items-center justify-between gap-2 px-3 py-1.5 rounded-xl bg-black/40 hover:bg-[#1DB954]/10 border border-slate-800 hover:border-[#1DB954]/30 text-[10px] font-bold text-white transition-all transform active:scale-95 cursor-pointer whitespace-nowrap"
+                      className="flex-1 sm:flex-initial flex items-center justify-between gap-2 px-3 py-1.5 rounded-xl bg-elevated/40 hover:bg-[#1DB954]/10 border border-border hover:border-[#1DB954]/30 text-[10px] font-bold text-fg transition-all transform active:scale-95 cursor-pointer whitespace-nowrap"
                     >
                       <span>{chip.label}</span>
                       <span className="text-[#1DB954] font-mono">{chip.price}</span>
@@ -635,21 +635,21 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
               </div>
 
               {/* Search and Filters */}
-              <div className="flex flex-col lg:flex-row gap-3 justify-between items-center bg-[#181818]/60 p-4 rounded-2xl border border-slate-800/60 shadow-md w-full">
+              <div className="flex flex-col lg:flex-row gap-3 justify-between items-center bg-card/60 p-4 rounded-2xl border border-border/60 shadow-md w-full">
                 <div className="flex flex-col sm:flex-row gap-3 w-full lg:flex-1">
                   <div className="relative flex-1">
-                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
+                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" size={16} />
                     <input
                       type="text"
                       placeholder="Search from 1,100+ services (e.g. Followers, Views, Likes)..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2 rounded-xl bg-[#090909] border border-slate-800 focus:outline-none focus:border-[#1DB954] focus:ring-2 focus:ring-[#1DB954]/25 transition-all text-slate-250 font-semibold placeholder-slate-500 text-xs sm:text-sm hover:border-slate-700"
+                      className="w-full pl-10 pr-4 py-2 rounded-xl bg-bg border border-border focus:outline-none focus:border-[#1DB954] focus:ring-2 focus:ring-[#1DB954]/25 transition-all text-fg font-semibold placeholder-muted text-xs sm:text-sm hover:border-border"
                     />
                   </div>
                   
                   {/* Origin Toggle Segmented Control */}
-                  <div className="relative flex p-0.5 bg-[#0a0a0a] border border-slate-800/80 rounded-full w-full sm:w-72 shadow-inner">
+                  <div className="relative flex p-0.5 bg-bg border border-border/80 rounded-full w-full sm:w-72 shadow-inner">
                     {/* Sliding indicator */}
                     <div
                       className={`absolute top-0.5 bottom-0.5 rounded-full bg-gradient-to-r transition-all duration-300 ease-out pointer-events-none ${
@@ -665,7 +665,7 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
                       onClick={() => setOriginFilter("all")}
                       type="button"
                       className={`flex-1 py-1.5 text-[9px] font-black uppercase tracking-wider rounded-full transition-all duration-200 z-10 cursor-pointer flex items-center justify-center gap-1 ${
-                        originFilter === "all" ? "text-white" : "text-slate-400 hover:text-slate-200"
+                        originFilter === "all" ? "text-fg" : "text-muted hover:text-fg"
                       }`}
                     >
                       🌐 All
@@ -675,7 +675,7 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
                       onClick={() => setOriginFilter("ph")}
                       type="button"
                       className={`flex-1 py-1.5 text-[9px] font-black uppercase tracking-wider rounded-full transition-all duration-200 z-10 cursor-pointer flex items-center justify-center gap-1 ${
-                        originFilter === "ph" ? "text-[#1DB954]" : "text-slate-400 hover:text-slate-200"
+                        originFilter === "ph" ? "text-[#1DB954]" : "text-muted hover:text-fg"
                       }`}
                     >
                       🇵🇭 PH Base
@@ -685,7 +685,7 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
                       onClick={() => setOriginFilter("foreigner")}
                       type="button"
                       className={`flex-1 py-1.5 text-[9px] font-black uppercase tracking-wider rounded-full transition-all duration-200 z-10 cursor-pointer flex items-center justify-center gap-1 ${
-                        originFilter === "foreigner" ? "text-indigo-400" : "text-slate-400 hover:text-slate-200"
+                        originFilter === "foreigner" ? "text-indigo-400" : "text-muted hover:text-fg"
                       }`}
                     >
                       👽 Foreigner
@@ -697,7 +697,7 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
                   <select
                     value={selectedCategory}
                     onChange={(e) => setSelectedCategory(e.target.value)}
-                    className="w-full sm:w-56 px-4 py-2 rounded-xl bg-[#090909] border border-slate-800 focus:outline-none focus:border-[#1DB954] focus:ring-2 focus:ring-[#1DB954]/25 text-white font-extrabold cursor-pointer text-xs sm:text-sm transition-all hover:border-slate-700"
+                    className="w-full sm:w-56 px-4 py-2 rounded-xl bg-bg border border-border focus:outline-none focus:border-[#1DB954] focus:ring-2 focus:ring-[#1DB954]/25 text-fg font-extrabold cursor-pointer text-xs sm:text-sm transition-all hover:border-border"
                   >
                     <option value="all">
                       {selectedPlatform === "all" ? "All Categories" : `All ${selectedPlatform.charAt(0).toUpperCase() + selectedPlatform.slice(1)}`} ({filteredCategories.length})
@@ -710,7 +710,7 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
                   <select
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value as any)}
-                    className="w-full sm:w-48 px-4 py-2 rounded-xl bg-[#090909] border border-slate-800 focus:outline-none focus:border-[#1DB954] focus:ring-2 focus:ring-[#1DB954]/25 text-[#1DB954] font-extrabold cursor-pointer text-xs sm:text-sm transition-all hover:border-slate-700"
+                    className="w-full sm:w-48 px-4 py-2 rounded-xl bg-bg border border-border focus:outline-none focus:border-[#1DB954] focus:ring-2 focus:ring-[#1DB954]/25 text-[#1DB954] font-extrabold cursor-pointer text-xs sm:text-sm transition-all hover:border-border"
                   >
                     <option value="cheapest">Cheapest First ₱</option>
                     <option value="expensive">Highest Price ₱</option>
@@ -732,11 +732,11 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
               {loading ? (
                 <div className="flex flex-col justify-center items-center py-20 gap-3 flex-grow">
                   <Loader2 size={36} className="text-[#1DB954] animate-spin" />
-                  <span className="text-xs font-bold text-slate-400 uppercase tracking-widest animate-pulse">Syncing catalog direct from SMM API...</span>
+                  <span className="text-xs font-bold text-muted uppercase tracking-widest animate-pulse">Syncing catalog direct from SMM API...</span>
                 </div>
               ) : sortedServices.length === 0 ? (
-                <div className="text-center py-16 bg-[#161616]/30 border border-slate-800 border-dashed rounded-2xl flex-grow flex flex-col justify-center">
-                  <p className="text-slate-500 font-extrabold uppercase tracking-wider text-sm">No matching SMM services found.</p>
+                <div className="text-center py-16 bg-elevated/30 border border-border border-dashed rounded-2xl flex-grow flex flex-col justify-center">
+                  <p className="text-muted font-extrabold uppercase tracking-wider text-sm">No matching SMM services found.</p>
                   <p className="text-xs text-slate-600 mt-1">Try relaxing your search terms or choosing another category.</p>
                 </div>
               ) : (
@@ -748,16 +748,16 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
                     <div 
                       key={service.id}
                       onClick={() => handleSelectService(service)}
-                      className="bg-[#181818]/60 hover:bg-[#1f1f1f]/85 border border-slate-800/80 hover:border-[#1DB954]/30 p-5 rounded-2xl flex flex-col justify-between cursor-pointer transition-all duration-300 hover:-translate-y-0.5 group hover:shadow-[0_4px_20px_rgba(29,185,84,0.06)]"
+                      className="bg-card/60 hover:bg-elevated border border-border/80 hover:border-[#1DB954]/30 p-5 rounded-2xl flex flex-col justify-between cursor-pointer transition-all duration-300 hover:-translate-y-0.5 group hover:shadow-[0_4px_20px_rgba(29,185,84,0.06)]"
                     >
                       <div>
                         <div className="flex justify-between items-start gap-2 mb-2">
-                          <span className="text-[9px] bg-slate-850 text-slate-400 border border-slate-800 px-2 py-0.5 rounded-full font-mono">
+                          <span className="text-[9px] bg-slate-850 text-muted border border-border px-2 py-0.5 rounded-full font-mono">
                             SMM ID: #{service.id}
                           </span>
                           {hasServiceVip ? (
                             <span className="text-[9px] bg-[#1DB954]/10 text-[#1DB954] border border-[#1DB954]/20 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider text-right leading-tight">
-                              <span className="block text-slate-500 line-through">₱{service.startingPrice.toFixed(2)}</span>
+                              <span className="block text-muted line-through">₱{service.startingPrice.toFixed(2)}</span>
                               <span className="block">VIP ₱{vipUnitPrice.toFixed(2)} / pc</span>
                             </span>
                           ) : (
@@ -766,7 +766,7 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
                             </span>
                           )}
                         </div>
-                        <h4 className="text-sm font-black text-white group-hover:text-[#1DB954] transition-colors line-clamp-2 leading-snug">
+                        <h4 className="text-sm font-black text-fg group-hover:text-[#1DB954] transition-colors line-clamp-2 leading-snug">
                           {formatSmmServiceName(service.name, service.id, service.desc)}
                         </h4>
                         
@@ -792,17 +792,17 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
                           );
                         })()}
 
-                        <p className="text-[10px] text-slate-500 font-extrabold uppercase tracking-wide mt-2.5">
+                        <p className="text-[10px] text-muted font-extrabold uppercase tracking-wide mt-2.5">
                           Category: {service.category}
                         </p>
                         {service.desc && (
-                          <p className="text-[10px] text-slate-400 mt-2 bg-black/20 p-2.5 rounded-xl border border-slate-900/60 line-clamp-2 leading-relaxed">
+                          <p className="text-[10px] text-muted mt-2 bg-elevated/20 p-2.5 rounded-xl border border-border/60 line-clamp-2 leading-relaxed">
                             {service.desc}
                           </p>
                         )}
                       </div>
                       
-                      <div className="flex items-center justify-between border-t border-slate-850/60 pt-3 mt-4 text-[10px] font-bold text-slate-400">
+                      <div className="flex items-center justify-between border-t border-border/60 pt-3 mt-4 text-[10px] font-bold text-muted">
                         <span>Min/Max: {service.min.toLocaleString()} - {service.max.toLocaleString()}</span>
                         <span className="text-[#1DB954] font-black uppercase tracking-wider flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
                           Order Boost →
@@ -822,16 +822,16 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
               <div className="flex items-center gap-3">
                 <button
                   onClick={handleBackToCatalog}
-                  className="bg-slate-850 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-white p-2 rounded-xl transition-all cursor-pointer flex-shrink-0"
+                  className="bg-slate-850 hover:bg-elevated border border-border text-muted hover:text-fg p-2 rounded-xl transition-all cursor-pointer flex-shrink-0"
                   title="Back to Catalog"
                 >
                   <ArrowLeft size={16} />
                 </button>
                 <div>
-                  <span className="text-[9px] bg-slate-850 text-slate-400 border border-slate-800 px-2.5 py-0.5 rounded-full font-mono">
+                  <span className="text-[9px] bg-slate-850 text-muted border border-border px-2.5 py-0.5 rounded-full font-mono">
                     SMM ID: #{selectedService.id}
                   </span>
-                  <h3 className="text-base font-black text-white mt-1 leading-snug">{selectedService.name}</h3>
+                  <h3 className="text-base font-black text-fg mt-1 leading-snug">{selectedService.name}</h3>
                 </div>
               </div>
 
@@ -845,7 +845,7 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
               <form onSubmit={handleSubmitGcash} className="space-y-4">
                 {user ? (
                   <div>
-                    <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-1.5 flex justify-between">
+                    <label className="block text-[10px] font-extrabold text-muted uppercase tracking-widest mb-1.5 flex justify-between">
                       <span>Email Profile</span>
                       <span className="text-[#1DB954] text-[8px] font-black uppercase">Active session verified</span>
                     </label>
@@ -854,25 +854,25 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
                       required
                       disabled
                       value={email}
-                      className="w-full px-4 py-2.5 rounded-xl bg-[#181818] border border-slate-800 text-slate-400 cursor-not-allowed text-xs font-semibold"
+                      className="w-full px-4 py-2.5 rounded-xl bg-card border border-border text-muted cursor-not-allowed text-xs font-semibold"
                     />
                   </div>
                 ) : (
                   <div>
-                    <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-1.5">Email Address</label>
+                    <label className="block text-[10px] font-extrabold text-muted uppercase tracking-widest mb-1.5">Email Address</label>
                     <input 
                       type="email" 
                       required
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      className="w-full px-4 py-2.5 rounded-xl bg-[#090909] border border-slate-800 focus:outline-none focus:ring-1 focus:ring-[#1DB954] text-white transition-all text-xs font-semibold"
+                      className="w-full px-4 py-2.5 rounded-xl bg-bg border border-border focus:outline-none focus:ring-1 focus:ring-[#1DB954] text-fg transition-all text-xs font-semibold"
                       placeholder="Enter your email to receive tracking details"
                     />
                   </div>
                 )}
 
                 <div>
-                  <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-1.5">
+                  <label className="block text-[10px] font-extrabold text-muted uppercase tracking-widest mb-1.5">
                     {getTargetUrlLabel(selectedService.category)}
                   </label>
                   <input 
@@ -880,10 +880,10 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
                     required
                     value={url}
                     onChange={(e) => setUrl(e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl bg-[#090909] border border-slate-800 focus:outline-none focus:ring-1 focus:ring-[#1DB954] text-white transition-all text-xs font-semibold"
+                    className="w-full px-4 py-2.5 rounded-xl bg-bg border border-border focus:outline-none focus:ring-1 focus:ring-[#1DB954] text-fg transition-all text-xs font-semibold"
                     placeholder={getTargetUrlPlaceholder(selectedService.category)}
                   />
-                  <p className="text-[9px] text-slate-500 mt-1 italic">Please ensure your account/post privacy is set to Public.</p>
+                  <p className="text-[9px] text-muted mt-1 italic">Please ensure your account/post privacy is set to Public.</p>
 
                   {url && /^https?:\/\//i.test(url) && (
                     <div className="mt-4 animate-in fade-in duration-300">
@@ -897,7 +897,7 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-1.5">
+                    <label className="block text-[10px] font-extrabold text-muted uppercase tracking-widest mb-1.5">
                       Quantity to Boost
                     </label>
                     <input 
@@ -907,10 +907,10 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
                       max={selectedService.max}
                       value={quantity || ""}
                       onChange={(e) => setQuantity(parseInt(e.target.value) || 0)}
-                      className="w-full px-4 py-2.5 rounded-xl bg-[#090909] border border-slate-800 focus:outline-none focus:ring-1 focus:ring-[#1DB954] text-white transition-all text-xs font-extrabold"
+                      className="w-full px-4 py-2.5 rounded-xl bg-bg border border-border focus:outline-none focus:ring-1 focus:ring-[#1DB954] text-fg transition-all text-xs font-extrabold"
                       placeholder={`Min: ${selectedService.min}`}
                     />
-                    <p className="text-[9px] text-slate-500 mt-1">
+                    <p className="text-[9px] text-muted mt-1">
                       Min: {selectedService.min.toLocaleString()} • Max: {selectedService.max.toLocaleString()}
                     </p>
                     {quantity > 0 && quantity < selectedService.min && (
@@ -919,8 +919,8 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
                       </p>
                     )}
                     {isPhBase && (
-                      <p className="text-[9px] text-slate-400 mt-1.5 font-semibold text-left">
-                        🇵🇭 <strong className="text-white">PH Base Organic Notice:</strong> Sourced with high-retention local accounts. Delivery completes **within 24 hours**.
+                      <p className="text-[9px] text-muted mt-1.5 font-semibold text-left">
+                        🇵🇭 <strong className="text-fg">PH Base Organic Notice:</strong> Sourced with high-retention local accounts. Delivery completes **within 24 hours**.
                       </p>
                     )}
                     <p className="text-[9px] text-[#1DB954] mt-1 font-bold text-left flex items-center gap-1">
@@ -929,15 +929,15 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
                   </div>
 
                   <div className="flex flex-col justify-end">
-                    <div className="bg-[#181818]/80 px-4 py-2.5 rounded-xl border border-slate-800 flex justify-between items-center min-h-[42px]">
-                      <span className="text-[9px] font-extrabold text-slate-500 uppercase tracking-wider">Estimator cost:</span>
+                    <div className="bg-card/80 px-4 py-2.5 rounded-xl border border-border flex justify-between items-center min-h-[42px]">
+                      <span className="text-[9px] font-extrabold text-muted uppercase tracking-wider">Estimator cost:</span>
                       {hasVipDiscount ? (
                         <span className="text-right leading-tight">
-                          <span className="block text-[10px] font-mono text-slate-500 line-through">Regular ₱{formatPrice(regularTotal)}</span>
+                          <span className="block text-[10px] font-mono text-muted line-through">Regular ₱{formatPrice(regularTotal)}</span>
                           <span className="block text-sm font-black text-[#1DB954]">VIP ₱{formatPrice(payableTotal)}</span>
                         </span>
                       ) : (
-                        <span className="text-sm font-black text-white">₱{formatPrice(regularTotal)} PHP</span>
+                        <span className="text-sm font-black text-fg">₱{formatPrice(regularTotal)} PHP</span>
                       )}
                     </div>
                     {hasVipDiscount && (
@@ -949,8 +949,8 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
                 </div>
 
                 {/* Mandated GCash Payment Receipt Upload */}
-                <div className="space-y-2 bg-[#121212]/95 border border-slate-800/80 p-4 rounded-xl mt-3 text-left">
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest flex justify-between items-center">
+                <div className="space-y-2 bg-elevated/95 border border-border/80 p-4 rounded-xl mt-3 text-left">
+                  <label className="block text-[10px] font-black text-muted uppercase tracking-widest flex justify-between items-center">
                     <span>GCash Payment Receipt Screenshot {!(user && profile && Number(profile.balance) >= payableTotal) && <span className="text-red-500">*</span>}</span>
                     <span className="text-[8px] font-black uppercase text-red-500">
                       {user && profile && Number(profile.balance) >= payableTotal ? "Optional for Wallet" : "Strictly Required"}
@@ -966,7 +966,7 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
                     />
                     <label 
                       htmlFor="catalog-receipt-upload"
-                      className="w-full flex items-center justify-center gap-2.5 px-4 py-3 rounded-xl bg-[#181818] border border-dashed border-slate-700 hover:border-[#1DB954]/50 text-slate-300 hover:text-white cursor-pointer transition-all text-xs font-black uppercase tracking-wider active:scale-95"
+                      className="w-full flex items-center justify-center gap-2.5 px-4 py-3 rounded-xl bg-card border border-dashed border-border hover:border-[#1DB954]/50 text-fg hover:text-fg cursor-pointer transition-all text-xs font-black uppercase tracking-wider active:scale-95"
                     >
                       <span>📁</span> {receiptFile ? `Receipt: ${receiptFile.name}` : "Attach Payment Screenshot"}
                     </label>
@@ -979,12 +979,12 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
                 </div>
 
                 {/* Direct payment GCash banner */}
-                <div className="bg-[#121212]/90 border border-slate-800/80 p-4 rounded-xl space-y-3 mt-4 text-left">
+                <div className="bg-elevated/90 border border-border/80 p-4 rounded-xl space-y-3 mt-4 text-left">
                   <span className="text-[10px] font-black uppercase tracking-widest text-[#1DB954] block mb-1">
                     📱 GCash Checkout QR Code
                   </span>
-                  <p className="text-[10px] text-slate-400 leading-relaxed font-semibold">
-                    Pay exactly <strong className="text-white">₱{formatPrice(payableTotal)} PHP</strong> using the GCash QR code. After placing your order, copy your **Tracking ID** and send it along with your transaction receipt to our Support Chatbot for instant approval.
+                  <p className="text-[10px] text-muted leading-relaxed font-semibold">
+                    Pay exactly <strong className="text-fg">₱{formatPrice(payableTotal)} PHP</strong> using the GCash QR code. After placing your order, copy your **Tracking ID** and send it along with your transaction receipt to our Support Chatbot for instant approval.
                   </p>
                   {hasVipDiscount && (
                     <div className="rounded-xl border border-[#1DB954]/25 bg-[#1DB954]/10 px-3 py-2 text-[10px] font-black uppercase tracking-wider text-[#1DB954]">
@@ -993,13 +993,13 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
                   )}
                   
                   {/* Safety compliance notice under QR scan text to boost purchase intent */}
-                  <div className="text-[9px] text-slate-500 font-bold border-t border-slate-850 pt-2 flex items-center gap-1.5">
+                  <div className="text-[9px] text-muted font-bold border-t border-border pt-2 flex items-center gap-1.5">
                     <span>🛡️</span>
                     <span>CYNETWORK Curation guarantees 100% compliant, secure delivery matching Adsense criteria.</span>
                   </div>
 
                   <div className="text-center">
-                    <div className="bg-white p-1 rounded-xl inline-block shadow-md max-w-[120px] mx-auto overflow-hidden border border-slate-700/20">
+                    <div className="bg-white p-1 rounded-xl inline-block shadow-md max-w-[120px] mx-auto overflow-hidden border border-border/20">
                       <img 
                         src="/gcash-qr.png" 
                         alt="GCash QR Code" 
@@ -1014,7 +1014,7 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
                 </div>
 
                 {/* Submitting Actions */}
-                <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-slate-850">
+                <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-border">
                   {user && profile && Number(profile.balance) >= payableTotal && (
                     <button
                       type="button"
@@ -1049,20 +1049,20 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
               </div>
               
               <div>
-                <p className="text-lg font-black text-white">Order Registered Successfully!</p>
-                <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                <p className="text-lg font-black text-fg">Order Registered Successfully!</p>
+                <p className="text-xs text-muted mt-1 leading-relaxed">
                   Your boost request has been pre-queued. Please save your Tracking ID:
                 </p>
               </div>
 
               <div className="flex gap-2 items-center w-full">
-                <div className="flex-grow bg-slate-900 border border-slate-800 p-3 rounded-xl font-mono text-sm text-[#1DB954] font-black tracking-widest text-center select-all">
+                <div className="flex-grow bg-slate-900 border border-border p-3 rounded-xl font-mono text-sm text-[#1DB954] font-black tracking-widest text-center select-all">
                   BS-{orderId.slice(0, 8).toUpperCase()}
                 </div>
                 <button
                   onClick={handleCopy}
                   type="button"
-                  className="bg-slate-850 hover:bg-slate-800 border border-slate-800 p-3 rounded-xl text-slate-400 hover:text-white transition-all flex items-center justify-center flex-shrink-0"
+                  className="bg-slate-850 hover:bg-elevated border border-border p-3 rounded-xl text-muted hover:text-fg transition-all flex items-center justify-center flex-shrink-0"
                   title="Copy Tracking ID"
                 >
                   {copied ? <Check size={16} className="text-[#1DB954]" /> : <Copy size={16} />}
@@ -1070,25 +1070,25 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
               </div>
 
               {isWalletPayment ? (
-                <div className="bg-[#1DB954]/5 border border-[#1DB954]/20 p-4 rounded-xl text-left space-y-2 text-xs font-semibold text-slate-300">
+                <div className="bg-[#1DB954]/5 border border-[#1DB954]/20 p-4 rounded-xl text-left space-y-2 text-xs font-semibold text-fg">
                   <span className="text-[10px] font-black uppercase tracking-widest text-[#1DB954] block">
                     ✓ Balance Deducted Successful!
                   </span>
                   <p>
-                    We have securely deducted <strong className="text-white">₱{formatPrice(payableTotal)} PHP</strong> from your internal wallet balance.
+                    We have securely deducted <strong className="text-fg">₱{formatPrice(payableTotal)} PHP</strong> from your internal wallet balance.
                   </p>
                   {smmBalance <= 0 ? (
                     <p className="text-[10px] text-[#ff9800] font-bold mt-1.5 leading-relaxed">
                       ⚠️ **Queue Notice:** Due to a high volume of active campaigns, this order is currently queued and will be fully processed and completed within 24 hours.
                     </p>
                   ) : (
-                    <p className="text-[10px] text-slate-500 italic mt-1.5">
+                    <p className="text-[10px] text-muted italic mt-1.5">
                       Your receipt is attached and the order is queued for verified processing. You can monitor it from the chatbot or Track Order button.
                     </p>
                   )}
                 </div>
               ) : (
-                <div className="bg-slate-900/60 border border-slate-800 p-4 rounded-xl text-left space-y-2.5 text-xs font-semibold text-slate-300">
+                <div className="bg-slate-900/60 border border-border p-4 rounded-xl text-left space-y-2.5 text-xs font-semibold text-fg">
                   <span className="text-[10px] font-black uppercase tracking-widest text-[#1DB954] block">
                     📋 Next Steps for Approval
                   </span>
@@ -1102,7 +1102,7 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
               )}
 
               {isPhBase && (
-                <div className="bg-[#1DB954]/10 border border-[#1DB954]/25 p-4 rounded-xl text-left space-y-1.5 text-xs font-semibold text-slate-300 mt-3 animate-in slide-in-from-bottom-2">
+                <div className="bg-[#1DB954]/10 border border-[#1DB954]/25 p-4 rounded-xl text-left space-y-1.5 text-xs font-semibold text-fg mt-3 animate-in slide-in-from-bottom-2">
                   <span className="text-[10px] font-black uppercase tracking-widest text-[#1DB954] block">
                     🇵🇭 PH Base Organic Delivery Notice
                   </span>
