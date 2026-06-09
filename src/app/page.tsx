@@ -4,7 +4,7 @@ import { ServicesSection } from "@/components/ServicesSection";
 import { HeroVideoBackground } from "@/components/HeroVideoBackground";
 import { createClient } from "@/utils/supabase/server";
 import { HeroSearch } from "@/components/HeroSearch";
-import { PendingOrderBanner } from "@/components/PendingOrderBanner";
+
 import { OnboardingRedirect } from "@/components/OnboardingRedirect";
 import { FeatureBadgesGrid } from "@/components/FeatureBadgesGrid";
 import { getEnv } from "@/utils/env";
@@ -266,8 +266,6 @@ export default async function Home() {
             </div>
           </div>
         </div>
-
-        <PendingOrderBanner />
 
         <ServicesSection services={services || []} servicesBg={servicesBg} servicesCandidates={servicesCandidates} />
 
