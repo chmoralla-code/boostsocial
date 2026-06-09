@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from 'next/link';
 import { Rocket, LogOut, ClipboardList, X, Loader2, Wallet, Gift, Crown } from 'lucide-react';
+import { ThemeToggle } from "./ThemeToggle";
 import { createClient } from "@/utils/supabase/client";
 import type { User } from "@supabase/supabase-js";
 import { format } from "date-fns";
@@ -170,6 +171,8 @@ export function Header() {
                 {user.email}
               </span>
 
+              <ThemeToggle />
+
               <button 
                 onClick={handleSignOut}
                 className="flex h-11 w-11 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-red-500/10 hover:text-red-500 md:h-auto md:w-auto md:p-1.5 md:rounded-lg cursor-pointer"
@@ -179,25 +182,31 @@ export function Header() {
               </button>
             </>
           ) : (
-            <Link
-              href="/login"
-              className="bg-[#1877F2] hover:bg-[#4e8df5] text-white font-extrabold py-2.5 px-5 sm:px-6 rounded-full transition-all duration-300 transform hover:scale-[1.03] shadow-md shadow-blue-500/10 text-xs uppercase tracking-wider"
-            >
-              Sign In
-            </Link>
+            <>
+              <ThemeToggle />
+              <Link
+                href="/login"
+                className="bg-[#1877F2] hover:bg-[#4e8df5] text-white font-extrabold py-2.5 px-5 sm:px-6 rounded-full transition-all duration-300 transform hover:scale-[1.03] shadow-md shadow-blue-500/10 text-xs uppercase tracking-wider"
+              >
+                Sign In
+              </Link>
+            </>
           )}
         </div>
         </div>
         <div className="border-t border-slate-800/40 px-4 pb-4 pt-3 md:hidden">
-          <Link
-            href="/vip"
-            className="flex h-11 w-full items-center justify-center gap-2 rounded-full border border-[#1DB954]/30 bg-[#1DB954]/10 text-[11px] font-black uppercase tracking-wider text-[#1DB954] shadow-lg shadow-emerald-500/5 transition-all hover:bg-[#1DB954]/20"
-          >
-            <Crown size={15} />
-            {profile?.vip_plan && isVipActive(profile)
-              ? `VIP ${getVipDiscountPercent(profile)}% OFF`
-              : "VIP Account"}
-          </Link>
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <ThemeToggle />
+            <Link
+              href="/vip"
+              className="flex h-11 w-full items-center justify-center gap-2 rounded-full border border-[#1DB954]/30 bg-[#1DB954]/10 text-[11px] font-black uppercase tracking-wider text-[#1DB954] shadow-lg shadow-emerald-500/5 transition-all hover:bg-[#1DB954]/20"
+            >
+              <Crown size={15} />
+              {profile?.vip_plan && isVipActive(profile)
+                ? `VIP ${getVipDiscountPercent(profile)}% OFF`
+                : "VIP Account"}
+            </Link>
+          </div>
         </div>
       </header>
 

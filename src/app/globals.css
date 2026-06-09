@@ -3,8 +3,30 @@
 @theme {
   --color-primary: #1DB954;
   --color-primary-dark: #1ed760;
-  --color-background: #121212;
+  --color-background: #0a0a0a;
+  --color-background-elevated: #121212;
   --color-foreground: #ffffff;
+  --color-muted: #717171;
+  --color-border: #282828;
+  --color-card: #181818;
+}
+
+:root {
+  --color-background: #0a0a0a;
+  --color-background-elevated: #121212;
+  --color-foreground: #ffffff;
+  --color-muted: #717171;
+  --color-border: #282828;
+  --color-card: #181818;
+}
+
+.light-mode {
+  --color-background: #ffffff;
+  --color-background-elevated: #f8fafc;
+  --color-foreground: #0f172a;
+  --color-muted: #64748b;
+  --color-border: #e2e8f0;
+  --color-card: #ffffff;
 }
 
 body {
@@ -12,6 +34,11 @@ body {
   color: var(--color-foreground);
   font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
   overflow-x: hidden;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+* {
+  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
 }
 
 /* 🎬 Hero Video Background */
@@ -187,81 +214,69 @@ body {
   background: #3e3e3e;
 }
 
-/* 🌞 Light Mode Overrides for Admin Panel */
+/* 🌞 Light Mode Overrides for Main Site */
 .light-mode {
-  background-color: #f8fafc !important;
-  color: #334155 !important;
-  --color-background: #f8fafc !important;
+  --color-background: #ffffff !important;
+  --color-background-elevated: #f8fafc !important;
   --color-foreground: #0f172a !important;
+  --color-muted: #64748b !important;
+  --color-border: #e2e8f0 !important;
+  --color-card: #ffffff !important;
 }
 
-.light-mode aside {
-  background-color: #ffffff !important;
-  border-right-color: #e2e8f0 !important;
-  color: #64748b !important;
+.light-mode body {
+  background-color: var(--color-background) !important;
+  color: var(--color-foreground) !important;
 }
 
-.light-mode aside a {
-  color: #475569 !important;
-}
-
-.light-mode aside a:hover {
-  background-color: #f1f5f9 !important;
-  color: #0f172a !important;
-}
-
-.light-mode aside .text-white {
-  color: #0f172a !important;
-}
-
-.light-mode main {
-  background-color: #f8fafc !important;
-  color: #334155 !important;
-}
-
+.light-mode .bg-\[\#0a0a0a\],
+.light-mode .bg-\[\#121212\],
 .light-mode .bg-\[\#181818\],
+.light-mode .bg-slate-900,
 .light-mode .bg-slate-800 {
-  background-color: #ffffff !important;
-  border-color: #e2e8f0 !important;
+  background-color: var(--color-background-elevated) !important;
+  border-color: var(--color-border) !important;
 }
 
 .light-mode .border-slate-800\/80,
 .light-mode .border-slate-850\/80,
 .light-mode .border-slate-850\/60,
 .light-mode .border-slate-850\/50,
-.light-mode .divide-slate-850\/50 {
-  border-color: #e2e8f0 !important;
-  divide-color: #e2e8f0 !important;
+.light-mode .divide-slate-850\/50,
+.light-mode .border-slate-800,
+.light-mode .border-slate-850 {
+  border-color: var(--color-border) !important;
+  divide-color: var(--color-border) !important;
 }
 
 .light-mode .text-white {
-  color: #0f172a !important;
+  color: var(--color-foreground) !important;
 }
 
 .light-mode .text-slate-300,
 .light-mode .text-slate-350 {
-  color: #334155 !important;
-}
-
-.light-mode .text-slate-400 {
   color: #475569 !important;
 }
 
+.light-mode .text-slate-400 {
+  color: var(--color-muted) !important;
+}
+
 .light-mode .text-slate-500 {
-  color: #64748b !important;
+  color: #94a3b8 !important;
 }
 
 .light-mode input,
 .light-mode textarea,
 .light-mode select {
-  background-color: #ffffff !important;
-  border-color: #cbd5e1 !important;
-  color: #0f172a !important;
+  background-color: var(--color-card) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-foreground) !important;
 }
 
 .light-mode input::placeholder,
 .light-mode textarea::placeholder {
-  color: #94a3b8 !important;
+  color: var(--color-muted) !important;
 }
 
 .light-mode input:focus,
@@ -271,22 +286,71 @@ body {
   outline: none !important;
 }
 
-.light-mode .bg-\[\#121212\] {
-  background-color: #f1f5f9 !important;
-  border-color: #cbd5e1 !important;
+.light-mode .hero-video-overlay {
+  background: linear-gradient(
+    180deg,
+    rgba(248, 250, 252, 0.3) 0%,
+    rgba(248, 250, 252, 0.5) 40%,
+    rgba(248, 250, 252, 0.85) 75%,
+    rgba(248, 250, 252, 1) 100%
+  ) !important;
+}
+
+.light-mode .spotify-glow-blob {
+  background: radial-gradient(circle, rgba(29, 185, 84, 0.08) 0%, rgba(248, 250, 252, 0) 70%) !important;
+}
+
+.light-mode .fb-glow-blob {
+  background: radial-gradient(circle, rgba(24, 119, 242, 0.1) 0%, rgba(248, 250, 252, 0) 70%) !important;
+}
+
+/* Custom Scrollbar for Light Mode */
+.light-mode ::-webkit-scrollbar-track {
+  background: var(--color-background) !important;
+}
+.light-mode ::-webkit-scrollbar-thumb {
+  background: var(--color-border) !important;
+}
+.light-mode ::-webkit-scrollbar-thumb:hover {
+  background: var(--color-muted) !important;
+}
+
+/* 🌞 Light Mode Overrides for Admin Panel */
+.light-mode aside {
+  background-color: var(--color-card) !important;
+  border-right-color: var(--color-border) !important;
+  color: var(--color-muted) !important;
+}
+
+.light-mode aside a {
+  color: var(--color-muted) !important;
+}
+
+.light-mode aside a:hover {
+  background-color: var(--color-background-elevated) !important;
+  color: var(--color-foreground) !important;
+}
+
+.light-mode aside .text-white {
+  color: var(--color-foreground) !important;
+}
+
+.light-mode main {
+  background-color: var(--color-background) !important;
+  color: var(--color-foreground) !important;
 }
 
 .light-mode thead tr {
-  background-color: #f8fafc !important;
-  border-bottom-color: #e2e8f0 !important;
+  background-color: var(--color-background) !important;
+  border-bottom-color: var(--color-border) !important;
 }
 
 .light-mode tbody tr {
-  border-bottom-color: #f1f5f9 !important;
+  border-bottom-color: var(--color-background-elevated) !important;
 }
 
 .light-mode tbody tr:hover {
-  background-color: #f8fafc !important;
+  background-color: var(--color-background) !important;
 }
 
 .light-mode .fixed.inset-0.z-50 {
@@ -294,7 +358,7 @@ body {
 }
 
 .light-mode .fixed.inset-0.z-50 > div {
-  background-color: #ffffff !important;
-  border-color: #e2e8f0 !important;
+  background-color: var(--color-card) !important;
+  border-color: var(--color-border) !important;
 }
 
