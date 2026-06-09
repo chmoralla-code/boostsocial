@@ -409,3 +409,121 @@ body {
   border-color: var(--color-border) !important;
 }
 
+/* ── Shimmer text readability in light mode ── */
+.light-mode .spotify-shimmer-text {
+  background: linear-gradient(
+    270deg,
+    #0f172a 0%,
+    #1DB954 30%,
+    #1ed760 50%,
+    #0f172a 70%,
+    #1DB954 100%
+  );
+  background-size: 400% 400%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 0 0 40px rgba(29, 185, 84, 0.15) !important;
+}
+
+.light-mode .fb-shimmer-text {
+  background: linear-gradient(
+    270deg,
+    #0f172a 0%,
+    #1877F2 30%,
+    #4e8df5 50%,
+    #0f172a 70%,
+    #1877F2 100%
+  );
+  background-size: 400% 400%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 0 0 40px rgba(24, 119, 242, 0.2) !important;
+}
+
+/* ── Glow blobs toned down for light mode ── */
+.light-mode .spotify-glow-blob {
+  background: radial-gradient(circle, rgba(29, 185, 84, 0.08) 0%, rgba(248, 250, 252, 0) 70%) !important;
+}
+
+.light-mode .fb-glow-blob {
+  background: radial-gradient(circle, rgba(24, 119, 242, 0.1) 0%, rgba(248, 250, 252, 0) 70%) !important;
+}
+
+/* ── Shadow adjustments ── */
+.light-mode .shadow-\[0_12px_40px_rgba\(0\,0\,0\,0\.4\)\] {
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.08) !important;
+}
+
+.light-mode .shadow-\[0_20px_50px_rgba\(0\,0\,0\,0\.5\)\] {
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.1) !important;
+}
+
+.light-mode .shadow-2xl {
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.08) !important;
+}
+
+/* ── Grid backdrop adapts ── */
+.light-mode .bg-\[linear-gradient\(rgba\(255\,255\,255\,0\.012\)_1px\,transparent_1px\)\,linear-gradient\(90deg\,rgba\(255\,255\,255\,0\.012\)_1px\,transparent_1px\)\] {
+  background-image: linear-gradient(rgba(0, 0, 0, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(0, 0, 0, 0.03) 1px, transparent 1px) !important;
+}
+
+/* ── Additional background overrides ── */
+.light-mode .bg-\[\#282828\] {
+  background-color: var(--color-border) !important;
+}
+
+.light-mode .bg-\[\#161616\]\/40,
+.light-mode .hover\:bg-\[\#161616\]\/40:hover {
+  background-color: rgba(241, 245, 249, 0.4) !important;
+}
+
+.light-mode .bg-\[\#090909\]\/40 {
+  background-color: rgba(248, 250, 252, 0.4) !important;
+}
+
+.light-mode .bg-\[\#090909\]\/80,
+.light-mode .bg-\[\#090909\]\/90 {
+  background-color: rgba(248, 250, 252, 0.8) !important;
+}
+
+.light-mode .bg-black\/40 {
+  background-color: rgba(241, 245, 249, 0.6) !important;
+}
+
+/* ── Header & footer backgrounds ── */
+.light-mode header {
+  background-color: var(--color-card) !important;
+  border-bottom-color: var(--color-border) !important;
+}
+
+.light-mode footer {
+  background-color: var(--color-background-elevated) !important;
+  border-top-color: var(--color-border) !important;
+}
+
+/* ── Additional text color overrides ── */
+.light-mode .text-slate-550 {
+  color: var(--color-muted) !important;
+}
+
+.light-mode .text-slate-555 {
+  color: var(--color-muted) !important;
+}
+
+.light-mode .text-slate-600 {
+  color: #475569 !important;
+}
+
+.light-mode .text-slate-700 {
+  color: #334155 !important;
+}
+
+/* ── Additional border overrides ── */
+.light-mode .border-white\/\[0\.04\] {
+  border-color: rgba(0, 0, 0, 0.06) !important;
+}
+
+.light-mode .border-white\/\[0\.08\] {
+  border-color: rgba(0, 0, 0, 0.1) !important;
+}
+

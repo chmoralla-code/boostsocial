@@ -112,7 +112,14 @@ export default function RootLayout({
   };
 
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('site-theme');if(t==='light'){document.documentElement.classList.add('light-mode')}}catch(e){}})()`,
+          }}
+        />
+      </head>
       <body className={`${inter.className} min-h-screen bg-bg text-fg flex flex-col antialiased`}>
         <script
           type="application/ld+json"
