@@ -579,7 +579,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#090909]/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
       <div className="bg-card border border-border rounded-2xl w-full max-w-md shadow-2xl overflow-hidden relative transform transition-all animate-in zoom-in-95 duration-200">
         <button 
           onClick={onClose}
