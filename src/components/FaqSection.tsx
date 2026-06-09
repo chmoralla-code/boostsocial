@@ -48,10 +48,10 @@ export function FaqSection() {
         <span className="bg-[#1877F2]/10 text-[#1877F2] border border-[#1877F2]/20 font-black text-[10px] tracking-widest uppercase px-3 py-1 rounded-full inline-flex items-center gap-1.5 mb-3">
           <HelpCircle size={10} /> FAQ Portal
         </span>
-        <h2 className="text-3xl md:text-4xl font-black text-center text-white tracking-tight">
+        <h2 className="text-3xl md:text-4xl font-black text-center text-fg tracking-tight">
           Got <span className="text-[#1877F2]">Questions</span>?
         </h2>
-        <p className="text-sm text-slate-400 mt-2 font-medium">
+        <p className="text-sm text-muted mt-2 font-medium">
           Everything you need to know about our services and security
         </p>
       </div>
@@ -62,11 +62,11 @@ export function FaqSection() {
           return (
             <div 
               key={i} 
-              className="bg-[#181818]/60 border border-slate-800/80 rounded-2xl overflow-hidden transition-all duration-300"
+              className="bg-card/60 border border-border/80 rounded-2xl overflow-hidden transition-all duration-300"
             >
               <button
                 onClick={() => toggle(i)}
-                className="w-full py-5 px-6 flex items-center justify-between text-left font-bold text-white hover:bg-[#222]/30 transition-all select-none cursor-pointer"
+                className="w-full py-5 px-6 flex items-center justify-between text-left font-bold text-fg hover:bg-elevated/30 transition-all select-none cursor-pointer"
               >
                 <span className="text-sm sm:text-base pr-4">{faq.question}</span>
                 <ChevronDown 
@@ -77,10 +77,10 @@ export function FaqSection() {
               
               <div 
                 className={`transition-all duration-300 ease-in-out ${
-                  isOpen ? "max-h-[300px] border-t border-slate-850 p-6 opacity-100" : "max-h-0 opacity-0 pointer-events-none"
-                } overflow-hidden bg-[#121212]/30`}
+                  isOpen ? "max-h-[300px] border-t border-border p-6 opacity-100" : "max-h-0 opacity-0 pointer-events-none"
+                } overflow-hidden bg-elevated/30`}
               >
-                <p className="text-slate-300 text-xs sm:text-sm leading-relaxed font-medium">
+                <p className="text-fg text-xs sm:text-sm leading-relaxed font-medium">
                   {faq.answer}
                 </p>
               </div>

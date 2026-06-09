@@ -169,12 +169,12 @@ export default async function Home() {
       <OnboardingRedirect />
       <Header />
       
-      <main className="flex-grow flex flex-col items-center pt-8 sm:pt-14 md:pt-24 relative overflow-hidden bg-[#0a0a0a] min-h-screen">
+      <main className="flex-grow flex flex-col items-center pt-8 sm:pt-14 md:pt-24 relative overflow-hidden bg-bg min-h-screen">
         {/* Video Background */}
         <HeroVideoBackground videoUrl={videoUrl} opacity={opacity} />
         
         {/* Futuristic Technical Grid Backdrop */}
-        <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.012)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.012)_1px,transparent_1px)] bg-[size:44px_44px] pointer-events-none -z-10"></div>
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.012)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.012)_1px,transparent_1px)] bg-[size:44px_44px] pointer-events-none -z-10 light-mode:bg-[linear-gradient(rgba(15,23,42,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(15,23,42,0.03)_1px,transparent_1px)]"></div>
         
         {/* Spotify Neon Glow Backdrops */}
         <div className="absolute top-0 left-0 w-full h-[700px] overflow-hidden z-[1] pointer-events-none">
@@ -187,19 +187,19 @@ export default async function Home() {
           {/* Left Column (Content & Search) */}
           <div className="lg:col-span-7 flex flex-col items-center lg:items-start text-center lg:text-left">
             {/* Animated Tech Badge */}
-            <div className="inline-flex items-center gap-2 px-4 sm:px-5 py-2 rounded-full bg-white/[0.03] border border-white/[0.08] text-[10px] sm:text-xs font-black tracking-widest text-[#1DB954] mb-5 sm:mb-6 uppercase shadow-xl shadow-emerald-500/5 backdrop-blur-md animate-fade-in-up-1 text-center">
+            <div className="inline-flex items-center gap-2 px-4 sm:px-5 py-2 rounded-full bg-white/[0.03] border border-white/[0.08] text-[10px] sm:text-xs font-black tracking-widest text-primary mb-5 sm:mb-6 uppercase shadow-xl shadow-emerald-500/5 backdrop-blur-md animate-fade-in-up-1 text-center light-mode:bg-slate-100/50 light-mode:border-slate-200/50">
               <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#1ed760] opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-[#1DB954]"></span>
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary-dark opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
               </span>
               {heroTexts.badge}
             </div>
 
-            <h1 className="text-[2rem] sm:text-5xl md:text-6xl lg:text-7xl font-black leading-[1.02] sm:leading-[1.05] mb-5 sm:mb-6 tracking-normal uppercase animate-fade-in-up-2">
+            <h1 className="text-[2rem] sm:text-5xl md:text-6xl lg:text-7xl font-black leading-[1.02] sm:leading-[1.05] mb-5 sm:mb-6 tracking-normal uppercase animate-fade-in-up-2 text-fg">
               {parseTitle(heroTexts.title)}
             </h1>
             
-            <p className="text-sm sm:text-base md:text-lg text-slate-400 mb-7 sm:mb-10 max-w-xl font-bold leading-relaxed animate-fade-in-up-3">
+            <p className="text-sm sm:text-base md:text-lg text-muted mb-7 sm:mb-10 max-w-xl font-bold leading-relaxed animate-fade-in-up-3">
               {parseDescriptionText(heroTexts.description)}
             </p>
             
@@ -208,19 +208,19 @@ export default async function Home() {
             </div>
 
             <div className="w-full max-w-xl grid grid-cols-2 gap-2 sm:grid-cols-4 animate-fade-in-up-3 mb-8 sm:mb-10">
-              <Link href="#services" className="flex min-h-14 flex-col items-center justify-center gap-1.5 rounded-2xl border border-[#1DB954]/25 bg-[#1DB954]/12 px-3 py-3 text-center text-[10px] font-black uppercase tracking-wider text-[#1DB954] transition hover:bg-[#1DB954] hover:text-black">
+              <Link href="#services" className="flex min-h-14 flex-col items-center justify-center gap-1.5 rounded-2xl border border-primary/25 bg-primary/12 px-3 py-3 text-center text-[10px] font-black uppercase tracking-wider text-primary transition hover:bg-primary hover:text-black">
                 <Rocket size={16} />
                 Browse Services
               </Link>
-              <Link href="/app" className="flex min-h-14 flex-col items-center justify-center gap-1.5 rounded-2xl border border-slate-800 bg-white/[0.04] px-3 py-3 text-center text-[10px] font-black uppercase tracking-wider text-slate-200 transition hover:border-[#1DB954]/50 hover:text-white">
+              <Link href="/app" className="flex min-h-14 flex-col items-center justify-center gap-1.5 rounded-2xl border border-border bg-white/[0.04] px-3 py-3 text-center text-[10px] font-black uppercase tracking-wider text-fg transition hover:border-primary/50 hover:text-fg light-mode:border-slate-300 light-mode:bg-slate-100/50">
                 <Smartphone size={16} />
                 Open App
               </Link>
-              <Link href="/track" className="flex min-h-14 flex-col items-center justify-center gap-1.5 rounded-2xl border border-slate-800 bg-white/[0.04] px-3 py-3 text-center text-[10px] font-black uppercase tracking-wider text-slate-200 transition hover:border-[#1DB954]/50 hover:text-white">
+              <Link href="/track" className="flex min-h-14 flex-col items-center justify-center gap-1.5 rounded-2xl border border-border bg-white/[0.04] px-3 py-3 text-center text-[10px] font-black uppercase tracking-wider text-fg transition hover:border-primary/50 hover:text-fg light-mode:border-slate-300 light-mode:bg-slate-100/50">
                 <ClipboardList size={16} />
                 Track Order
               </Link>
-              <Link href="/login" className="flex min-h-14 flex-col items-center justify-center gap-1.5 rounded-2xl border border-slate-800 bg-white/[0.04] px-3 py-3 text-center text-[10px] font-black uppercase tracking-wider text-slate-200 transition hover:border-[#1DB954]/50 hover:text-white">
+              <Link href="/login" className="flex min-h-14 flex-col items-center justify-center gap-1.5 rounded-2xl border border-border bg-white/[0.04] px-3 py-3 text-center text-[10px] font-black uppercase tracking-wider text-fg transition hover:border-primary/50 hover:text-fg light-mode:border-slate-300 light-mode:bg-slate-100/50">
                 <LogIn size={16} />
                 Login/Register
               </Link>
@@ -271,55 +271,55 @@ export default async function Home() {
 
         <ServicesSection services={services || []} servicesBg={servicesBg} servicesCandidates={servicesCandidates} />
 
-      {/* 🌟 Premium About & Contact Section */}
-      <section id="about" className="w-full max-w-7xl mx-auto px-4 sm:px-6 md:px-8 py-16 sm:py-24 border-t border-slate-800/40 relative z-10">
+        {/* 🌟 Premium About & Contact Section */}
+      <section id="about" className="w-full max-w-7xl mx-auto px-4 sm:px-6 md:px-8 py-16 sm:py-24 border-t border-border/40 relative z-10">
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-blue-500/2 to-transparent opacity-30 pointer-events-none blur-3xl"></div>
         
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-16 items-start">
           {/* About CYNETWORK */}
           <div className="lg:col-span-6 space-y-6 text-left">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/[0.03] border border-white/[0.08] text-[10px] font-black tracking-widest text-[#1877F2] uppercase">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/[0.03] border border-white/[0.08] text-[10px] font-black tracking-widest text-primary uppercase light-mode:bg-slate-100/50 light-mode:border-slate-200/50">
               🚀 About CYNETWORK
             </div>
-            <h2 className="text-3xl sm:text-4xl md:text-5xl font-black uppercase tracking-tight text-white leading-none">
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-black uppercase tracking-tight text-fg leading-none">
               Next-Gen <span className="fb-shimmer-text">Social Amplification</span> Engine
             </h2>
-            <p className="text-slate-400 text-sm leading-relaxed font-semibold">
+            <p className="text-muted text-sm leading-relaxed font-semibold">
               CYNETWORK is the leading platform for instant social media boosting services in the Philippines. We specialize in providing lightning-fast, high-retention reactions, active followers, and organic views to kickstart your online brand presence.
             </p>
-            <p className="text-slate-400 text-sm leading-relaxed font-semibold">
+            <p className="text-muted text-sm leading-relaxed font-semibold">
               By pairing advanced API integration (such as RixeySMM workflows) with reliable master/replica databases, we ensure 100% service availability, automatic order fulfillment, and secure GCash transactions.
             </p>
             
             <div className="grid grid-cols-2 gap-4 pt-4">
-              <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/[0.04] space-y-1">
-                <div className="text-lg font-black text-[#1DB954]">100% Safe</div>
-                <div className="text-xs text-slate-500">No account password required. Only profile URL/links.</div>
+              <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/[0.04] space-y-1 light-mode:bg-slate-100/50 light-mode:border-slate-200/50">
+                <div className="text-lg font-black text-primary">100% Safe</div>
+                <div className="text-xs text-muted">No account password required. Only profile URL/links.</div>
               </div>
-              <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/[0.04] space-y-1">
+              <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/[0.04] space-y-1 light-mode:bg-slate-100/50 light-mode:border-slate-200/50">
                 <div className="text-lg font-black text-[#1877F2]">Instant Queue</div>
-                <div className="text-xs text-slate-500">Most orders kickstart within 5-15 minutes of approval.</div>
+                <div className="text-xs text-muted">Most orders kickstart within 5-15 minutes of approval.</div>
               </div>
             </div>
           </div>
           
           {/* Contact & Support */}
-          <div id="contact" className="lg:col-span-6 w-full rounded-[2rem] bg-gradient-to-br from-white/[0.04] to-white/[0.01] border border-white/[0.08] p-6 sm:p-8 backdrop-blur-xl shadow-2xl relative">
+          <div id="contact" className="lg:col-span-6 w-full rounded-[2rem] bg-gradient-to-br from-white/[0.04] to-white/[0.01] border border-white/[0.08] p-6 sm:p-8 backdrop-blur-xl shadow-2xl relative light-mode:bg-slate-50/50 light-mode:border-slate-200/50">
             <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/5 rounded-full blur-2xl pointer-events-none"></div>
             
-            <h3 className="text-xl font-black text-white uppercase mb-2 tracking-tight">📬 Contact & Support</h3>
-            <p className="text-slate-400 text-xs mb-6">Have questions or need order assistance? Shoot us a message directly!</p>
+            <h3 className="text-xl font-black text-fg uppercase mb-2 tracking-tight">📬 Contact & Support</h3>
+            <p className="text-muted text-xs mb-6">Have questions or need order assistance? Shoot us a message directly!</p>
             
             <div className="space-y-4 text-left">
               <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase text-slate-500 tracking-wider">Email Address</label>
-                <div className="w-full bg-[#121212] border border-slate-800/80 rounded-xl px-4 py-3 text-xs text-slate-300 font-semibold select-all">
+                <label className="text-[10px] font-black uppercase text-muted tracking-wider">Email Address</label>
+                <div className="w-full bg-elevated border border-border/80 rounded-xl px-4 py-3 text-xs text-fg font-semibold select-all">
                   support@cynetwork.ph
                 </div>
               </div>
               <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase text-slate-500 tracking-wider">Help Desk & Live Chat</label>
-                <p className="text-slate-400 text-xs leading-relaxed">
+                <label className="text-[10px] font-black uppercase text-muted tracking-wider">Help Desk & Live Chat</label>
+                <p className="text-muted text-xs leading-relaxed">
                   Registered users can open a live chat ticket directly in the app sidebar navigation by clicking on the Chat widget.
                 </p>
               </div>
@@ -328,7 +328,7 @@ export default async function Home() {
                 <Link href="/login" className="flex-1 bg-[#1877F2] hover:bg-[#4e8df5] text-white text-center font-extrabold py-3.5 rounded-xl transition-all duration-300 uppercase text-xs tracking-wider flex items-center justify-center gap-2">
                   Create Account
                 </Link>
-                <a href="mailto:support@cynetwork.ph" className="flex-1 border border-slate-800 bg-[#282828]/50 hover:bg-[#333]/50 text-slate-300 text-center font-extrabold py-3.5 rounded-xl transition-all duration-300 uppercase text-xs tracking-wider flex items-center justify-center gap-2">
+                <a href="mailto:support@cynetwork.ph" className="flex-1 border border-border bg-card/50 hover:bg-elevated/50 text-fg text-center font-extrabold py-3.5 rounded-xl transition-all duration-300 uppercase text-xs tracking-wider flex items-center justify-center gap-2">
                   Email Support
                 </a>
               </div>

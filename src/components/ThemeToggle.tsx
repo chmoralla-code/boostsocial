@@ -41,7 +41,7 @@ export function ThemeToggle() {
     return (
       <button
         type="button"
-        className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-800/80 bg-[#181818]/80 text-slate-400 transition-all duration-300 hover:border-[#1DB954]/40 hover:text-white"
+        className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-border/80 bg-card/80 text-muted transition-all duration-300 hover:border-primary/40 hover:text-fg"
         aria-label="Loading theme..."
       >
         <Moon size={18} />
@@ -53,7 +53,7 @@ export function ThemeToggle() {
     <button
       onClick={toggleTheme}
       type="button"
-      className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-800/80 bg-[#181818]/80 text-slate-400 transition-all duration-300 hover:border-[#1DB954]/40 hover:text-white group"
+      className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-border/80 bg-card/80 text-muted transition-all duration-300 hover:border-primary/40 hover:text-fg group"
       title={theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
       aria-label={theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
     >

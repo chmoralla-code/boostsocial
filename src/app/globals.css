@@ -41,6 +41,26 @@ body {
   transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
 }
 
+/* 🎨 Semantic Theme Utilities */
+.text-fg { color: var(--color-foreground) !important; }
+.text-muted { color: var(--color-muted) !important; }
+.text-primary { color: var(--color-primary) !important; }
+.bg-bg { background-color: var(--color-background) !important; }
+.bg-elevated { background-color: var(--color-background-elevated) !important; }
+.bg-card { background-color: var(--color-card) !important; }
+.bg-primary { background-color: var(--color-primary) !important; }
+.bg-primary\/10 { background-color: rgba(29, 185, 84, 0.1) !important; }
+.bg-primary\/20 { background-color: rgba(29, 185, 84, 0.2) !important; }
+.border-border { border-color: var(--color-border) !important; }
+.divide-border > * + * { border-color: var(--color-border) !important; }
+.placeholder-muted::placeholder { color: var(--color-muted) !important; }
+
+/* Hover states */
+.hover\:bg-elevated:hover { background-color: var(--color-background-elevated) !important; }
+.hover\:text-fg:hover { color: var(--color-foreground) !important; }
+.hover\:text-primary:hover { color: var(--color-primary) !important; }
+.hover\:border-primary\/40:hover { border-color: rgba(29, 185, 84, 0.4) !important; }
+
 /* 🎬 Hero Video Background */
 .hero-video-wrapper {
   position: absolute;

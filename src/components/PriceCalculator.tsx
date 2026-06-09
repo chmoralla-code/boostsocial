@@ -157,7 +157,7 @@ export function PriceCalculator({ services, vipDiscountPercent = 0, onOrder }: P
 
   return (
     <div className="w-full max-w-4xl mx-auto px-4 mt-6 mb-16 relative z-10">
-      <div className="bg-[#181818]/60 backdrop-blur-xl border border-slate-800/80 rounded-3xl p-6 sm:p-10 shadow-2xl relative overflow-hidden group">
+      <div className="bg-card/60 backdrop-blur-xl border border-border/80 rounded-3xl p-6 sm:p-10 shadow-2xl relative overflow-hidden group">
         {/* Glow effect */}
         <div 
           style={{ backgroundColor: activeColor }}
@@ -168,7 +168,7 @@ export function PriceCalculator({ services, vipDiscountPercent = 0, onOrder }: P
           <span className={`border font-black text-[10px] tracking-widest uppercase px-3 py-1 rounded-full inline-flex items-center gap-1.5 mb-3 ${activeBadge}`}>
             <Zap size={10} fill="currentColor" /> Interactive SMM Calculator
           </span>
-          <h3 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+          <h3 className="text-2xl sm:text-3xl font-black text-fg tracking-tight">
             Estimate Your <span style={{ color: activeColor }}>Amplification Package</span>
           </h3>
           {(selectedSmmId || selectedSmmName) && (
@@ -179,13 +179,13 @@ export function PriceCalculator({ services, vipDiscountPercent = 0, onOrder }: P
                 </span>
               )}
               {selectedSmmName && (
-                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-slate-800/80 text-slate-300 border border-slate-700 text-[9px] font-black uppercase tracking-wider max-w-[280px] truncate" title={selectedSmmName}>
+                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-elevated text-fg border border-border text-[9px] font-black uppercase tracking-wider max-w-[280px] truncate" title={selectedSmmName}>
                   {formatSmmServiceName(selectedSmmName, selectedSmmId, selectedService.description?.description || selectedService.description || "")}
                 </span>
               )}
             </div>
           )}
-          <p className="text-xs sm:text-sm text-slate-400 mt-2 font-medium">
+          <p className="text-xs sm:text-sm text-muted mt-2 font-medium">
             Drag the slider to customize quantities and view real-time estimates
           </p>
         </div>
@@ -195,7 +195,7 @@ export function PriceCalculator({ services, vipDiscountPercent = 0, onOrder }: P
           <div className="space-y-6">
             {/* Service selector buttons */}
              <div>
-              <label className="block text-xs font-black uppercase tracking-wider text-slate-400 mb-3 text-left">
+              <label className="block text-xs font-black uppercase tracking-wider text-muted mb-3 text-left">
                 1. Select Service Type
               </label>
               <div className="grid grid-cols-3 gap-2.5">
@@ -222,7 +222,7 @@ export function PriceCalculator({ services, vipDiscountPercent = 0, onOrder }: P
                       className={`py-3 px-2 text-[11px] sm:text-xs font-black rounded-xl border transition-all duration-300 ${
                         isSelected
                           ? `text-white border-transparent shadow-lg scale-[1.02] ${srvActiveBg}`
-                          : "bg-[#121212] text-slate-300 border-slate-800/80 hover:bg-[#222]/80 hover:text-white"
+                          : "bg-elevated text-fg border-border/80 hover:bg-card hover:text-fg"
                       }`}
                     >
                       {srv.title.replace("Facebook ", "")}
@@ -235,10 +235,10 @@ export function PriceCalculator({ services, vipDiscountPercent = 0, onOrder }: P
             {/* Quantity Slider */}
             <div>
               <div className="flex justify-between items-center mb-2">
-                <label className="text-xs font-black uppercase tracking-wider text-slate-400 text-left">
+                <label className="text-xs font-black uppercase tracking-wider text-muted text-left">
                   2. Select Quantity
                 </label>
-                <span className="text-sm font-black text-white font-mono bg-[#121212] px-3 py-1 rounded-lg border border-slate-800">
+                <span className="text-sm font-black text-fg font-mono bg-elevated px-3 py-1 rounded-lg border border-border">
                   {quantity.toLocaleString()} {isSingleItem ? (quantity === 1 ? "item" : "items") : "units"}
                 </span>
               </div>
@@ -249,15 +249,15 @@ export function PriceCalculator({ services, vipDiscountPercent = 0, onOrder }: P
                 step={isSingleItem ? 1 : (quantity < 1000 ? 50 : 100)}
                 value={quantity}
                 onChange={(e) => handleSliderChange(Number(e.target.value))}
-                className="w-full h-2 bg-[#121212] rounded-lg appearance-none cursor-pointer"
+                className="w-full h-2 bg-elevated rounded-lg appearance-none cursor-pointer"
                 style={{
                   accentColor: activeColor,
                   background: isSingleItem 
-                    ? `linear-gradient(to right, ${activeColor} 0%, ${activeColor} ${((quantity - 1) / (10 - 1)) * 100}%, #121212 ${((quantity - 1) / (10 - 1)) * 100}%, #121212 100%)`
-                    : `linear-gradient(to right, ${activeColor} 0%, ${activeColor} ${((quantity - minQty) / (10000 - minQty)) * 100}%, #121212 ${((quantity - minQty) / (10000 - minQty)) * 100}%, #121212 100%)`
+                    ? `linear-gradient(to right, ${activeColor} 0%, ${activeColor} ${((quantity - 1) / (10 - 1)) * 100}%, var(--color-elevated) ${((quantity - 1) / (10 - 1)) * 100}%, var(--color-elevated) 100%)`
+                    : `linear-gradient(to right, ${activeColor} 0%, ${activeColor} ${((quantity - minQty) / (10000 - minQty)) * 100}%, var(--color-elevated) ${((quantity - minQty) / (10000 - minQty)) * 100}%, var(--color-elevated) 100%)`
                 }}
               />
-              <div className="flex justify-between items-center mt-2.5 text-[10px] text-slate-500 font-bold uppercase">
+              <div className="flex justify-between items-center mt-2.5 text-[10px] text-muted font-bold uppercase">
                 <span>Min: {isSingleItem ? "1 item" : minQty.toLocaleString()}</span>
                 <span>Mid: {isSingleItem ? "5 items" : "5,000"}</span>
                 <span>Max: {isSingleItem ? "10 items" : "10,000"}</span>
@@ -266,16 +266,16 @@ export function PriceCalculator({ services, vipDiscountPercent = 0, onOrder }: P
           </div>
 
           {/* Pricing Panel */}
-          <div className="bg-[#121212] border border-slate-800/80 rounded-2xl p-6 flex flex-col justify-between h-full relative overflow-hidden group/price">
+          <div className="bg-elevated border border-border/80 rounded-2xl p-6 flex flex-col justify-between h-full relative overflow-hidden group/price">
             <div className="text-left space-y-1">
-              <span className="text-[10px] text-slate-500 font-black uppercase tracking-wider">Estimated Price</span>
+              <span className="text-[10px] text-muted font-black uppercase tracking-wider">Estimated Price</span>
               <div className="flex items-baseline gap-1.5 flex-wrap">
                 {hasVipPrice ? (
-                  <span className="text-sm text-slate-500 font-mono line-through mr-1 block">
+                  <span className="text-sm text-muted font-mono line-through mr-1 block">
                     Regular ₱{formatPrice(regularTargetPrice)}
                   </span>
                 ) : fakeDiscountPercent > 0 && (
-                  <span className="text-sm text-slate-500 font-mono line-through mr-1 block">
+                  <span className="text-sm text-muted font-mono line-through mr-1 block">
                     ₱{formatPrice(fakeOriginalPrice)}
                   </span>
                 )}
@@ -285,10 +285,10 @@ export function PriceCalculator({ services, vipDiscountPercent = 0, onOrder }: P
                 >
                   ₱{formatPrice(animatedPrice)}
                 </span>
-                <span className="text-xs text-slate-400 font-bold">PHP</span>
+                <span className="text-xs text-muted font-bold">PHP</span>
               </div>
               {hasVipPrice ? (
-                <div className="text-[10px] font-black uppercase tracking-wider mt-1 text-[#1DB954]">
+                <div className="text-[10px] font-black uppercase tracking-wider mt-1 text-primary">
                   VIP {vipDiscountPercent}% applied. You save ₱{formatPrice(regularTargetPrice - vipTargetPrice)}.
                 </div>
               ) : fakeDiscountPercent > 0 && (
@@ -296,7 +296,7 @@ export function PriceCalculator({ services, vipDiscountPercent = 0, onOrder }: P
                   🔥 {fakeDiscountPercent}% Special Discount Active!
                 </div>
               )}
-              <p className="text-[10px] text-slate-550 font-semibold italic mt-1 bg-[#121212] rounded-lg">
+              <p className="text-[10px] text-muted font-semibold italic mt-1 bg-elevated rounded-lg">
                 *Computed rate: ₱{minQty === 1
                   ? `${selectedService.starting_price.toFixed(2)} per item`
                   : `${(selectedService.starting_price * 1000).toFixed(2)} per 1,000 items`
@@ -304,29 +304,29 @@ export function PriceCalculator({ services, vipDiscountPercent = 0, onOrder }: P
               </p>
             </div>
 
-            <div className="border-t border-slate-800/60 my-5 pt-4 text-left space-y-2">
-              <div className="flex items-center gap-2 text-[11px] sm:text-xs text-slate-300 font-medium">
+            <div className="border-t border-border/60 my-5 pt-4 text-left space-y-2">
+              <div className="flex items-center gap-2 text-[11px] sm:text-xs text-fg font-medium">
                 <span 
                   style={{ backgroundColor: activeColor }}
                   className="w-1.5 h-1.5 rounded-full animate-pulse"
                 ></span>
                 <span>**Delivery:** Instant Start (15m - 2h)</span>
               </div>
-              <div className="flex items-center gap-2 text-[11px] sm:text-xs text-slate-300 font-medium">
+              <div className="flex items-center gap-2 text-[11px] sm:text-xs text-fg font-medium">
                 <span 
                   style={{ backgroundColor: activeColor }}
                   className="w-1.5 h-1.5 rounded-full animate-pulse"
                 ></span>
                 <span>**Retention:** 100% Lifetime Guarantee</span>
               </div>
-              <div className="flex items-center gap-2 text-[11px] sm:text-xs text-slate-300 font-medium">
+              <div className="flex items-center gap-2 text-[11px] sm:text-xs text-fg font-medium">
                 <span 
                   style={{ backgroundColor: activeColor }}
                   className="w-1.5 h-1.5 rounded-full animate-pulse"
                 ></span>
                 <span>**Safety:** 🔒 100% Adsense & Monetization Compliant</span>
               </div>
-              <div className="flex items-center gap-2 text-[11px] sm:text-xs text-slate-300 font-medium">
+              <div className="flex items-center gap-2 text-[11px] sm:text-xs text-fg font-medium">
                 <span 
                   style={{ backgroundColor: activeColor }}
                   className="w-1.5 h-1.5 rounded-full animate-pulse"

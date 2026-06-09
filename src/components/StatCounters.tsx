@@ -71,41 +71,41 @@ export function StatCounters() {
     <section className="w-full max-w-5xl mx-auto px-4 mt-6 mb-16 relative z-10">
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
         {/* Card 1 */}
-        <div className="bg-[#181818]/40 border border-slate-800/80 rounded-2xl p-6 text-center hover:bg-[#222]/30 transition-all duration-300 group flex items-center gap-5 sm:flex-col sm:justify-center">
+        <div className="bg-card/40 border border-border/80 rounded-2xl p-6 text-center hover:bg-elevated/30 transition-all duration-300 group flex items-center gap-5 sm:flex-col sm:justify-center">
           <div className="p-4 rounded-full bg-[#1877F2]/10 text-[#1877F2] shadow-md group-hover:scale-105 transition-transform duration-300">
             <CheckCircle2 size={24} />
           </div>
           <div className="text-left sm:text-center space-y-1">
-            <div className="text-2xl sm:text-3xl font-black text-white font-mono tracking-tight">
+            <div className="text-2xl sm:text-3xl font-black text-fg font-mono tracking-tight">
               <AnimateNumber target={15420} suffix="+" />
             </div>
-            <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Orders Completed</p>
+            <p className="text-xs text-muted font-bold uppercase tracking-wider">Orders Completed</p>
           </div>
         </div>
 
         {/* Card 2 */}
-        <div className="bg-[#181818]/40 border border-slate-800/80 rounded-2xl p-6 text-center hover:bg-[#222]/30 transition-all duration-300 group flex items-center gap-5 sm:flex-col sm:justify-center">
+        <div className="bg-card/40 border border-border/80 rounded-2xl p-6 text-center hover:bg-elevated/30 transition-all duration-300 group flex items-center gap-5 sm:flex-col sm:justify-center">
           <div className="p-4 rounded-full bg-[#1877F2]/10 text-[#1877F2] shadow-md group-hover:scale-105 transition-transform duration-300">
             <TrendingUp size={24} />
           </div>
           <div className="text-left sm:text-center space-y-1">
-            <div className="text-2xl sm:text-3xl font-black text-white font-mono tracking-tight">
+            <div className="text-2xl sm:text-3xl font-black text-fg font-mono tracking-tight">
               <AnimateNumber target={8.9} suffix="M+" decimals={1} />
             </div>
-            <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Boosts Delivered</p>
+            <p className="text-xs text-muted font-bold uppercase tracking-wider">Boosts Delivered</p>
           </div>
         </div>
 
         {/* Card 3 */}
-        <div className="bg-[#181818]/40 border border-slate-800/80 rounded-2xl p-6 text-center hover:bg-[#222]/30 transition-all duration-300 group flex items-center gap-5 sm:flex-col sm:justify-center">
+        <div className="bg-card/40 border border-border/80 rounded-2xl p-6 text-center hover:bg-elevated/30 transition-all duration-300 group flex items-center gap-5 sm:flex-col sm:justify-center">
           <div className="p-4 rounded-full bg-[#1877F2]/10 text-[#1877F2] shadow-md group-hover:scale-105 transition-transform duration-300">
             <Users size={24} />
           </div>
           <div className="text-left sm:text-center space-y-1">
-            <div className="text-2xl sm:text-3xl font-black text-white font-mono tracking-tight">
+            <div className="text-2xl sm:text-3xl font-black text-fg font-mono tracking-tight">
               <AnimateNumber target={99.8} suffix="%" decimals={1} />
             </div>
-            <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Satisfaction Rate</p>
+            <p className="text-xs text-muted font-bold uppercase tracking-wider">Satisfaction Rate</p>
           </div>
         </div>
       </div>

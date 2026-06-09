@@ -94,11 +94,11 @@ export function ServiceCard({ id, title, description, startingPrice, iconType, v
   const getGlowClass = () => {
     switch (iconType) {
       case "followers":
-        return "hover:shadow-[0_0_40px_rgba(29,185,84,0.2)] hover:border-[#1DB954]/40 hover:bg-[#1DB954]/[0.02]";
+        return "hover:shadow-[0_0_40px_rgba(29,185,84,0.2)] hover:border-primary/40 hover:bg-primary/[0.02]";
       case "reactions":
         return "hover:shadow-[0_0_40px_rgba(24,119,242,0.25)] hover:border-[#1877F2]/40 hover:bg-[#1877F2]/[0.02]";
       case "views":
-        return "hover:shadow-[0_0_40px_rgba(29,185,84,0.2)] hover:border-[#1ed760]/40 hover:bg-[#1ed760]/[0.02]";
+        return "hover:shadow-[0_0_40px_rgba(29,185,84,0.2)] hover:border-primary-dark/40 hover:bg-primary-dark/[0.02]";
       default:
         return "hover:shadow-[0_0_40px_rgba(99,102,241,0.2)] hover:border-indigo-500/40 hover:bg-indigo-500/[0.02]";
     }
@@ -137,13 +137,13 @@ export function ServiceCard({ id, title, description, startingPrice, iconType, v
   const hasVipPrice = vipDiscountPercent > 0 && vipTotal < startingTotal;
 
   return (
-    <div className={`bg-[#121212]/50 hover:bg-[#161616]/90 backdrop-blur-md rounded-3xl p-8 flex flex-col items-start text-left w-full border border-white/[0.04] shadow-[0_12px_40px_rgba(0,0,0,0.4)] transition-all duration-500 transform hover:-translate-y-2 group ${getGlowClass()}`}>
+    <div className={`bg-elevated/50 hover:bg-card/90 backdrop-blur-md rounded-3xl p-8 flex flex-col items-start text-left w-full border border-border/40 shadow-[0_12px_40px_rgba(0,0,0,0.4)] transition-all duration-500 transform hover:-translate-y-2 group ${getGlowClass()}`}>
       <div className="h-16 flex items-center justify-center group-hover:scale-115 group-hover:rotate-6 transition-transform duration-500 ease-out">
         {getIcon()}
       </div>
       
-      <h3 className="uppercase text-xs font-black tracking-widest text-slate-500 mb-2">{title}</h3>
-      <h4 className="text-xl font-bold text-white mb-1 group-hover:text-[#1877F2] transition-colors">{parsed.subtitle}</h4>
+      <h3 className="uppercase text-xs font-black tracking-widest text-muted mb-2">{title}</h3>
+      <h4 className="text-xl font-bold text-fg mb-1 group-hover:text-primary transition-colors">{parsed.subtitle}</h4>
       
       {parsed.smm_average_time && parsed.smm_average_time !== "Not enough data" ? (
         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[9px] font-black uppercase tracking-wider mb-4 select-none">
@@ -151,7 +151,7 @@ export function ServiceCard({ id, title, description, startingPrice, iconType, v
         </span>
       ) : (
         iconType !== "pisowifi" && !parsed.redirect_url && (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#1ed760]/10 text-[#1ed760] border border-[#1ed760]/20 text-[9px] font-black uppercase tracking-wider mb-4 select-none">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary-dark/10 text-primary-dark border border-primary-dark/20 text-[9px] font-black uppercase tracking-wider mb-4 select-none">
             ⚡ Instant start queue
           </span>
         )
@@ -165,32 +165,32 @@ export function ServiceCard({ id, title, description, startingPrice, iconType, v
             </span>
           )}
           {parsed.smm_original_name && (
-            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-800/80 text-slate-300 border border-slate-700 text-[9px] font-black uppercase tracking-wider max-w-[220px] truncate" title={parsed.smm_original_name}>
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-elevated/80 text-fg border border-border text-[9px] font-black uppercase tracking-wider max-w-[220px] truncate" title={parsed.smm_original_name}>
               {parsed.smm_original_name}
             </span>
           )}
         </div>
       )}
       
-      <p className="text-slate-400 text-sm leading-relaxed mb-8 flex-grow whitespace-pre-line">
+      <p className="text-muted text-sm leading-relaxed mb-8 flex-grow whitespace-pre-line">
         {parsed.description}
       </p>
       
       {/* Price section */}
-      <div className="flex justify-between items-end w-full mb-6 pt-4 border-t border-slate-800/60">
+      <div className="flex justify-between items-end w-full mb-6 pt-4 border-t border-border/60">
         <div>
           {parsed.redirect_url ? (
             <>
-              <span className="block text-slate-500 text-[10px] font-bold uppercase tracking-wider mb-1">
+              <span className="block text-muted text-[10px] font-bold uppercase tracking-wider mb-1">
                 Pricing Info
               </span>
-              <span className="text-xs font-black text-[#1877F2] uppercase tracking-widest leading-relaxed block max-w-[240px]">
+              <span className="text-xs font-black text-primary uppercase tracking-widest leading-relaxed block max-w-[240px]">
                 PRICING IS DECLARED ON THE WEBSITE
               </span>
             </>
           ) : (
             <>
-              <span className="block text-slate-550 text-[10px] font-bold uppercase tracking-wider mb-1">
+              <span className="block text-muted text-[10px] font-bold uppercase tracking-wider mb-1">
                 {parsed.custom_caption 
                   ? parsed.custom_caption.replace("{min_quantity}", String(parsed.min_quantity))
                   : parsed.min_quantity === 1 
@@ -204,11 +204,11 @@ export function ServiceCard({ id, title, description, startingPrice, iconType, v
                           : `For as low as ${parsed.min_quantity} quantity units`
                 }
               </span>
-              <span className="text-3xl font-black text-white">
+              <span className="text-3xl font-black text-fg">
                 {hasVipPrice ? (
                   <span className="block leading-tight">
-                    <span className="block text-[11px] text-slate-500 line-through font-mono">Regular ₱{startingTotal.toFixed(2)}</span>
-                    <span className="block text-3xl text-[#1DB954]">VIP ₱{vipTotal.toFixed(2)}</span>
+                    <span className="block text-[11px] text-muted line-through font-mono">Regular ₱{startingTotal.toFixed(2)}</span>
+                    <span className="block text-3xl text-primary">VIP ₱{vipTotal.toFixed(2)}</span>
                   </span>
                 ) : (
                   <>₱{startingTotal.toFixed(2)}</>

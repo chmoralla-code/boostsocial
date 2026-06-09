@@ -109,17 +109,17 @@ export function ReviewsSection() {
           <span className="bg-[#1877F2]/10 text-[#1877F2] border border-[#1877F2]/20 font-black text-[10px] tracking-widest uppercase px-3 py-1 rounded-full inline-flex items-center gap-1.5 mb-3">
             <Star size={10} fill="currentColor" /> Reviews Grid
           </span>
-          <h2 className="text-3xl md:text-4xl font-black text-white tracking-tight">
+          <h2 className="text-3xl md:text-4xl font-black text-fg tracking-tight">
             Client <span className="text-[#1877F2]">Success Stories</span>
           </h2>
-          <p className="text-sm text-slate-400 mt-2 font-medium">
+          <p className="text-sm text-muted mt-2 font-medium">
             Real feedback from creators, influencers, and business pages
           </p>
         </div>
 
         <button
           onClick={() => setShowForm(!showForm)}
-          className="bg-[#282828] hover:bg-[#333] border border-slate-800/80 text-white font-extrabold py-3 px-6 rounded-full transition-all text-xs uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer self-start sm:self-center"
+          className="bg-card hover:bg-elevated border border-border/80 text-fg font-extrabold py-3 px-6 rounded-full transition-all text-xs uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer self-start sm:self-center"
         >
           <MessageSquarePlus size={14} className="text-[#1877F2]" /> Write A Review
         </button>
@@ -127,47 +127,47 @@ export function ReviewsSection() {
 
       {/* Review Builder Form */}
       {showForm && (
-        <div className="bg-[#181818] border border-slate-800/80 rounded-2xl p-6 mb-8 max-w-xl mx-auto text-left relative animate-in slide-in-from-top-4 duration-300">
+        <div className="bg-card border border-border/80 rounded-2xl p-6 mb-8 max-w-xl mx-auto text-left relative animate-in slide-in-from-top-4 duration-300">
           {submitted ? (
             <div className="flex flex-col items-center justify-center py-8 text-center space-y-2">
               <div className="text-[#1877F2] animate-bounce">
                 <CheckCircle size={36} />
               </div>
-              <h4 className="text-base font-black text-white">Review Submitted!</h4>
-              <p className="text-xs text-slate-400">Thank you for sharing your experience live!</p>
+              <h4 className="text-base font-black text-fg">Review Submitted!</h4>
+              <p className="text-xs text-muted">Thank you for sharing your experience live!</p>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
-              <h4 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2 mb-2">
+              <h4 className="text-sm font-black text-fg uppercase tracking-wider flex items-center gap-2 mb-2">
                 <PenTool size={14} className="text-[#1877F2]" /> Share Your Experience
               </h4>
               
               <div>
-                <label className="block text-[10px] font-black uppercase text-slate-400 mb-1.5">Your Name</label>
+                <label className="block text-[10px] font-black uppercase text-muted mb-1.5">Your Name</label>
                 <input
                   type="text"
                   required
                   placeholder="e.g. Maria Clara"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-[#121212] border border-slate-800 rounded-xl text-white focus:outline-none focus:ring-1 focus:ring-[#1877F2] text-xs font-semibold placeholder-slate-600"
+                  className="w-full px-4 py-2.5 bg-elevated border border-border rounded-xl text-fg focus:outline-none focus:ring-1 focus:ring-primary text-xs font-semibold placeholder-muted"
                 />
               </div>
 
               <div>
-                <label className="block text-[10px] font-black uppercase text-slate-400 mb-1.5">Rating (1 to 5 Stars)</label>
+                <label className="block text-[10px] font-black uppercase text-muted mb-1.5">Rating (1 to 5 Stars)</label>
                 <div className="flex gap-2">
                   {[1, 2, 3, 4, 5].map((star) => (
                     <button
                       key={star}
                       type="button"
                       onClick={() => setRating(star)}
-                      className="text-slate-500 hover:text-yellow-400 transition-colors p-1"
+                      className="text-muted hover:text-yellow-400 transition-colors p-1"
                     >
                       <Star 
                         size={22} 
                         fill={star <= rating ? "#eab308" : "none"} 
-                        className={star <= rating ? "text-yellow-500" : "text-slate-600"}
+                        className={star <= rating ? "text-yellow-500" : "text-muted"}
                       />
                     </button>
                   ))}
@@ -175,14 +175,14 @@ export function ReviewsSection() {
               </div>
 
               <div>
-                <label className="block text-[10px] font-black uppercase text-slate-400 mb-1.5">Feedback message</label>
+                <label className="block text-[10px] font-black uppercase text-muted mb-1.5">Feedback message</label>
                 <textarea
                   required
                   rows={3}
                   placeholder="Tell others how fast and reliable our boosting was..."
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-[#121212] border border-slate-800 rounded-xl text-white focus:outline-none focus:ring-1 focus:ring-[#1877F2] text-xs font-medium placeholder-slate-600 resize-none"
+                  className="w-full px-4 py-2.5 bg-elevated border border-border rounded-xl text-fg focus:outline-none focus:ring-1 focus:ring-primary text-xs font-medium placeholder-muted resize-none"
                 />
               </div>
 
@@ -190,13 +190,13 @@ export function ReviewsSection() {
                 <button
                   type="button"
                   onClick={() => setShowForm(false)}
-                  className="px-4 py-2 text-xs font-bold text-slate-400 hover:text-white transition-colors"
+                  className="px-4 py-2 text-xs font-bold text-muted hover:text-fg transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="bg-[#1877F2] hover:bg-[#4e8df5] text-white font-black py-2.5 px-6 rounded-full shadow-lg transition-all text-xs uppercase tracking-wider"
+                  className="bg-primary hover:bg-primary-dark text-white font-black py-2.5 px-6 rounded-full shadow-lg transition-all text-xs uppercase tracking-wider"
                 >
                   Submit Review
                 </button>
@@ -211,7 +211,7 @@ export function ReviewsSection() {
         {reviews.map((rev) => (
           <div 
             key={rev.id} 
-            className="bg-[#181818]/60 border border-slate-800/80 rounded-2xl p-5 hover:bg-[#222]/30 transition-all duration-300 flex flex-col justify-between text-left group"
+            className="bg-card/60 border border-border/80 rounded-2xl p-5 hover:bg-elevated/30 transition-all duration-300 flex flex-col justify-between text-left group"
           >
             <div className="space-y-3">
               {/* Star Rating */}
@@ -221,21 +221,21 @@ export function ReviewsSection() {
                     key={s} 
                     size={14} 
                     fill={s <= rev.rating ? "#1877F2" : "none"} 
-                    className={s <= rev.rating ? "text-[#1877F2]" : "text-slate-800"} 
+                    className={s <= rev.rating ? "text-[#1877F2]" : "text-muted"} 
                   />
                 ))}
               </div>
               
               {/* Comment */}
-              <p className="text-slate-200 text-xs font-medium leading-relaxed italic">
+              <p className="text-fg text-xs font-medium leading-relaxed italic">
                 "{rev.content}"
               </p>
             </div>
 
             {/* Author */}
-            <div className="border-t border-slate-800/60 mt-5 pt-3.5 flex items-center justify-between">
-              <span className="text-xs font-black text-white">{rev.name}</span>
-              <span className="text-[9px] text-slate-500 font-bold uppercase">{rev.date}</span>
+            <div className="border-t border-border/60 mt-5 pt-3.5 flex items-center justify-between">
+              <span className="text-xs font-black text-fg">{rev.name}</span>
+              <span className="text-[9px] text-muted font-bold uppercase">{rev.date}</span>
             </div>
           </div>
         ))}
