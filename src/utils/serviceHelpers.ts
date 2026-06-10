@@ -84,8 +84,14 @@ export function matchesServiceQualityFilter(
   name: string,
   desc: string = "",
   category: string = "",
-  organicOnly: boolean
+  organicOnly: boolean | "all"
 ): boolean {
+  // If "all" mode, show everything (both organic and non-organic)
+  if (organicOnly === "all") {
+    return isSocialBoostService(name, desc, category) && !isUtilityService(name, desc, category);
+  }
+
+  // If not a social boost service or is a utility, exclude it
   if (isUtilityService(name, desc, category) || !isSocialBoostService(name, desc, category)) {
     return false;
   }
