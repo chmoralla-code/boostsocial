@@ -140,7 +140,7 @@ export async function POST(req: Request) {
       lastError = err;
     }
 
-    if (success && content) {
+    if (content) {
       return NextResponse.json({ content });
     }
 
