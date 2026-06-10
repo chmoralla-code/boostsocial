@@ -269,10 +269,44 @@ function textPromptFromMessages(messages: ChatMessage[]) {
   ].join("\n\n");
 }
 
-async function askPollinationsText(messages: ChatMessage[]) {
-  // Use Llama 3 70B by default - free, unlimited, and highly capable
-  // Available free models: llama, mistral, openai, phi, gemini
-  const model = process.env.POLLINATIONS_TEXT_MODEL || process.env.POLLINATIONS_MODEL || "llama";
+async function askDeepSeek(messages: ChatMessage[]): Promise<string> {
+  const apiKey = process.env.DEEPSEEK_API_KEY;
+  if (!apiKey) return "";
+
+  try {
+    const res = await fetch("https://api.deepseek.com/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: "deepseek-chat",
+        messages,
+        max_tokens: 800,
+        temperature: 0.7,
+      }),
+      signal: AbortSignal.timeout(25000),
+      cache: "no-store",
+    });
+
+    if (!res.ok) {
+      console.warn("DeepSeek API returned non-OK status:", res.status);
+      return "";
+    }
+
+    const data = await res.json();
+    const content = data?.choices?.[0]?.message?.content?.trim();
+    if (!content) return "";
+    return content;
+  } catch (error) {
+    console.warn("DeepSeek API request failed:", error);
+    return "";
+  }
+}
+
+async function askPollinationsText(messages: ChatMessage[]): Promise<string> {
+  const model = process.env.POLLINATIONS_TEXT_MODEL || process.env.POLLINATIONS_MODEL || "openai";
   const prompt = textPromptFromMessages(messages);
   const params = new URLSearchParams({
     model,
@@ -286,12 +320,12 @@ async function askPollinationsText(messages: ChatMessage[]) {
     const res = await fetch(url, {
       method: "GET",
       headers: { Accept: "text/plain" },
-      signal: AbortSignal.timeout(20000), // Increased timeout for larger models
+      signal: AbortSignal.timeout(15000),
       cache: "no-store",
     });
 
     if (!res.ok) {
-      console.warn("Pollinations no-key text endpoint returned non-OK status:", res.status);
+      console.warn("Pollinations returned non-OK status:", res.status);
       return "";
     }
 
@@ -299,9 +333,19 @@ async function askPollinationsText(messages: ChatMessage[]) {
     if (!content || content.startsWith("{\"error\"")) return "";
     return content;
   } catch (error) {
-    console.warn("Pollinations no-key text request failed:", error);
+    console.warn("Pollinations request failed:", error);
     return "";
   }
+}
+
+async function askAI(messages: ChatMessage[]): Promise<string> {
+  const deepseek = await askDeepSeek(messages);
+  if (deepseek) return deepseek;
+
+  const pollinations = await askPollinationsText(messages);
+  if (pollinations) return pollinations;
+
+  return "";
 }
 
 function liveDataFallback(
@@ -455,10 +499,10 @@ export async function POST(request: Request) {
       ...messages.slice(-8), // Increased context window for better conversation
     ];
 
-    const content = await askPollinationsText(promptMessages);
+    const content = await askAI(promptMessages);
     const fallbackContent = pinoyBoostingQuestion
       ? liveDataFallback(matchedServices, matchedCandidates, userMessage)
-      : "I can help with that, but the free no-key AI text service is busy right now. I will keep you inside the app, no outside redirect. Please send the question again in a few seconds, or ask me about services, wallet top-up, or an order Tracking ID.";
+      : "I can help with that, but the AI service is temporarily busy. Please send the question again in a few seconds, or ask me about services, wallet top-up, or an order Tracking ID.";
 
     return NextResponse.json({
       content: content || fallbackContent,
