@@ -84,7 +84,7 @@ const STEPPER: StepperEntry[] = [
 
 function Stepper() {
   return (
-    <div className="relative grid grid-cols-4 items-center w-full max-w-xs sm:max-w-lg mx-auto select-none bg-[#121212]/90 border border-slate-800/80 p-3 sm:p-4.5 rounded-full shadow-lg overflow-hidden">
+    <div className="relative grid grid-cols-4 items-center w-full max-w-xs sm:max-w-md md:max-w-xl mx-auto select-none bg-[#121212]/90 border border-slate-800/80 p-3 sm:p-4 md:p-5 rounded-full shadow-lg overflow-hidden">
       <div className="absolute left-6 right-6 top-1/2 -translate-y-1/2 h-[1px] bg-slate-800 z-0" />
       {STEPPER.map((st) => {
         const isActive = st.num === 1;
@@ -146,13 +146,14 @@ function ShimmerHero() {
   };
 
   return (
-    <h1 className="px-2 text-2xl sm:text-4xl md:text-5xl font-black text-white uppercase tracking-tight leading-tight select-none">
+    <h1 className="px-2 text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-black text-white uppercase tracking-tight leading-tight select-none text-center">
       {renderWord("WELCOME", 0)}
       {" "}
       {renderWord("TO", 8)}
+      <br className="sm:hidden" />
       {" "}
-      <span className="block sm:inline animate-neon">
-        <span className="spotify-shimmer-text">
+      <span className="inline-block sm:inline animate-neon">
+        <span className="spotify-shimmer-text" style={{ WebkitTextFillColor: "#1DB954" }}>
           {renderWord("PINOY", 11, { isFloat: true })}
           {" "}
           {renderWord("MADE", 17, { isFloat: true })}
@@ -273,22 +274,24 @@ export default function QuickStartPage() {
         <div className="absolute top-[20%] right-[-10%] w-[500px] h-[500px] rounded-full spotify-glow-blob opacity-30" />
       </div>
 
-      <div className="w-full max-w-xs mx-auto z-10 space-y-8 pb-20 sm:max-w-3xl sm:px-4">
-        <div className="text-center space-y-3.5">
+      <div className="w-full max-w-xs sm:max-w-2xl md:max-w-3xl lg:max-w-4xl mx-auto z-10 space-y-8 pb-20 sm:px-6">
+        <div className="text-center space-y-4 sm:space-y-5">
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#1DB954]/10 text-[#1DB954] border border-[#1DB954]/25 text-[10px] font-black uppercase tracking-widest animate-pulse">
             ✨ Quick Start Guide
           </span>
 
           <ShimmerHero />
 
-          <p className="text-slate-400 text-xs font-bold uppercase tracking-wide max-w-lg mx-auto leading-relaxed animate-pulse">
+          <p className="text-slate-400 text-xs sm:text-sm font-bold uppercase tracking-wide max-w-xl mx-auto leading-relaxed">
             CONGRATS, YOU HAVE ARRIVE AT DIRECT SUPPLIER BOOSTING. MEANING YOU WILL GET EVERYTHING AFFORDABLE
           </p>
         </div>
 
-        <Stepper />
+        <div className="w-full max-w-lg md:max-w-2xl mx-auto">
+          <Stepper />
+        </div>
 
-        <div className="w-full max-w-xs sm:max-w-md mx-auto bg-[#121212]/95 border border-slate-800/85 p-6 sm:p-8 rounded-3xl shadow-2xl relative overflow-hidden">
+        <div className="w-full max-w-sm sm:max-w-md md:max-w-lg mx-auto bg-[#121212]/95 border border-slate-800/85 p-6 sm:p-8 rounded-3xl shadow-2xl relative overflow-hidden">
           <div className="absolute top-0 right-0 w-24 h-24 bg-[#1DB954]/5 rounded-full blur-xl pointer-events-none" />
 
           <div className="text-center pb-4 mb-6 border-b border-slate-800/60 select-none">
