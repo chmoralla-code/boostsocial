@@ -270,12 +270,15 @@ function textPromptFromMessages(messages: ChatMessage[]) {
 }
 
 async function askPollinationsText(messages: ChatMessage[]) {
-  const model = process.env.POLLINATIONS_TEXT_MODEL || process.env.POLLINATIONS_MODEL || "openai";
+  // Use Llama 3 70B by default - free, unlimited, and highly capable
+  // Available free models: llama, mistral, openai, phi, gemini
+  const model = process.env.POLLINATIONS_TEXT_MODEL || process.env.POLLINATIONS_MODEL || "llama";
   const prompt = textPromptFromMessages(messages);
   const params = new URLSearchParams({
     model,
     seed: String(Date.now()),
     referrer: "pinoyboosting-apk",
+    json: "false",
   });
   const url = `https://text.pollinations.ai/${encodeURIComponent(prompt)}?${params.toString()}`;
 
@@ -283,7 +286,7 @@ async function askPollinationsText(messages: ChatMessage[]) {
     const res = await fetch(url, {
       method: "GET",
       headers: { Accept: "text/plain" },
-      signal: AbortSignal.timeout(14000),
+      signal: AbortSignal.timeout(20000), // Increased timeout for larger models
       cache: "no-store",
     });
 
@@ -436,6 +439,8 @@ export async function POST(request: Request) {
           "When a client asks for a specific service, name the closest live candidate or stored service exactly, include the price/rate if available, and include the exact /app?service=... link when one is available. If multiple services match, recommend the most relevant 2-4.",
           "Buying is prohibited until the client logs in or registers.",
           "Keep answers short: 3-6 useful sentences or a few short bullets. Do not overuse exclamation marks. Do not mention internal provider IDs unless the user gives a Tracking ID or asks for admin details.",
+          "For questions about pricing, always show the exact price from live data. If the price is per 1k, say 'per 1k'. If it's per unit, say 'per unit'.",
+          "For order tracking, ask for the Tracking ID (format: BS-XXXXXXXX) if not provided.",
           `Realtime snapshot: ${new Date().toISOString()}`,
           `Mobile app name: ${appSettings.appName}`,
           `Mobile app banner: ${appSettings.appBanner || "None"}`,
@@ -447,7 +452,7 @@ export async function POST(request: Request) {
           services.length > matchedServices.length ? `Total stored services available: ${services.length}` : "",
         ].join("\n"),
       },
-      ...messages.slice(-6),
+      ...messages.slice(-8), // Increased context window for better conversation
     ];
 
     const content = await askPollinationsText(promptMessages);
