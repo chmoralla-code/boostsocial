@@ -193,8 +193,8 @@ function SignOutButton({ compact = false }: { compact?: boolean }) {
     <form action="/auth/signout" method="post">
       <button
         type="submit"
-        className={`flex w-full items-center justify-center gap-3 rounded-xl border border-red-500/10 bg-red-500/5 text-red-300 transition-all duration-200 hover:border-red-500/30 hover:bg-red-500/10 hover:text-red-200 ${
-          compact ? "h-11 w-11 p-0" : "px-4 py-3 text-left"
+        className={`flex items-center justify-center gap-3 rounded-xl border border-red-500/10 bg-red-500/5 text-red-300 transition-all duration-200 hover:border-red-500/30 hover:bg-red-500/10 hover:text-red-200 active:scale-95 ${
+          compact ? "h-10 w-10 p-0" : "px-4 py-3 text-left"
         }`}
         title="Sign Out"
         aria-label="Sign Out"
@@ -212,12 +212,12 @@ export function AdminShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-screen bg-[#121212] text-slate-300 lg:flex">
-      <header className="sticky top-0 z-40 border-b border-slate-800/80 bg-[#121212]/95 px-3 py-3 backdrop-blur-md lg:hidden">
-        <div className="flex items-center justify-between gap-3">
+      <header className="sticky top-0 z-40 border-b border-slate-800/80 bg-[#121212]/95 px-3 py-2 backdrop-blur-md lg:hidden">
+        <div className="flex items-center justify-between gap-2">
           <button
             type="button"
             onClick={() => setMobileMenuOpen(true)}
-            className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-800 bg-[#181818] text-slate-300 transition hover:border-[#1DB954]/35 hover:text-[#1DB954]"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-800 bg-[#181818] text-slate-300 transition hover:border-[#1DB954]/35 hover:text-[#1DB954] active:scale-95"
             aria-label="Open admin menu"
           >
             <Menu size={20} />
@@ -235,7 +235,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
               </span>
             </span>
           </Link>
-          <div className="flex shrink-0 items-center gap-2">
+          <div className="flex shrink-0 items-center gap-1.5">
             <ThemeToggle compact />
             <SignOutButton compact />
           </div>
