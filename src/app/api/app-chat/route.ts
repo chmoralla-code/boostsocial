@@ -269,21 +269,21 @@ function textPromptFromMessages(messages: ChatMessage[]) {
   ].join("\n\n");
 }
 
-async function askDeepSeek(messages: ChatMessage[]): Promise<string> {
-  const apiKey = process.env.DEEPSEEK_API_KEY;
+async function askOpenCodeGo(messages: ChatMessage[]): Promise<string> {
+  const apiKey = process.env.OPENCODE_API_KEY;
   if (!apiKey) return "";
 
   try {
-    const res = await fetch("https://api.deepseek.com/chat/completions", {
+    const res = await fetch("https://opencode.ai/zen/go/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: "deepseek-chat",
+        model: "mimo-v2.5",
         messages,
-        max_tokens: 800,
+        max_tokens: 500,
         temperature: 0.7,
       }),
       signal: AbortSignal.timeout(25000),
@@ -291,7 +291,7 @@ async function askDeepSeek(messages: ChatMessage[]): Promise<string> {
     });
 
     if (!res.ok) {
-      console.warn("DeepSeek API returned non-OK status:", res.status);
+      console.warn("OpenCode Go API returned non-OK status:", res.status);
       return "";
     }
 
@@ -300,7 +300,7 @@ async function askDeepSeek(messages: ChatMessage[]): Promise<string> {
     if (!content) return "";
     return content;
   } catch (error) {
-    console.warn("DeepSeek API request failed:", error);
+    console.warn("OpenCode Go API request failed:", error);
     return "";
   }
 }
@@ -339,8 +339,8 @@ async function askPollinationsText(messages: ChatMessage[]): Promise<string> {
 }
 
 async function askAI(messages: ChatMessage[]): Promise<string> {
-  const deepseek = await askDeepSeek(messages);
-  if (deepseek) return deepseek;
+  const openCodeGo = await askOpenCodeGo(messages);
+  if (openCodeGo) return openCodeGo;
 
   const pollinations = await askPollinationsText(messages);
   if (pollinations) return pollinations;
