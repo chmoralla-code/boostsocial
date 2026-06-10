@@ -96,11 +96,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Invalid messages format' }, { status: 400 });
     }
 
-    // Attempt Pollinations AI (Unlimited & Lifetime Free OpenAI-compatible Endpoint)
-    // equipped with automatic retry loops for maximum stability.
+    // Attempt OpenCode Go AI (mimo-v2.5 - free, fast, reliable)
     let content = "";
-    let attempts = 3;
-    let success = false;
     let lastError: unknown = null;
     const latestMessage = latestUserMessage(cleanMessages);
     const apiMessages = [
@@ -108,55 +105,51 @@ export async function POST(req: Request) {
       ...cleanMessages.filter((message) => message.role !== "system").slice(-8),
     ];
 
-    while (attempts > 0 && !success) {
-      try {
-        const res = await fetch('https://text.pollinations.ai/openai', {
-          method: 'POST',
+    try {
+      const apiKey = process.env.OPENCODE_API_KEY;
+      if (apiKey) {
+        const res = await fetch("https://opencode.ai/zen/go/v1/chat/completions", {
+          method: "POST",
           headers: {
-            'Content-Type': 'application/json'
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${apiKey}`,
           },
           body: JSON.stringify({
-            model: 'openai',
+            model: "mimo-v2.5",
             messages: apiMessages,
+            max_tokens: 500,
             temperature: 0.55,
-          })
+          }),
+          signal: AbortSignal.timeout(25000),
+          cache: "no-store",
         });
 
         if (res.ok) {
           const data = await res.json();
-          const responseText = data.choices?.[0]?.message?.content;
+          const responseText = data.choices?.[0]?.message?.content?.trim();
           if (responseText) {
             content = responseText;
-            success = true;
           }
         } else {
-          console.warn(`Pollinations AI attempt failed, status: ${res.status}`);
-          lastError = new Error(`Pollinations returned status ${res.status}`);
-        }
-      } catch (err: unknown) {
-        console.error('Pollinations AI request attempt error:', err);
-        lastError = err;
-      }
-      
-      if (!success) {
-        attempts--;
-        if (attempts > 0) {
-          // Subtle wait before retrying (250ms)
-          await new Promise(resolve => setTimeout(resolve, 250));
+          console.warn(`OpenCode Go API returned non-OK status: ${res.status}`);
+          lastError = new Error(`OpenCode Go returned status ${res.status}`);
         }
       }
+    } catch (err: unknown) {
+      console.error("OpenCode Go API request failed:", err);
+      lastError = err;
     }
 
     if (success && content) {
       return NextResponse.json({ content });
     }
 
-    console.warn('Pollinations AI unavailable, returning human fallback:', getErrorMessage(lastError));
+    console.warn("AI unavailable, returning human fallback:", getErrorMessage(lastError));
     const supportQuestion = isSupportQuestion(latestMessage);
     return NextResponse.json({
       content: supportQuestion
         ? humanFallback(latestMessage)
-        : "I can help with that, but the free AI text service is busy right now. I will keep you here in the chat with no outside redirect. Please try again in a few seconds, or ask me about PinoyBoosting services, payments, wallet top-up, or order tracking.",
+        : "I can help with that, but the AI service is temporarily busy. Please try again in a few seconds, or ask me about PinoyBoosting services, payments, wallet top-up, or order tracking.",
     });
 
   } catch (err: unknown) {
