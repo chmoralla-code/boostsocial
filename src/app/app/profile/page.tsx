@@ -379,7 +379,8 @@ export default function AppProfilePage() {
                 <Wallet size={22} />
               </span>
             </div>
-            <button type="button" onClick={openTopUp} className="mt-5 flex h-12 w-full items-center justify-center rounded-2xl bg-zinc-950 text-sm font-black text-white">
+            <button type="button" onClick={openTopUp} className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 text-sm font-black text-white shadow-lg shadow-emerald-600/20 hover:bg-emerald-500 active:scale-[0.98] transition-all">
+              <Wallet size={17} />
               Top up wallet
             </button>
           </article>
@@ -430,18 +431,18 @@ export default function AppProfilePage() {
               type="button"
               onClick={enablePhoneNotifications}
               disabled={pushStatus === "enabled" || pushStatus === "saving" || pushStatus === "unsupported" || pushStatus === "blocked"}
-              className={`mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-2xl text-sm font-black ${
+              className={`mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-2xl text-sm font-black transition-all ${
                 pushStatus === "enabled"
                   ? "bg-emerald-50 text-emerald-700"
-                  : "bg-zinc-950 text-white disabled:bg-zinc-100 disabled:text-zinc-400"
+                  : "bg-emerald-600 text-white shadow-lg shadow-emerald-600/20 hover:bg-emerald-500 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 disabled:bg-zinc-100 disabled:text-zinc-400 disabled:shadow-none"
               }`}
             >
               {pushStatus === "saving" && <Loader2 size={16} className="animate-spin" />}
-              {pushStatus === "enabled" ? "Enabled" : pushStatus === "saving" ? "Enabling" : "Enable phone alerts"}
+              {pushStatus === "enabled" ? "Enabled" : pushStatus === "saving" ? "Enabling..." : "Enable phone alerts"}
             </button>
           </article>
 
-          <button type="button" onClick={signOut} className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-zinc-200 bg-white text-sm font-black text-zinc-700">
+          <button type="button" onClick={signOut} className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-red-200 bg-red-50 text-sm font-black text-red-700 hover:bg-red-100 active:scale-[0.98] transition-all">
             <LogOut size={16} />
             Sign out
           </button>
@@ -450,15 +451,15 @@ export default function AppProfilePage() {
 
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-zinc-200 bg-white px-3 pb-[calc(env(safe-area-inset-bottom)+0.55rem)] pt-2">
         <div className="mx-auto grid max-w-3xl grid-cols-3 gap-1">
-          <Link href="/app" className="flex flex-col items-center gap-1 rounded-2xl px-2 py-2 text-xs font-bold text-zinc-500">
+          <Link href="/app" className="flex flex-col items-center gap-1 rounded-2xl px-2 py-2 text-xs font-bold text-zinc-400">
             <Home size={18} />
             Services
           </Link>
-          <Link href="/app/orders" className="flex flex-col items-center gap-1 rounded-2xl px-2 py-2 text-xs font-bold text-zinc-500">
+          <Link href="/app/orders" className="flex flex-col items-center gap-1 rounded-2xl px-2 py-2 text-xs font-bold text-zinc-400">
             <ClipboardList size={18} />
             Orders
           </Link>
-          <Link href="/app/profile" className="flex flex-col items-center gap-1 rounded-2xl px-2 py-2 text-xs font-bold text-emerald-700">
+          <Link href="/app/profile" className="flex flex-col items-center gap-1 rounded-2xl px-2 py-2 text-xs font-bold text-emerald-500">
             <Wallet size={18} />
             Wallet
           </Link>
@@ -564,10 +565,10 @@ export default function AppProfilePage() {
                   <button
                     type="submit"
                     disabled={topUpSubmitting}
-                    className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-zinc-950 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-60"
+                    className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 text-sm font-black text-white shadow-lg shadow-emerald-600/20 hover:bg-emerald-500 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 transition-all"
                   >
                     {topUpSubmitting ? <Loader2 size={17} className="animate-spin" /> : <Wallet size={17} />}
-                    {topUpSubmitting ? "Submitting" : "Submit top-up"}
+                    {topUpSubmitting ? "Submitting..." : "Submit top-up"}
                   </button>
                 </>
               )}
