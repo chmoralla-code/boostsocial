@@ -518,3 +518,35 @@ body {
   border-color: rgba(0, 0, 0, 0.1) !important;
 }
 
+/* ─────────────────────────────────────────────────────────────
+   Quick-Start page (pinoyboosting.com redesign) animations
+   ───────────────────────────────────────────────────────────── */
+
+@keyframes letterFloat {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-6px) rotate(2deg);
+  }
+}
+
+.animate-letter-float {
+  animation: letterFloat 3s infinite ease-in-out;
+}
+
+@keyframes neonPulse {
+  0%,
+  100% {
+    text-shadow: 0 0 12px rgba(29, 185, 84, 0.35), 0 0 25px rgba(29, 185, 84, 0.15);
+  }
+  50% {
+    text-shadow: 0 0 25px rgba(29, 185, 84, 0.75), 0 0 50px rgba(29, 185, 84, 0.35);
+  }
+}
+
+.animate-neon {
+  animation: neonPulse 3s infinite ease-in-out;
+}
+

@@ -1,1068 +1,380 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Loader2, ArrowLeft, ArrowRight, Check, AlertCircle, ShieldCheck, Mail, Lock, UserPlus, Search } from "lucide-react";
-import type { User } from "@supabase/supabase-js";
+import { Mail, Lock, Megaphone, X, UserPlus, Check } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
-import { formatSmmServiceName, isSocialBoostService, isUtilityService } from "@/utils/serviceHelpers";
-import { compressImage } from "@/utils/imageCompressor";
-import { LinkPreviewWindow } from "@/components/LinkPreviewWindow";
 
-interface SmmService {
-  id: string | number;
-  name: string;
-  category?: string | null;
-  desc?: string | null;
-  min: number;
-  max: number;
-  startingPrice: number;
-}
+const ANNOUNCEMENT_DISMISS_KEY = "pb_apk_announcement_dismissed";
+const ANNOUNCEMENT_VERSION = "pinoyboosting-apk-v1";
+const APK_DOWNLOAD_PATH = "/downloads/pinoyboosting.apk";
+
+type AnnouncementState = "checking" | "open" | "dismissed";
 
 function getErrorMessage(err: unknown) {
   return err instanceof Error ? err.message : String(err);
 }
 
-const PLATFORMS = [
-  { id: "facebook", name: "Facebook", icon: "📘", color: "#1877F2", glow: "rgba(24, 119, 242, 0.45)" },
-  { id: "instagram", name: "Instagram", icon: "📸", color: "#E1306C", glow: "rgba(225, 48, 108, 0.45)" },
-  { id: "tiktok", name: "TikTok", icon: "🎵", color: "#00F2FE", glow: "rgba(0, 242, 254, 0.45)" },
-  { id: "youtube", name: "YouTube", icon: "🎥", color: "#FF0000", glow: "rgba(255, 0, 0, 0.45)" }
-];
+function AnnouncementModal({ onClose }: { onClose: () => void }) {
+  return (
+    <div
+      className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/70 px-4 py-6 backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="quickstart-announcement-title"
+    >
+      <div className="relative w-full max-w-md rounded-2xl border border-[#1DB954]/25 bg-[#121212] p-5 text-center text-white shadow-2xl shadow-black/50 sm:p-6">
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close announcement"
+          className="absolute right-3 top-3 inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-800 bg-black/30 text-slate-400 transition hover:border-slate-600 hover:text-white"
+        >
+          <X size={16} />
+        </button>
 
-function matchesPlatformName(service: SmmService, platformId: string) {
-  const combined = `${service.name || ""} ${service.category || ""}`.toLowerCase();
-  if (platformId === "facebook") return combined.includes("facebook") || /\bfb\b/.test(combined);
-  if (platformId === "instagram") return combined.includes("instagram") || /\big\b/.test(combined);
-  if (platformId === "youtube") return combined.includes("youtube") || /\byt\b/.test(combined);
-  return combined.includes(platformId);
+        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full border border-[#1DB954]/30 bg-[#1DB954]/10 text-[#1DB954]">
+          <Megaphone size={22} />
+        </div>
+
+        <p className="mb-2 text-[10px] font-black uppercase tracking-[0.2em] text-[#1DB954]">
+          Announcement
+        </p>
+        <h2
+          id="quickstart-announcement-title"
+          className="pr-8 text-xl font-black tracking-tight sm:text-2xl"
+        >
+          What&apos;s new?
+        </h2>
+        <p className="mt-3 whitespace-pre-line text-sm font-semibold leading-relaxed text-slate-300">
+          Pinoyboosting APK v1.0 available
+        </p>
+
+        <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
+          <Link
+            href={APK_DOWNLOAD_PATH}
+            onClick={onClose}
+            className="inline-flex min-h-11 items-center justify-center rounded-full bg-[#1DB954] px-5 py-3 text-xs font-black uppercase tracking-wider text-black transition hover:bg-[#1ed760]"
+          >
+            Download
+          </Link>
+          <button
+            type="button"
+            onClick={onClose}
+            className="inline-flex min-h-11 items-center justify-center rounded-full border border-slate-700 px-5 py-3 text-xs font-black uppercase tracking-wider text-slate-200 transition hover:border-slate-500 hover:bg-white/5"
+          >
+            Got it
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
-function getPlatformCandidates(smmCatalog: SmmService[], platform: string): SmmService[] {
-  const platformServices = smmCatalog.filter(s => matchesPlatformName(s, platform));
+type StepperEntry = { num: number; label: string };
 
-  if (platformServices.length === 0) return [];
+const STEPPER: StepperEntry[] = [
+  { num: 1, label: "Account Setup" },
+  { num: 2, label: "Pick Boost" },
+  { num: 3, label: "Checkout" },
+  { num: 4, label: "Launch & Track" },
+];
 
-  const findCheapestMatching = (keywords: string[], excludeKeywords: string[] = []) => {
-    const matches = platformServices.filter(s => {
-      const nameLower = (s.name || "").toLowerCase();
-      const matchesKeywords = keywords.some(kw => nameLower.includes(kw));
-      const matchesExclude = excludeKeywords.some(ex => nameLower.includes(ex));
-      return matchesKeywords && !matchesExclude;
-    });
-    if (matches.length === 0) return null;
-    matches.sort((a, b) => a.startingPrice - b.startingPrice);
-    return matches[0];
+function Stepper() {
+  return (
+    <div className="relative grid grid-cols-4 items-center w-full max-w-xs sm:max-w-lg mx-auto select-none bg-[#121212]/90 border border-slate-800/80 p-3 sm:p-4.5 rounded-full shadow-lg overflow-hidden">
+      <div className="absolute left-6 right-6 top-1/2 -translate-y-1/2 h-[1px] bg-slate-800 z-0" />
+      {STEPPER.map((st) => {
+        const isActive = st.num === 1;
+        return (
+          <div
+            key={st.num}
+            className="relative z-10 flex flex-col items-center space-y-1.5"
+          >
+            <div
+              className={`w-9 h-9 rounded-full flex items-center justify-center font-black text-xs border transition-all duration-350 ${
+                isActive
+                  ? "bg-[#0a0a0a] border-[#1DB954] text-[#1DB954] shadow-[0_0_12px_rgba(29,185,84,0.35)]"
+                  : "bg-[#121212] border-slate-800 text-slate-500"
+              }`}
+            >
+              {st.num}
+            </div>
+            <span
+              className={`text-[9px] font-black uppercase tracking-wider hidden sm:block ${
+                isActive ? "text-white" : "text-slate-500"
+              }`}
+            >
+              {st.label}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function ShimmerHero() {
+  const renderWord = (
+    word: string,
+    startIdx: number,
+    options: { shimmer?: boolean; isFloat?: boolean } = {}
+  ) => {
+    const { shimmer = false, isFloat = false } = options;
+    return (
+      <span className="inline-block whitespace-nowrap">
+        {word.split("").map((letter, i) => {
+          const idx = startIdx + i;
+          return (
+            <span
+              key={`${word}-${i}`}
+              className={`inline-block ${isFloat ? "animate-letter-float" : "animate-fade-in-up"}`}
+              style={{
+                animationDelay: isFloat ? `${idx * 120}ms` : `${idx * 20}ms`,
+                animationFillMode: isFloat ? undefined : "both",
+              }}
+            >
+              {letter}
+            </span>
+          );
+        })}
+        {shimmer ? <span className="sr-only"> </span> : null}
+      </span>
+    );
   };
 
-  let follower = null;
-  let like = null;
-  let view = null;
-
-  if (platform === "facebook") {
-    follower = findCheapestMatching(["follower", "profile", "page follower", "classic page"]);
-    like = findCheapestMatching(["like", "reaction", "react", "photo like", "post like", "love", "haha", "wow", "sad", "angry"], ["follower", "view", "share"]);
-    view = findCheapestMatching(["view", "video", "play", "reach"], ["follower", "like", "reaction"]);
-  } else if (platform === "instagram") {
-    follower = findCheapestMatching(["follower"]);
-    like = findCheapestMatching(["like", "heart"], ["follower", "view", "comment"]);
-    view = findCheapestMatching(["view", "play", "reel", "video", "impression"], ["follower", "like"]);
-  } else if (platform === "tiktok") {
-    follower = findCheapestMatching(["follower"]);
-    like = findCheapestMatching(["like", "heart"], ["follower", "view", "comment"]);
-    view = findCheapestMatching(["view", "play", "video", "share"], ["follower", "like"]);
-  } else if (platform === "youtube") {
-    follower = findCheapestMatching(["subscriber", "subscribers", "sub"]);
-    like = findCheapestMatching(["like"], ["subscriber", "view", "comment"]);
-    view = findCheapestMatching(["view", "watch", "play"], ["subscriber", "like"]);
-  }
-
-  // Fallbacks if not found
-  if (!follower) follower = findCheapestMatching(["follower"]) || platformServices[0];
-  if (!like) like = findCheapestMatching(["like", "heart", "react"]) || platformServices[Math.min(1, platformServices.length - 1)];
-  if (!view) view = findCheapestMatching(["view", "play", "video"]) || platformServices[Math.min(2, platformServices.length - 1)];
-
-  const candidates: SmmService[] = [];
-  if (follower) {
-    candidates.push({
-      ...follower,
-      name: `👥 FOLLOWER / SUBSCRIBER PACK`
-    });
-  }
-  if (like) {
-    candidates.push({
-      ...like,
-      name: `❤️ POST LIKE / REACTION PACK`
-    });
-  }
-  if (view) {
-    candidates.push({
-      ...view,
-      name: `▶️ DIRECT VIEWS / PLAYS PACK`
-    });
-  }
-
-  return candidates;
+  return (
+    <h1 className="px-2 text-2xl sm:text-4xl md:text-5xl font-black text-white uppercase tracking-tight leading-tight select-none">
+      {renderWord("WELCOME", 0)}
+      {" "}
+      {renderWord("TO", 8)}
+      {" "}
+      <span className="block sm:inline animate-neon">
+        <span className="spotify-shimmer-text">
+          {renderWord("PINOY", 11, { isFloat: true })}
+          {" "}
+          {renderWord("MADE", 17, { isFloat: true })}
+        </span>
+      </span>
+      <br className="sm:hidden" />
+      {" "}
+      {renderWord("BOOSTING", 22)}
+      {" "}
+      {renderWord("SERVICES.", 31)}
+    </h1>
+  );
 }
 
 export default function QuickStartPage() {
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
 
-  // Wizard Flow Step State
-  const [step, setStep] = useState(1);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-
-  // Step 1 states (Auth)
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [user, setUser] = useState<User | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [formMessage, setFormMessage] = useState<{
+    type: "success" | "error";
+    text: string;
+  } | null>(null);
 
-  const [emailStatus, setEmailStatus] = useState<{
-    state: "idle" | "verifying" | "valid_google" | "valid_other" | "invalid";
-    message: string;
-  }>({ state: "idle", message: "" });
+  const [announcement, setAnnouncement] = useState<AnnouncementState>("checking");
 
   useEffect(() => {
-    if (!email || !email.includes("@")) {
-      setEmailStatus({ state: "idle", message: "" });
-      return;
+    if (typeof window === "undefined") return;
+    try {
+      const dismissed = window.localStorage.getItem(
+        `${ANNOUNCEMENT_DISMISS_KEY}:${ANNOUNCEMENT_VERSION}`
+      );
+      setAnnouncement(dismissed === "true" ? "dismissed" : "open");
+    } catch {
+      setAnnouncement("open");
     }
+  }, []);
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      setEmailStatus({ state: "invalid", message: "Invalid email format structure." });
-      return;
-    }
-
-    const parts = email.trim().split("@");
-    if (parts.length !== 2) return;
-    const domain = parts[1].toLowerCase();
-
-    const controller = new AbortController();
-    const timer = setTimeout(async () => {
-      setEmailStatus({ state: "verifying", message: "Verifying email server..." });
+  const dismissAnnouncement = () => {
+    if (typeof window !== "undefined") {
       try {
-        const response = await fetch(
-          `https://cloudflare-dns.com/dns-query?name=${domain}&type=MX`,
-          {
-            headers: { Accept: "application/dns-json" },
-            signal: controller.signal,
-          }
+        window.localStorage.setItem(
+          `${ANNOUNCEMENT_DISMISS_KEY}:${ANNOUNCEMENT_VERSION}`,
+          "true"
         );
-        const data = await response.json();
-
-        if (data.Status !== 0 || !data.Answer || data.Answer.length === 0) {
-          setEmailStatus({
-            state: "invalid",
-            message: "Domain has no active email server (MX records missing)."
-          });
-          return;
-        }
-
-        // Check if any MX record belongs to Google
-        const isGoogle = data.Answer.some((ans: any) => {
-          const server = String(ans.data || "").toLowerCase();
-          return server.includes("google") || server.includes("googlemail") || domain === "gmail.com" || domain === "googlemail.com";
-        });
-
-        if (isGoogle) {
-          setEmailStatus({
-            state: "valid_google",
-            message: "Real Google Account Verified"
-          });
-        } else {
-          setEmailStatus({
-            state: "valid_other",
-            message: "Active Mail Server Verified (Non-Google)"
-          });
-        }
-      } catch (err) {
-        if (domain === "gmail.com" || domain === "googlemail.com") {
-          setEmailStatus({
-            state: "valid_google",
-            message: "Real Google Account Verified"
-          });
-        } else {
-          setEmailStatus({
-            state: "valid_other",
-            message: "Active Domain"
-          });
-        }
+      } catch {
+        // Ignore storage errors (private mode / quota)
       }
-    }, 600);
-
-    return () => {
-      clearTimeout(timer);
-      controller.abort();
-    };
-  }, [email]);
-
-
-  // Step 2 states (Service Selection)
-  const [selectedPlatform, setSelectedPlatform] = useState<string>("facebook");
-  const [services, setServices] = useState<SmmService[]>([]);
-  const [catalogLoading, setCatalogLoading] = useState(false);
-  const [selectedService, setSelectedService] = useState<SmmService | null>(null);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [availablePlatformIds, setAvailablePlatformIds] = useState<string[]>(PLATFORMS.map((platform) => platform.id));
-
-  // Step 3 states (Order details & GCash receipt)
-  const [targetUrl, setTargetUrl] = useState("");
-  const [quantity, setQuantity] = useState<number>(0);
-  const [receiptFile, setReceiptFile] = useState<File | null>(null);
-  const [orderId, setOrderId] = useState("");
-
-  // Automatic redirect countdown state & effect in Step 4
-  const [countdown, setCountdown] = useState(8);
-  const [copied, setCopied] = useState(false);
-
-  useEffect(() => {
-    if (step === 4 && orderId) {
-      setCountdown(8);
-      const interval = setInterval(() => {
-        setCountdown((prev) => {
-          if (prev <= 1) {
-            clearInterval(interval);
-            if (typeof window !== "undefined") {
-              localStorage.setItem("onboarded", "true");
-            }
-            router.push(`/?track=${orderId}`);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-      return () => clearInterval(interval);
     }
-  }, [step, orderId, router]);
+    setAnnouncement("dismissed");
+  };
 
-  // Check auth session
-  useEffect(() => {
-    let isMounted = true;
-
-    supabase.auth.getUser().then(({ data }) => {
-      if (!isMounted) return;
-      if (data?.user) {
-        setUser(data.user);
-        setEmail(data.user.email || "");
-        // Existing user detected! Set onboarded and redirect to homepage!
-        if (typeof window !== "undefined") {
-          localStorage.setItem("onboarded", "true");
-        }
-        router.push("/");
-      }
-    });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [supabase, router]);
-
-  // Fetch reseller services when selectedPlatform changes
-  useEffect(() => {
-    if (step !== 2) return;
-
-    let isMounted = true;
-
-    const loadCatalog = async () => {
-      setCatalogLoading(true);
-      setError("");
-
-      try {
-        const res = await fetch("/api/smm/services");
-        if (!res.ok) throw new Error("Failed to load catalog");
-
-        const data: unknown = await res.json();
-        if (!Array.isArray(data)) {
-          throw new Error("Invalid response format");
-        }
-
-        const socialServices = (data as SmmService[]).filter((service) => {
-          const category = service.category || undefined;
-          return isSocialBoostService(service.name, service.desc || "", category) && !isUtilityService(service.name, service.desc || "", category);
-        });
-        const activePlatforms = PLATFORMS
-          .filter((platform) => socialServices.some((service) => matchesPlatformName(service, platform.id)))
-          .map((platform) => platform.id);
-
-        if (!isMounted) return;
-
-        setAvailablePlatformIds(activePlatforms);
-        if (activePlatforms.length > 0 && !activePlatforms.includes(selectedPlatform)) {
-          setSelectedPlatform(activePlatforms[0]);
-          setSelectedService(null);
-          setServices([]);
-          return;
-        }
-
-        const platFilter = selectedPlatform.toLowerCase();
-        const candidates = getPlatformCandidates(socialServices, platFilter);
-        setServices(candidates);
-      } catch (err) {
-        if (!isMounted) return;
-        setError("Failed to fetch available direct reseller services. Please try again.");
-        console.error(err);
-      } finally {
-        if (isMounted) {
-          setCatalogLoading(false);
-        }
-      }
-    };
-
-    void loadCatalog();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [step, selectedPlatform]);
-
-  // Auth Handler (Registration strictly for new users - utilizing dual-db auto-confirm signup API)
-  const handleAuthSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password) return;
-    if (emailStatus.state === "invalid") {
-      setError("Please enter a real email address with active mail servers.");
+    if (!email.trim() || !password) {
+      setFormMessage({
+        type: "error",
+        text: "Please enter your email and a password to continue.",
+      });
       return;
     }
-    setLoading(true);
-    setError("");
+
+    setSubmitting(true);
+    setFormMessage(null);
 
     try {
-      // 1. Create the account via auto-confirm Admin signup API endpoint
-      const signupRes = await fetch("/api/auth/signup", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim(), password })
-      });
-
-      const signupData = await signupRes.json();
-      if (!signupRes.ok) {
-        throw new Error(signupData.error || "Registration failed.");
-      }
-
-      // 2. Perform direct sign in immediately to capture the active session in client
-      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signUp({
         email: email.trim(),
-        password
+        password,
       });
 
-      if (signInError) throw signInError;
-
-      if (signInData.user) {
-        setUser(signInData.user);
-        setStep(2);
+      if (error) {
+        setFormMessage({ type: "error", text: error.message });
+        return;
       }
-    } catch (err: unknown) {
-      setError(getErrorMessage(err) || "Authentication failed. Check your inputs.");
+
+      const created = Boolean(data?.user);
+      setFormMessage({
+        type: "success",
+        text: created
+          ? "Account created! Check your inbox to confirm and you're all set."
+          : "Sign-up request received. Check your inbox to finish setting up your account.",
+      });
+    } catch (err) {
+      setFormMessage({
+        type: "error",
+        text: getErrorMessage(err) || "Sign-up failed. Please try again.",
+      });
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
-  // Order placing submit
-  const handleOrderSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedService || !user) return;
-
-    if (!receiptFile) {
-      setError("Please attach your GCash transaction receipt screenshot first.");
-      return;
-    }
-
-    if (quantity < selectedService.min) {
-      setError(`Quantity cannot be less than minimum ${selectedService.min.toLocaleString()}.`);
-      return;
-    }
-    if (quantity > selectedService.max) {
-      setError(`Quantity cannot exceed maximum ${selectedService.max.toLocaleString()}.`);
-      return;
-    }
-    if (!targetUrl.trim()) {
-      setError("Please enter your target URL link.");
-      return;
-    }
-
-    setLoading(true);
-    setError("");
-
-    const calculatedTotal = Math.max(quantity * selectedService.startingPrice, 5);
-    const CUSTOM_SMM_SERVICE_ID = "e6f61249-71fe-40df-84f3-96d03d3e8dcf";
-
-    try {
-      // 1. Create order on the server so every configured backup gets the same tracking ID.
-      const createRes = await fetch("/api/orders/create", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          serviceId: CUSTOM_SMM_SERVICE_ID,
-          email: user.email,
-          targetUrl: targetUrl.trim(),
-          amount: calculatedTotal,
-          paymentMethod: "GCash",
-          quantity,
-          smmServiceId: selectedService.id
-        })
-      });
-      const createData = await createRes.json();
-      if (!createRes.ok) throw new Error(createData.error || "Failed to create order.");
-
-      const insertData = { id: createData.orderId || createData.data?.id };
-      if (!insertData.id) throw new Error("Order was created without a tracking ID.");
-
-      // 2. Compress and upload GCash receipt screenshot
-      try {
-        const compressed = await compressImage(receiptFile);
-        const receiptFormData = new FormData();
-        receiptFormData.append("file", compressed);
-        receiptFormData.append("orderId", insertData.id);
-
-        const uploadRes = await fetch("/api/upload-receipt", {
-          method: "POST",
-          body: receiptFormData
-        });
-
-        if (!uploadRes.ok) {
-          const errData = await uploadRes.json();
-          throw new Error(errData.error || "Receipt upload request failed.");
-        }
-      } catch (uploadReceiptErr: unknown) {
-        console.error("Receipt upload failed:", uploadReceiptErr);
-        throw new Error(getErrorMessage(uploadReceiptErr) || "Failed to upload payment receipt screenshot.");
-      }
-
-      setOrderId(insertData.id);
-
-      // 3. Fire Telegram notification (non-blocking)
-      fetch("/api/notify-order", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          trackingId: `BS-${insertData.id.slice(0, 8).toUpperCase()}`,
-          service: `[SMM #${selectedService.id}] ${selectedService.name}`,
-          email: user.email,
-          quantity: quantity,
-          amount: calculatedTotal,
-          paymentMethod: "📱 GCash",
-          details: targetUrl.trim(),
-        }),
-      }).catch(() => {});
-
-      if (typeof window !== "undefined") {
-        localStorage.setItem("last_order_id", insertData.id);
-        localStorage.setItem("last_order_email", user.email || "");
-      }
-
-      setStep(4);
-    } catch (err: unknown) {
-      setError(getErrorMessage(err) || "Something went wrong while placing order.");
-    } finally {
-      setLoading(false);
-    }
+  const handleSkip = () => {
+    router.replace("/");
   };
-
-  const calculatedCost = selectedService ? Math.max(quantity * selectedService.startingPrice, 5) : 0;
-
-  // SMM service lists matched search term
-  const searchedServices = services.filter((s) => {
-    const nameLower = s.name.toLowerCase();
-    const idLower = String(s.id).toLowerCase();
-    const searchLower = searchTerm.toLowerCase();
-    return nameLower.includes(searchLower) || idLower.includes(searchLower);
-  });
 
   return (
     <main className="flex-grow flex flex-col items-center pt-10 sm:pt-20 bg-[#0a0a0a] min-h-screen text-slate-300 relative overflow-hidden">
-      {/* Dynamic tech glow backdrops */}
       <div className="absolute top-0 left-0 w-full h-[600px] overflow-hidden pointer-events-none -z-10">
-        <div className="absolute top-[-30%] left-[10%] w-[500px] h-[500px] rounded-full fb-glow-blob opacity-30"></div>
-        <div className="absolute top-[20%] right-[-10%] w-[500px] h-[500px] rounded-full spotify-glow-blob opacity-30"></div>
+        <div className="absolute top-[-30%] left-[10%] w-[500px] h-[500px] rounded-full fb-glow-blob opacity-30" />
+        <div className="absolute top-[20%] right-[-10%] w-[500px] h-[500px] rounded-full spotify-glow-blob opacity-30" />
       </div>
 
-      <div
-        className="w-full max-w-xs mx-auto z-10 space-y-8 pb-20 sm:max-w-3xl sm:px-4"
-      >
-        
-        {/* Header Title */}
-        <div className="text-center space-y-2.5">
+      <div className="w-full max-w-xs mx-auto z-10 space-y-8 pb-20 sm:max-w-3xl sm:px-4">
+        <div className="text-center space-y-3.5">
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#1DB954]/10 text-[#1DB954] border border-[#1DB954]/25 text-[10px] font-black uppercase tracking-widest animate-pulse">
             ✨ Quick Start Guide
           </span>
-          
-          <style dangerouslySetInnerHTML={{__html: `
-            @keyframes neonPulse {
-              0%, 100% {
-                text-shadow: 0 0 12px rgba(29, 185, 84, 0.35), 0 0 25px rgba(29, 185, 84, 0.15);
-              }
-              50% {
-                text-shadow: 0 0 25px rgba(29, 185, 84, 0.75), 0 0 50px rgba(29, 185, 84, 0.35);
-              }
-            }
-            @keyframes letterFloat {
-              0%, 100% {
-                transform: translateY(0) rotate(0deg);
-              }
-              50% {
-                transform: translateY(-6px) rotate(2deg);
-              }
-            }
-            .animate-neon {
-              animation: neonPulse 3s infinite ease-in-out;
-            }
-            .animate-letter-float {
-              animation: letterFloat 3s infinite ease-in-out;
-            }
-          `}} />
 
-          {/* Helper to render word-wrapped animated text */}
-          {(() => {
-            const renderWord = (word: string, startIdx: number, isFloat = false) => (
-              <span className="inline-block whitespace-nowrap">
-                {word.split("").map((letter, i) => {
-                  const idx = startIdx + i;
-                  return (
-                    <span
-                      key={i}
-                      className={isFloat ? "inline-block animate-letter-float" : "inline-block animate-fade-in-up"}
-                      style={{
-                        animationDelay: isFloat ? `${idx * 120}ms` : `${idx * 20}ms`,
-                        animationFillMode: isFloat ? undefined : "both"
-                      }}
-                    >
-                      {letter}
-                    </span>
-                  );
-                })}
-              </span>
-            );
+          <ShimmerHero />
 
-            return (
-              <h1 className="px-2 text-2xl sm:text-4xl md:text-5xl font-black text-white uppercase tracking-tight leading-tight select-none">
-                {renderWord("WELCOME", 0)}
-                {" "}
-                {renderWord("TO", 8)}
-                {" "}
-                <span className="block sm:inline text-[#1DB954] animate-neon">
-                  {renderWord("PINOY", 11, true)}
-                  {" "}
-                  {renderWord("MADE", 17, true)}
-                </span>
-                <br className="sm:hidden" />
-                {" "}
-                {renderWord("BOOSTING", 22)}
-                {" "}
-                {renderWord("SERVICES.", 31)}
-              </h1>
-            );
-          })()}
           <p className="text-slate-400 text-xs font-bold uppercase tracking-wide max-w-lg mx-auto leading-relaxed animate-pulse">
             CONGRATS, YOU HAVE ARRIVE AT DIRECT SUPPLIER BOOSTING. MEANING YOU WILL GET EVERYTHING AFFORDABLE
           </p>
         </div>
 
-        {/* Dynamic Multi-Step Stepper Bar */}
-        <div className="relative grid grid-cols-4 items-center w-full max-w-xs sm:max-w-lg mx-auto select-none bg-[#121212]/90 border border-slate-800/80 p-3 sm:p-4.5 rounded-full shadow-lg overflow-hidden">
-          <div className="absolute left-6 right-6 top-1/2 -translate-y-1/2 h-[1px] bg-slate-800 z-0"></div>
-          <div 
-            className="absolute left-6 top-1/2 -translate-y-1/2 h-[1.5px] bg-[#1DB954] z-0 transition-all duration-300 ease-out"
-            style={{ width: `${((step - 1) / 3) * 88}%` }}
-          ></div>
+        <Stepper />
 
-          {[
-            { num: 1, label: "Account Setup" },
-            { num: 2, label: "Pick Boost" },
-            { num: 3, label: "Checkout Details" },
-            { num: 4, label: "Launch & Track" }
-          ].map((st) => (
-            <div key={st.num} className="relative z-10 flex flex-col items-center space-y-1.5">
-              <div 
-                className={`w-9 h-9 rounded-full flex items-center justify-center font-black text-xs border transition-all duration-350 ${
-                  step > st.num ? "bg-[#1DB954] border-[#1DB954] text-black" :
-                  step === st.num ? "bg-[#0a0a0a] border-[#1DB954] text-[#1DB954] shadow-[0_0_12px_rgba(29,185,84,0.35)]" :
-                  "bg-[#121212] border-slate-800 text-slate-500"
-                }`}
-              >
-                {step > st.num ? <Check size={14} strokeWidth={3} /> : st.num}
-              </div>
-              <span className={`text-[9px] font-black uppercase tracking-wider hidden sm:block ${step >= st.num ? 'text-white' : 'text-slate-500'}`}>
-                {st.label}
-              </span>
-            </div>
-          ))}
-        </div>
+        <div className="w-full max-w-xs sm:max-w-md mx-auto bg-[#121212]/95 border border-slate-800/85 p-6 sm:p-8 rounded-3xl shadow-2xl relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-[#1DB954]/5 rounded-full blur-xl pointer-events-none" />
 
-        {/* Global Error Banner */}
-        {error && (
-          <div className="bg-red-500/10 border border-red-500/20 p-4 rounded-xl flex items-center gap-3 text-xs font-bold text-red-400 uppercase tracking-wide max-w-xl mx-auto shadow-md">
-            <AlertCircle size={18} />
-            {error}
+          <div className="text-center pb-4 mb-6 border-b border-slate-800/60 select-none">
+            <h2 className="text-sm font-black uppercase tracking-[0.2em] text-[#1DB954]">
+              Register New Account
+            </h2>
+            <p className="text-[10px] text-slate-500 font-semibold mt-1">
+              Quickstart is strictly for new users to amplify their first campaign.
+            </p>
           </div>
-        )}
 
-        {/* STEP 1: Strict User Setup / Register */}
-        {step === 1 && (
-          <div className="w-full max-w-xs sm:max-w-md mx-auto bg-[#121212]/95 border border-slate-800/85 p-6 sm:p-8 rounded-3xl shadow-2xl relative overflow-hidden animate-in slide-in-from-bottom-6 duration-300">
-            <div className="absolute top-0 right-0 w-24 h-24 bg-[#1DB954]/5 rounded-full blur-xl pointer-events-none"></div>
-            
-            <div className="text-center pb-2 mb-6 border-b border-slate-850/60 select-none">
-              <h2 className="text-sm font-black uppercase tracking-widest text-[#1DB954]">
-                Register New Account
-              </h2>
-              <p className="text-[10px] text-slate-500 font-semibold mt-1">
-                Quickstart is strictly for new users to amplify their first campaign.
-              </p>
+          {formMessage && (
+            <div
+              role={formMessage.type === "error" ? "alert" : "status"}
+              className={`mb-4 flex items-start gap-2 rounded-xl border px-3.5 py-2.5 text-[11px] font-bold ${
+                formMessage.type === "error"
+                  ? "border-red-500/20 bg-red-500/10 text-red-300"
+                  : "border-emerald-500/20 bg-emerald-500/10 text-emerald-300"
+              }`}
+            >
+              {formMessage.type === "success" ? (
+                <Check size={14} className="mt-0.5 flex-shrink-0" />
+              ) : null}
+              <span>{formMessage.text}</span>
             </div>
+          )}
 
-            <form onSubmit={handleAuthSubmit} className="space-y-4 text-left">
-              <div>
-                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5">Email Address</label>
-                <div className="relative">
-                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-550" size={16} />
-                  <input
-                    type="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#0a0a0a] border border-slate-850 focus:outline-none focus:border-[#1DB954] focus:ring-1 focus:ring-[#1DB954]/20 text-xs font-semibold text-white placeholder-slate-650 transition-all"
-                    placeholder="Enter your email address"
-                  />
-                </div>
-
-                {/* Real-time Email Verification Badge */}
-                {emailStatus.state !== "idle" && (
-                  <div className={`mt-2 flex items-center gap-1.5 px-3.5 py-2 rounded-xl border text-[10px] font-bold tracking-wide transition-all ${
-                    emailStatus.state === "verifying" ? "bg-slate-900 border-slate-800 text-slate-400" :
-                    emailStatus.state === "valid_google" ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" :
-                    emailStatus.state === "valid_other" ? "bg-blue-500/10 border-blue-500/20 text-blue-400" :
-                    "bg-red-500/10 border-red-500/20 text-red-400"
-                  }`}>
-                    {emailStatus.state === "verifying" && <Loader2 size={12} className="animate-spin text-slate-400 flex-shrink-0" />}
-                    {emailStatus.state === "valid_google" && <Check size={12} className="text-emerald-400 flex-shrink-0" />}
-                    {emailStatus.state === "valid_other" && <Check size={12} className="text-blue-400 flex-shrink-0" />}
-                    {emailStatus.state === "invalid" && <AlertCircle size={12} className="text-red-400 flex-shrink-0" />}
-                    <span>{emailStatus.message}</span>
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5">Password</label>
-                <div className="relative">
-                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-550" size={16} />
-                  <input
-                    type="password"
-                    required
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#0a0a0a] border border-slate-850 focus:outline-none focus:border-[#1DB954] focus:ring-1 focus:ring-[#1DB954]/20 text-xs font-semibold text-white placeholder-slate-650 transition-all"
-                    placeholder="••••••••"
-                  />
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading || emailStatus.state === "invalid" || emailStatus.state === "verifying"}
-                className="w-full bg-[#1DB954] hover:bg-[#1ed760] disabled:bg-slate-850 disabled:text-slate-600 text-black font-black py-3 rounded-xl transition-all duration-200 uppercase text-xs tracking-wider flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-emerald-500/10 mt-2 active:scale-[0.98]"
-              >
-                {loading ? <Loader2 size={14} className="animate-spin text-black" /> : <UserPlus size={14} />}
-                Create Account & Proceed
-              </button>
-            </form>
-
-            <div className="mt-5 text-center flex flex-col gap-3.5 select-none border-t border-slate-850/50 pt-4">
-              <button
-                type="button"
-                onClick={() => {
-                  if (typeof window !== "undefined") {
-                    localStorage.setItem("onboarded", "true");
-                  }
-                  router.push("/");
-                }}
-                className="text-[10px] font-black text-slate-500 hover:text-[#1DB954] uppercase tracking-widest transition-colors cursor-pointer"
-              >
-                Skip & Proceed to Main Website →
-              </button>
-              <button
-                type="button"
-                onClick={() => router.push("/login")}
-                className="text-[10px] font-black text-[#1DB954] hover:text-[#1ed760] hover:underline uppercase tracking-widest transition-colors cursor-pointer"
-              >
-                Already have an account? Sign In →
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* STEP 2: Pick Platform and SMM Reseller Boost */}
-        {step === 2 && (
-          <div className="space-y-6 animate-in slide-in-from-right-6 duration-300">
-            {/* Highlighted Question Banner */}
-            <div className="w-full text-center py-4 px-6 rounded-3xl bg-gradient-to-br from-[#1DB954]/15 to-[#1ed760]/5 border border-[#1DB954]/25 shadow-[0_0_20px_rgba(29,185,84,0.15)] select-none">
-              <h2 className="text-sm sm:text-base font-black text-white uppercase tracking-wider flex items-center justify-center gap-2">
-                ⚡ CHOOSE WHAT SOCIAL MEDIA YOU WANT TO BOOST TODAY ⚡
-              </h2>
-              <p className="text-[10px] text-slate-400 font-semibold mt-1">
-                Select your target platform below to view our curated boost packages.
-              </p>
-            </div>
-
-            {/* Pick platform tab chips */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 select-none">
-              {PLATFORMS.filter((plat) => availablePlatformIds.includes(plat.id)).map((plat) => {
-                const isActive = selectedPlatform === plat.id;
-                return (
-                  <button
-                    key={plat.id}
-                    onClick={() => {
-                      setSelectedPlatform(plat.id);
-                      setSelectedService(null);
-                    }}
-                    type="button"
-                    style={{
-                      borderColor: isActive ? plat.color : "rgba(255,255,255,0.04)",
-                      boxShadow: isActive ? `0 0 15px ${plat.glow}` : "none"
-                    }}
-                    className={`p-4 rounded-2xl border flex items-center gap-3 transition-all duration-300 transform active:scale-95 cursor-pointer text-left ${
-                      isActive ? "bg-black text-white" : "bg-[#121212]/50 hover:bg-[#161616] text-slate-400 hover:text-slate-200"
-                    }`}
-                  >
-                    <span className="text-2xl">{plat.icon}</span>
-                    <div>
-                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">Platform</span>
-                      <span className="text-sm font-black tracking-tight block mt-0.5">{plat.name}</span>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Catalog search bar and results listing container */}
-            <div className="bg-[#121212]/95 border border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-2xl relative overflow-hidden flex flex-col space-y-6">
-              
-              <div className="flex flex-col sm:flex-row gap-3 justify-between items-center">
-                <div className="text-left">
-                  <h3 className="text-lg font-black text-white uppercase tracking-tight">Available {selectedPlatform} Services</h3>
-                  <p className="text-slate-500 text-[10px] font-bold">Synchronized live at direct reseller prices.</p>
-                </div>
-
-                <div className="relative w-full sm:w-64">
-                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
-                  <input
-                    type="text"
-                    placeholder="Search package (e.g. Followers)..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2 rounded-xl bg-[#0a0a0a] border border-slate-850 focus:outline-none focus:border-[#1DB954] text-xs font-semibold text-white placeholder-slate-650"
-                  />
-                </div>
-              </div>
-
-              {catalogLoading ? (
-                <div className="flex flex-col justify-center items-center py-16 gap-3">
-                  <Loader2 size={32} className="text-[#1DB954] animate-spin" />
-                  <span className="text-xs font-bold text-slate-550 uppercase tracking-widest animate-pulse">Syncing services...</span>
-                </div>
-              ) : searchedServices.length === 0 ? (
-                <div className="text-center py-12 border border-slate-850 border-dashed rounded-2xl">
-                  <p className="text-slate-500 font-extrabold uppercase tracking-wide text-xs">No available services found.</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 overflow-y-auto max-h-[36vh] pr-1 custom-scrollbar">
-                  {searchedServices.map((srv) => {
-                    const isSelected = selectedService?.id === srv.id;
-                    return (
-                      <div
-                        key={srv.id}
-                        onClick={() => {
-                          setSelectedService(srv);
-                          setQuantity(srv.min);
-                        }}
-                        className={`bg-[#181818]/50 hover:bg-[#1a1a1a] border p-4.5 rounded-2xl cursor-pointer text-left transition-all duration-300 flex flex-col justify-between group transform ${
-                          isSelected 
-                            ? "border-[#1DB954]/55 bg-[#1DB954]/5 shadow-[0_0_15px_rgba(29,185,84,0.06)]"
-                            : "border-slate-850 hover:border-slate-700/60"
-                        }`}
-                      >
-                        <div>
-                          <div className="flex justify-between items-start gap-2 mb-2">
-                            <span className="text-[8px] bg-slate-850 text-slate-400 border border-slate-800 px-2 py-0.5 rounded-full font-mono">
-                              ID: #{srv.id}
-                            </span>
-                            <span className="text-[9px] bg-[#1DB954]/10 text-[#1DB954] border border-[#1DB954]/15 px-2 py-0.5 rounded-full font-extrabold">
-                              ₱{srv.startingPrice.toFixed(2)} / pc
-                            </span>
-                          </div>
-
-                          <h4 className="text-xs font-extrabold text-white group-hover:text-[#1DB954] transition-colors leading-snug line-clamp-2">
-                            {srv.name.startsWith("👥") || srv.name.startsWith("❤️") || srv.name.startsWith("▶️") 
-                              ? `${srv.name} - ID ${srv.id}`
-                              : formatSmmServiceName(srv.name, srv.id, srv.desc || undefined)}
-                          </h4>
-                          {srv.desc && (
-                            <p className="text-[9px] text-slate-400 mt-2 line-clamp-2 bg-black/20 p-2 rounded-lg leading-normal">
-                              {srv.desc}
-                            </p>
-                          )}
-                        </div>
-
-                        <div className="flex items-center justify-between border-t border-slate-850/50 pt-2.5 mt-3 text-[9px] text-slate-500 font-bold">
-                          <span>Min: {srv.min.toLocaleString()} • Max: {srv.max.toLocaleString()}</span>
-                          {isSelected && <span className="text-[#1DB954] font-black uppercase flex items-center gap-0.5">Selected ✓</span>}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-
-              {/* Step Navigation */}
-              <div className="flex justify-end pt-4 border-t border-slate-850/60 select-none">
-                <button
-                  type="button"
-                  disabled={!selectedService}
-                  onClick={() => setStep(3)}
-                  className="bg-[#1DB954] hover:bg-[#1ed760] disabled:bg-slate-850 disabled:text-slate-600 text-black font-black px-6 py-2.5 rounded-full text-xs uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 active:scale-95"
-                >
-                  Configure Details <ArrowRight size={14} strokeWidth={2.5} />
-                </button>
-              </div>
-
-            </div>
-          </div>
-        )}
-
-        {/* STEP 3: Order details & mandatory GCash receipt uploader */}
-        {step === 3 && selectedService && (
-          <div className="w-full max-w-xs sm:max-w-xl mx-auto bg-[#121212]/95 border border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-2xl relative overflow-hidden animate-in slide-in-from-right-6 duration-300">
-            <div className="absolute top-0 right-0 w-24 h-24 bg-[#1ed760]/5 rounded-full blur-xl pointer-events-none"></div>
-
-            <div className="flex items-center gap-3 border-b border-slate-850/60 pb-4 mb-6">
-              <button
-                type="button"
-                onClick={() => {
-                  setStep(2);
-                  setError("");
-                }}
-                className="bg-[#181818] border border-slate-800/60 hover:bg-slate-800 text-slate-400 p-2 rounded-xl transition-all cursor-pointer flex-shrink-0"
-              >
-                <ArrowLeft size={14} />
-              </button>
-              <div className="text-left min-w-0">
-                <span className="text-[8px] bg-slate-850 text-slate-400 border border-slate-800 px-2 py-0.5 rounded-full font-mono">
-                  SMM ID: #{selectedService.id}
-                </span>
-                <h3 className="text-sm font-black text-white mt-1 truncate" title={selectedService.name}>{selectedService.name}</h3>
-              </div>
-            </div>
-
-            <form onSubmit={handleOrderSubmit} className="space-y-4 text-left">
-              
-              {/* Account verified check */}
-              <div>
-                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5">Profile Email</label>
+          <form onSubmit={handleSubmit} className="space-y-4 text-left">
+            <div>
+              <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5">
+                Email Address
+              </label>
+              <div className="relative">
+                <Mail
+                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-550"
+                  size={16}
+                />
                 <input
                   type="email"
-                  disabled
+                  required
+                  autoComplete="email"
                   value={email}
-                  className="w-full px-4 py-2.5 rounded-xl bg-[#181818] border border-slate-850 text-slate-500 cursor-not-allowed text-xs font-semibold"
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#0a0a0a] border border-slate-800 focus:outline-none focus:border-[#1DB954] focus:ring-1 focus:ring-[#1DB954]/20 text-xs font-semibold text-white placeholder-slate-500 transition-all"
+                  placeholder="Enter your email address"
                 />
               </div>
-
-              {/* Target Link Input */}
-              <div className="space-y-3.5">
-                <div>
-                  <label className="block text-[10px] font-black text-slate-450 uppercase tracking-widest mb-1.5">Target Channel / Post Link URL <span className="text-red-500">*</span></label>
-                  <input
-                    type="url"
-                    required
-                    value={targetUrl}
-                    onChange={(e) => setTargetUrl(e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl bg-[#0a0a0a] border border-slate-850 focus:outline-none focus:ring-1 focus:ring-[#1DB954] text-xs font-semibold text-white transition-all placeholder-slate-650"
-                    placeholder="https://facebook.com/your-target-url"
-                  />
-                  <p className="text-[9px] text-slate-500 mt-1 italic font-semibold">Verify page or post is set to Public.</p>
-                </div>
-                
-                {/* Live Link Preview Window Component with effects */}
-                {targetUrl && (
-                  <div className="animate-in fade-in slide-in-from-top-3 duration-300">
-                    <LinkPreviewWindow targetUrl={targetUrl} />
-                  </div>
-                )}
-              </div>
-
-              {/* Quantity Selector input */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-[10px] font-black text-slate-450 uppercase tracking-widest mb-1.5">Quantity to Boost <span className="text-red-500">*</span></label>
-                  <input
-                    type="number"
-                    required
-                    min={selectedService.min}
-                    max={selectedService.max}
-                    value={quantity || ""}
-                    onChange={(e) => setQuantity(parseInt(e.target.value) || 0)}
-                    className="w-full px-4 py-2.5 rounded-xl bg-[#0a0a0a] border border-slate-850 focus:outline-none focus:ring-1 focus:ring-[#1DB954] text-xs font-black text-white transition-all placeholder-slate-700"
-                    placeholder={`Min: ${selectedService.min}`}
-                  />
-                  <p className="text-[9px] text-slate-500 mt-1 font-semibold">
-                    Min: {selectedService.min.toLocaleString()} • Max: {selectedService.max.toLocaleString()}
-                  </p>
-                </div>
-
-                <div className="flex flex-col justify-end">
-                  <div className="bg-[#0a0a0a]/90 px-4 py-2.5 rounded-xl border border-slate-850 flex justify-between items-center h-[38px]">
-                    <span className="text-[9px] font-extrabold text-slate-550 uppercase tracking-wider">Estimated Price:</span>
-                    <span className="text-xs font-black text-white">₱{calculatedCost.toFixed(2)} PHP</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* GCash Payment Instructions & Scan QR */}
-              <div className="bg-[#0a0a0a]/60 border border-slate-850 p-4 rounded-2xl text-left space-y-3">
-                <span className="text-[10px] font-black uppercase tracking-widest text-[#1DB954] block mb-1">
-                  📱 Step 1: Scan GCash QR Code to Pay ₱{calculatedCost.toFixed(2)}
-                </span>
-                
-                <div className="text-center">
-                  <div className="bg-white p-1 rounded-xl inline-block shadow-md max-w-[110px] mx-auto overflow-hidden border border-slate-700/20">
-                    <img 
-                      src="/gcash-qr.png" 
-                      alt="GCash QR Code" 
-                      className="w-full h-auto rounded-lg object-contain mx-auto"
-                    />
-                  </div>
-                  <p className="text-[9px] text-slate-500 font-bold mt-1.5">Account Name: Henry S.</p>
-                  <div className="flex items-center justify-center gap-2 mt-2 bg-[#1DB954]/10 border border-[#1DB954]/20 px-3 py-1.5 rounded-lg">
-                    <span className="text-[10px] font-black text-[#1DB954] tracking-wider">📞 09505339963</span>
-                    <button type="button" onClick={() => { navigator.clipboard.writeText('09505339963'); }} className="text-[8px] bg-[#1DB954]/20 hover:bg-[#1DB954]/40 text-[#1DB954] font-black uppercase tracking-wider px-2 py-0.5 rounded-md transition-all cursor-pointer active:scale-95">Copy</button>
-
-                  </div>
-                </div>
-              </div>
-
-              {/* Strict Payment Receipt Screenshot upload input */}
-              <div className="space-y-2 bg-[#0a0a0a] border border-slate-850 p-4.5 rounded-2xl text-left">
-                <label className="block text-[10px] font-black text-slate-450 uppercase tracking-widest flex justify-between items-center">
-                  <span>📱 Step 2: Upload Payment Receipt <span className="text-red-500">*</span></span>
-                  <span className="text-[8px] font-black uppercase text-red-500 animate-pulse">Strictly Required</span>
-                </label>
-                
-                <div className="relative">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    required
-                    onChange={(e) => setReceiptFile(e.target.files?.[0] || null)}
-                    className="hidden"
-                    id="funnel-receipt-upload"
-                  />
-                  <label
-                    htmlFor="funnel-receipt-upload"
-                    className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-[#121212] border border-dashed border-slate-700 hover:border-[#1DB954]/50 text-slate-350 hover:text-white cursor-pointer transition-all text-xs font-black uppercase tracking-wider active:scale-95 text-center"
-                  >
-                    <span>📁</span> {receiptFile ? `Receipt Attached: ${receiptFile.name}` : "Attach GCash Receipt Screenshot"}
-                  </label>
-                  {receiptFile && (
-                    <div className="text-[9px] text-[#1DB954] font-black uppercase tracking-wider text-center mt-1.5 animate-pulse">
-                      ✓ File loaded: {(receiptFile.size / 1024).toFixed(1)} KB
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Submit Checkout Trigger */}
-              <button
-                type="submit"
-                disabled={loading || !receiptFile}
-                className="w-full bg-[#1DB954] hover:bg-[#1ed760] disabled:bg-slate-850 disabled:text-slate-600 text-black font-black py-3.5 rounded-xl transition-all duration-200 uppercase text-xs tracking-wider flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-emerald-500/10 active:scale-[0.98] mt-2"
-              >
-                {loading ? <Loader2 size={14} className="animate-spin text-black" /> : <ShieldCheck size={14} />}
-                {loading ? "Registering order & uploading..." : "Submit Campaign Order"}
-              </button>
-
-            </form>
-          </div>
-        )}
-
-        {/* STEP 4: Success & Live tracking guidelines */}
-        {step === 4 && (
-          <div className="w-full max-w-xs sm:max-w-md mx-auto bg-[#121212]/95 border border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-2xl text-center space-y-6 animate-in zoom-in duration-300">
-            <div className="w-14 h-14 bg-green-500/10 border border-green-500/25 text-[#1DB954] rounded-full flex items-center justify-center mx-auto shadow-lg shadow-emerald-500/5">
-              <ShieldCheck size={32} />
             </div>
 
-            <div className="space-y-1">
-              <h3 className="text-xl font-black text-white uppercase tracking-tight">Campaign pre-queued!</h3>
-              <p className="text-xs text-slate-400 font-semibold leading-relaxed">
-                Your order is registered successfully. Please copy your campaign Tracking ID:
-              </p>
-            </div>
-
-            <div className="flex gap-2 items-center justify-center max-w-xs mx-auto">
-              <div className="flex-grow bg-slate-900 border border-slate-850 p-3 rounded-xl font-mono text-sm sm:text-base text-[#1DB954] font-black tracking-widest text-center select-all">
-                BS-{orderId.slice(0, 8).toUpperCase()}
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  navigator.clipboard.writeText(`BS-${orderId.slice(0, 8).toUpperCase()}`);
-                  setCopied(true);
-                  setTimeout(() => setCopied(false), 2000);
-                }}
-                className="bg-[#181818] hover:bg-slate-800 border border-slate-800 p-3 rounded-xl text-slate-400 hover:text-white transition-all cursor-pointer flex-shrink-0 active:scale-95 flex items-center justify-center min-w-[42px] h-[42px]"
-                title="Copy tracking ID"
-              >
-                {copied ? <span className="text-xs text-[#1DB954] font-black">✓</span> : <span className="text-xs">📋</span>}
-              </button>
-            </div>
-
-            <div className="bg-slate-900/60 border border-slate-850 p-4.5 rounded-2xl text-left space-y-2.5 text-xs text-slate-350 leading-relaxed font-semibold">
-              <span className="text-[10px] font-black uppercase tracking-widest text-[#1DB954] block mb-1">
-                ⚙️ Real-time Order Tracking Guide
-              </span>
-              <p>
-                1. You can track your pending campaign status directly in the **Support Chatbot** located at the bottom-right corner of our site.
-              </p>
-              <p>
-                2. Simply paste your **Tracking ID** into the chatbot to instantly query live delivery progress!
-              </p>
-              <p>
-                3. You can also view and track all your pending and active orders by clicking the **Track Order** button in the top navigation bar.
-              </p>
-            </div>
-
-            {/* Automatic Redirect Progress Indicator */}
-            <div className="pt-2 select-none max-w-xs mx-auto">
-              <div className="flex justify-between items-center text-[10px] font-black uppercase text-slate-500 tracking-wider mb-2">
-                <span>Redirecting to Homepage</span>
-                <span className="text-[#1DB954]">{countdown}s remaining</span>
-              </div>
-              <div className="w-full h-1 bg-slate-900 rounded-full overflow-hidden">
-                <div 
-                  className="h-full bg-gradient-to-r from-[#1DB954] to-[#1ed760] transition-all duration-1000 ease-linear"
-                  style={{ width: `${(countdown / 8) * 100}%` }}
-                ></div>
+            <div>
+              <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5">
+                Password
+              </label>
+              <div className="relative">
+                <Lock
+                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-550"
+                  size={16}
+                />
+                <input
+                  type="password"
+                  required
+                  autoComplete="new-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#0a0a0a] border border-slate-800 focus:outline-none focus:border-[#1DB954] focus:ring-1 focus:ring-[#1DB954]/20 text-xs font-semibold text-white placeholder-slate-500 transition-all"
+                  placeholder="Create a secure password"
+                />
               </div>
             </div>
 
             <button
-              onClick={() => {
-                if (typeof window !== "undefined") {
-                  localStorage.setItem("onboarded", "true");
-                }
-                router.push(`/?track=${orderId}`);
-              }}
-              className="w-full bg-[#1DB954] hover:bg-[#1ed760] text-black font-black py-3.5 rounded-full transition-all duration-300 uppercase text-xs tracking-wider cursor-pointer active:scale-95"
+              type="submit"
+              disabled={submitting}
+              className="w-full bg-[#1DB954] hover:bg-[#1ed760] disabled:bg-[#1DB954]/50 disabled:cursor-not-allowed text-black font-black py-3 rounded-xl transition-all duration-200 uppercase text-xs tracking-wider flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-emerald-500/10 mt-2 active:scale-[0.98]"
             >
-              Return to Website homepage
+              <UserPlus size={14} />
+              {submitting ? "Creating Account..." : "Create Account & Proceed"}
             </button>
-          </div>
-        )}
+          </form>
 
+          <div className="mt-5 text-center flex flex-col gap-3.5 select-none border-t border-slate-800/50 pt-4">
+            <button
+              type="button"
+              onClick={handleSkip}
+              className="text-[10px] font-black text-slate-500 hover:text-[#1DB954] uppercase tracking-widest transition-colors cursor-pointer"
+            >
+              Skip & Proceed to Main Website →
+            </button>
+            <Link
+              href="/login"
+              className="text-[10px] font-black text-[#1DB954] hover:text-[#1ed760] hover:underline uppercase tracking-widest transition-colors"
+            >
+              Already have an account? Sign In →
+            </Link>
+          </div>
+        </div>
       </div>
+
+      {announcement === "open" && (
+        <AnnouncementModal onClose={dismissAnnouncement} />
+      )}
     </main>
   );
 }
