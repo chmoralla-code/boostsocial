@@ -41,6 +41,106 @@ body {
   transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
 }
 
+/* ─────────────────────────────────────────────────────────────
+   🚀 FPS OPTIMIZATIONS — smooth experience on old phones
+   ───────────────────────────────────────────────────────────── */
+
+/* Off-screen sections: skip rendering until visible (huge GPU/CPU win) */
+.cv-auto {
+  content-visibility: auto;
+  contain-intrinsic-size: 1px 600px;
+}
+
+/* Only promote to compositor for elements that actually animate */
+.gpu {
+  transform: translateZ(0);
+  will-change: transform;
+  backface-visibility: hidden;
+}
+
+/* Respect users who prefer reduced motion (accessibility + battery) */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  .spotify-glow-blob,
+  .fb-glow-blob,
+  .hero-video,
+  .animate-float,
+  .animate-pulse,
+  .animate-ping,
+  .animate-letter-float,
+  .animate-neon,
+  .spotify-shimmer-text,
+  .fb-shimmer-text {
+    animation: none !important;
+  }
+}
+
+/* On small/old screens, kill the expensive stuff automatically.
+   Tuned to keep Android 6-8 / iPhone 6s era devices smooth. */
+@media (max-width: 768px), (hover: none) and (pointer: coarse) {
+  /* Drop the giant blurred floating blobs (the #1 FPS killer) */
+  .spotify-glow-blob,
+  .fb-glow-blob {
+    display: none !important;
+  }
+
+  /* Pause heavy infinite animations on mobile */
+  .animate-pulse,
+  .animate-ping,
+  .animate-letter-float,
+  .animate-neon {
+    animation: none !important;
+  }
+
+  /* Replace the looping shimmer with a solid color (no GPU repaint per frame) */
+  .spotify-shimmer-text,
+  .fb-shimmer-text {
+    background: #1DB954 !important;
+    -webkit-background-clip: text !important;
+    -webkit-text-fill-color: transparent !important;
+    animation: none !important;
+    text-shadow: 0 0 20px rgba(29, 185, 84, 0.3) !important;
+  }
+  [data-theme="light"] .spotify-shimmer-text,
+  [data-theme="light"] .fb-shimmer-text {
+    background: #15803d !important;
+  }
+
+  /* Hero video: kill the filter+opacity repaints, just fade in once */
+  .hero-video {
+    opacity: 0.5 !important;
+    filter: none !important;
+  }
+
+  /* Staggered fadeInUp is fine, but drop the blur filter (expensive) */
+  .animate-fade-in-up-1,
+  .animate-fade-in-up-2,
+  .animate-fade-in-up-3 {
+    animation-name: fadeInUpNoBlur !important;
+  }
+}
+
+@keyframes fadeInUpNoBlur {
+  0% { opacity: 0; transform: translateY(20px) scale(0.98); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Smooth scroll for users who don't mind it */
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+
+/* Hide the hero video entirely on the most constrained devices */
+@media (max-width: 480px) and (max-device-memory: 2) {
+  .hero-video { display: none !important; }
+}
+
 /* 🎨 Semantic Theme Utilities */
 .text-fg { color: var(--color-foreground) !important; }
 .text-muted { color: var(--color-muted) !important; }

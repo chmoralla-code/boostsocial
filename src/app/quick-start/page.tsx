@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Mail, Lock, Megaphone, X, UserPlus, Check } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 const ANNOUNCEMENT_DISMISS_KEY = "pb_apk_announcement_dismissed";
 const ANNOUNCEMENT_VERSION = "pinoyboosting-apk-v1";
@@ -253,6 +254,20 @@ export default function QuickStartPage() {
 
   return (
     <main className="flex-grow flex flex-col items-center pt-10 sm:pt-20 bg-[#0a0a0a] min-h-screen text-slate-300 relative overflow-hidden">
+      {/* Minimal floating top bar — theme toggle + back to home */}
+      <div className="absolute top-4 right-4 z-50 flex items-center gap-2 sm:top-6 sm:right-6">
+        <button
+          type="button"
+          onClick={handleSkip}
+          className="inline-flex h-10 items-center gap-1.5 rounded-full border border-slate-800/80 bg-[#121212]/80 px-3 text-[10px] font-black uppercase tracking-widest text-slate-400 backdrop-blur-sm transition-colors hover:border-[#1DB954]/40 hover:text-[#1DB954]"
+          aria-label="Back to home"
+          title="Back to home"
+        >
+          ← Home
+        </button>
+        <ThemeToggle />
+      </div>
+
       <div className="absolute top-0 left-0 w-full h-[600px] overflow-hidden pointer-events-none -z-10">
         <div className="absolute top-[-30%] left-[10%] w-[500px] h-[500px] rounded-full fb-glow-blob opacity-30" />
         <div className="absolute top-[20%] right-[-10%] w-[500px] h-[500px] rounded-full spotify-glow-blob opacity-30" />
