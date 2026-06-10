@@ -69,7 +69,53 @@ interface ServiceCandidate {
   caption?: string;
   layout?: string;
   image_url?: string;
+  logo_url?: string;
 }
+
+/* Real official brand logos (SVG) — keyed by ServiceCandidate.id.
+   Inlined as data URIs so the homepage never depends on a 3rd-party CDN. */
+const REAL_LOGOS: Record<string, string> = {
+  facebook:
+    "data:image/svg+xml;utf8," +
+    encodeURIComponent(
+      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><circle cx="24" cy="24" r="22" fill="#1877F2"/><path fill="#fff" d="M27.5 25.5h3.4l.6-4.1h-4v-2.6c0-1.2.3-2 2-2h2.1v-3.7c-.4 0-1.6-.2-3-.2-3 0-5 1.8-5 5.1v2.9h-3.4v4.1h3.4V38h4.1V25.5z"/></svg>`
+    ),
+  instagram:
+    "data:image/svg+xml;utf8," +
+    encodeURIComponent(
+      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><defs><radialGradient id="ig" cx="30%" cy="107%" r="150%"><stop offset="0%" stop-color="#FDF497"/><stop offset="5%" stop-color="#FDF497"/><stop offset="45%" stop-color="#FD5949"/><stop offset="60%" stop-color="#D6249F"/><stop offset="90%" stop-color="#285AEB"/></radialGradient></defs><rect width="48" height="48" rx="11" fill="url(#ig)"/><path fill="#fff" d="M24 14.5c-5.2 0-9.5 4.3-9.5 9.5s4.3 9.5 9.5 9.5 9.5-4.3 9.5-9.5-4.3-9.5-9.5-9.5zm0 15.7a6.2 6.2 0 1 1 0-12.4 6.2 6.2 0 0 1 0 12.4zM34 12.5a2.2 2.2 0 1 1-4.4 0 2.2 2.2 0 0 1 4.4 0z"/></svg>`
+    ),
+  tiktok:
+    "data:image/svg+xml;utf8," +
+    encodeURIComponent(
+      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><circle cx="24" cy="24" r="22" fill="#000"/><path fill="#25F4EE" d="M31 12.5c.7 2.4 2.4 4.4 4.8 5.2v3.6c-1.9 0-3.7-.5-5.3-1.4v8.7c0 5.2-4.2 9.4-9.4 9.4s-9.4-4.2-9.4-9.4 4.2-9.4 9.4-9.4c.6 0 1.2.1 1.8.2v3.7c-.6-.2-1.2-.3-1.8-.3-3.2 0-5.8 2.6-5.8 5.8s2.6 5.8 5.8 5.8 5.8-2.6 5.8-5.8V12.5H31z"/><path fill="#FE2C55" d="M31.5 13c.7 2.4 2.4 4.4 4.8 5.2v3.6c-1.9 0-3.7-.5-5.3-1.4v8.7c0 5.2-4.2 9.4-9.4 9.4s-9.4-4.2-9.4-9.4 4.2-9.4 9.4-9.4c.6 0 1.2.1 1.8.2v3.7c-.6-.2-1.2-.3-1.8-.3-3.2 0-5.8 2.6-5.8 5.8s2.6 5.8 5.8 5.8 5.8-2.6 5.8-5.8V13h3.6z"/><path fill="#fff" d="M31 12v.5c.7 2.4 2.4 4.4 4.8 5.2v3.6c-1.9 0-3.7-.5-5.3-1.4v8.7c0 5.2-4.2 9.4-9.4 9.4s-9.4-4.2-9.4-9.4 4.2-9.4 9.4-9.4c.6 0 1.2.1 1.8.2v3.7c-.6-.2-1.2-.3-1.8-.3-3.2 0-5.8 2.6-5.8 5.8s2.6 5.8 5.8 5.8 5.8-2.6 5.8-5.8V12H31z"/></svg>`
+    ),
+  youtube:
+    "data:image/svg+xml;utf8," +
+    encodeURIComponent(
+      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><rect width="48" height="48" rx="10" fill="#FF0000"/><path fill="#fff" d="M19 15.5l14 8.5-14 8.5V15.5z"/></svg>`
+    ),
+  "pisowifi-package":
+    "data:image/svg+xml;utf8," +
+    encodeURIComponent(
+      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><rect width="48" height="48" rx="10" fill="#10B981"/><path fill="#fff" d="M24 14c-5.5 0-10 4.5-10 10 0 7.4 10 14.5 10 14.5S34 31.4 34 24c0-5.5-4.5-10-10-10zm0 13.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z"/></svg>`
+    ),
+  "order-page":
+    "data:image/svg+xml;utf8," +
+    encodeURIComponent(
+      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><rect width="48" height="48" rx="10" fill="#1877F2"/><path fill="#fff" d="M16 14h11.5a6.5 6.5 0 1 1 0 13H20v7h-4V14zm4 3v7h7.2a3.5 3.5 0 1 0 0-7H20z"/></svg>`
+    ),
+  other:
+    "data:image/svg+xml;utf8," +
+    encodeURIComponent(
+      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><rect width="48" height="48" rx="10" fill="#0EA5E9"/><path fill="#fff" d="M12 16h6l4 8 4-8h6v20h-4V22l-4 8h-4l-4-8v14h-4V16zm26 4h4v16h-4V20z"/></svg>`
+    ),
+  catalog:
+    "data:image/svg+xml;utf8," +
+    encodeURIComponent(
+      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><rect width="48" height="48" rx="10" fill="#1DB954"/><circle cx="24" cy="24" r="10" fill="none" stroke="#fff" stroke-width="3"/><path fill="#fff" d="M20 18l12 6-12 6V18z"/></svg>`
+    )
+};
 
 const ORDER_PAGE_CANDIDATE = {
   id: "order-page",
@@ -835,14 +881,23 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
                   </div>
                 ) : (
                   <div className="h-16 flex items-center justify-center group-hover:scale-115 group-hover:rotate-6 transition-transform duration-500 ease-out">
-                    {card.emoji === "Layers" ? (
-                      <Layers 
-                        size={40} 
+                    {card.logo_url || REAL_LOGOS[card.id] ? (
+                      <img
+                        src={card.logo_url || REAL_LOGOS[card.id]}
+                        alt={`${card.title} logo`}
+                        className="w-14 h-14 object-contain mb-4"
+                        style={{ filter: `drop-shadow(0 0 14px ${card.theme_color}55)` }}
+                        loading="lazy"
+                        decoding="async"
+                      />
+                    ) : card.emoji === "Layers" ? (
+                      <Layers
+                        size={40}
                         className="mb-4"
-                        style={{ 
+                        style={{
                           color: card.theme_color,
                           filter: `drop-shadow(0 0 12px ${card.theme_color}45)`
-                        }} 
+                        }}
                       />
                     ) : card.id === "pisowifi-package" ? (
                       <Wifi
@@ -854,9 +909,9 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
                         }}
                       />
                     ) : (
-                      <span 
+                      <span
                         className="text-4xl mb-4 select-none"
-                        style={{ 
+                        style={{
                           filter: `drop-shadow(0 0 12px ${card.theme_color}45)`
                         }}
                       >
