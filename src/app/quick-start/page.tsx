@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Mail, Lock, Megaphone, X, UserPlus, Check } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
-import { ThemeToggle } from "@/components/ThemeToggle";
 
 const ANNOUNCEMENT_DISMISS_KEY = "pb_apk_announcement_dismissed";
 const ANNOUNCEMENT_VERSION = "pinoyboosting-apk-v1";
@@ -254,8 +253,16 @@ export default function QuickStartPage() {
   };
 
   return (
-    <main className="flex-grow flex flex-col items-center pt-10 sm:pt-20 bg-[#0a0a0a] min-h-screen text-slate-300 relative overflow-hidden">
-      {/* Minimal floating top bar — theme toggle + back to home */}
+    <main
+      className="flex-grow flex flex-col items-center pt-10 sm:pt-20 min-h-screen text-slate-300 relative overflow-hidden"
+      style={{ backgroundColor: "#000000", color: "#cbd5e1" }}
+    >
+      <script
+        dangerouslySetInnerHTML={{
+          __html: `document.documentElement.setAttribute('data-theme','dark');`,
+        }}
+      />
+      {/* Minimal floating top bar — back to home */}
       <div className="absolute top-4 right-4 z-50 flex items-center gap-2 sm:top-6 sm:right-6">
         <button
           type="button"
@@ -266,7 +273,6 @@ export default function QuickStartPage() {
         >
           ← Home
         </button>
-        <ThemeToggle />
       </div>
 
       <div className="absolute top-0 left-0 w-full h-[600px] overflow-hidden pointer-events-none -z-10">
