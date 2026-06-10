@@ -3,13 +3,11 @@
 import { useState, useEffect } from "react";
 import { ServiceCard } from "./ServiceCard";
 import { OrderModal } from "./OrderModal";
-import { PriceCalculator } from "./PriceCalculator";
-import { StatCounters } from "./StatCounters";
 import { FaqSection } from "./FaqSection";
 import { ReviewsSection } from "./ReviewsSection";
 import { SmmCatalogModal } from "./SmmCatalogModal";
 import { Layers, X, Loader2, Wifi } from "lucide-react";
-import { parseDescription, matchesServiceQualityFilter } from "@/utils/serviceHelpers";
+import { parseDescription } from "@/utils/serviceHelpers";
 import { createClient } from "@/utils/supabase/client";
 import { getVipDiscountPercent, isVipActive } from "@/utils/vip";
 
@@ -214,8 +212,6 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
   const [platformSubModalOpen, setPlatformSubModalOpen] = useState(false);
   const [platformSubModalType, setPlatformSubModalType] = useState<PlatformType | null>(null);
 
-  const [showCalculator, setShowCalculator] = useState(false);
-  const [isOrganicFilter, setIsOrganicFilter] = useState(true);
   const [vipDiscountPercent, setVipDiscountPercent] = useState(0);
 
   const applyVipPrice = (amount: number) => {
@@ -473,15 +469,6 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
     setIsModalOpen(true);
   };
 
-  const handleCalculatorOrder = (service: Service, quantity: number) => {
-    setSelectedService(service);
-    setSelectedServiceId(service.id);
-    setSelectedServiceTitle(service.title);
-    setSelectedServicePrice(service.starting_price);
-    setPresetQty(quantity);
-    setIsModalOpen(true);
-  };
-
   // Segment services into utility bundles and dedicated PisoWiFi packages.
   const utilityServiceIds = [
     "530e797c-62d1-467a-bf23-310c169a7103", // Gemini Pro
@@ -654,14 +641,6 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
     : DEFAULT_CANDIDATES;
   const activeCandidates = mergeCandidatesWithDefaults(configuredCandidates);
 
-  const filteredServicesForCalculator = services.filter((srv) => {
-    const isOther = specialServices.some((o) => o.id === srv.id);
-    if (isOther) return false;
-
-    const desc = typeof srv.description === "string" ? srv.description : (srv.description?.description || "");
-    return matchesServiceQualityFilter(srv.title, desc, "", isOrganicFilter);
-  });
-
   const getCandidateRateAmount = (rateText: string) => {
     const match = String(rateText || "").match(/₱\s*([\d,]+(?:\.\d+)?)/);
     if (!match) return null;
@@ -671,75 +650,7 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
 
   return (
     <>
-      {/* 1. SMM Price Calculator Widget Toggle */}
-      <div className="w-full max-w-4xl mx-auto px-4 mt-6 relative z-10 flex flex-col items-center">
-        {/* Organic & Non-Organic Filter Toggle */}
-        <div className="w-full max-w-xs mx-auto mb-6 flex flex-col items-center">
-          <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[#1DB954] mb-2 select-none">
-            🌱 Service Quality Filter
-          </span>
-          <div className="relative flex p-1 bg-elevated border border-border/80 rounded-full w-full shadow-inner select-none">
-            {/* Sliding indicator */}
-            <div
-              className={`absolute top-1 bottom-1 rounded-full bg-gradient-to-r transition-all duration-300 ease-out pointer-events-none ${
-                isOrganicFilter
-                  ? "left-1 w-[48%] from-[#1DB954]/20 to-[#1ed760]/20 border border-[#1DB954]/30"
-                  : "left-[51%] w-[48%] from-indigo-500/20 to-purple-500/20 border border-indigo-500/30"
-              }`}
-            ></div>
-            
-            <button
-              onClick={() => setIsOrganicFilter(true)}
-              className={`flex-1 py-2.5 text-[11px] font-black uppercase tracking-wider rounded-full transition-all duration-200 z-10 cursor-pointer flex items-center justify-center gap-1.5 ${
-                isOrganicFilter ? "text-[#1DB954]" : "text-muted hover:text-fg"
-              }`}
-            >
-              🌿 Organic
-            </button>
-            
-            <button
-              onClick={() => setIsOrganicFilter(false)}
-              className={`flex-1 py-2.5 text-[11px] font-black uppercase tracking-wider rounded-full transition-all duration-200 z-10 cursor-pointer flex items-center justify-center gap-1.5 ${
-                !isOrganicFilter ? "text-indigo-400" : "text-muted hover:text-fg"
-              }`}
-            >
-              🤖 Non-Organic
-            </button>
-          </div>
-        </div>
-
-        {!showCalculator ? (
-          <button
-            onClick={() => setShowCalculator(true)}
-            className="px-10 py-5 rounded-full bg-gradient-to-r from-[#1DB954] to-[#1ed760] hover:from-[#1ed760] hover:to-[#1DB954] text-black font-black uppercase tracking-widest text-sm shadow-xl shadow-emerald-500/20 hover:shadow-emerald-500/35 transition-all duration-300 transform hover:scale-[1.03] flex items-center gap-3 cursor-pointer border border-[#1DB954]/30"
-          >
-            <span className="text-base">📊</span> ESTIMATE
-          </button>
-        ) : (
-          <div className="w-full relative animate-in fade-in slide-in-from-top-4 duration-500">
-            <PriceCalculator 
-              services={filteredServicesForCalculator} 
-              vipDiscountPercent={vipDiscountPercent}
-              onOrder={handleCalculatorOrder} 
-            />
-            <div className="flex justify-center -mt-10 mb-16">
-              <button
-                onClick={() => setShowCalculator(false)}
-                className="px-6 py-2.5 rounded-full border border-border hover:border-border bg-slate-900/90 text-muted hover:text-fg transition-all duration-300 text-xs font-black uppercase tracking-wider cursor-pointer shadow-lg"
-              >
-                Hide Calculator
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-
-
-
-      {/* 2. Brand Stat Counters */}
-      <StatCounters />
-
-      {/* 3. Choose Your Boost Tier Grid */}
+      {/* 1. Choose Your Boost Tier Grid */}
       <section
         id="services"
         className={`w-full max-w-6xl mx-auto mt-12 mb-20 relative z-10 transition-all duration-300 ${
