@@ -99,12 +99,12 @@ export function Header() {
   return (
     <>
       <header className="w-full border-b border-border/40 relative z-50 overflow-hidden">
-        <div className={user ? "mx-auto flex max-w-7xl flex-col gap-3 px-4 py-4 sm:px-6 md:flex-row md:items-center md:justify-between md:px-8 md:py-6" : "mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-4 sm:px-6 md:px-8 md:py-6"}>
-        <Link href="/" className="flex min-w-0 items-center gap-2 group">
+        <div className={user ? "mx-auto flex max-w-7xl flex-col gap-3 px-4 py-4 sm:px-6 md:flex-row md:items-center md:justify-between md:gap-4 md:px-6 md:py-6" : "mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-4 sm:px-6 md:gap-4 md:px-6 md:py-6"}>
+        <Link href="/" className="flex min-w-0 shrink-0 items-center gap-2 group">
           <div className="shrink-0 text-primary drop-shadow-[0_0_10px_rgba(29,185,84,0.3)] group-hover:scale-110 transition-transform duration-300">
             <Rocket size={28} strokeWidth={2.5} />
           </div>
-          <span className="min-w-0 text-xl sm:text-2xl font-black tracking-normal text-fg flex items-center whitespace-nowrap">
+          <span className="text-xl sm:text-2xl font-black tracking-normal text-fg flex items-center whitespace-nowrap">
             {"CYNETWORK".split("").map((letter, idx) => (
               <span
                 key={idx}
@@ -118,20 +118,20 @@ export function Header() {
             ))}
           </span>
         </Link>
-        
-        <nav className="hidden md:flex gap-8 font-bold text-muted text-sm items-center">
-          <Link href="/quick-start" className="text-primary hover:text-primary-dark font-extrabold uppercase text-xs tracking-wider flex items-center gap-1 transition-colors animate-pulse">🚀 Quick Start</Link>
-          <Link href="/order-page" className="text-[#1877F2] hover:text-[#4e8df5] font-extrabold uppercase text-xs tracking-wider transition-colors">Order Page</Link>
-          <Link href="/affiliate" className="hover:text-fg transition-colors">Affiliate</Link>
-          <Link href="/vip" className="hover:text-primary transition-colors flex items-center gap-1.5 uppercase tracking-wider text-xs font-extrabold">
+
+        <nav className="hidden min-w-0 flex-1 md:flex md:flex-wrap md:items-center md:justify-center md:gap-x-3 md:gap-y-1 lg:gap-x-5 font-bold text-muted text-sm">
+          <Link href="/quick-start" className="text-primary hover:text-primary-dark font-extrabold uppercase text-xs tracking-wider flex items-center gap-1 transition-colors animate-pulse whitespace-nowrap">🚀 Quick Start</Link>
+          <Link href="/order-page" className="text-[#1877F2] hover:text-[#4e8df5] font-extrabold uppercase text-xs tracking-wider transition-colors whitespace-nowrap">Order Page</Link>
+          <Link href="/affiliate" className="hover:text-fg transition-colors whitespace-nowrap">Affiliate</Link>
+          <Link href="/vip" className="hover:text-primary transition-colors flex items-center gap-1.5 uppercase tracking-wider text-xs font-extrabold whitespace-nowrap">
             <Crown size={14} />
             VIP
           </Link>
-          <Link href="/services" className="hover:text-fg transition-colors">Services</Link>
-          <Link href="/track" className="hover:text-fg transition-colors">Status Tracker</Link>
+          <Link href="/services" className="hover:text-fg transition-colors whitespace-nowrap">Services</Link>
+          <Link href="/track" className="hover:text-fg transition-colors whitespace-nowrap hidden lg:inline">Status Tracker</Link>
         </nav>
 
-        <div className={user ? "grid w-full grid-cols-[minmax(0,1fr)_44px_44px_44px] items-center gap-2 md:flex md:w-auto md:gap-4" : "flex w-full items-center justify-end md:w-auto"}>
+        <div className={user ? "grid w-full grid-cols-[minmax(0,1fr)_44px_44px_44px] items-center gap-2 md:flex md:w-auto md:shrink-0 md:gap-2 lg:gap-3" : "flex w-full items-center justify-end md:w-auto md:shrink-0"}>
               {user ? (
                 <>
                   {profile?.vip_plan && isVipActive(profile) && (
