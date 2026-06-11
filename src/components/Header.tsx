@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from 'next/link';
-import { Rocket, LogOut, ClipboardList, X, Loader2, Wallet, Gift, Crown } from 'lucide-react';
+import { Rocket, LogOut, ClipboardList, X, Loader2, Wallet, Gift, Crown, Menu } from 'lucide-react';
 import { ThemeToggle } from "./ThemeToggle";
 import { createClient } from "@/utils/supabase/client";
 import type { User } from "@supabase/supabase-js";
@@ -35,6 +35,7 @@ export function Header() {
   const [showOrdersModal, setShowOrdersModal] = useState(false);
   const [showTopUpModal, setShowTopUpModal] = useState(false);
   const [showReferralsModal, setShowReferralsModal] = useState(false);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [loadingOrders, setLoadingOrders] = useState(false);
   const supabase = createClient();
 
@@ -119,6 +120,15 @@ export function Header() {
           </span>
         </Link>
 
+        {/* Mobile Hamburger Button */}
+        <button
+          onClick={() => setShowMobileMenu(!showMobileMenu)}
+          className="flex md:hidden h-10 w-10 items-center justify-center rounded-xl border border-border/80 bg-card/80 text-muted transition-all duration-300 hover:border-primary/40 hover:text-fg cursor-pointer"
+          aria-label="Toggle menu"
+        >
+          {showMobileMenu ? <X size={20} /> : <Menu size={20} />}
+        </button>
+
         <nav className="hidden min-w-0 flex-1 md:flex md:flex-wrap md:items-center md:justify-center md:gap-x-3 md:gap-y-1 lg:gap-x-5 font-bold text-muted text-sm">
           <Link href="/quick-start" className="text-primary hover:text-primary-dark font-extrabold uppercase text-xs tracking-wider flex items-center gap-1 transition-colors animate-pulse whitespace-nowrap">🚀 Quick Start</Link>
           <Link href="/order-page" className="text-[#1877F2] hover:text-[#4e8df5] font-extrabold uppercase text-xs tracking-wider transition-colors whitespace-nowrap">Order Page</Link>
@@ -194,6 +204,55 @@ export function Header() {
           )}
         </div>
         </div>
+        {/* Mobile Navigation Menu */}
+        {showMobileMenu && (
+          <div className="md:hidden border-t border-border/40 bg-card/95 backdrop-blur-xl animate-in slide-in-from-top-2 duration-200">
+            <nav className="flex flex-col px-4 py-3 gap-1">
+              <Link 
+                href="/quick-start" 
+                onClick={() => setShowMobileMenu(false)}
+                className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-primary hover:bg-primary/10 transition-colors"
+              >
+                🚀 Quick Start
+              </Link>
+              <Link 
+                href="/order-page" 
+                onClick={() => setShowMobileMenu(false)}
+                className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-[#1877F2] hover:bg-[#1877F2]/10 transition-colors"
+              >
+                📦 Order Page
+              </Link>
+              <Link 
+                href="/services" 
+                onClick={() => setShowMobileMenu(false)}
+                className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-fg hover:bg-white/5 transition-colors"
+              >
+                🛒 Services
+              </Link>
+              <Link 
+                href="/affiliate" 
+                onClick={() => setShowMobileMenu(false)}
+                className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-fg hover:bg-white/5 transition-colors"
+              >
+                💰 Affiliate
+              </Link>
+              <Link 
+                href="/vip" 
+                onClick={() => setShowMobileMenu(false)}
+                className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-primary hover:bg-primary/10 transition-colors"
+              >
+                👑 VIP Account
+              </Link>
+              <Link 
+                href="/track" 
+                onClick={() => setShowMobileMenu(false)}
+                className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-fg hover:bg-white/5 transition-colors"
+              >
+                📍 Status Tracker
+              </Link>
+            </nav>
+          </div>
+        )}
         <div className="border-t border-border/40 px-4 pb-4 pt-3 md:hidden">
           <div className="flex items-center justify-between gap-2 mb-3">
             <ThemeToggle />

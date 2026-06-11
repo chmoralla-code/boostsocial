@@ -4,7 +4,7 @@ import { ServicesSection } from "@/components/ServicesSection";
 import { HeroVideoBackground } from "@/components/HeroVideoBackground";
 import { createClient } from "@/utils/supabase/server";
 import { getEnv } from "@/utils/env";
-import { Download, Shield, Zap, Smartphone, Star, Users } from "lucide-react";
+import { Download, Shield, Zap, Smartphone, Star, Users, Layers } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -85,7 +85,7 @@ export default async function Home() {
           <div className="absolute top-[35%] left-[-15%] w-[600px] h-[600px] rounded-full spotify-glow-blob opacity-80"></div>
         </div>
 
-        <div className="max-w-5xl w-full mx-auto px-4 sm:px-6 md:px-8 z-10 flex flex-col items-center text-center pt-5 sm:pt-8 pb-12 sm:pb-16">
+        <div className="max-w-5xl w-full mx-auto px-4 sm:px-6 md:px-8 z-10 flex flex-col items-center text-center pt-5 sm:pt-8 pb-8 sm:pb-10">
           {/* Animated Tech Badge */}
           <div className="inline-flex items-center gap-2 px-4 sm:px-5 py-2 rounded-full bg-white/[0.03] border border-white/[0.08] text-[10px] sm:text-xs font-black tracking-widest text-primary mb-5 sm:mb-6 uppercase shadow-xl shadow-emerald-500/5 backdrop-blur-md animate-fade-in-up-1 text-center light-mode:bg-slate-100/50 light-mode:border-slate-200/50">
             <span className="relative flex h-2 w-2">
@@ -104,8 +104,8 @@ export default async function Home() {
             Skip the browser. Get the all-in-one app that <span className="text-white">puts 1,100+ boosting services</span> in your pocket — order in seconds, track in real time, and grow your social presence on the go. <span className="text-[#1DB954]">100% free, no signup required to install.</span>
           </p>
 
-          {/* APK Download Button */}
-          <div className="animate-fade-in-up-3 mb-4 sm:mb-6">
+          {/* APK Download + Browse Services Buttons */}
+          <div className="animate-fade-in-up-3 mb-4 sm:mb-6 flex flex-col sm:flex-row items-center gap-3">
             <a 
               href="/downloads/pinoyboosting.apk" 
               download
@@ -114,6 +114,13 @@ export default async function Home() {
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-1000"></div>
               <Download size={26} className="relative z-10" />
               <span className="relative z-10">Download APK Free</span>
+            </a>
+            <a 
+              href="#services" 
+              className="group relative inline-flex items-center justify-center gap-2 px-8 sm:px-10 py-5 sm:py-7 rounded-2xl border-2 border-white/20 bg-white/[0.03] text-white font-black text-base sm:text-xl uppercase tracking-wider shadow-xl hover:border-primary/50 hover:bg-white/[0.06] transform hover:scale-105 transition-all duration-300 backdrop-blur-sm"
+            >
+              <Layers size={24} className="relative z-10 text-primary" />
+              <span className="relative z-10">Browse Services</span>
             </a>
           </div>
 
