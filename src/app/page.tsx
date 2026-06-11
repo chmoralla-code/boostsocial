@@ -71,7 +71,7 @@ export default async function Home() {
     <>
       <Header />
       
-      <main className="flex-grow flex flex-col items-center pt-8 sm:pt-14 md:pt-24 relative overflow-hidden bg-bg min-h-screen">
+      <main className="flex-grow flex flex-col items-center pt-8 sm:pt-14 md:pt-24 relative overflow-x-hidden bg-bg min-h-screen">
         {/* Video Background */}
         <HeroVideoBackground videoUrl={videoUrl} opacity={opacity} />
         

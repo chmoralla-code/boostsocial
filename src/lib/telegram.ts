@@ -1,16 +1,12 @@
-import { createClient } from "@supabase/supabase-js";
-import { getSupabaseServiceRoleKey, getSupabaseUrl } from "@/utils/env";
+import {
+  getOrderTelegramConfig as getResilientOrderConfig,
+  getTopupTelegramConfig as getResilientTopupConfig,
+  getAnyTelegramConfig as getResilientAnyConfig,
+} from "@/lib/telegram-config";
 import { fallbackRead } from "@/utils/supabase/dual-db";
 
 const ADMIN_ORDERS_URL = "https://pinoyboosting.com/admin/orders";
 const ADMIN_VIP_URL = "https://pinoyboosting.com/admin/vip";
-
-const getSupabase = () =>
-  createClient(
-    getSupabaseUrl(),
-    getSupabaseServiceRoleKey(),
-    { auth: { persistSession: false } }
-  );
 
 function truncateTelegramCaption(caption: string) {
   return caption.length > 950 ? `${caption.slice(0, 947)}...` : caption;
@@ -21,12 +17,12 @@ function toTelegramUrl(value?: string) {
   return /^https?:\/\//i.test(trimmed) ? trimmed : null;
 }
 
-async function getTelegramConfig(): Promise<{ bot_token: string; chat_id: string } | null> {
+async function getDbTelegramConfig(key: string): Promise<{ bot_token: string; chat_id: string } | null> {
   try {
     const { data } = await fallbackRead(async (db) => {
-      return db.from("settings").select("value").eq("key", "telegram_order_config").single();
+      return db.from("settings").select("value").eq("key", key).single();
     });
-    if (data?.value) {
+    if (data?.value?.bot_token) {
       return {
         bot_token: data.value.bot_token || "",
         chat_id: data.value.chat_id || "",
@@ -39,24 +35,15 @@ async function getTelegramConfig(): Promise<{ bot_token: string; chat_id: string
 }
 
 export async function getTopupTelegramConfig(): Promise<{ bot_token: string; chat_id: string } | null> {
-  try {
-    const { data } = await fallbackRead(async (db) => {
-      return db.from("settings").select("value").eq("key", "telegram_topup_config").single();
-    });
-    if (data?.value) {
-      return {
-        bot_token: data.value.bot_token || "",
-        chat_id: data.value.chat_id || "",
-      };
-    }
-    return null;
-  } catch {
-    return null;
-  }
+  return await getResilientTopupConfig() || await getDbTelegramConfig("telegram_topup_config");
 }
 
 async function getOrderTelegramConfig(): Promise<{ bot_token: string; chat_id: string } | null> {
-  return await getTelegramConfig() || await getTopupTelegramConfig();
+  return await getResilientOrderConfig() || await getDbTelegramConfig("telegram_order_config");
+}
+
+async function getAnyTelegramConfig(): Promise<{ bot_token: string; chat_id: string } | null> {
+  return await getResilientAnyConfig() || await getDbTelegramConfig("telegram_order_config") || await getDbTelegramConfig("telegram_topup_config");
 }
 
 export async function sendOrderNotification(order: {
@@ -102,10 +89,6 @@ export async function sendOrderNotification(order: {
   }
 }
 
-async function getAnyTelegramConfig(): Promise<{ bot_token: string; chat_id: string } | null> {
-  return await getTelegramConfig() || await getTopupTelegramConfig();
-}
-
 export async function sendOrderApprovalNotification(order: {
   orderId: string;
   trackingId: string;
@@ -118,7 +101,7 @@ export async function sendOrderApprovalNotification(order: {
   details?: string;
 }) {
   try {
-    const config = await getTopupTelegramConfig() || await getTelegramConfig();
+    const config = await getAnyTelegramConfig();
     if (!config?.bot_token || !config?.chat_id) return;
 
     const phTime = new Date().toLocaleString("en-PH", { timeZone: "Asia/Manila" });
@@ -218,7 +201,7 @@ export async function sendTopupNotification(topup: {
   receiptUrl: string;
 }) {
   try {
-    const config = await getTopupTelegramConfig() || await getTelegramConfig();
+    const config = await getAnyTelegramConfig();
     if (!config?.bot_token || !config?.chat_id) return;
 
     const phTime = new Date().toLocaleString("en-PH", { timeZone: "Asia/Manila" });

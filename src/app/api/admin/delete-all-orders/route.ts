@@ -15,31 +15,54 @@ export async function POST(req: NextRequest) {
       auth: { persistSession: false }
     });
 
-    // Delete all records in orders
-    const { error: deleteOrdersError } = await supabase
-      .from("orders")
-      .delete()
-      .neq("id", "00000000-0000-0000-0000-000000000000"); // deletes all rows safely
+    const { status } = await req.json().catch(() => ({}));
+    const targetStatus = status || null;
+
+    const deleteQuery = targetStatus
+      ? supabase.from("orders").delete().eq("status", targetStatus)
+      : supabase.from("orders").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+
+    const { error: deleteOrdersError, count } = await deleteQuery;
 
     if (deleteOrdersError) throw deleteOrdersError;
 
     await syncBackupAdminClients(async (backupClient) => {
-      return backupClient
-        .from("orders")
-        .delete()
-        .neq("id", "00000000-0000-0000-0000-000000000000");
-    }, "delete all orders sync");
+      const query = targetStatus
+        ? backupClient.from("orders").delete().eq("status", targetStatus)
+        : backupClient.from("orders").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+      return query;
+    }, `delete ${targetStatus || "all"} orders sync`);
 
-    // Delete all receipts from 'receipts' bucket
-    const { data: files } = await supabase.storage.from("receipts").list();
-    if (files && files.length > 0) {
-      const fileNames = files.map(f => f.name);
-      await supabase.storage.from("receipts").remove(fileNames);
+    if (!targetStatus) {
+      const { data: files } = await supabase.storage.from("receipts").list();
+      if (files && files.length > 0) {
+        const fileNames = files.map(f => f.name);
+        await supabase.storage.from("receipts").remove(fileNames);
+      }
+    } else {
+      const { data: allOrders } = await supabase
+        .from("orders")
+        .select("id");
+      if (allOrders) {
+        const remainingIds = new Set(allOrders.map((o: any) => o.id));
+        const { data: files } = await supabase.storage.from("receipts").list();
+        if (files && files.length > 0) {
+          const staleReceipts = files
+            .filter((f) => {
+              const prefix = f.name.split("_")[0];
+              return !remainingIds.has(prefix);
+            })
+            .map((f) => f.name);
+          if (staleReceipts.length > 0) {
+            await supabase.storage.from("receipts").remove(staleReceipts);
+          }
+        }
+      }
     }
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, deletedCount: count || 0 });
   } catch (err: any) {
-    console.error("Delete all orders endpoint failed:", err);
+    console.error("Delete orders endpoint failed:", err);
     return NextResponse.json({ error: err.message || err.toString() }, { status: 500 });
   }
 }

@@ -14,6 +14,7 @@ export function OrdersTable({ initialOrders, receiptFiles = [] }: { initialOrder
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
   const [selectedPageSpecs, setSelectedPageSpecs] = useState<any | null>(null);
   const [isDeletingAll, setIsDeletingAll] = useState(false);
+  const [isDeletingCompleted, setIsDeletingCompleted] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [smmServiceLabels, setSmmServiceLabels] = useState<Record<string, string>>({});
   const [smmServiceRates, setSmmServiceRates] = useState<Record<string, number>>({});
@@ -210,7 +211,8 @@ export function OrdersTable({ initialOrders, receiptFiles = [] }: { initialOrder
         });
 
         if (res.ok) {
-          alert("All orders and receipts deleted successfully!");
+          const data = await res.json();
+          alert(`All orders and receipts deleted successfully! (${data.deletedCount} removed)`);
           setOrders([]);
         } else {
           const data = await res.json();
@@ -220,6 +222,37 @@ export function OrdersTable({ initialOrders, receiptFiles = [] }: { initialOrder
         alert("An error occurred during deletion");
       } finally {
         setIsDeletingAll(false);
+      }
+    }
+  };
+
+  const handleDeleteCompletedOrders = async () => {
+    const completedCount = orders.filter(o => o.status === "Completed").length;
+    if (completedCount === 0) {
+      alert("No completed orders to delete.");
+      return;
+    }
+    if (confirm(`🗑️ Delete all ${completedCount} completed orders? This action is permanent and CANNOT be undone!`)) {
+      setIsDeletingCompleted(true);
+      try {
+        const res = await fetch("/api/admin/delete-all-orders", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: "Completed" })
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          alert(`${data.deletedCount} completed orders deleted successfully!`);
+          setOrders(orders.filter(o => o.status !== "Completed"));
+        } else {
+          const data = await res.json();
+          alert(data.error || "Failed to delete completed orders");
+        }
+      } catch (err) {
+        alert("An error occurred during deletion");
+      } finally {
+        setIsDeletingCompleted(false);
       }
     }
   };
@@ -295,6 +328,21 @@ export function OrdersTable({ initialOrders, receiptFiles = [] }: { initialOrder
             )}
             {isSyncing ? "Syncing..." : "Sync SMM"}
           </button>
+
+          {orders.filter(o => o.status === "Completed").length > 0 && (
+            <button
+              onClick={handleDeleteCompletedOrders}
+              disabled={isDeletingCompleted}
+              className="px-4 py-2.5 bg-orange-650 hover:bg-orange-700 disabled:opacity-50 text-white font-extrabold rounded-xl text-xs uppercase tracking-wider transition-all flex items-center gap-1.5 shadow-md cursor-pointer border-0"
+            >
+              {isDeletingCompleted ? (
+                <Loader2 size={13} className="animate-spin text-white" />
+              ) : (
+                <Trash2 size={13} />
+              )}
+              {isDeletingCompleted ? "Purging..." : `Del Completed (${orders.filter(o => o.status === "Completed").length})`}
+            </button>
+          )}
 
           {orders.length > 0 && (
             <button
