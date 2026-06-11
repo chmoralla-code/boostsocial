@@ -143,65 +143,68 @@ export function Header() {
 
         <div className={user ? "grid w-full grid-cols-[minmax(0,1fr)_44px_44px_44px] items-center gap-2 md:flex md:w-auto md:shrink-0 md:gap-2 lg:gap-3" : "flex w-full items-center justify-end md:w-auto md:shrink-0"}>
               {user ? (
-                <>
-                  {profile?.vip_plan && isVipActive(profile) && (
-                    <span className="hidden lg:inline-flex items-center gap-1.5 rounded-full border border-primary/35 bg-primary/10 px-3 py-2 text-[10px] font-black uppercase tracking-wide text-primary">
-                      <Crown size={12} />
-                      VIP {getVipDiscountPercent(profile)}% OFF
+                <div className="w-full md:w-auto flex flex-col gap-2 md:flex-row md:items-center md:gap-4">
+                  {/* Line 1: VIP + Balance/TopUp */}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {profile?.vip_plan && isVipActive(profile) && (
+                      <span className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-primary/35 bg-primary/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide text-primary">
+                        <Crown size={12} />
+                        VIP {getVipDiscountPercent(profile)}% OFF
+                      </span>
+                    )}
+                    <button
+                      onClick={() => setShowTopUpModal(true)}
+                      className="flex h-10 min-w-0 items-center justify-center gap-1.5 rounded-full border border-[#1877F2]/30 bg-[#1877F2]/10 px-3 py-1.5 text-[11px] font-extrabold uppercase tracking-wider text-[#1877F2] transition-all hover:bg-[#1877F2]/20 cursor-pointer"
+                    >
+                      <Wallet size={13} /> 
+                      ₱{profile?.balance ? Number(profile.balance).toFixed(0) : "0"}
+                    </button>
+                  </div>
+
+                  {/* Line 2: Referrals + Orders */}
+                  <div className="flex items-center gap-2">
+                    <button 
+                      onClick={() => setShowReferralsModal(true)}
+                      className="flex h-10 w-10 items-center justify-center rounded-full border border-border/80 bg-card px-2 py-1.5 text-xs font-extrabold uppercase tracking-wider text-[#1877F2] transition-all hover:bg-elevated cursor-pointer"
+                      title="Invite & Earn"
+                    >
+                      <Gift size={14} /> 
+                    </button>
+                    <button 
+                      onClick={() => setShowOrdersModal(true)}
+                      className="flex h-10 w-10 items-center justify-center rounded-full border border-border/80 bg-card px-2 py-1.5 text-xs font-extrabold uppercase tracking-wider text-[#1877F2] transition-all hover:bg-elevated cursor-pointer"
+                      title="My Orders"
+                    >
+                      <ClipboardList size={13} /> 
+                    </button>
+                  </div>
+
+                  {/* Line 3: Email + ThemeToggle + SignOut */}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="hidden sm:inline text-xs font-semibold text-muted max-w-[120px] truncate">
+                      {user.email}
                     </span>
-                  )}
-
-                  <button
-                    onClick={() => setShowTopUpModal(true)}
-                    className="flex h-11 min-w-0 items-center justify-center gap-1.5 rounded-full border border-[#1877F2]/30 bg-[#1877F2]/10 px-3 py-2 text-[11px] font-extrabold uppercase tracking-wider text-[#1877F2] transition-all hover:bg-[#1877F2]/20 md:h-auto md:py-2 md:text-xs cursor-pointer"
+                    <ThemeToggle />
+                    <button 
+                      onClick={handleSignOut}
+                      className="flex h-10 w-10 items-center justify-center rounded-full text-muted transition-colors hover:bg-red-500/10 hover:text-red-500 cursor-pointer"
+                      title="Sign Out"
+                    >
+                      <LogOut size={15} />
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <ThemeToggle />
+                  <Link
+                    href="/login"
+                    className="bg-[#1877F2] hover:bg-[#4e8df5] text-fg font-extrabold py-2 px-4 rounded-full transition-all duration-300 transform hover:scale-[1.03] shadow-md shadow-blue-500/10 text-xs uppercase tracking-wider"
                   >
-                <Wallet size={14} /> 
-                ₱{profile?.balance ? Number(profile.balance).toFixed(0) : "0"}
-              </button>
-
-              <button 
-                onClick={() => setShowReferralsModal(true)}
-                className="flex h-11 w-11 items-center justify-center gap-1.5 rounded-full border border-border/80 bg-card px-0 py-2 text-xs font-extrabold uppercase tracking-wider text-[#1877F2] transition-all hover:bg-elevated md:w-auto md:px-4 cursor-pointer"
-                title="Invite & Earn"
-              >
-                <Gift size={14} /> 
-                <span className="hidden lg:inline">Invite & Earn</span>
-              </button>
-
-              <button 
-                onClick={() => setShowOrdersModal(true)}
-                className="flex h-11 w-11 items-center justify-center gap-1.5 rounded-full border border-border/80 bg-card px-0 py-2 text-xs font-extrabold uppercase tracking-wider text-[#1877F2] transition-all hover:bg-elevated md:w-auto md:px-4 cursor-pointer"
-                title="My Orders"
-              >
-                <ClipboardList size={14} /> 
-                <span className="hidden lg:inline">My Orders</span>
-              </button>
-              
-              <span className="hidden md:inline text-xs font-semibold text-muted max-w-[120px] truncate">
-                {user.email}
-              </span>
-
-              <ThemeToggle />
-
-              <button 
-                onClick={handleSignOut}
-                className="flex h-11 w-11 items-center justify-center rounded-full text-muted transition-colors hover:bg-red-500/10 hover:text-red-500 md:h-auto md:w-auto md:p-1.5 md:rounded-lg cursor-pointer"
-                title="Sign Out"
-              >
-                <LogOut size={16} />
-              </button>
-            </>
-          ) : (
-            <>
-              <ThemeToggle />
-              <Link
-                href="/login"
-                className="bg-[#1877F2] hover:bg-[#4e8df5] text-fg font-extrabold py-2.5 px-5 sm:px-6 rounded-full transition-all duration-300 transform hover:scale-[1.03] shadow-md shadow-blue-500/10 text-xs uppercase tracking-wider"
-              >
-                Sign In
-              </Link>
-            </>
-          )}
+                    Sign In
+                  </Link>
+                </div>
+              )}
         </div>
         </div>
         {/* Mobile Navigation Menu */}
@@ -253,20 +256,6 @@ export function Header() {
             </nav>
           </div>
         )}
-        <div className="border-t border-border/40 px-4 pb-4 pt-3 md:hidden">
-          <div className="flex items-center justify-between gap-2 mb-3">
-            <ThemeToggle />
-            <Link
-              href="/vip"
-              className="flex h-11 w-full items-center justify-center gap-2 rounded-full border border-primary/30 bg-primary/10 text-[11px] font-black uppercase tracking-wider text-primary shadow-lg shadow-emerald-500/5 transition-all hover:bg-primary/20"
-            >
-              <Crown size={15} />
-              {profile?.vip_plan && isVipActive(profile)
-                ? `VIP ${getVipDiscountPercent(profile)}% OFF`
-                : "VIP Account"}
-            </Link>
-          </div>
-        </div>
       </header>
 
       {/* Sleek Spotify-Themed User Orders Dashboard Modal */}
