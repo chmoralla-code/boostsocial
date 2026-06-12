@@ -141,7 +141,7 @@ export function Header() {
           <Link href="/track" className="hover:text-fg transition-colors whitespace-nowrap hidden lg:inline">Status Tracker</Link>
         </nav>
 
-        <div className={user ? "flex w-full items-center justify-end gap-2 md:w-auto md:shrink-0 md:gap-2 lg:gap-3" : "flex w-full items-center justify-end md:w-auto md:shrink-0"}>
+        <div className={user ? "hidden md:flex md:w-auto md:shrink-0 md:items-center md:justify-end md:gap-2 lg:gap-3" : "hidden md:flex md:w-auto md:shrink-0 md:items-center md:justify-end"}>
               {user ? (
                 <div className="flex items-center gap-2 flex-wrap justify-end">
                   {profile?.vip_plan && isVipActive(profile) && (
@@ -196,6 +196,64 @@ export function Header() {
         {/* Mobile Navigation Menu */}
         {showMobileMenu && (
           <div className="md:hidden border-t border-border/40 bg-card/95 backdrop-blur-xl animate-in slide-in-from-top-2 duration-200">
+            <div className="border-b border-border/40 px-4 py-3">
+              {user ? (
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => {
+                      setShowMobileMenu(false);
+                      setShowTopUpModal(true);
+                    }}
+                    className="col-span-2 flex h-11 items-center justify-center gap-2 rounded-xl border border-[#1877F2]/30 bg-[#1877F2]/10 text-xs font-black uppercase tracking-wider text-[#1877F2] transition-all hover:bg-[#1877F2]/20"
+                  >
+                    <Wallet size={15} />
+                    Top Up: ₱{profile?.balance ? Number(profile.balance).toFixed(0) : "0"}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowMobileMenu(false);
+                      setShowReferralsModal(true);
+                    }}
+                    className="flex h-11 items-center justify-center gap-2 rounded-xl border border-border/80 bg-elevated text-xs font-black uppercase tracking-wider text-[#1877F2] transition-all hover:bg-card"
+                  >
+                    <Gift size={15} />
+                    Invite
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowMobileMenu(false);
+                      setShowOrdersModal(true);
+                    }}
+                    className="flex h-11 items-center justify-center gap-2 rounded-xl border border-border/80 bg-elevated text-xs font-black uppercase tracking-wider text-[#1877F2] transition-all hover:bg-card"
+                  >
+                    <ClipboardList size={15} />
+                    Orders
+                  </button>
+                  <div className="col-span-2 flex items-center justify-between rounded-xl border border-border/80 bg-elevated px-3 py-2">
+                    <span className="text-xs font-black uppercase tracking-wider text-muted">Theme</span>
+                    <ThemeToggle />
+                  </div>
+                  <button
+                    onClick={handleSignOut}
+                    className="col-span-2 flex h-11 items-center justify-center gap-2 rounded-xl border border-red-500/20 bg-red-500/10 text-xs font-black uppercase tracking-wider text-red-400 transition-all hover:bg-red-500/15"
+                  >
+                    <LogOut size={15} />
+                    Sign Out
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <Link
+                    href="/login"
+                    onClick={() => setShowMobileMenu(false)}
+                    className="flex h-11 flex-1 items-center justify-center rounded-xl bg-[#1877F2] px-4 text-xs font-black uppercase tracking-wider text-white shadow-md shadow-blue-500/10 transition-all hover:bg-[#4e8df5]"
+                  >
+                    Sign In
+                  </Link>
+                  <ThemeToggle />
+                </div>
+              )}
+            </div>
             <nav className="flex flex-col px-4 py-3 gap-1">
               <Link 
                 href="/quick-start" 
