@@ -70,6 +70,7 @@ body {
   }
   .spotify-glow-blob,
   .fb-glow-blob,
+  .galaxy-glow-blob,
   .hero-video,
   .animate-float,
   .animate-pulse,
@@ -87,7 +88,8 @@ body {
 @media (max-width: 768px), (hover: none) and (pointer: coarse) {
   /* Drop the giant blurred floating blobs (the #1 FPS killer) */
   .spotify-glow-blob,
-  .fb-glow-blob {
+  .fb-glow-blob,
+  .galaxy-glow-blob {
     display: none !important;
   }
 
@@ -100,15 +102,23 @@ body {
   }
 
   /* Replace the looping shimmer with a solid color (no GPU repaint per frame) */
-  .spotify-shimmer-text,
-  .fb-shimmer-text {
-    background: #1DB954 !important;
+  .spotify-shimmer-text {
+    background: #b4223a !important;
     -webkit-background-clip: text !important;
     -webkit-text-fill-color: transparent !important;
     animation: none !important;
-    text-shadow: 0 0 20px rgba(29, 185, 84, 0.3) !important;
+    text-shadow: 0 0 20px rgba(180, 34, 58, 0.3) !important;
   }
-  [data-theme="light"] .spotify-shimmer-text,
+  .fb-shimmer-text {
+    background: #1877F2 !important;
+    -webkit-background-clip: text !important;
+    -webkit-text-fill-color: transparent !important;
+    animation: none !important;
+    text-shadow: 0 0 20px rgba(24, 119, 242, 0.3) !important;
+  }
+  [data-theme="light"] .spotify-shimmer-text {
+    background: #991b33 !important;
+  }
   [data-theme="light"] .fb-shimmer-text {
     background: #15803d !important;
   }
@@ -211,7 +221,7 @@ html { scroll-behavior: smooth; }
   transform: translate(-50%, -50%);
   object-fit: cover;
   opacity: 0.45;
-  filter: brightness(0.6) saturate(1.2);
+  filter: brightness(0.55) saturate(1.3) hue-rotate(-15deg);
 }
 
 .hero-video-overlay {
@@ -346,6 +356,26 @@ html { scroll-behavior: smooth; }
   animation: floatBlob2 28s ease-in-out infinite alternate;
 }
 
+/* 🌌 Galaxy Dark Red Ambient Blob */
+@keyframes floatBlob3 {
+  0% {
+    transform: translate(0px, 0px) scale(1) rotate(0deg);
+  }
+  50% {
+    transform: translate(60px, -40px) scale(1.18) rotate(180deg);
+  }
+  100% {
+    transform: translate(0px, 0px) scale(1) rotate(360deg);
+  }
+}
+
+.galaxy-glow-blob {
+  background: radial-gradient(circle at 30% 40%, rgba(180, 30, 50, 0.14) 0%, rgba(139, 0, 0, 0.08) 40%, rgba(10, 10, 10, 0) 70%);
+  filter: blur(70px);
+  pointer-events: none;
+  animation: floatBlob3 30s ease-in-out infinite;
+}
+
 /* Custom Scrollbar for Spotify Theme */
 ::-webkit-scrollbar {
   width: 8px;
@@ -454,6 +484,10 @@ html { scroll-behavior: smooth; }
   background: radial-gradient(circle, rgba(24, 119, 242, 0.1) 0%, rgba(248, 250, 252, 0) 70%) !important;
 }
 
+[data-theme="light"] .galaxy-glow-blob {
+  background: radial-gradient(circle at 30% 40%, rgba(180, 30, 50, 0.06) 0%, rgba(139, 0, 0, 0.04) 40%, rgba(248, 250, 252, 0) 70%) !important;
+}
+
 /* Custom Scrollbar for Light Mode */
 [data-theme="light"] ::-webkit-scrollbar-track {
   background: var(--color-background) !important;
@@ -550,6 +584,10 @@ html { scroll-behavior: smooth; }
 
 [data-theme="light"] .fb-glow-blob {
   background: radial-gradient(circle, rgba(24, 119, 242, 0.1) 0%, rgba(248, 250, 252, 0) 70%) !important;
+}
+
+[data-theme="light"] .galaxy-glow-blob {
+  background: radial-gradient(circle at 30% 40%, rgba(180, 30, 50, 0.06) 0%, rgba(139, 0, 0, 0.04) 40%, rgba(248, 250, 252, 0) 70%) !important;
 }
 
 /* ── Shadow adjustments ── */

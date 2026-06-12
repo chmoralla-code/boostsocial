@@ -78,11 +78,11 @@ export default async function Home() {
         {/* Futuristic Technical Grid Backdrop */}
         <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.012)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.012)_1px,transparent_1px)] bg-[size:44px_44px] pointer-events-none -z-10 light-mode:bg-[linear-gradient(rgba(15,23,42,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(15,23,42,0.03)_1px,transparent_1px)]"></div>
         
-        {/* Spotify Neon Glow Backdrops */}
+        {/* 🌌 Galaxy Dark Red Ambient Glow Backdrops */}
         <div className="absolute top-0 left-0 w-full h-[700px] overflow-hidden z-[1] pointer-events-none">
           <div className="absolute top-[-25%] left-[8%] w-[600px] h-[600px] rounded-full fb-glow-blob opacity-80"></div>
-          <div className="absolute top-[15%] right-[-12%] w-[700px] h-[700px] rounded-full spotify-glow-blob opacity-80"></div>
-          <div className="absolute top-[35%] left-[-15%] w-[600px] h-[600px] rounded-full spotify-glow-blob opacity-80"></div>
+          <div className="absolute top-[15%] right-[-12%] w-[700px] h-[700px] rounded-full galaxy-glow-blob opacity-80"></div>
+          <div className="absolute top-[35%] left-[-15%] w-[600px] h-[600px] rounded-full galaxy-glow-blob opacity-80"></div>
         </div>
 
         <div className="max-w-5xl w-full mx-auto px-4 sm:px-6 md:px-8 z-10 flex flex-col items-center text-center pt-5 sm:pt-8 pb-8 sm:pb-10">

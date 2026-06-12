@@ -75,7 +75,7 @@ export function HeroVideoBackground({ videoUrl, opacity }: HeroVideoBackgroundPr
           <source src={videoUrl || "/hero-bg.mp4"} />
         </video>
       ) : (
-        <div className="hero-video bg-[radial-gradient(circle_at_25%_20%,rgba(29,185,84,0.18),transparent_38%),linear-gradient(135deg,#08110c,#050505_55%,#0b0b0b)]" style={{ opacity: activeOpacity }} />
+        <div className="hero-video bg-[radial-gradient(circle_at_25%_20%,rgba(220,38,38,0.14),transparent_38%),radial-gradient(circle_at_60%_80%,rgba(139,0,0,0.10),transparent_45%),radial-gradient(circle_at_80%_30%,rgba(180,30,50,0.08),transparent_50%),linear-gradient(135deg,#0d0505,#0a0000_55%,#0b0b0b)]" style={{ opacity: activeOpacity }} />
       )}
       {/* Dark gradient overlay to keep text readable */}
       <div className="hero-video-overlay" />

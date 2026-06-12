@@ -277,7 +277,7 @@ export default function QuickStartPage() {
 
       <div className="absolute top-0 left-0 w-full h-[600px] overflow-hidden pointer-events-none -z-10">
         <div className="absolute top-[-30%] left-[10%] w-[500px] h-[500px] rounded-full fb-glow-blob opacity-30" />
-        <div className="absolute top-[20%] right-[-10%] w-[500px] h-[500px] rounded-full spotify-glow-blob opacity-30" />
+        <div className="absolute top-[20%] right-[-10%] w-[500px] h-[500px] rounded-full galaxy-glow-blob opacity-35" />
       </div>
 
       <div className="w-full max-w-xs sm:max-w-2xl md:max-w-3xl lg:max-w-4xl mx-auto z-10 space-y-8 pb-20 sm:px-6">
