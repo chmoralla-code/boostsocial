@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import { FloatingSiteWidgets } from "@/components/FloatingSiteWidgets";
 import { ClientAppUpdateButton } from "@/components/ClientAppUpdateButton";
 import { ClientAppNavigationControls } from "@/components/ClientAppNavigationControls";
+import { OnboardingRedirect } from "@/components/OnboardingRedirect";
 import { PWARegister } from "@/components/PWARegister";
 import "./globals.css";
 
@@ -76,8 +77,8 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  maximumScale: 1,
-  userScalable: false,
+  maximumScale: 5,
+  userScalable: true,
 };
 
 export default function RootLayout({
@@ -126,6 +127,7 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
         />
         <PWARegister />
+        <OnboardingRedirect />
         {children}
         <FloatingSiteWidgets />
         <ClientAppUpdateButton />

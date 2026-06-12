@@ -1,16 +1,16 @@
-import { createClient } from "@/utils/supabase/server";
+import { fallbackRead } from "@/utils/supabase/dual-db";
 import { TopupsList } from "./TopupsList";
 import { Wallet } from "lucide-react";
 
-export const revalidate = 0; // Disable static caching so admin always sees fresh data
+export const revalidate = 0;
 
 export default async function TopupsPage() {
-  const supabase = await createClient();
-
-  const { data: topups } = await supabase
-    .from("topups")
-    .select("*")
-    .order("created_at", { ascending: false });
+  const { data: topups } = await fallbackRead(async (db) => {
+    return db
+      .from("topups")
+      .select("*")
+      .order("created_at", { ascending: false });
+  });
 
   return (
     <div className="space-y-8 animate-in fade-in duration-300 text-slate-300">

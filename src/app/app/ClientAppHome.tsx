@@ -1075,19 +1075,19 @@ export function ClientAppHome({
 
       <nav className={`fixed inset-x-0 bottom-0 z-40 border-t px-3 pb-[calc(env(safe-area-inset-bottom)+0.55rem)] pt-2 ${isDark ? "border-zinc-800 bg-[#151617]" : "border-zinc-200 bg-white"}`}>
         <div className="mx-auto grid max-w-3xl grid-cols-4 gap-1">
-          <Link href="/app" className="flex flex-col items-center gap-1 rounded-2xl px-2 py-2 text-xs font-bold text-emerald-700">
+          <Link href="/app" className="flex flex-col items-center gap-1 rounded-2xl px-2 py-2 text-xs font-bold text-emerald-500">
             <Home size={18} />
             Services
           </Link>
-          <Link href="/app/orders" className="flex flex-col items-center gap-1 rounded-2xl px-2 py-2 text-xs font-bold text-zinc-500">
+          <Link href="/app/orders" className="flex flex-col items-center gap-1 rounded-2xl px-2 py-2 text-xs font-bold text-zinc-400">
             <ClipboardList size={18} />
             Orders
           </Link>
-          <Link href={user ? "/app/profile" : "/app/auth?mode=login&return=1"} className="flex flex-col items-center gap-1 rounded-2xl px-2 py-2 text-xs font-bold text-zinc-500">
+          <Link href={user ? "/app/profile" : "/app/auth?mode=login&return=1"} className="flex flex-col items-center gap-1 rounded-2xl px-2 py-2 text-xs font-bold text-zinc-400">
             <Wallet size={18} />
             Wallet
           </Link>
-          <button type="button" onClick={() => setAiOpen(true)} className="flex flex-col items-center gap-1 rounded-2xl px-2 py-2 text-xs font-bold text-zinc-500">
+          <button type="button" onClick={() => setAiOpen(true)} className="flex flex-col items-center gap-1 rounded-2xl px-2 py-2 text-xs font-bold text-zinc-400">
             <Bot size={18} />
             AI
           </button>

@@ -3,13 +3,11 @@
 import { useState, useEffect } from "react";
 import { ServiceCard } from "./ServiceCard";
 import { OrderModal } from "./OrderModal";
-import { PriceCalculator } from "./PriceCalculator";
-import { StatCounters } from "./StatCounters";
 import { FaqSection } from "./FaqSection";
 import { ReviewsSection } from "./ReviewsSection";
 import { SmmCatalogModal } from "./SmmCatalogModal";
 import { Layers, X, Loader2, Wifi } from "lucide-react";
-import { parseDescription, matchesServiceQualityFilter } from "@/utils/serviceHelpers";
+import { parseDescription } from "@/utils/serviceHelpers";
 import { createClient } from "@/utils/supabase/client";
 import { getVipDiscountPercent, isVipActive } from "@/utils/vip";
 
@@ -69,7 +67,53 @@ interface ServiceCandidate {
   caption?: string;
   layout?: string;
   image_url?: string;
+  logo_url?: string;
 }
+
+/* Real official brand logos (SVG) — keyed by ServiceCandidate.id.
+   Inlined as data URIs so the homepage never depends on a 3rd-party CDN. */
+const REAL_LOGOS: Record<string, string> = {
+  facebook:
+    "data:image/svg+xml;utf8," +
+    encodeURIComponent(
+      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><circle cx="24" cy="24" r="22" fill="#1877F2"/><path fill="#fff" d="M27.5 25.5h3.4l.6-4.1h-4v-2.6c0-1.2.3-2 2-2h2.1v-3.7c-.4 0-1.6-.2-3-.2-3 0-5 1.8-5 5.1v2.9h-3.4v4.1h3.4V38h4.1V25.5z"/></svg>`
+    ),
+  instagram:
+    "data:image/svg+xml;utf8," +
+    encodeURIComponent(
+      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><defs><radialGradient id="ig" cx="30%" cy="107%" r="150%"><stop offset="0%" stop-color="#FDF497"/><stop offset="5%" stop-color="#FDF497"/><stop offset="45%" stop-color="#FD5949"/><stop offset="60%" stop-color="#D6249F"/><stop offset="90%" stop-color="#285AEB"/></radialGradient></defs><rect width="48" height="48" rx="11" fill="url(#ig)"/><path fill="#fff" d="M24 14.5c-5.2 0-9.5 4.3-9.5 9.5s4.3 9.5 9.5 9.5 9.5-4.3 9.5-9.5-4.3-9.5-9.5-9.5zm0 15.7a6.2 6.2 0 1 1 0-12.4 6.2 6.2 0 0 1 0 12.4zM34 12.5a2.2 2.2 0 1 1-4.4 0 2.2 2.2 0 0 1 4.4 0z"/></svg>`
+    ),
+  tiktok:
+    "data:image/svg+xml;utf8," +
+    encodeURIComponent(
+      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><circle cx="24" cy="24" r="22" fill="#000"/><path fill="#25F4EE" d="M31 12.5c.7 2.4 2.4 4.4 4.8 5.2v3.6c-1.9 0-3.7-.5-5.3-1.4v8.7c0 5.2-4.2 9.4-9.4 9.4s-9.4-4.2-9.4-9.4 4.2-9.4 9.4-9.4c.6 0 1.2.1 1.8.2v3.7c-.6-.2-1.2-.3-1.8-.3-3.2 0-5.8 2.6-5.8 5.8s2.6 5.8 5.8 5.8 5.8-2.6 5.8-5.8V12.5H31z"/><path fill="#FE2C55" d="M31.5 13c.7 2.4 2.4 4.4 4.8 5.2v3.6c-1.9 0-3.7-.5-5.3-1.4v8.7c0 5.2-4.2 9.4-9.4 9.4s-9.4-4.2-9.4-9.4 4.2-9.4 9.4-9.4c.6 0 1.2.1 1.8.2v3.7c-.6-.2-1.2-.3-1.8-.3-3.2 0-5.8 2.6-5.8 5.8s2.6 5.8 5.8 5.8 5.8-2.6 5.8-5.8V13h3.6z"/><path fill="#fff" d="M31 12v.5c.7 2.4 2.4 4.4 4.8 5.2v3.6c-1.9 0-3.7-.5-5.3-1.4v8.7c0 5.2-4.2 9.4-9.4 9.4s-9.4-4.2-9.4-9.4 4.2-9.4 9.4-9.4c.6 0 1.2.1 1.8.2v3.7c-.6-.2-1.2-.3-1.8-.3-3.2 0-5.8 2.6-5.8 5.8s2.6 5.8 5.8 5.8 5.8-2.6 5.8-5.8V12H31z"/></svg>`
+    ),
+  youtube:
+    "data:image/svg+xml;utf8," +
+    encodeURIComponent(
+      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><rect width="48" height="48" rx="10" fill="#FF0000"/><path fill="#fff" d="M19 15.5l14 8.5-14 8.5V15.5z"/></svg>`
+    ),
+  "pisowifi-package":
+    "data:image/svg+xml;utf8," +
+    encodeURIComponent(
+      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><rect width="48" height="48" rx="10" fill="#10B981"/><path fill="#fff" d="M24 14c-5.5 0-10 4.5-10 10 0 7.4 10 14.5 10 14.5S34 31.4 34 24c0-5.5-4.5-10-10-10zm0 13.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z"/></svg>`
+    ),
+  "order-page":
+    "data:image/svg+xml;utf8," +
+    encodeURIComponent(
+      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><rect width="48" height="48" rx="10" fill="#1877F2"/><path fill="#fff" d="M16 14h11.5a6.5 6.5 0 1 1 0 13H20v7h-4V14zm4 3v7h7.2a3.5 3.5 0 1 0 0-7H20z"/></svg>`
+    ),
+  other:
+    "data:image/svg+xml;utf8," +
+    encodeURIComponent(
+      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><rect width="48" height="48" rx="10" fill="#0EA5E9"/><path fill="#fff" d="M12 16h6l4 8 4-8h6v20h-4V22l-4 8h-4l-4-8v14h-4V16zm26 4h4v16h-4V20z"/></svg>`
+    ),
+  catalog:
+    "data:image/svg+xml;utf8," +
+    encodeURIComponent(
+      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><rect width="48" height="48" rx="10" fill="#1DB954"/><circle cx="24" cy="24" r="10" fill="none" stroke="#fff" stroke-width="3"/><path fill="#fff" d="M20 18l12 6-12 6V18z"/></svg>`
+    )
+};
 
 const ORDER_PAGE_CANDIDATE = {
   id: "order-page",
@@ -168,8 +212,6 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
   const [platformSubModalOpen, setPlatformSubModalOpen] = useState(false);
   const [platformSubModalType, setPlatformSubModalType] = useState<PlatformType | null>(null);
 
-  const [showCalculator, setShowCalculator] = useState(false);
-  const [isOrganicFilter, setIsOrganicFilter] = useState(true);
   const [vipDiscountPercent, setVipDiscountPercent] = useState(0);
 
   const applyVipPrice = (amount: number) => {
@@ -427,15 +469,6 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
     setIsModalOpen(true);
   };
 
-  const handleCalculatorOrder = (service: Service, quantity: number) => {
-    setSelectedService(service);
-    setSelectedServiceId(service.id);
-    setSelectedServiceTitle(service.title);
-    setSelectedServicePrice(service.starting_price);
-    setPresetQty(quantity);
-    setIsModalOpen(true);
-  };
-
   // Segment services into utility bundles and dedicated PisoWiFi packages.
   const utilityServiceIds = [
     "530e797c-62d1-467a-bf23-310c169a7103", // Gemini Pro
@@ -608,14 +641,6 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
     : DEFAULT_CANDIDATES;
   const activeCandidates = mergeCandidatesWithDefaults(configuredCandidates);
 
-  const filteredServicesForCalculator = services.filter((srv) => {
-    const isOther = specialServices.some((o) => o.id === srv.id);
-    if (isOther) return false;
-
-    const desc = typeof srv.description === "string" ? srv.description : (srv.description?.description || "");
-    return matchesServiceQualityFilter(srv.title, desc, "", isOrganicFilter);
-  });
-
   const getCandidateRateAmount = (rateText: string) => {
     const match = String(rateText || "").match(/₱\s*([\d,]+(?:\.\d+)?)/);
     if (!match) return null;
@@ -625,75 +650,7 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
 
   return (
     <>
-      {/* 1. SMM Price Calculator Widget Toggle */}
-      <div className="w-full max-w-4xl mx-auto px-4 mt-6 relative z-10 flex flex-col items-center">
-        {/* Organic & Non-Organic Filter Toggle */}
-        <div className="w-full max-w-xs mx-auto mb-6 flex flex-col items-center">
-          <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[#1DB954] mb-2 select-none">
-            🌱 Service Quality Filter
-          </span>
-          <div className="relative flex p-1 bg-elevated border border-border/80 rounded-full w-full shadow-inner select-none">
-            {/* Sliding indicator */}
-            <div
-              className={`absolute top-1 bottom-1 rounded-full bg-gradient-to-r transition-all duration-300 ease-out pointer-events-none ${
-                isOrganicFilter
-                  ? "left-1 w-[48%] from-[#1DB954]/20 to-[#1ed760]/20 border border-[#1DB954]/30"
-                  : "left-[51%] w-[48%] from-indigo-500/20 to-purple-500/20 border border-indigo-500/30"
-              }`}
-            ></div>
-            
-            <button
-              onClick={() => setIsOrganicFilter(true)}
-              className={`flex-1 py-2.5 text-[11px] font-black uppercase tracking-wider rounded-full transition-all duration-200 z-10 cursor-pointer flex items-center justify-center gap-1.5 ${
-                isOrganicFilter ? "text-[#1DB954]" : "text-muted hover:text-fg"
-              }`}
-            >
-              🌿 Organic
-            </button>
-            
-            <button
-              onClick={() => setIsOrganicFilter(false)}
-              className={`flex-1 py-2.5 text-[11px] font-black uppercase tracking-wider rounded-full transition-all duration-200 z-10 cursor-pointer flex items-center justify-center gap-1.5 ${
-                !isOrganicFilter ? "text-indigo-400" : "text-muted hover:text-fg"
-              }`}
-            >
-              🤖 Non-Organic
-            </button>
-          </div>
-        </div>
-
-        {!showCalculator ? (
-          <button
-            onClick={() => setShowCalculator(true)}
-            className="px-10 py-5 rounded-full bg-gradient-to-r from-[#1DB954] to-[#1ed760] hover:from-[#1ed760] hover:to-[#1DB954] text-black font-black uppercase tracking-widest text-sm shadow-xl shadow-emerald-500/20 hover:shadow-emerald-500/35 transition-all duration-300 transform hover:scale-[1.03] flex items-center gap-3 cursor-pointer border border-[#1DB954]/30"
-          >
-            <span className="text-base">📊</span> ESTIMATE
-          </button>
-        ) : (
-          <div className="w-full relative animate-in fade-in slide-in-from-top-4 duration-500">
-            <PriceCalculator 
-              services={filteredServicesForCalculator} 
-              vipDiscountPercent={vipDiscountPercent}
-              onOrder={handleCalculatorOrder} 
-            />
-            <div className="flex justify-center -mt-10 mb-16">
-              <button
-                onClick={() => setShowCalculator(false)}
-                className="px-6 py-2.5 rounded-full border border-border hover:border-border bg-slate-900/90 text-muted hover:text-fg transition-all duration-300 text-xs font-black uppercase tracking-wider cursor-pointer shadow-lg"
-              >
-                Hide Calculator
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-
-
-
-      {/* 2. Brand Stat Counters */}
-      <StatCounters />
-
-      {/* 3. Choose Your Boost Tier Grid */}
+      {/* 1. Choose Your Boost Tier Grid */}
       <section
         id="services"
         className={`w-full max-w-6xl mx-auto mt-12 mb-20 relative z-10 transition-all duration-300 ${
@@ -835,14 +792,23 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
                   </div>
                 ) : (
                   <div className="h-16 flex items-center justify-center group-hover:scale-115 group-hover:rotate-6 transition-transform duration-500 ease-out">
-                    {card.emoji === "Layers" ? (
-                      <Layers 
-                        size={40} 
+                    {card.logo_url || REAL_LOGOS[card.id] ? (
+                      <img
+                        src={card.logo_url || REAL_LOGOS[card.id]}
+                        alt={`${card.title} logo`}
+                        className="w-14 h-14 object-contain mb-4"
+                        style={{ filter: `drop-shadow(0 0 14px ${card.theme_color}55)` }}
+                        loading="lazy"
+                        decoding="async"
+                      />
+                    ) : card.emoji === "Layers" ? (
+                      <Layers
+                        size={40}
                         className="mb-4"
-                        style={{ 
+                        style={{
                           color: card.theme_color,
                           filter: `drop-shadow(0 0 12px ${card.theme_color}45)`
-                        }} 
+                        }}
                       />
                     ) : card.id === "pisowifi-package" ? (
                       <Wifi
@@ -854,9 +820,9 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
                         }}
                       />
                     ) : (
-                      <span 
+                      <span
                         className="text-4xl mb-4 select-none"
-                        style={{ 
+                        style={{
                           filter: `drop-shadow(0 0 12px ${card.theme_color}45)`
                         }}
                       >

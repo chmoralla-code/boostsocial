@@ -30,7 +30,7 @@ export async function GET(request: Request) {
   // exchange failed, return to login with custom error query param
   return NextResponse.redirect(
     `${origin}/login?error=${encodeURIComponent(
-      "Password recovery link expired or invalid. Please request a new one!"
+      "Authentication failed. Please try again or sign in with your email and password."
     )}`
   );
 }

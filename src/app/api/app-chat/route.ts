@@ -34,6 +34,7 @@ const PINOYBOOSTING_INTENT_WORDS = [
   "register", "account", "facebook", "fb", "instagram", "ig", "tiktok", "youtube", "telegram", "followers",
   "follower", "likes", "like", "reactions", "reaction", "views", "view", "comments", "shares", "subscribers",
   "pisowifi", "piso wifi", "wifi", "gemini", "software", "autocad", "sketchup", "revit", "eap", "tp-link",
+  "creator", "created", "developer", "built", "made", "owner", "cyrhiel", "moralla",
 ];
 
 function getErrorMessage(error: unknown) {
@@ -269,13 +270,50 @@ function textPromptFromMessages(messages: ChatMessage[]) {
   ].join("\n\n");
 }
 
-async function askPollinationsText(messages: ChatMessage[]) {
+async function askOpenCodeGo(messages: ChatMessage[]): Promise<string> {
+  const apiKey = process.env.OPENCODE_API_KEY;
+  if (!apiKey) return "";
+
+  try {
+    const res = await fetch("https://opencode.ai/zen/go/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: "mimo-v2.5",
+        messages,
+        max_tokens: 500,
+        temperature: 0.7,
+      }),
+      signal: AbortSignal.timeout(25000),
+      cache: "no-store",
+    });
+
+    if (!res.ok) {
+      console.warn("OpenCode Go API returned non-OK status:", res.status);
+      return "";
+    }
+
+    const data = await res.json();
+    const content = data?.choices?.[0]?.message?.content?.trim();
+    if (!content) return "";
+    return content;
+  } catch (error) {
+    console.warn("OpenCode Go API request failed:", error);
+    return "";
+  }
+}
+
+async function askPollinationsText(messages: ChatMessage[]): Promise<string> {
   const model = process.env.POLLINATIONS_TEXT_MODEL || process.env.POLLINATIONS_MODEL || "openai";
   const prompt = textPromptFromMessages(messages);
   const params = new URLSearchParams({
     model,
     seed: String(Date.now()),
     referrer: "pinoyboosting-apk",
+    json: "false",
   });
   const url = `https://text.pollinations.ai/${encodeURIComponent(prompt)}?${params.toString()}`;
 
@@ -283,12 +321,12 @@ async function askPollinationsText(messages: ChatMessage[]) {
     const res = await fetch(url, {
       method: "GET",
       headers: { Accept: "text/plain" },
-      signal: AbortSignal.timeout(14000),
+      signal: AbortSignal.timeout(15000),
       cache: "no-store",
     });
 
     if (!res.ok) {
-      console.warn("Pollinations no-key text endpoint returned non-OK status:", res.status);
+      console.warn("Pollinations returned non-OK status:", res.status);
       return "";
     }
 
@@ -296,9 +334,19 @@ async function askPollinationsText(messages: ChatMessage[]) {
     if (!content || content.startsWith("{\"error\"")) return "";
     return content;
   } catch (error) {
-    console.warn("Pollinations no-key text request failed:", error);
+    console.warn("Pollinations request failed:", error);
     return "";
   }
+}
+
+async function askAI(messages: ChatMessage[]): Promise<string> {
+  const openCodeGo = await askOpenCodeGo(messages);
+  if (openCodeGo) return openCodeGo;
+
+  const pollinations = await askPollinationsText(messages);
+  if (pollinations) return pollinations;
+
+  return "";
 }
 
 function liveDataFallback(
@@ -308,21 +356,21 @@ function liveDataFallback(
 ) {
   if (matchedServices.length > 0) {
     return [
-      "Got you. I checked the live services and these are the closest matches:",
+      "🔍 Got you! I checked the live services and these are the closest matches:",
       ...matchedServices.slice(0, 4).map((service) =>
-        `- ${serviceDisplayTitle(service, message)}: ${servicePriceLabel(service)}. Open ${serviceAppLink(service)}`
+        `➡️ ${serviceDisplayTitle(service, message)}: ${servicePriceLabel(service)}. Open ${serviceAppLink(service)}`
       ),
-      "You can browse first, but login is needed before checkout. If you want, I can also help you pick the cheapest or safest option.",
+      "📋 You can browse first, but login is needed before checkout. If you want, I can also help you pick the cheapest or safest option.",
     ].join("\n");
   }
 
   if (matchedCandidates.length > 0) {
     return [
-      "Sure. I found a few service categories that fit what you asked:",
+      "📂 Sure! I found a few service categories that fit what you asked:",
       ...matchedCandidates.slice(0, 4).map((candidate) =>
-        `- ${candidate.title}: ${candidate.rate_text || "Rate varies"}. Open /app`
+        `➡️ ${candidate.title}: ${candidate.rate_text || "Rate varies"}. Open /app`
       ),
-      "Open /app to view them. Login is only required when you are ready to buy.",
+      "📲 Open /app to view them. Login is only required when you are ready to buy.",
     ].join("\n");
   }
 
@@ -349,45 +397,48 @@ async function findOrder(message: string) {
 
   if (!data) {
     const label = uuidMatch ? uuidMatch[0] : `BS-${trackMatch?.[1]?.toUpperCase()}`;
-    return `Order ID not found: ${label}. Please copy the Tracking ID from your checkout success screen and try again.`;
+    return `❌ Order ID not found: ${label}. Please copy the Tracking ID from your checkout success screen and try again.`;
   }
 
   const displayId = `BS-${data.id.slice(0, 8).toUpperCase()}`;
   const serviceTitle = await resolveSmmServiceTitle(data.smm_service_id, data.services?.title || "Service");
   return [
-    "I found your order.",
-    `Tracking ID: ${displayId}`,
-    `Service: ${serviceTitle}`,
-    `Quantity: ${Number(data.quantity || 0).toLocaleString()}`,
-    `Target: ${data.target_url || "Not set"}`,
-    `Amount: PHP ${Number(data.amount || 0).toFixed(2)}`,
-    `Status: ${data.status}`,
-    "Open /app/orders to view this inside the APK.",
+    "✅ I found your order!",
+    `📦 Tracking ID: ${displayId}`,
+    `📋 Service: ${serviceTitle}`,
+    `🔢 Quantity: ${Number(data.quantity || 0).toLocaleString()}`,
+    `🔗 Target: ${data.target_url || "Not set"}`,
+    `💰 Amount: PHP ${Number(data.amount || 0).toFixed(2)}`,
+    `📊 Status: ${data.status}`,
+    "📲 Open /app/orders to view this inside the APK.",
     data.status === "Pending"
-      ? "Next step: wait for admin payment verification. If the receipt is missing or wrong, upload the correct GCash screenshot."
+      ? "⏳ Next step: wait for admin payment verification. If the receipt is missing or wrong, upload the correct GCash screenshot."
       : data.status === "Processing"
-        ? "Your order is already processing, so delivery is active now."
+        ? "⚙️ Your order is already processing, so delivery is active now."
         : data.status === "Completed"
-          ? "Your order is completed. Please check the target link when you have a moment."
-          : "If this status looks wrong, send a message to support and we will check it.",
+          ? "🎉 Your order is completed! Please check the target link when you have a moment."
+          : "💬 If this status looks wrong, send a message to support and we will check it.",
   ].join("\n");
 }
 
 function localFallback(message: string) {
   const text = message.toLowerCase();
+  if (text.includes("creator") || text.includes("created") || text.includes("built") || text.includes("made") || text.includes("developer") || text.includes("who made") || text.includes("who own")) {
+    return "This app was created by Cyrhiel Moralla. You can check out his Facebook here: [Cyrhiel Moralla](https://www.facebook.com/profile.php?id=61584774638218)";
+  }
   if (text.includes("top up") || text.includes("top-up") || text.includes("topup") || text.includes("wallet")) {
-    return "Sure. Login at /app/auth?mode=login, then open /app/profile to top up your wallet. Upload your GCash receipt there, and admin can approve it from the app dashboard or Telegram top-up report.";
+    return "💰 Sure! Login at /app/auth?mode=login, then open /app/profile to top up your wallet. Upload your GCash receipt there, and admin can approve it.";
   }
   if (text.includes("gcash") || text.includes("payment") || text.includes("bayad")) {
-    return "Yes, GCash is accepted. Choose a service in /app, submit your target link, then upload the payment receipt during checkout so admin can verify it.";
+    return "💳 Yes, GCash is accepted! Choose a service in /app, submit your target link, then upload the payment receipt during checkout so admin can verify it.";
   }
   if (text.includes("login") || text.includes("register") || text.includes("account")) {
-    return "No problem. Use /app/auth?mode=login if you already have an account, or /app/auth?mode=register if you are new. After login, you will return to the app and buying will be unlocked.";
+    return "🔐 No problem! Use /app/auth?mode=login if you already have an account, or /app/auth?mode=register if you are new. After login, buying will be unlocked.";
   }
   if (text.includes("pisowifi") || text.includes("piso wifi")) {
-    return "Yes, PisoWiFi packages are available. Open /app, tap PISOWIFI PACKAGE under SERVICES, then choose Starter, Professional, or Enterprise. Login is required only before checkout.";
+    return "📶 Yes, PisoWiFi packages are available! Open /app, tap PISOWIFI PACKAGE under SERVICES, then choose Starter, Professional, or Enterprise. Login is required only before checkout.";
   }
-  return "I can help with that. Open /app to browse SERVICES, or tell me the platform and goal, like Facebook followers, TikTok views, PisoWiFi, or top-up help. If you have an order, send a Tracking ID like BS-D5D1D849 and I will check it.";
+  return "👋 I can help with that! Open /app to browse SERVICES, or tell me the platform and goal — Facebook followers, TikTok views, PisoWiFi, or top-up help. If you have an order, send a Tracking ID like BS-D5D1D849 and I will check it.";
 }
 
 export async function POST(request: Request) {
@@ -430,12 +481,16 @@ export async function POST(request: Request) {
           "Your accuracy must come from the live data below. Do not invent packages, prices, discounts, durations, or policies.",
           "You may answer general questions outside PinoyBoosting too. For non-service questions, answer normally and humanlike without forcing a sales answer.",
           "Answer in concise English, Taglish when natural. Use warm phrases like 'Got you', 'Sure', or 'No worries' only when they fit. Avoid stiff chatbot lines.",
+          "Use relevant emojis naturally in your replies to make them more readable and friendly. Use 1-3 emojis per message, placed at the start of key lines or sentences. Do not overuse emojis or put them on every word.",
           "Start with the direct answer, then give the useful next step. If the user is vague, ask one simple follow-up question instead of listing too much.",
           "If live data is missing, say exactly what is available and suggest the nearest app action.",
           "Always mention the exact app link from live service rows, /app for general service cards, /app/profile for wallet top-ups, /app/auth?mode=login for login, /app/auth?mode=register for signup, and /app/orders for orders when relevant.",
           "When a client asks for a specific service, name the closest live candidate or stored service exactly, include the price/rate if available, and include the exact /app?service=... link when one is available. If multiple services match, recommend the most relevant 2-4.",
           "Buying is prohibited until the client logs in or registers.",
           "Keep answers short: 3-6 useful sentences or a few short bullets. Do not overuse exclamation marks. Do not mention internal provider IDs unless the user gives a Tracking ID or asks for admin details.",
+          "For questions about pricing, always show the exact price from live data. If the price is per 1k, say 'per 1k'. If it's per unit, say 'per unit'.",
+          "For order tracking, ask for the Tracking ID (format: BS-XXXXXXXX) if not provided.",
+          "CREATOR INFO: If anyone asks who created, built, made, or owns this website/app, or asks about the developer/creator, answer: 'This app was created by Cyrhiel Moralla. You can check out his Facebook here: [Cyrhiel Moralla](https://www.facebook.com/profile.php?id=61584774638218)'. Always include the clickable link. Do not invent any other creator names.",
           `Realtime snapshot: ${new Date().toISOString()}`,
           `Mobile app name: ${appSettings.appName}`,
           `Mobile app banner: ${appSettings.appBanner || "None"}`,
@@ -447,13 +502,13 @@ export async function POST(request: Request) {
           services.length > matchedServices.length ? `Total stored services available: ${services.length}` : "",
         ].join("\n"),
       },
-      ...messages.slice(-6),
+      ...messages.slice(-8), // Increased context window for better conversation
     ];
 
-    const content = await askPollinationsText(promptMessages);
+    const content = await askAI(promptMessages);
     const fallbackContent = pinoyBoostingQuestion
       ? liveDataFallback(matchedServices, matchedCandidates, userMessage)
-      : "I can help with that, but the free no-key AI text service is busy right now. I will keep you inside the app, no outside redirect. Please send the question again in a few seconds, or ask me about services, wallet top-up, or an order Tracking ID.";
+      : "⏳ I can help with that, but the AI service is temporarily busy. Please send the question again in a few seconds, or ask me about services, wallet top-up, or an order Tracking ID.";
 
     return NextResponse.json({
       content: content || fallbackContent,

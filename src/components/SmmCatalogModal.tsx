@@ -105,7 +105,7 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [categories, setCategories] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState<"cheapest" | "expensive" | "alpha" | "id">("cheapest");
-  const [isOrganicFilter, setIsOrganicFilter] = useState(true);
+  const [isOrganicFilter, setIsOrganicFilter] = useState<boolean | "all">("all");
   const [originFilter, setOriginFilter] = useState<"all" | "ph" | "foreigner">("all");
 
   
@@ -560,25 +560,37 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
                 })}
               </div>
 
-              {/* Organic & Non-Organic Quality Filter Toggle */}
+              {/* Service Quality Filter Toggle */}
 {qualityFilter && (
 
                 <div className="flex justify-center select-none">
-                  <div className="relative flex p-0.5 bg-bg border border-border/80 rounded-full w-full max-w-[280px] shadow-inner">
+                  <div className="relative flex p-0.5 bg-bg border border-border/80 rounded-full w-full max-w-[320px] shadow-inner">
                     {/* Sliding indicator */}
                     <div
                       className={`absolute top-0.5 bottom-0.5 rounded-full bg-gradient-to-r transition-all duration-300 ease-out pointer-events-none ${
-                        isOrganicFilter
-                          ? "left-0.5 w-[48%] from-[#1DB954]/20 to-[#1ed760]/20 border border-[#1DB954]/30"
-                          : "left-[51%] w-[48%] from-indigo-500/20 to-purple-500/20 border border-indigo-500/30"
+                        isOrganicFilter === "all"
+                          ? "left-0.5 w-[32%] from-[#1DB954]/20 to-[#1ed760]/20 border border-[#1DB954]/30"
+                          : isOrganicFilter === true
+                          ? "left-[33.5%] w-[32%] from-[#1DB954]/20 to-[#1ed760]/20 border border-[#1DB954]/30"
+                          : "left-[66.5%] w-[32%] from-indigo-500/20 to-purple-500/20 border border-indigo-500/30"
                       }`}
                     ></div>
                     
                     <button
+                      onClick={() => setIsOrganicFilter("all")}
+                      type="button"
+                      className={`flex-1 py-2 text-[10px] font-black uppercase tracking-wider rounded-full transition-all duration-200 z-10 cursor-pointer flex items-center justify-center gap-1 ${
+                        isOrganicFilter === "all" ? "text-[#1DB954]" : "text-muted hover:text-fg"
+                      }`}
+                    >
+                      🌐 All
+                    </button>
+                    
+                    <button
                       onClick={() => setIsOrganicFilter(true)}
                       type="button"
-                      className={`flex-1 py-2 text-[10px] font-black uppercase tracking-wider rounded-full transition-all duration-200 z-10 cursor-pointer flex items-center justify-center gap-1.5 ${
-                        isOrganicFilter ? "text-[#1DB954]" : "text-muted hover:text-fg"
+                      className={`flex-1 py-2 text-[10px] font-black uppercase tracking-wider rounded-full transition-all duration-200 z-10 cursor-pointer flex items-center justify-center gap-1 ${
+                        isOrganicFilter === true ? "text-[#1DB954]" : "text-muted hover:text-fg"
                       }`}
                     >
                       🌿 Organic
@@ -587,8 +599,8 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
                     <button
                       onClick={() => setIsOrganicFilter(false)}
                       type="button"
-                      className={`flex-1 py-2 text-[10px] font-black uppercase tracking-wider rounded-full transition-all duration-200 z-10 cursor-pointer flex items-center justify-center gap-1.5 ${
-                        !isOrganicFilter ? "text-indigo-400" : "text-muted hover:text-fg"
+                      className={`flex-1 py-2 text-[10px] font-black uppercase tracking-wider rounded-full transition-all duration-200 z-10 cursor-pointer flex items-center justify-center gap-1 ${
+                        isOrganicFilter === false ? "text-indigo-400" : "text-muted hover:text-fg"
                       }`}
                     >
                       🤖 Non-Organic

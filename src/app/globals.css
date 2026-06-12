@@ -41,6 +41,106 @@ body {
   transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
 }
 
+/* ─────────────────────────────────────────────────────────────
+   🚀 FPS OPTIMIZATIONS — smooth experience on old phones
+   ───────────────────────────────────────────────────────────── */
+
+/* Off-screen sections: skip rendering until visible (huge GPU/CPU win) */
+.cv-auto {
+  content-visibility: auto;
+  contain-intrinsic-size: 1px 600px;
+}
+
+/* Only promote to compositor for elements that actually animate */
+.gpu {
+  transform: translateZ(0);
+  will-change: transform;
+  backface-visibility: hidden;
+}
+
+/* Respect users who prefer reduced motion (accessibility + battery) */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  .spotify-glow-blob,
+  .fb-glow-blob,
+  .hero-video,
+  .animate-float,
+  .animate-pulse,
+  .animate-ping,
+  .animate-letter-float,
+  .animate-neon,
+  .spotify-shimmer-text,
+  .fb-shimmer-text {
+    animation: none !important;
+  }
+}
+
+/* On small/old screens, kill the expensive stuff automatically.
+   Tuned to keep Android 6-8 / iPhone 6s era devices smooth. */
+@media (max-width: 768px), (hover: none) and (pointer: coarse) {
+  /* Drop the giant blurred floating blobs (the #1 FPS killer) */
+  .spotify-glow-blob,
+  .fb-glow-blob {
+    display: none !important;
+  }
+
+  /* Pause heavy infinite animations on mobile */
+  .animate-pulse,
+  .animate-ping,
+  .animate-letter-float,
+  .animate-neon {
+    animation: none !important;
+  }
+
+  /* Replace the looping shimmer with a solid color (no GPU repaint per frame) */
+  .spotify-shimmer-text,
+  .fb-shimmer-text {
+    background: #1DB954 !important;
+    -webkit-background-clip: text !important;
+    -webkit-text-fill-color: transparent !important;
+    animation: none !important;
+    text-shadow: 0 0 20px rgba(29, 185, 84, 0.3) !important;
+  }
+  [data-theme="light"] .spotify-shimmer-text,
+  [data-theme="light"] .fb-shimmer-text {
+    background: #15803d !important;
+  }
+
+  /* Hero video: kill the filter+opacity repaints, just fade in once */
+  .hero-video {
+    opacity: 0.5 !important;
+    filter: none !important;
+  }
+
+  /* Staggered fadeInUp is fine, but drop the blur filter (expensive) */
+  .animate-fade-in-up-1,
+  .animate-fade-in-up-2,
+  .animate-fade-in-up-3 {
+    animation-name: fadeInUpNoBlur !important;
+  }
+}
+
+@keyframes fadeInUpNoBlur {
+  0% { opacity: 0; transform: translateY(20px) scale(0.98); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Smooth scroll for users who don't mind it */
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+
+/* Hide the hero video entirely on the most constrained devices */
+@media (max-width: 480px) and (max-device-memory: 2) {
+  .hero-video { display: none !important; }
+}
+
 /* 🎨 Semantic Theme Utilities */
 .text-fg { color: var(--color-foreground) !important; }
 .text-muted { color: var(--color-muted) !important; }
@@ -270,8 +370,12 @@ body {
 [data-theme="light"] .bg-\[\#0a0a0a\],
 [data-theme="light"] .bg-\[\#121212\],
 [data-theme="light"] .bg-\[\#181818\],
+[data-theme="light"] .bg-\[\#151515\],
+[data-theme="light"] .bg-\[\#141414\],
+[data-theme="light"] .bg-\[\#101112\],
 [data-theme="light"] .bg-slate-900,
-[data-theme="light"] .bg-slate-800 {
+[data-theme="light"] .bg-slate-800,
+[data-theme="light"] .bg-zinc-900 {
   background-color: var(--color-background-elevated) !important;
   border-color: var(--color-border) !important;
 }
@@ -289,6 +393,14 @@ body {
 
 [data-theme="light"] .text-white {
   color: var(--color-foreground) !important;
+}
+
+[data-theme="light"] .text-slate-100 {
+  color: #1e293b !important;
+}
+
+[data-theme="light"] .text-slate-200 {
+  color: #334155 !important;
 }
 
 [data-theme="light"] .text-slate-300,
@@ -477,8 +589,18 @@ body {
   background-color: rgba(248, 250, 252, 0.8) !important;
 }
 
+[data-theme="light"] .bg-black\/20,
+[data-theme="light"] .bg-black\/25,
+[data-theme="light"] .bg-black\/30,
+[data-theme="light"] .bg-black\/35,
 [data-theme="light"] .bg-black\/40 {
   background-color: rgba(241, 245, 249, 0.6) !important;
+}
+
+[data-theme="light"] .bg-slate-900\/60,
+[data-theme="light"] .bg-slate-900\/80,
+[data-theme="light"] .bg-slate-900\/90 {
+  background-color: var(--color-background-elevated) !important;
 }
 
 /* ── Header & footer backgrounds ── */
@@ -510,11 +632,56 @@ body {
 }
 
 /* ── Additional border overrides ── */
+[data-theme="light"] .border-white\/\[0\.03\] {
+  border-color: rgba(0, 0, 0, 0.04) !important;
+}
+
 [data-theme="light"] .border-white\/\[0\.04\] {
   border-color: rgba(0, 0, 0, 0.06) !important;
 }
 
 [data-theme="light"] .border-white\/\[0\.08\] {
   border-color: rgba(0, 0, 0, 0.1) !important;
+}
+
+[data-theme="light"] .hover\:text-white:hover {
+  color: var(--color-foreground) !important;
+}
+
+[data-theme="light"] .hover\:bg-\[\#161616\]\/40:hover,
+[data-theme="light"] .hover\:bg-\[\#181818\]:hover {
+  background-color: var(--color-background-elevated) !important;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   Quick-Start page (pinoyboosting.com redesign) animations
+   ───────────────────────────────────────────────────────────── */
+
+@keyframes letterFloat {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-6px) rotate(2deg);
+  }
+}
+
+.animate-letter-float {
+  animation: letterFloat 3s infinite ease-in-out;
+}
+
+@keyframes neonPulse {
+  0%,
+  100% {
+    text-shadow: 0 0 12px rgba(29, 185, 84, 0.35), 0 0 25px rgba(29, 185, 84, 0.15);
+  }
+  50% {
+    text-shadow: 0 0 25px rgba(29, 185, 84, 0.75), 0 0 50px rgba(29, 185, 84, 0.35);
+  }
+}
+
+.animate-neon {
+  animation: neonPulse 3s infinite ease-in-out;
 }
 

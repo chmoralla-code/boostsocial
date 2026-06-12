@@ -2,5 +2,11 @@
   "alias": [
     "pinoyboosting.com",
     "www.pinoyboosting.com"
+  ],
+  "crons": [
+    {
+      "path": "/api/cron/cleanup-orders",
+      "schedule": "0 3 * * *"
+    }
   ]
 }

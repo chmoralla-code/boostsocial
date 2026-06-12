@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from 'next/link';
-import { Rocket, LogOut, ClipboardList, X, Loader2, Wallet, Gift, Crown } from 'lucide-react';
+import { Rocket, LogOut, ClipboardList, X, Loader2, Wallet, Gift, Crown, Menu } from 'lucide-react';
 import { ThemeToggle } from "./ThemeToggle";
 import { createClient } from "@/utils/supabase/client";
 import type { User } from "@supabase/supabase-js";
@@ -35,6 +35,7 @@ export function Header() {
   const [showOrdersModal, setShowOrdersModal] = useState(false);
   const [showTopUpModal, setShowTopUpModal] = useState(false);
   const [showReferralsModal, setShowReferralsModal] = useState(false);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [loadingOrders, setLoadingOrders] = useState(false);
   const supabase = createClient();
 
@@ -99,12 +100,12 @@ export function Header() {
   return (
     <>
       <header className="w-full border-b border-border/40 relative z-50 overflow-hidden">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-6 md:px-8 md:py-4">
-        <Link href="/" className="flex min-w-0 items-center gap-2 group">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-6 md:gap-4 md:px-6 md:py-6">
+        <Link href="/" className="flex min-w-0 shrink-0 items-center gap-2 group">
           <div className="shrink-0 text-primary drop-shadow-[0_0_10px_rgba(29,185,84,0.3)] group-hover:scale-110 transition-transform duration-300">
             <Rocket size={24} strokeWidth={2.5} />
           </div>
-          <span className="min-w-0 text-lg sm:text-xl font-black tracking-normal text-fg flex items-center whitespace-nowrap">
+          <span className="text-xl sm:text-2xl font-black tracking-normal text-fg flex items-center whitespace-nowrap">
             {"CYNETWORK".split("").map((letter, idx) => (
               <span
                 key={idx}
@@ -118,99 +119,129 @@ export function Header() {
             ))}
           </span>
         </Link>
-        
-        <nav className="hidden md:flex gap-6 font-bold text-muted text-sm items-center">
-          <Link href="/quick-start" className="text-primary hover:text-primary-dark font-extrabold uppercase text-xs tracking-wider flex items-center gap-1 transition-colors animate-pulse">🚀 Quick Start</Link>
-          <Link href="/order-page" className="text-[#1877F2] hover:text-[#4e8df5] font-extrabold uppercase text-xs tracking-wider transition-colors">Order Page</Link>
-          <Link href="/affiliate" className="hover:text-fg transition-colors">Affiliate</Link>
-          <Link href="/vip" className="hover:text-primary transition-colors flex items-center gap-1.5 uppercase tracking-wider text-xs font-extrabold">
+
+        {/* Mobile Hamburger Button */}
+        <button
+          onClick={() => setShowMobileMenu(!showMobileMenu)}
+          className="flex md:hidden h-10 w-10 items-center justify-center rounded-xl border border-border/80 bg-card/80 text-muted transition-all duration-300 hover:border-primary/40 hover:text-fg cursor-pointer"
+          aria-label="Toggle menu"
+        >
+          {showMobileMenu ? <X size={20} /> : <Menu size={20} />}
+        </button>
+
+        <nav className="hidden min-w-0 flex-1 md:flex md:flex-wrap md:items-center md:justify-center md:gap-x-3 md:gap-y-1 lg:gap-x-5 font-bold text-muted text-sm">
+          <Link href="/quick-start" className="text-primary hover:text-primary-dark font-extrabold uppercase text-xs tracking-wider flex items-center gap-1 transition-colors animate-pulse whitespace-nowrap">🚀 Quick Start</Link>
+          <Link href="/order-page" className="text-[#1877F2] hover:text-[#4e8df5] font-extrabold uppercase text-xs tracking-wider transition-colors whitespace-nowrap">Order Page</Link>
+          <Link href="/affiliate" className="hover:text-fg transition-colors whitespace-nowrap">Affiliate</Link>
+          <Link href="/vip" className="hover:text-primary transition-colors flex items-center gap-1.5 uppercase tracking-wider text-xs font-extrabold whitespace-nowrap">
             <Crown size={14} />
             VIP
           </Link>
-          <Link href="/services" className="hover:text-fg transition-colors">Services</Link>
-          <Link href="/track" className="hover:text-fg transition-colors">Status Tracker</Link>
+          <Link href="/services" className="hover:text-fg transition-colors whitespace-nowrap">Services</Link>
+          <Link href="/track" className="hover:text-fg transition-colors whitespace-nowrap hidden lg:inline">Status Tracker</Link>
         </nav>
 
-        <div className={user ? "flex items-center gap-2 sm:gap-3" : "flex items-center gap-3"}>
+        <div className={user ? "flex w-full items-center justify-end gap-2 md:w-auto md:shrink-0 md:gap-2 lg:gap-3" : "flex w-full items-center justify-end md:w-auto md:shrink-0"}>
               {user ? (
-                <>
+                <div className="flex items-center gap-2 flex-wrap justify-end">
                   {profile?.vip_plan && isVipActive(profile) && (
-                    <span className="hidden lg:inline-flex items-center gap-1.5 rounded-full border border-primary/35 bg-primary/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide text-primary">
+                    <span className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-primary/35 bg-primary/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-primary">
                       <Crown size={12} />
-                      VIP {getVipDiscountPercent(profile)}% OFF
+                      VIP
                     </span>
                   )}
-
                   <button
                     onClick={() => setShowTopUpModal(true)}
-                    className="flex items-center justify-center gap-1.5 rounded-full border border-[#1877F2]/30 bg-[#1877F2]/10 px-3 py-1.5 text-[11px] font-extrabold uppercase tracking-wider text-[#1877F2] transition-all hover:bg-[#1877F2]/20 cursor-pointer"
+                    className="flex h-9 min-w-0 items-center justify-center gap-1 rounded-full border border-[#1877F2]/30 bg-[#1877F2]/10 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wider text-[#1877F2] transition-all hover:bg-[#1877F2]/20 cursor-pointer"
                   >
-                <Wallet size={14} /> 
-                <span className="hidden sm:inline">₱{profile?.balance ? Number(profile.balance).toFixed(0) : "0"}</span>
-                <span className="sm:hidden">₱{profile?.balance ? Number(profile.balance).toFixed(0) : "0"}</span>
-              </button>
-
-              <button 
-                onClick={() => setShowReferralsModal(true)}
-                className="hidden sm:flex items-center justify-center gap-1.5 rounded-full border border-border/80 bg-card px-3 py-1.5 text-xs font-extrabold uppercase tracking-wider text-[#1877F2] transition-all hover:bg-elevated cursor-pointer"
-                title="Invite & Earn"
+                    <Wallet size={12} /> 
+                    ₱{profile?.balance ? Number(profile.balance).toFixed(0) : "0"}
+                  </button>
+                  <button 
+                    onClick={() => setShowReferralsModal(true)}
+                    className="flex h-9 w-9 items-center justify-center rounded-full border border-border/80 bg-card text-[#1877F2] transition-all hover:bg-elevated cursor-pointer"
+                    title="Invite & Earn"
+                  >
+                    <Gift size={13} /> 
+                  </button>
+                  <button 
+                    onClick={() => setShowOrdersModal(true)}
+                    className="flex h-9 w-9 items-center justify-center rounded-full border border-border/80 bg-card text-[#1877F2] transition-all hover:bg-elevated cursor-pointer"
+                    title="My Orders"
+                  >
+                    <ClipboardList size={12} /> 
+                  </button>
+                  <ThemeToggle />
+                  <button 
+                    onClick={handleSignOut}
+                    className="flex h-9 w-9 items-center justify-center rounded-full text-muted transition-colors hover:bg-red-500/10 hover:text-red-500 cursor-pointer"
+                    title="Sign Out"
+                  >
+                    <LogOut size={14} />
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <ThemeToggle />
+                  <Link
+                    href="/login"
+                    className="bg-[#1877F2] hover:bg-[#4e8df5] text-fg font-extrabold py-2 px-4 rounded-full transition-all duration-300 transform hover:scale-[1.03] shadow-md shadow-blue-500/10 text-xs uppercase tracking-wider"
+                  >
+                    Sign In
+                  </Link>
+                </div>
+              )}
+        </div>
+        </div>
+        {/* Mobile Navigation Menu */}
+        {showMobileMenu && (
+          <div className="md:hidden border-t border-border/40 bg-card/95 backdrop-blur-xl animate-in slide-in-from-top-2 duration-200">
+            <nav className="flex flex-col px-4 py-3 gap-1">
+              <Link 
+                href="/quick-start" 
+                onClick={() => setShowMobileMenu(false)}
+                className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-primary hover:bg-primary/10 transition-colors"
               >
-                <Gift size={14} /> 
-                <span className="hidden lg:inline">Invite & Earn</span>
-              </button>
-
-              <button 
-                onClick={() => setShowOrdersModal(true)}
-                className="hidden sm:flex items-center justify-center gap-1.5 rounded-full border border-border/80 bg-card px-3 py-1.5 text-xs font-extrabold uppercase tracking-wider text-[#1877F2] transition-all hover:bg-elevated cursor-pointer"
-                title="My Orders"
-              >
-                <ClipboardList size={14} /> 
-                <span className="hidden lg:inline">My Orders</span>
-              </button>
-
-              <button 
-                onClick={() => setShowReferralsModal(true)}
-                className="sm:hidden flex h-9 w-9 items-center justify-center rounded-full border border-border/80 bg-card text-[#1877F2] cursor-pointer"
-                title="Invite & Earn"
-              >
-                <Gift size={14} />
-              </button>
-
-              <button 
-                onClick={() => setShowOrdersModal(true)}
-                className="sm:hidden flex h-9 w-9 items-center justify-center rounded-full border border-border/80 bg-card text-[#1877F2] cursor-pointer"
-                title="My Orders"
-              >
-                <ClipboardList size={14} />
-              </button>
-              
-              <span className="hidden md:inline text-xs font-semibold text-muted max-w-[120px] truncate">
-                {user.email}
-              </span>
-
-              <ThemeToggle />
-
-              <button 
-                onClick={handleSignOut}
-                className="flex h-9 w-9 items-center justify-center rounded-full text-muted transition-colors hover:bg-red-500/10 hover:text-red-500 cursor-pointer"
-                title="Sign Out"
-              >
-                <LogOut size={16} />
-              </button>
-            </>
-          ) : (
-            <>
-              <ThemeToggle />
-              <Link
-                href="/login"
-                className="bg-[#1877F2] hover:bg-[#4e8df5] text-fg font-extrabold py-2 px-4 sm:px-5 rounded-full transition-all duration-300 transform hover:scale-[1.03] shadow-md shadow-blue-500/10 text-xs uppercase tracking-wider"
-              >
-                Sign In
+                🚀 Quick Start
               </Link>
-            </>
-          )}
-        </div>
-        </div>
+              <Link 
+                href="/order-page" 
+                onClick={() => setShowMobileMenu(false)}
+                className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-[#1877F2] hover:bg-[#1877F2]/10 transition-colors"
+              >
+                📦 Order Page
+              </Link>
+              <Link 
+                href="/services" 
+                onClick={() => setShowMobileMenu(false)}
+                className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-fg hover:bg-white/5 transition-colors"
+              >
+                🛒 Services
+              </Link>
+              <Link 
+                href="/affiliate" 
+                onClick={() => setShowMobileMenu(false)}
+                className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-fg hover:bg-white/5 transition-colors"
+              >
+                💰 Affiliate
+              </Link>
+              <Link 
+                href="/vip" 
+                onClick={() => setShowMobileMenu(false)}
+                className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-primary hover:bg-primary/10 transition-colors"
+              >
+                👑 VIP Account
+              </Link>
+              <Link 
+                href="/track" 
+                onClick={() => setShowMobileMenu(false)}
+                className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-fg hover:bg-white/5 transition-colors"
+              >
+                📍 Status Tracker
+              </Link>
+            </nav>
+          </div>
+        )}
       </header>
 
       {/* Sleek Spotify-Themed User Orders Dashboard Modal */}
