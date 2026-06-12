@@ -6,6 +6,7 @@ import { getSupabaseServiceRoleKey, getSupabaseUrl } from "@/utils/env";
 import { getVipPlanById } from "@/utils/vip";
 import { sendVipSubscriptionNotification } from "@/lib/telegram";
 import { buildReceiptFileName, findDuplicateReceipt, hashReceiptFile } from "@/lib/receiptGuard";
+import { fileToDataUrl } from "@/lib/fileData";
 
 const ALLOWED_VIP_TYPES = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp"]);
 const MAX_RECEIPT_BYTES = 8 * 1024 * 1024;
@@ -13,19 +14,39 @@ const MAX_RECEIPT_BYTES = 8 * 1024 * 1024;
 type VipSubscribeBody = {
   planCode?: string;
   paymentMethod?: string;
-  amount?: string | number;
   notes?: string;
 };
-
-function parseAmount(value: unknown): number | null {
-  const numeric = Number(value);
-  if (!Number.isFinite(numeric) || numeric <= 0) return null;
-  return numeric;
-}
 
 function normalizeMethod(method: string | null | undefined) {
   const lower = String(method || "gcash").trim().toLowerCase();
   return lower === "wallet" ? "wallet" : "gcash";
+}
+
+type VipWalletRpcRow = {
+  subscription_id: string;
+  new_balance: number | string;
+};
+
+async function findDuplicateReceiptRecord(adminClient: any, receiptHash: string) {
+  try {
+    const [orders, topups, vipSubscriptions] = await Promise.all([
+      adminClient.from("orders").select("id").eq("receipt_hash", receiptHash).limit(1),
+      adminClient.from("topups").select("id").eq("receipt_hash", receiptHash).limit(1),
+      adminClient.from("vip_subscriptions").select("id").eq("receipt_hash", receiptHash).limit(1),
+    ]);
+
+    const orderRows = orders.data as Array<{ id?: string }> | null;
+    const topupRows = topups.data as Array<{ id?: string }> | null;
+    const vipRows = vipSubscriptions.data as Array<{ id?: string }> | null;
+
+    if (orderRows?.length) return orderRows[0]?.id || "order";
+    if (topupRows?.length) return topupRows[0]?.id || "topup";
+    if (vipRows?.length) return vipRows[0]?.id || "vip";
+  } catch (error) {
+    console.warn("VIP receipt hash duplicate lookup skipped:", error);
+  }
+
+  return null;
 }
 
 export async function POST(req: NextRequest) {
@@ -46,7 +67,6 @@ export async function POST(req: NextRequest) {
     let planCode = "";
     let paymentMethod = "gcash";
     let notes = "";
-    let amountOverride: number | null = null;
     let receiptFile: File | null = null;
 
     if (contentType.includes("multipart/form-data")) {
@@ -54,7 +74,6 @@ export async function POST(req: NextRequest) {
       planCode = String(formData.get("planCode") || "").trim();
       paymentMethod = normalizeMethod(String(formData.get("paymentMethod") || ""));
       notes = String(formData.get("notes") || "").trim();
-      amountOverride = parseAmount(formData.get("amount"));
       const uploadCandidate = formData.get("receipt") as File | null;
       receiptFile = uploadCandidate instanceof File ? uploadCandidate : null;
     } else {
@@ -62,7 +81,6 @@ export async function POST(req: NextRequest) {
       planCode = String(body?.planCode || "").trim();
       paymentMethod = normalizeMethod(body?.paymentMethod);
       notes = String(body?.notes || "").trim();
-      amountOverride = parseAmount(body?.amount);
     }
 
     if (!planCode) {
@@ -74,7 +92,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid VIP plan selected." }, { status: 400 });
     }
 
-    const requestedAmount = amountOverride ?? selectedPlan.price;
+    const requestedAmount = selectedPlan.price;
     if (!requestedAmount) {
       return NextResponse.json({ error: "Invalid VIP amount." }, { status: 400 });
     }
@@ -107,42 +125,33 @@ export async function POST(req: NextRequest) {
       const safeDate = new Date(remainingStart);
       safeDate.setDate(safeDate.getDate() + selectedPlan.durationDays);
 
-      const newBalance = currentBalance - requestedAmount;
+      const { data: walletRows, error: walletError } = await adminClient.rpc("activate_vip_wallet_atomic", {
+        p_user_id: user.id,
+        p_email: user.email,
+        p_plan_code: selectedPlan.id,
+        p_amount: requestedAmount,
+        p_vip_started_at: now.toISOString(),
+        p_vip_expires_at: safeDate.toISOString(),
+        p_notes: notes || "Activated instantly via wallet balance",
+      });
 
-      const subscription = await adminClient
-        .from("vip_subscriptions")
-        .insert({
-          user_id: user.id,
-          email: user.email,
-          plan_code: selectedPlan.id,
-          payment_method: "Wallet",
-          amount: requestedAmount,
-          status: "approved",
-          notes: notes || "Activated instantly via wallet balance",
-          reviewed_at: new Date().toISOString(),
-          reviewed_by: "system"
-        })
-        .select("id")
-        .single();
+      if (walletError) throw walletError;
 
-      if (subscription.error) throw subscription.error;
+      const walletResult = Array.isArray(walletRows)
+        ? walletRows[0] as VipWalletRpcRow | undefined
+        : walletRows as VipWalletRpcRow | undefined;
 
-      const { error: profileUpdateError } = await adminClient
-        .from("profiles")
-        .update({
-          balance: newBalance,
-          vip_plan: selectedPlan.id,
-          vip_started_at: now.toISOString(),
-          vip_expires_at: safeDate.toISOString(),
-        })
-        .eq("id", user.id);
-      if (profileUpdateError) throw profileUpdateError;
+      if (!walletResult?.subscription_id) {
+        throw new Error("VIP wallet subscription did not complete.");
+      }
+
+      const newBalance = Number(walletResult.new_balance);
 
       await syncBackupAdminClients(async (backupClient) => {
         await backupClient
           .from("vip_subscriptions")
           .insert({
-            id: subscription.data?.id,
+            id: walletResult.subscription_id,
             user_id: user.id,
             email: user.email,
             plan_code: selectedPlan.id,
@@ -169,7 +178,7 @@ export async function POST(req: NextRequest) {
         success: true,
         status: "approved",
         vipPlan: selectedPlan,
-        subscriptionId: subscription.data?.id,
+        subscriptionId: walletResult.subscription_id,
         newBalance,
       });
     }
@@ -190,7 +199,8 @@ export async function POST(req: NextRequest) {
     const safePlanSlug = String(selectedPlan.id).replace(/[^a-z0-9_]/gi, "_").toLowerCase();
     const fileExt = receiptFile.name.split(".").pop() || "png";
     const receiptHash = await hashReceiptFile(receiptFile);
-    const duplicateReceipt = await findDuplicateReceipt(adminClient, receiptHash);
+    const duplicateReceipt = await findDuplicateReceipt(adminClient, receiptHash)
+      || await findDuplicateReceiptRecord(adminClient, receiptHash);
 
     if (duplicateReceipt) {
       return NextResponse.json({
@@ -200,17 +210,23 @@ export async function POST(req: NextRequest) {
 
     const storageName = buildReceiptFileName(`vip_${user.id}_${safePlanSlug}`, receiptHash, user.email, fileExt);
 
-    const { error: receiptUploadError } = await adminClient.storage
-      .from("receipts")
-      .upload(storageName, receiptFile, { upsert: false });
-    if (receiptUploadError) throw receiptUploadError;
+    let receiptUrl = "";
+    try {
+      const { error: receiptUploadError } = await adminClient.storage
+        .from("receipts")
+        .upload(storageName, receiptFile, { upsert: false });
+      if (receiptUploadError) throw receiptUploadError;
 
-    const { data: publicUrlData } = adminClient.storage
-      .from("receipts")
-      .getPublicUrl(storageName);
-    const receiptUrl = publicUrlData.publicUrl;
+      const { data: publicUrlData } = adminClient.storage
+        .from("receipts")
+        .getPublicUrl(storageName);
+      receiptUrl = publicUrlData.publicUrl;
+    } catch (storageError) {
+      console.warn("VIP receipt storage upload failed; falling back to inline receipt data:", storageError);
+      receiptUrl = await fileToDataUrl(receiptFile);
+    }
 
-    const subscription = await adminClient
+    let subscription = await adminClient
       .from("vip_subscriptions")
       .insert({
         user_id: user.id,
@@ -219,16 +235,15 @@ export async function POST(req: NextRequest) {
         payment_method: "GCash",
         amount: requestedAmount,
         receipt_url: receiptUrl,
+        receipt_hash: receiptHash,
         notes: notes || null,
         status: "pending",
       })
       .select("id")
       .single();
 
-    if (subscription.error) throw subscription.error;
-
-    await syncBackupAdminClients(async (backupClient) => {
-      await backupClient
+    if (subscription.error && /receipt_hash|schema cache/i.test(subscription.error.message || "")) {
+      subscription = await adminClient
         .from("vip_subscriptions")
         .insert({
           user_id: user.id,
@@ -237,6 +252,27 @@ export async function POST(req: NextRequest) {
           payment_method: "GCash",
           amount: requestedAmount,
           receipt_url: receiptUrl,
+          notes: notes || null,
+          status: "pending",
+        })
+        .select("id")
+        .single();
+    }
+
+    if (subscription.error) throw subscription.error;
+
+    await syncBackupAdminClients(async (backupClient) => {
+      await backupClient
+        .from("vip_subscriptions")
+        .insert({
+          id: subscription.data?.id,
+          user_id: user.id,
+          email: user.email,
+          plan_code: selectedPlan.id,
+          payment_method: "GCash",
+          amount: requestedAmount,
+          receipt_url: receiptUrl,
+          receipt_hash: receiptHash,
           status: "pending",
           notes: notes || null,
         });

@@ -5,6 +5,7 @@ import { enforceRateLimit } from "@/utils/security/rate-limit";
 import { getVipDiscountSummary } from "@/utils/vip";
 import { createClient } from "@supabase/supabase-js";
 import { getSupabaseServiceRoleKey, getSupabaseUrl } from "@/utils/env";
+import { resolveOrderPricing } from "@/lib/orderPricing";
 
 const MAX_TARGET_LENGTH = 7000;
 
@@ -39,7 +40,6 @@ export async function POST(req: NextRequest) {
     const targetUrl = clean(body.targetUrl);
     const paymentMethod = clean(body.paymentMethod) || "GCash";
     const quantity = Number(body.quantity);
-    const amount = Number(body.amount);
     const smmServiceId = body.smmServiceId === undefined || body.smmServiceId === null
       ? null
       : clean(body.smmServiceId);
@@ -56,8 +56,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid order quantity." }, { status: 400 });
     }
 
-    if (!Number.isFinite(amount) || amount <= 0) {
-      return NextResponse.json({ error: "Invalid order amount." }, { status: 400 });
+    if (paymentMethod.toLowerCase() === "wallet") {
+      return NextResponse.json({ error: "Use the wallet checkout endpoint for wallet payments." }, { status: 400 });
     }
 
     if (targetUrl.length > MAX_TARGET_LENGTH) {
@@ -72,26 +72,35 @@ export async function POST(req: NextRequest) {
       auth: { persistSession: false },
     });
 
+    const pricing = await resolveOrderPricing({
+      client: adminClient,
+      serviceId,
+      quantity,
+      targetUrl,
+      requestedSmmServiceId: smmServiceId,
+    });
+
     const { data: profileData } = await adminClient
       .from("profiles")
       .select("vip_plan, vip_expires_at")
       .eq("id", user.id)
       .single();
 
-    const regularAmount = Math.max(amount, 5);
+    const regularAmount = pricing.regularAmount;
     const adjustedSummary = getVipDiscountSummary(profileData || null, regularAmount);
     const finalAmount = adjustedSummary.finalAmount;
 
     const basePayload = {
       id: orderId,
-      service_id: serviceId,
+      service_id: pricing.serviceId,
+      service_title: pricing.serviceTitle,
       customer_email: email,
       target_url: targetUrl,
       amount: finalAmount,
       status: "Pending",
-      payment_method: paymentMethod,
-      quantity,
-      smm_service_id: smmServiceId || null,
+      payment_method: "GCash",
+      quantity: pricing.quantity,
+      smm_service_id: pricing.smmServiceId,
     };
 
     const vipPayload = {

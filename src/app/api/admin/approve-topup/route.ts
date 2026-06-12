@@ -4,6 +4,13 @@ import { syncBackupAdminClients, fallbackRead } from "@/utils/supabase/dual-db";
 import { creditReferralCommission } from "@/utils/referrals";
 import { notifyCustomer } from "@/lib/customerNotifications";
 
+type TopupApprovalRow = {
+  user_id: string;
+  email: string;
+  amount: number | string;
+  new_balance: number | string;
+};
+
 export async function POST(req: NextRequest) {
   try {
     const { topupId, action, amount } = await req.json(); // action can be 'approve' or 'reject'
@@ -45,43 +52,40 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Cannot approve a top-up without a receipt proof." }, { status: 400 });
       }
 
-      // 2. Fetch current profile including who referred them
-      const { data: profile, error: profileError } = await fallbackRead(async (db) => {
-        return db
-          .from("profiles")
-          .select("balance, referred_by")
-          .eq("id", topup.user_id)
-          .single();
-      });
-
-      if (profileError || !profile) throw profileError || new Error("Profile not found");
-
       let finalAmount = Number(topup.amount);
       if (amount !== undefined) {
         const numericAmount = Number(amount);
         if (isNaN(numericAmount) || numericAmount < 0) {
           return NextResponse.json({ error: "Amount must be a non-negative number" }, { status: 400 });
         }
-        
-        // Update top-up amount in the database
-        await syncBackupAdminClients(async (db) => {
-          return db
-            .from("topups")
-            .update({ amount: numericAmount })
-            .eq("id", topupId);
-        }, "top-up amount change");
-        
         finalAmount = numericAmount;
       }
 
-      const newBalance = Number(profile.balance || 0) + finalAmount;
+      const { data: approvalRows, error: approvalError } = await supabase.rpc("approve_topup_atomic", {
+        p_topup_id: topupId,
+        p_amount: finalAmount,
+        p_reviewed_by: "admin",
+      });
 
-      // 3. Update profile balance
+      if (approvalError) throw approvalError;
+
+      const approval = Array.isArray(approvalRows)
+        ? approvalRows[0] as TopupApprovalRow | undefined
+        : approvalRows as TopupApprovalRow | undefined;
+
+      if (!approval) {
+        return NextResponse.json({ error: "Top-up approval did not complete." }, { status: 500 });
+      }
+
+      finalAmount = Number(approval.amount);
+      const newBalance = Number(approval.new_balance);
+
+      // 3. Sync profile balance to backup databases after the primary atomic update
       await syncBackupAdminClients(async (db) => {
         return db
           .from("profiles")
           .update({ balance: newBalance })
-          .eq("id", topup.user_id);
+          .eq("id", approval.user_id);
       }, "top-up profile balance sync");
 
       // 4. Update topup status
@@ -95,7 +99,7 @@ export async function POST(req: NextRequest) {
       try {
         await creditReferralCommission({
           primaryClient: supabase,
-          customerId: topup.user_id,
+          customerId: approval.user_id,
           source: "topup",
           amount: finalAmount,
           referenceId: topupId,
@@ -106,7 +110,7 @@ export async function POST(req: NextRequest) {
 
       notifyCustomer({
         client: supabase,
-        email: topup.email,
+        email: approval.email || topup.email,
         message: `System update: Your PHP ${finalAmount.toFixed(2)} wallet top-up was approved and credited. New balance: PHP ${newBalance.toFixed(2)}.`,
       }).catch((notificationErr) => {
         console.error("Top-up approval customer notification failed:", notificationErr);

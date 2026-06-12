@@ -8,6 +8,7 @@ import { enforceRateLimit } from "@/utils/security/rate-limit";
 import { creditReferralCommission } from "@/utils/referrals";
 import { getSupabaseServiceRoleKey, getSupabaseUrl } from "@/utils/env";
 import { getVipDiscountSummary } from "@/utils/vip";
+import { resolveOrderPricing } from "@/lib/orderPricing";
 
 type WalletProfile = {
   balance?: number | string | null;
@@ -17,6 +18,18 @@ type WalletProfile = {
 
 type CheckoutOrder = {
   id: string;
+};
+
+type WalletCheckoutRpcRow = {
+  order_id: string;
+  new_balance: number | string;
+};
+
+type OrderVipFields = {
+  original_amount?: number;
+  vip_plan?: string | null;
+  vip_discount_percent?: number;
+  vip_discount_amount?: number;
 };
 
 const getErrorMessage = (error: unknown) => error instanceof Error ? error.message : String(error);
@@ -49,12 +62,10 @@ export async function POST(req: NextRequest) {
       email,
       url,
       quantity,
-      totalPrice,
-      serviceTitle,
       smmServiceId
     } = await req.json();
 
-    if (!userId || !serviceId || !email || !url || !quantity || totalPrice === undefined) {
+    if (!userId || !serviceId || !email || !url || !quantity) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
@@ -72,7 +83,7 @@ export async function POST(req: NextRequest) {
     if (existingOrderId) {
       const { data: pendingOrder, error: pendingOrderError } = await supabase
         .from("orders")
-        .select("id, customer_email, payment_method")
+        .select("id, customer_email, payment_method, status")
         .eq("id", existingOrderId)
         .single();
 
@@ -82,6 +93,10 @@ export async function POST(req: NextRequest) {
 
       if (String(pendingOrder.customer_email || "").trim().toLowerCase() !== String(email).trim().toLowerCase()) {
         return NextResponse.json({ error: "Wallet order email does not match the pending order" }, { status: 403 });
+      }
+
+      if (pendingOrder.status !== "Pending") {
+        return NextResponse.json({ error: "Only pending orders can be paid with wallet." }, { status: 400 });
       }
     }
 
@@ -108,20 +123,22 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Customer profile was not found" }, { status: 404 });
     }
 
-    const currentBalance = Number(profile.balance || 0);
-    const parsedTotal = Number(totalPrice);
-    if (!Number.isFinite(parsedTotal) || parsedTotal <= 0) {
-      return NextResponse.json({ error: "Invalid wallet checkout amount" }, { status: 400 });
-    }
+    const pricing = await resolveOrderPricing({
+      client: supabase,
+      serviceId,
+      quantity: Number(quantity),
+      targetUrl: String(url).trim(),
+      requestedSmmServiceId: smmServiceId,
+    });
 
-    const regularCost = Math.max(parsedTotal, 5);
+    const regularCost = pricing.regularAmount;
     const discountSummary = getVipDiscountSummary(profile || null, regularCost);
     const cost = discountSummary.finalAmount;
     const { error: vipColumnsError } = await supabase
       .from("orders")
       .select("original_amount, vip_plan, vip_discount_percent, vip_discount_amount")
       .limit(1);
-    const orderVipFields = vipColumnsError
+    const orderVipFields: OrderVipFields = vipColumnsError
       ? {}
       : {
           original_amount: regularCost,
@@ -130,67 +147,40 @@ export async function POST(req: NextRequest) {
           vip_discount_amount: discountSummary.savingsAmount,
         };
 
-    if (currentBalance < cost) {
-      return NextResponse.json({ error: "Insufficient wallet balance" }, { status: 400 });
+    const { data: walletRows, error: walletRpcError } = await supabase.rpc("create_wallet_order", {
+      p_user_id: userId,
+      p_existing_order_id: existingOrderId || null,
+      p_service_id: pricing.serviceId,
+      p_service_title: pricing.serviceTitle,
+      p_customer_email: String(email).trim(),
+      p_target_url: String(url).trim(),
+      p_amount: cost,
+      p_quantity: pricing.quantity,
+      p_smm_service_id: pricing.smmServiceId,
+      p_original_amount: orderVipFields.original_amount ?? regularCost,
+      p_vip_plan: orderVipFields.vip_plan ?? null,
+      p_vip_discount_percent: orderVipFields.vip_discount_percent ?? 0,
+      p_vip_discount_amount: orderVipFields.vip_discount_amount ?? 0,
+    });
+
+    if (walletRpcError) {
+      const message = getErrorMessage(walletRpcError);
+      const status = /insufficient|pending order|only pending|profile|not found/i.test(message) ? 400 : 500;
+      return NextResponse.json({ error: message }, { status });
     }
 
-    const newBalance = currentBalance - cost;
-    const { error: updateProfileError } = await supabase
-      .from("profiles")
-      .update({ balance: newBalance })
-      .eq("id", userId);
-
-    if (updateProfileError) throw updateProfileError;
-
-    let order: CheckoutOrder | null = null;
-    if (existingOrderId) {
-      const { data: updatedOrder, error: updateOrderError } = await supabase
-        .from("orders")
-        .update({
-          service_id: serviceId,
-          customer_email: String(email).trim(),
-          target_url: String(url).trim(),
-          amount: cost,
-          status: "Processing",
-          payment_method: "Wallet",
-          quantity,
-          smm_service_id: smmServiceId || null,
-          ...orderVipFields,
-        })
-        .eq("id", existingOrderId)
-        .select("id")
-        .single();
-
-      if (updateOrderError) throw updateOrderError;
-      order = updatedOrder;
-    } else {
-      const { data: insertedOrder, error: insertOrderError } = await supabase
-        .from("orders")
-        .insert([
-          {
-            service_id: serviceId,
-            customer_email: String(email).trim(),
-            target_url: String(url).trim(),
-            amount: cost,
-            status: "Processing",
-            payment_method: "Wallet",
-            quantity,
-            smm_service_id: smmServiceId || null,
-            ...orderVipFields,
-          }
-        ])
-        .select("id")
-        .single();
-
-      if (insertOrderError) throw insertOrderError;
-      order = insertedOrder;
-    }
+    const walletResult = Array.isArray(walletRows)
+      ? walletRows[0] as WalletCheckoutRpcRow | undefined
+      : walletRows as WalletCheckoutRpcRow | undefined;
+    const order: CheckoutOrder | null = walletResult?.order_id ? { id: walletResult.order_id } : null;
+    const newBalance = Number(walletResult?.new_balance ?? 0);
 
     if (!order?.id) {
       return NextResponse.json({ error: "Wallet order was not created" }, { status: 500 });
     }
 
     after(async () => {
+      const shouldAutoPlace = !/compiling/i.test(String(url));
       const tasks = [
         syncBackupAdminClients(async (backupClient) => {
           const profileUpdate = await backupClient
@@ -204,14 +194,15 @@ export async function POST(req: NextRequest) {
             .from("orders")
             .upsert({
               id: order.id,
-              service_id: serviceId,
+              service_id: pricing.serviceId,
+              service_title: pricing.serviceTitle,
               customer_email: String(email).trim(),
               target_url: String(url).trim(),
               amount: cost,
               status: "Processing",
               payment_method: "Wallet",
-              quantity,
-              smm_service_id: smmServiceId || null,
+              quantity: pricing.quantity,
+              smm_service_id: pricing.smmServiceId,
               ...orderVipFields,
             });
         }, "wallet checkout sync"),
@@ -223,12 +214,12 @@ export async function POST(req: NextRequest) {
           amount: cost,
           referenceId: order.id,
         }),
-        autoPlaceRixeyOrder(order.id, serviceId, String(url).trim(), quantity),
+        ...(shouldAutoPlace ? [autoPlaceRixeyOrder(order.id, pricing.serviceId, String(url).trim(), pricing.quantity)] : []),
         sendOrderNotification({
           trackingId: `BS-${order.id.slice(0, 8).toUpperCase()}`,
-          service: serviceTitle || serviceId,
+          service: pricing.serviceTitle,
           email: String(email).trim(),
-          quantity,
+          quantity: pricing.quantity,
           amount: cost,
           paymentMethod: "Wallet",
           details: String(url).trim(),

@@ -10,6 +10,12 @@ import { notifyCustomer, notifyOrderStatusCustomer } from "@/lib/customerNotific
 type TelegramConfig = { bot_token: string; chat_id: string };
 type JoinedService = { title?: string | null } | { title?: string | null }[] | null | undefined;
 const CONFIG_BUCKET = "receipts";
+type TopupApprovalRow = {
+  user_id: string;
+  email: string;
+  amount: number | string;
+  new_balance: number | string;
+};
 
 function getJoinedServiceTitle(services: JoinedService) {
   return Array.isArray(services) ? services[0]?.title : services?.title;
@@ -131,51 +137,58 @@ async function handleTopupAction(callbackData: string, chatId: number, messageId
   }
 
   if (isApprove) {
-    const { data: profile, error: profileError } = await fallbackRead(async (db) => {
-      return db
-        .from("profiles")
-        .select("balance, referred_by")
-        .eq("id", topup.user_id)
-        .single();
+    const topupAmount = Number(topup.amount);
+    const { data: approvalRows, error: approvalError } = await supabase.rpc("approve_topup_atomic", {
+      p_topup_id: topupId,
+      p_amount: topupAmount,
+      p_reviewed_by: "telegram",
     });
 
-    if (profileError || !profile) {
-      await answerCallback(config.bot_token, callbackQueryId, "User profile not found.");
+    if (approvalError) {
+      await answerCallback(config.bot_token, callbackQueryId, approvalError.message || "Top-up approval failed.");
       return;
     }
 
-    const topupAmount = Number(topup.amount);
-    const newBalance = Number(profile.balance || 0) + topupAmount;
+    const approval = Array.isArray(approvalRows)
+      ? approvalRows[0] as TopupApprovalRow | undefined
+      : approvalRows as TopupApprovalRow | undefined;
+
+    if (!approval) {
+      await answerCallback(config.bot_token, callbackQueryId, "Top-up approval did not complete.");
+      return;
+    }
+
+    const newBalance = Number(approval.new_balance);
 
     await syncBackupAdminClients(async (db) => {
       await db
         .from("profiles")
         .update({ balance: newBalance })
-        .eq("id", topup.user_id);
+        .eq("id", approval.user_id);
 
       await db
         .from("topups")
-        .update({ status: "approved" })
+        .update({ status: "approved", amount: Number(approval.amount) })
         .eq("id", topupId);
     }, "telegram topup approval sync");
 
     try {
       await creditReferralCommission({
         primaryClient: supabase,
-        customerId: topup.user_id,
+        customerId: approval.user_id,
         source: "topup",
-        amount: topupAmount,
+        amount: Number(approval.amount),
         referenceId: topupId,
       });
     } catch (commissionError) {
       console.error("Telegram top-up referral commission failed:", commissionError);
     }
 
-    await answerCallback(config.bot_token, callbackQueryId, `Approved! PHP ${topupAmount.toFixed(2)} credited.`);
+    await answerCallback(config.bot_token, callbackQueryId, `Approved! PHP ${Number(approval.amount).toFixed(2)} credited.`);
     notifyCustomer({
       client: supabase,
-      email: topup.email,
-      message: `System update: Your PHP ${topupAmount.toFixed(2)} wallet top-up was approved and credited. New balance: PHP ${newBalance.toFixed(2)}.`,
+      email: approval.email || topup.email,
+      message: `System update: Your PHP ${Number(approval.amount).toFixed(2)} wallet top-up was approved and credited. New balance: PHP ${newBalance.toFixed(2)}.`,
     }).catch((notificationErr) => {
       console.error("Telegram top-up approval customer notification failed:", notificationErr);
     });
@@ -183,7 +196,7 @@ async function handleTopupAction(callbackData: string, chatId: number, messageId
       config.bot_token,
       chatId,
       messageId,
-      `TOP-UP APPROVED\n\nCustomer: ${topup.email}\nAmount: PHP ${topupAmount.toFixed(2)}\nNew Balance: PHP ${newBalance.toFixed(2)}\n\nApproved via Telegram by Admin.`
+      `TOP-UP APPROVED\n\nCustomer: ${approval.email || topup.email}\nAmount: PHP ${Number(approval.amount).toFixed(2)}\nNew Balance: PHP ${newBalance.toFixed(2)}\n\nApproved via Telegram by Admin.`
     );
   } else {
     await syncBackupAdminClients(async (db) => {
@@ -354,6 +367,18 @@ async function handleOrderAction(callbackData: string, chatId: number, messageId
 }
 
 async function hasUploadedOrderReceipt(supabase: ReturnType<typeof getSupabase>, orderId: string) {
+  try {
+    const { data: order } = await supabase
+      .from("orders")
+      .select("receipt_url")
+      .eq("id", orderId)
+      .maybeSingle();
+
+    if (order?.receipt_url) return true;
+  } catch (error) {
+    console.error("Telegram order receipt DB lookup failed:", error);
+  }
+
   const { data, error } = await supabase.storage
     .from(CONFIG_BUCKET)
     .list("", { limit: 1000, search: orderId });

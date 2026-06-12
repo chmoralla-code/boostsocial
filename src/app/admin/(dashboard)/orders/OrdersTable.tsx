@@ -90,12 +90,30 @@ export function OrdersTable({ initialOrders, receiptFiles = [] }: { initialOrder
           const { data: refreshedOrders, error } = await supabase
             .from("orders")
             .select(`
-              *,
+              id,
+              service_id,
+              service_title,
+              customer_email,
+              target_url,
+              status,
+              amount,
+              created_at,
+              quantity,
+              payment_method,
+              external_order_id,
+              external_status,
+              smm_service_id,
+              receipt_url,
+              original_amount,
+              vip_plan,
+              vip_discount_percent,
+              vip_discount_amount,
               services (
                 title
               )
             `)
-            .order("created_at", { ascending: false });
+            .order("created_at", { ascending: false })
+            .limit(200);
 
           if (!error && refreshedOrders) {
             setOrders(refreshedOrders);
@@ -512,6 +530,18 @@ export function OrdersTable({ initialOrders, receiptFiles = [] }: { initialOrder
                     {/* Receipt */}
                     <td className="py-3.5 px-5 text-xs">
                       {(() => {
+                        if (order.receipt_url) {
+                          return (
+                            <button
+                              onClick={() => setPreviewImageUrl(order.receipt_url)}
+                              className="inline-flex items-center gap-1.5 bg-green-500/10 hover:bg-green-500/20 border border-green-500/30 text-[#1DB954] font-bold px-3 py-1.5 rounded-xl text-[10px] transition-colors shadow-sm cursor-pointer"
+                            >
+                              <span className="w-1.5 h-1.5 bg-[#1DB954] rounded-full animate-pulse"></span>
+                              View Receipt
+                            </button>
+                          );
+                        }
+
                         const matchingFile = receiptFiles.find((f: string) => f.startsWith(order.id));
                         if (matchingFile) {
                           const receiptUrl = supabase.storage.from('receipts').getPublicUrl(matchingFile).data.publicUrl;

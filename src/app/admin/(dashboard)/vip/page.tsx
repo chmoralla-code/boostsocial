@@ -8,8 +8,9 @@ export default async function VipSubscriptionsPage() {
   const supabase = await createClient();
   const { data: vipSubscriptions } = await supabase
     .from("vip_subscriptions")
-    .select("*")
-    .order("created_at", { ascending: false });
+    .select("id,user_id,email,plan_code,payment_method,amount,receipt_url,status,notes,reviewed_at,reviewed_by,created_at,updated_at")
+    .order("created_at", { ascending: false })
+    .limit(100);
 
   return (
     <div className="space-y-8 animate-in fade-in duration-300 text-slate-300">

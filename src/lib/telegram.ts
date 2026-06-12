@@ -129,6 +129,27 @@ export async function sendOrderApprovalNotification(order: {
       `Receipt proof is attached. Approve only when the GCash payment amount matches this order.`
     );
 
+    if (order.receiptUrl.startsWith("data:")) {
+      const result = await dataUrlToBlob(order.receiptUrl);
+      if (result) {
+        const formData = new FormData();
+        formData.append("chat_id", config.chat_id);
+        formData.append("photo", result.blob, "receipt.png");
+        formData.append("caption", caption);
+        formData.append("reply_markup", JSON.stringify({ inline_keyboard: inlineKeyboard }));
+
+        const dataRes = await fetch(`https://api.telegram.org/bot${config.bot_token}/sendPhoto`, {
+          method: "POST",
+          body: formData,
+        });
+        const data = await dataRes.json();
+        if (!data.ok) {
+          console.error("Telegram order approval sendPhoto failed:", data.description);
+        }
+        return;
+      }
+    }
+
     const res = await fetch(`https://api.telegram.org/bot${config.bot_token}/sendPhoto`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -311,6 +332,35 @@ export async function sendVipSubscriptionNotification(args: {
       `Time: ${phTime} PHT\n\n` +
       `Open admin VIP queue to approve or reject after reviewing the receipt.`;
 
+    const replyMarkup = {
+      inline_keyboard: [
+        [
+          { text: "Open VIP Subscriptions", url: ADMIN_VIP_URL }
+        ]
+      ]
+    };
+
+    if (args.receiptUrl.startsWith("data:")) {
+      const result = await dataUrlToBlob(args.receiptUrl);
+      if (result) {
+        const formData = new FormData();
+        formData.append("chat_id", config.chat_id);
+        formData.append("photo", result.blob, "receipt.png");
+        formData.append("caption", caption);
+        formData.append("reply_markup", JSON.stringify(replyMarkup));
+
+        const dataRes = await fetch(`https://api.telegram.org/bot${config.bot_token}/sendPhoto`, {
+          method: "POST",
+          body: formData,
+        });
+        const data = await dataRes.json();
+        if (!data.ok) {
+          console.error("Telegram VIP notification sendPhoto failed:", data.description);
+        }
+        return;
+      }
+    }
+
     const res = await fetch(`https://api.telegram.org/bot${config.bot_token}/sendPhoto`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -318,13 +368,7 @@ export async function sendVipSubscriptionNotification(args: {
         chat_id: config.chat_id,
         photo: args.receiptUrl,
         caption,
-        reply_markup: {
-          inline_keyboard: [
-            [
-              { text: "Open VIP Subscriptions", url: ADMIN_VIP_URL }
-            ]
-          ]
-        }
+        reply_markup: replyMarkup
       }),
     });
 

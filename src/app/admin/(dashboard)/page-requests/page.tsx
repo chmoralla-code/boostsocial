@@ -9,11 +9,29 @@ export default async function PageRequestsDashboard() {
   const { data: orders } = await supabase
     .from('orders')
     .select(`
-      *,
+      id,
+      service_id,
+      service_title,
+      customer_email,
+      target_url,
+      status,
+      amount,
+      created_at,
+      quantity,
+      payment_method,
+      external_order_id,
+      external_status,
+      smm_service_id,
+      receipt_url,
+      original_amount,
+      vip_plan,
+      vip_discount_percent,
+      vip_discount_amount,
       services ( title )
     `)
     .ilike('target_url', '%Page Wants:%')
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false })
+    .limit(200);
 
   // Use service role client to list receipts to bypass RLS/anon limitations
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { after, NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { sendOrderApprovalNotification } from "@/lib/telegram";
 import { createClient as createServerClient } from "@/utils/supabase/server";
@@ -7,9 +7,58 @@ import { isAdminEmail } from "@/utils/security/admin";
 import { resolveSmmServiceTitle } from "@/lib/smmServiceResolver";
 import { buildReceiptFileName, findDuplicateReceipt, hashReceiptFile } from "@/lib/receiptGuard";
 import { notifyCustomer } from "@/lib/customerNotifications";
+import { fileToDataUrl } from "@/lib/fileData";
+import { syncBackupAdminClients } from "@/utils/supabase/dual-db";
 
 const MAX_RECEIPT_FILE_BYTES = 8 * 1024 * 1024;
 const ALLOWED_RECEIPT_TYPES = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp"]);
+
+async function findDuplicateReceiptRecord(supabase: any, receiptHash: string, orderId: string) {
+  try {
+    const [orders, topups, vipSubscriptions] = await Promise.all([
+      supabase.from("orders").select("id").eq("receipt_hash", receiptHash).neq("id", orderId).limit(1),
+      supabase.from("topups").select("id").eq("receipt_hash", receiptHash).limit(1),
+      supabase.from("vip_subscriptions").select("id").eq("receipt_hash", receiptHash).limit(1),
+    ]);
+
+    const orderRows = orders.data as Array<{ id?: string }> | null;
+    const topupRows = topups.data as Array<{ id?: string }> | null;
+    const vipRows = vipSubscriptions.data as Array<{ id?: string }> | null;
+
+    if (orderRows?.length) return orderRows[0]?.id || "order";
+    if (topupRows?.length) return topupRows[0]?.id || "topup";
+    if (vipRows?.length) return vipRows[0]?.id || "vip";
+  } catch (error) {
+    console.warn("Receipt hash duplicate lookup skipped:", error);
+  }
+
+  return null;
+}
+
+async function updateOrderReceipt(
+  supabase: any,
+  orderId: string,
+  receiptUrl: string,
+  receiptHash: string
+) {
+  const { error } = await supabase
+    .from("orders")
+    .update({ receipt_url: receiptUrl, receipt_hash: receiptHash })
+    .eq("id", orderId);
+
+  if (!error) return;
+
+  if (/receipt_hash|schema cache/i.test(error.message || "")) {
+    const fallback = await supabase
+      .from("orders")
+      .update({ receipt_url: receiptUrl })
+      .eq("id", orderId);
+    if (!fallback.error) return;
+    throw fallback.error;
+  }
+
+  throw error;
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -90,7 +139,8 @@ export async function POST(req: NextRequest) {
     const email = orderData?.customer_email ? orderData.customer_email.trim() : "unknown";
     const fileExt = file.name.split('.').pop() || 'png';
     const receiptHash = await hashReceiptFile(file);
-    const duplicateReceipt = await findDuplicateReceipt(supabase, receiptHash, orderId);
+    const duplicateReceipt = await findDuplicateReceipt(supabase, receiptHash, orderId)
+      || await findDuplicateReceiptRecord(supabase, receiptHash, orderId);
 
     if (duplicateReceipt) {
       return NextResponse.json({
@@ -101,20 +151,38 @@ export async function POST(req: NextRequest) {
     // 2. Name the file [orderId]_[email].[ext] to instantly identify who is paying in the storage bucket
     const fileName = buildReceiptFileName(orderId, receiptHash, email, fileExt);
 
-    // 3. Upload to bucket 'receipts' bypassing client-side constraints
-    const { data, error } = await supabase.storage
-      .from('receipts')
-      .upload(fileName, file, {
-        upsert: true
-      });
+    let uploadData: { path?: string; fullPath?: string } | null = null;
+    let receiptUrl = "";
 
-    if (error) {
-      throw error;
+    try {
+      const { data, error } = await supabase.storage
+        .from('receipts')
+        .upload(fileName, file, {
+          upsert: true
+        });
+
+      if (error) throw error;
+
+      uploadData = data;
+      const { data: publicUrlData } = supabase.storage
+        .from("receipts")
+        .getPublicUrl(fileName);
+      receiptUrl = publicUrlData.publicUrl;
+    } catch (storageError) {
+      console.warn("Receipt storage upload failed; falling back to inline receipt data:", storageError);
+      receiptUrl = await fileToDataUrl(file);
+      uploadData = { path: `inline:${orderId}` };
     }
 
-    const { data: publicUrlData } = supabase.storage
-      .from("receipts")
-      .getPublicUrl(fileName);
+    await updateOrderReceipt(supabase, orderId, receiptUrl, receiptHash);
+    after(async () => {
+      await syncBackupAdminClients(async (backupClient) => {
+        return backupClient
+          .from("orders")
+          .update({ receipt_url: receiptUrl, receipt_hash: receiptHash })
+          .eq("id", orderId);
+      }, "order receipt sync");
+    });
 
     if (orderData?.payment_method !== "Wallet") {
       const serviceTitle = Array.isArray((orderData as any)?.services)
@@ -131,7 +199,7 @@ export async function POST(req: NextRequest) {
         quantity: Number(orderData?.quantity || 0),
         amount: Number(orderData?.amount || 0),
         paymentMethod: orderData?.payment_method || "GCash",
-        receiptUrl: publicUrlData.publicUrl,
+        receiptUrl,
         details: orderData?.target_url || undefined,
       }).catch((telegramErr) => {
         console.error("Telegram order approval notification failed (non-blocking):", telegramErr);
@@ -146,7 +214,7 @@ export async function POST(req: NextRequest) {
       console.error("Receipt upload customer notification failed:", notificationErr);
     });
 
-    return NextResponse.json({ success: true, data, email, receiptUrl: publicUrlData.publicUrl });
+    return NextResponse.json({ success: true, data: uploadData, email, receiptUrl });
   } catch (err: any) {
     console.error("Upload endpoint failed:", err);
     return NextResponse.json({ error: err.message || err.toString() }, { status: 500 });

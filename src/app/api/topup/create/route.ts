@@ -5,9 +5,32 @@ import { syncBackupAdminClients } from "@/utils/supabase/dual-db";
 import { createClient as createServerClient } from "@/utils/supabase/server";
 import { enforceRateLimit } from "@/utils/security/rate-limit";
 import { notifyCustomer } from "@/lib/customerNotifications";
+import { hashReceiptFile } from "@/lib/receiptGuard";
 
 const MAX_RECEIPT_FILE_BYTES = 8 * 1024 * 1024;
 const ALLOWED_RECEIPT_TYPES = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp"]);
+
+async function findDuplicateReceiptRecord(supabase: any, receiptHash: string) {
+  try {
+    const [orders, topups, vipSubscriptions] = await Promise.all([
+      supabase.from("orders").select("id").eq("receipt_hash", receiptHash).limit(1),
+      supabase.from("topups").select("id").eq("receipt_hash", receiptHash).limit(1),
+      supabase.from("vip_subscriptions").select("id").eq("receipt_hash", receiptHash).limit(1),
+    ]);
+
+    const orderRows = orders.data as Array<{ id?: string }> | null;
+    const topupRows = topups.data as Array<{ id?: string }> | null;
+    const vipRows = vipSubscriptions.data as Array<{ id?: string }> | null;
+
+    if (orderRows?.length) return orderRows[0]?.id || "order";
+    if (topupRows?.length) return topupRows[0]?.id || "topup";
+    if (vipRows?.length) return vipRows[0]?.id || "vip";
+  } catch (error) {
+    console.warn("Top-up receipt hash duplicate lookup skipped:", error);
+  }
+
+  return null;
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -65,23 +88,48 @@ export async function POST(req: NextRequest) {
       auth: { persistSession: false }
     });
 
+    const receiptHash = await hashReceiptFile(file);
+    const duplicateReceipt = await findDuplicateReceiptRecord(supabase, receiptHash);
+    if (duplicateReceipt) {
+      return NextResponse.json({
+        error: "This receipt image was already used on another transaction. Please upload the correct GCash proof for this top-up.",
+      }, { status: 409 });
+    }
+
     // Convert file to base64 data URL
     const fileBuffer = await file.arrayBuffer();
     const base64 = Buffer.from(fileBuffer).toString("base64");
     const dataUrl = `data:${file.type};base64,${base64}`;
 
     // 1. Create a topup record with receipt data embedded
-    const { data: topup, error: topupError } = await supabase
+    let { data: topup, error: topupError } = await supabase
       .from("topups")
       .insert([{
         user_id: userId,
         email: email.trim(),
         amount: priceNum,
         receipt_url: dataUrl,
+        receipt_hash: receiptHash,
         status: "pending"
       }])
       .select()
       .single();
+
+    if (topupError && /receipt_hash|schema cache/i.test(topupError.message || "")) {
+      const fallback = await supabase
+        .from("topups")
+        .insert([{
+          user_id: userId,
+          email: email.trim(),
+          amount: priceNum,
+          receipt_url: dataUrl,
+          status: "pending"
+        }])
+        .select()
+        .single();
+      topup = fallback.data;
+      topupError = fallback.error;
+    }
 
     if (topupError) {
       throw topupError;
@@ -97,6 +145,7 @@ export async function POST(req: NextRequest) {
             email: email.trim(),
             amount: priceNum,
             receipt_url: dataUrl,
+            receipt_hash: receiptHash,
             status: "pending",
           });
       }, "top-up creation sync");

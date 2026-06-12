@@ -8,7 +8,11 @@ const RETENTION_DAYS = 7;
 export async function GET(request: Request) {
   try {
     const authHeader = request.headers.get("authorization");
-    if (CRON_SECRET && authHeader !== `Bearer ${CRON_SECRET}`) {
+    if (!CRON_SECRET) {
+      return NextResponse.json({ error: "Cron secret is not configured." }, { status: 503 });
+    }
+
+    if (authHeader !== `Bearer ${CRON_SECRET}`) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

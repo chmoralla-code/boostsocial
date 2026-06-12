@@ -229,7 +229,7 @@ export default function OrderPage() {
       return;
     }
 
-    if (!receiptFile) {
+    if (paymentMethod === "GCash" && !receiptFile) {
       setError("Please upload your GCash/top-up receipt before placing the order.");
       return;
     }
@@ -253,6 +253,62 @@ export default function OrderPage() {
     setIsSubmitting(true);
 
     try {
+      if (paymentMethod === "Wallet" && user) {
+        const walletRes = await fetch("/api/checkout-wallet", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userId: user.id,
+            serviceId: CUSTOM_PAGE_SERVICE_ID,
+            serviceTitle: "Custom Facebook Page + SMM #1141 Followers",
+            email: user.email,
+            url: "Compiling custom Facebook page order assets...",
+            quantity: normalizedQuantity,
+            totalPrice: grandTotal,
+            smmServiceId: FACEBOOK_FOLLOWERS_SMM_ID
+          })
+        });
+
+        const walletData = await walletRes.json();
+        if (!walletRes.ok) throw new Error(walletData.error || "Wallet payment failed.");
+
+        const order = { id: walletData.orderId };
+        if (!order.id) throw new Error("Order was created without a tracking ID.");
+
+        const [profileUrl, coverUrl] = await Promise.all([
+          uploadAsset(profilePhoto, order.id, "profile"),
+          uploadAsset(coverPhoto, order.id, "cover")
+        ]);
+        const finalSpecs = buildSpecs(profileUrl, coverUrl);
+
+        const targetRes = await fetch("/api/orders/update-target", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            orderId: order.id,
+            targetUrl: finalSpecs,
+            customerEmail: user.email
+          })
+        });
+        if (!targetRes.ok) {
+          const targetData = await targetRes.json();
+          throw new Error(targetData.error || "Failed to save page order details.");
+        }
+
+        setProfile((current) => current ? { ...current, balance: walletData.newBalance } : current);
+        window.dispatchEvent(new Event("balance-update"));
+        setSuccessOrderId(order.id);
+        setProfilePhoto(null);
+        setCoverPhoto(null);
+        setReceiptFile(null);
+
+        if (typeof window !== "undefined") {
+          localStorage.setItem("last_order_id", order.id);
+          localStorage.setItem("last_order_email", user.email || "");
+        }
+        return;
+      }
+
       const createRes = await fetch("/api/orders/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -292,30 +348,7 @@ export default function OrderPage() {
         throw new Error(targetData.error || "Failed to save page order details.");
       }
 
-      await uploadReceipt(receiptFile, order.id);
-
-      if (paymentMethod === "Wallet" && user) {
-        const walletRes = await fetch("/api/checkout-wallet", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            existingOrderId: order.id,
-            userId: user.id,
-            serviceId: CUSTOM_PAGE_SERVICE_ID,
-            serviceTitle: "Custom Facebook Page + SMM #1141 Followers",
-            email: user.email,
-            url: finalSpecs,
-            quantity: normalizedQuantity,
-            totalPrice: grandTotal,
-            smmServiceId: FACEBOOK_FOLLOWERS_SMM_ID
-          })
-        });
-
-        const walletData = await walletRes.json();
-        if (!walletRes.ok) throw new Error(walletData.error || "Wallet payment failed.");
-        setProfile((current) => current ? { ...current, balance: walletData.newBalance } : current);
-        window.dispatchEvent(new Event("balance-update"));
-      }
+      if (receiptFile) await uploadReceipt(receiptFile, order.id);
 
       setSuccessOrderId(order.id);
       setProfilePhoto(null);

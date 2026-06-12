@@ -3,6 +3,7 @@ import { getPrimaryAdminClient, syncBackupAdminClients } from "@/utils/supabase/
 import { createClient as createServerClient } from "@/utils/supabase/server";
 import { isAdminEmail } from "@/utils/security/admin";
 import { enforceRateLimit } from "@/utils/security/rate-limit";
+import { autoPlaceRixeyOrder } from "@/lib/rixeysmm";
 
 const MAX_TARGET_LENGTH = 7000;
 
@@ -42,7 +43,7 @@ export async function POST(req: NextRequest) {
     const supabase = getPrimaryAdminClient();
     const { data: order, error: fetchError } = await supabase
       .from("orders")
-      .select("id, customer_email")
+      .select("id, customer_email, service_id, quantity, status, external_order_id, smm_service_id")
       .eq("id", cleanOrderId)
       .maybeSingle();
 
@@ -82,6 +83,12 @@ export async function POST(req: NextRequest) {
         .update(update)
         .eq("id", cleanOrderId);
     }, "order target details sync");
+
+    if (order.status === "Processing" && !order.external_order_id && order.smm_service_id) {
+      autoPlaceRixeyOrder(cleanOrderId, order.service_id, cleanTargetUrl, Number(order.quantity || 0)).catch((err) => {
+        console.error("Async auto-placement after target update failed:", err);
+      });
+    }
 
     return NextResponse.json({ success: true });
   } catch (err: unknown) {

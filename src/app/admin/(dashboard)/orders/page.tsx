@@ -9,10 +9,28 @@ export default async function OrdersPage() {
     return db
       .from('orders')
       .select(`
-        *,
+        id,
+        service_id,
+        service_title,
+        customer_email,
+        target_url,
+        status,
+        amount,
+        created_at,
+        quantity,
+        payment_method,
+        external_order_id,
+        external_status,
+        smm_service_id,
+        receipt_url,
+        original_amount,
+        vip_plan,
+        vip_discount_percent,
+        vip_discount_amount,
         services ( title )
       `)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(200);
   });
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;

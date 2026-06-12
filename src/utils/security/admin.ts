@@ -1,5 +1,4 @@
 const DEFAULT_ADMIN_EMAILS = ["admin@boostsocial.com"];
-const DEFAULT_ADMIN_DOMAIN = "boostsocial.com";
 
 function normalize(value: string) {
   return value.trim().toLowerCase();
@@ -19,7 +18,7 @@ export function getAllowedAdminEmails() {
 }
 
 export function getAllowedAdminDomain() {
-  return normalize(process.env.ADMIN_EMAIL_DOMAIN || DEFAULT_ADMIN_DOMAIN);
+  return process.env.ADMIN_EMAIL_DOMAIN ? normalize(process.env.ADMIN_EMAIL_DOMAIN) : "";
 }
 
 export function isAdminEmail(email?: string | null) {
@@ -32,5 +31,5 @@ export function isAdminEmail(email?: string | null) {
   }
 
   const allowedDomain = getAllowedAdminDomain();
-  return normalizedEmail.endsWith(`@${allowedDomain}`);
+  return Boolean(allowedDomain && normalizedEmail.endsWith(`@${allowedDomain}`));
 }

@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { createClient as createServerClient } from "@/utils/supabase/server";
 import { enforceRateLimit } from "@/utils/security/rate-limit";
 import { isAdminEmail } from "@/utils/security/admin";
+import { fileToDataUrl } from "@/lib/fileData";
 
 const MAX_ASSET_FILE_BYTES = 10 * 1024 * 1024;
 const ALLOWED_ASSET_TYPES = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp"]);
@@ -77,19 +78,44 @@ export async function POST(req: NextRequest) {
     const fileExt = file.name.split('.').pop() || 'png';
     const fileName = `${orderId}_${assetType}.${fileExt}`;
 
-    // Upload to 'receipts' bucket which is already pre-configured to allow uploads
-    const { error } = await supabase.storage
-      .from('receipts')
-      .upload(fileName, file, {
-        upsert: true
-      });
+    let publicUrl = "";
+    try {
+      const { error } = await supabase.storage
+        .from('receipts')
+        .upload(fileName, file, {
+          upsert: true
+        });
 
-    if (error) {
-      throw error;
+      if (error) throw error;
+
+      publicUrl = `${supabaseUrl}/storage/v1/object/public/receipts/${fileName}`;
+      await supabase
+        .from("order_assets")
+        .upsert({
+          order_id: orderId,
+          asset_type: assetType,
+          content_type: file.type,
+          storage_url: publicUrl,
+          data_url: null,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: "order_id,asset_type" });
+    } catch (storageError) {
+      console.warn(`Storage upload for ${assetType} asset failed; using DB fallback:`, storageError);
+      const dataUrl = await fileToDataUrl(file);
+      const { error: assetError } = await supabase
+        .from("order_assets")
+        .upsert({
+          order_id: orderId,
+          asset_type: assetType,
+          content_type: file.type,
+          data_url: dataUrl,
+          storage_url: null,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: "order_id,asset_type" });
+
+      if (assetError) throw assetError;
+      publicUrl = `${req.nextUrl.origin}/api/order-assets/${encodeURIComponent(orderId)}/${encodeURIComponent(assetType)}`;
     }
-
-    // Generate public URL
-    const publicUrl = `${supabaseUrl}/storage/v1/object/public/receipts/${fileName}`;
 
     return NextResponse.json({ success: true, url: publicUrl });
   } catch (err: any) {
