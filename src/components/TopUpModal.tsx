@@ -4,6 +4,49 @@ import { useState } from "react";
 import { X, Loader2, Upload, Wallet } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 
+const MAX_RECEIPT_DIMENSION = 1280;
+const TARGET_RECEIPT_BYTES = 900 * 1024;
+
+async function compressReceiptImage(file: File): Promise<File> {
+  if (!file.type.startsWith("image/") || file.size <= TARGET_RECEIPT_BYTES) {
+    return file;
+  }
+
+  const objectUrl = URL.createObjectURL(file);
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const image = new Image();
+      image.onload = () => resolve(image);
+      image.onerror = reject;
+      image.src = objectUrl;
+    });
+
+    const scale = Math.min(1, MAX_RECEIPT_DIMENSION / Math.max(img.width, img.height));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(img.width * scale));
+    canvas.height = Math.max(1, Math.round(img.height * scale));
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return file;
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+    const blob = await new Promise<Blob | null>((resolve) => {
+      canvas.toBlob(resolve, "image/jpeg", 0.76);
+    });
+
+    if (!blob || blob.size >= file.size) return file;
+    return new File([blob], file.name.replace(/\.[^.]+$/, ".jpg"), {
+      type: "image/jpeg",
+      lastModified: Date.now(),
+    });
+  } catch (err) {
+    console.error("Receipt compression failed, using original image:", err);
+    return file;
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+}
+
 export function TopUpModal({ isOpen, onClose, user, onTopUpSuccess }: { isOpen: boolean, onClose: () => void, user: any, onTopUpSuccess: () => void }) {
   const [amount, setAmount] = useState<string>("");
   const [file, setFile] = useState<File | null>(null);
@@ -28,8 +71,9 @@ export function TopUpModal({ isOpen, onClose, user, onTopUpSuccess }: { isOpen: 
     setError("");
 
     try {
+      const uploadFile = await compressReceiptImage(file);
       const formData = new FormData();
-      formData.append("file", file);
+      formData.append("file", uploadFile);
       formData.append("userId", user.id);
       formData.append("email", user.email);
       formData.append("amount", amount);
@@ -51,7 +95,7 @@ export function TopUpModal({ isOpen, onClose, user, onTopUpSuccess }: { isOpen: 
         setSuccess(false);
         setAmount("");
         setFile(null);
-      }, 3000);
+      }, 1200);
     } catch (err: any) {
       setError(err.message || "Failed to submit top-up request.");
     } finally {

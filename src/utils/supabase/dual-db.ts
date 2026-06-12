@@ -447,21 +447,25 @@ export async function syncBackupAdminClients(
     console.error(`DigitalOcean sync in ${context} failed:`, err);
   }
 
-  // 2. Sync to Supabase backups (including main project!)
-  for (const backup of getBackupAdminClients()) {
-    try {
-      const backupSpy = {
-        from: (table: string) => new SpyQueryBuilder(table, backup.client, null),
-      };
-      const result = await operation(backupSpy, backup.label);
-      const error = result && "error" in result ? result.error : null;
-      if (error) throw error;
-      results.push({ label: backup.label, error: null });
-    } catch (err) {
-      console.error(`${backup.displayName} DB ${context} failed:`, err);
-      results.push({ label: backup.label, error: err });
-    }
-  }
+  // 2. Sync to Supabase backups (including main project!) in parallel.
+  const backupResults = await Promise.all(
+    getBackupAdminClients().map(async (backup) => {
+      try {
+        const backupSpy = {
+          from: (table: string) => new SpyQueryBuilder(table, backup.client, null),
+        };
+        const result = await operation(backupSpy, backup.label);
+        const error = result && "error" in result ? result.error : null;
+        if (error) throw error;
+        return { label: backup.label, error: null };
+      } catch (err) {
+        console.error(`${backup.displayName} DB ${context} failed:`, err);
+        return { label: backup.label, error: err };
+      }
+    })
+  );
+
+  results.push(...backupResults);
 
   return results;
 }
@@ -492,18 +496,20 @@ export async function dualWrite<T = any>(
     primaryError = err;
   }
 
-  // 2. Write to Supabase backups as replicas
-  for (const backup of backups) {
-    try {
-      const backupSpy = {
-        from: (table: string) => new SpyQueryBuilder(table, backup.client, null),
-      };
-      const res = await operation(backupSpy);
-      backupResults.push({ label: backup.label, data: res.data, error: res.error });
-    } catch (err: any) {
-      backupResults.push({ label: backup.label, data: null, error: err });
-    }
-  }
+  // 2. Write to Supabase backups as replicas in parallel.
+  backupResults.push(...await Promise.all(
+    backups.map(async (backup) => {
+      try {
+        const backupSpy = {
+          from: (table: string) => new SpyQueryBuilder(table, backup.client, null),
+        };
+        const res = await operation(backupSpy);
+        return { label: backup.label, data: res.data, error: res.error };
+      } catch (err: any) {
+        return { label: backup.label, data: null, error: err };
+      }
+    })
+  ));
 
   if (!primaryError) {
     const allBackupsSynced = backupResults.every((result) => !result.error);

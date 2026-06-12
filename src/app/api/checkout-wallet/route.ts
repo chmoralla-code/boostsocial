@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { after, NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { sendOrderNotification } from "@/lib/telegram";
 import { autoPlaceRixeyOrder } from "@/lib/rixeysmm";
@@ -190,53 +190,57 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Wallet order was not created" }, { status: 500 });
     }
 
-    await syncBackupAdminClients(async (backupClient) => {
-      const profileUpdate = await backupClient
-        .from("profiles")
-        .update({ balance: newBalance })
-        .eq("id", userId);
+    after(async () => {
+      const tasks = [
+        syncBackupAdminClients(async (backupClient) => {
+          const profileUpdate = await backupClient
+            .from("profiles")
+            .update({ balance: newBalance })
+            .eq("id", userId);
 
-      if (profileUpdate.error) return profileUpdate;
+          if (profileUpdate.error) return profileUpdate;
 
-      return backupClient
-        .from("orders")
-        .upsert({
-          id: order.id,
-          service_id: serviceId,
-          customer_email: String(email).trim(),
-          target_url: String(url).trim(),
+          return backupClient
+            .from("orders")
+            .upsert({
+              id: order.id,
+              service_id: serviceId,
+              customer_email: String(email).trim(),
+              target_url: String(url).trim(),
+              amount: cost,
+              status: "Processing",
+              payment_method: "Wallet",
+              quantity,
+              smm_service_id: smmServiceId || null,
+              ...orderVipFields,
+            });
+        }, "wallet checkout sync"),
+        creditReferralCommission({
+          primaryClient: supabase,
+          customerId: userId,
+          customerEmail: String(email).trim(),
+          source: "order",
           amount: cost,
-          status: "Processing",
-          payment_method: "Wallet",
+          referenceId: order.id,
+        }),
+        autoPlaceRixeyOrder(order.id, serviceId, String(url).trim(), quantity),
+        sendOrderNotification({
+          trackingId: `BS-${order.id.slice(0, 8).toUpperCase()}`,
+          service: serviceTitle || serviceId,
+          email: String(email).trim(),
           quantity,
-          smm_service_id: smmServiceId || null,
-          ...orderVipFields,
-        });
-    }, "wallet checkout sync");
+          amount: cost,
+          paymentMethod: "Wallet",
+          details: String(url).trim(),
+        }),
+      ];
 
-    creditReferralCommission({
-      primaryClient: supabase,
-      customerId: userId,
-      customerEmail: String(email).trim(),
-      source: "order",
-      amount: cost,
-      referenceId: order.id,
-    }).catch((err) => {
-      console.error("Wallet referral order commission failed:", err);
-    });
-
-    autoPlaceRixeyOrder(order.id, serviceId, String(url).trim(), quantity).catch((err) => {
-      console.error("Async auto-placement on RixeySMM from verified wallet checkout failed:", err);
-    });
-
-    sendOrderNotification({
-      trackingId: `BS-${order.id.slice(0, 8).toUpperCase()}`,
-      service: serviceTitle || serviceId,
-      email: String(email).trim(),
-      quantity,
-      amount: cost,
-      paymentMethod: "Wallet",
-      details: String(url).trim(),
+      const results = await Promise.allSettled(tasks);
+      for (const result of results) {
+        if (result.status === "rejected") {
+          console.error("Wallet checkout after-response task failed:", result.reason);
+        }
+      }
     });
 
     return NextResponse.json({ success: true, orderId: order.id, newBalance });

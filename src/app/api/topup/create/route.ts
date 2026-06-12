@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { after, NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { sendTopupNotification } from "@/lib/telegram";
 import { syncBackupAdminClients } from "@/utils/supabase/dual-db";
@@ -87,37 +87,38 @@ export async function POST(req: NextRequest) {
       throw topupError;
     }
 
-    await syncBackupAdminClients(async (backupClient) => {
-      return backupClient
-        .from("topups")
-        .upsert({
-          id: topup.id,
-          user_id: userId,
+    after(async () => {
+      await syncBackupAdminClients(async (backupClient) => {
+        return backupClient
+          .from("topups")
+          .upsert({
+            id: topup.id,
+            user_id: userId,
+            email: email.trim(),
+            amount: priceNum,
+            receipt_url: dataUrl,
+            status: "pending",
+          });
+      }, "top-up creation sync");
+
+      try {
+        await sendTopupNotification({
+          topupId: topup.id,
           email: email.trim(),
           amount: priceNum,
-          receipt_url: dataUrl,
-          status: "pending",
+          receiptUrl: dataUrl,
         });
-    }, "top-up creation sync");
+      } catch (telegramErr) {
+        console.error("Telegram top-up notification failed (after response):", telegramErr);
+      }
 
-    // 2. Send Telegram notification with receipt photo and approve/reject buttons
-    try {
-      await sendTopupNotification({
-        topupId: topup.id,
+      notifyCustomer({
+        client: supabase,
         email: email.trim(),
-        amount: priceNum,
-        receiptUrl: dataUrl,
+        message: `System update: Your PHP ${priceNum.toFixed(2)} wallet top-up receipt was uploaded. Admin verification is now pending.`,
+      }).catch((notificationErr) => {
+        console.error("Top-up customer notification failed:", notificationErr);
       });
-    } catch (telegramErr) {
-      console.error("Telegram top-up notification failed (non-blocking):", telegramErr);
-    }
-
-    notifyCustomer({
-      client: supabase,
-      email: email.trim(),
-      message: `System update: Your PHP ${priceNum.toFixed(2)} wallet top-up receipt was uploaded. Admin verification is now pending.`,
-    }).catch((notificationErr) => {
-      console.error("Top-up customer notification failed:", notificationErr);
     });
 
     return NextResponse.json({ success: true, topupId: topup.id });
