@@ -100,9 +100,6 @@ export default async function Home() {
             <span className="fb-shimmer-text">Anywhere, Anytime</span>
           </h1>
           
-          <p className="text-sm sm:text-base md:text-lg text-muted mb-7 sm:mb-10 max-w-2xl font-bold leading-relaxed animate-fade-in-up-3">
-            Skip the browser. Get the all-in-one app that <span className="text-white">puts 1,100+ boosting services</span> in your pocket — order in seconds, track in real time, and grow your social presence on the go. <span className="text-[#1DB954]">100% free, no signup required to install.</span>
-          </p>
 
           {/* APK Download + Browse Services Buttons */}
           <div className="animate-fade-in-up-3 mb-4 sm:mb-6 flex flex-col sm:flex-row items-center gap-3">
