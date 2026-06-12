@@ -4,7 +4,7 @@ import { sendTopupNotification } from "@/lib/telegram";
 import { syncBackupAdminClients } from "@/utils/supabase/dual-db";
 import { createClient as createServerClient } from "@/utils/supabase/server";
 import { enforceRateLimit } from "@/utils/security/rate-limit";
-import { buildReceiptFileName, findDuplicateReceipt, hashReceiptFile } from "@/lib/receiptGuard";
+import { hashReceiptFile } from "@/lib/receiptGuard";
 import { notifyCustomer } from "@/lib/customerNotifications";
 
 const MAX_RECEIPT_FILE_BYTES = 8 * 1024 * 1024;
@@ -66,21 +66,34 @@ export async function POST(req: NextRequest) {
       auth: { persistSession: false }
     });
 
+    // Check for duplicate receipt using DB hash
     const receiptHash = await hashReceiptFile(file);
-    const duplicateReceipt = await findDuplicateReceipt(supabase, receiptHash);
-    if (duplicateReceipt) {
+    const { data: existingTopup } = await supabase
+      .from("topups")
+      .select("id")
+      .eq("receipt_hash", receiptHash)
+      .limit(1);
+    if (existingTopup && existingTopup.length > 0) {
       return NextResponse.json({
         error: "This receipt image was already used before. Please upload a fresh GCash proof for this top-up.",
       }, { status: 409 });
     }
 
-    // 1. Create a topup record
+    // Convert file to base64 data URL
+    const fileBuffer = await file.arrayBuffer();
+    const base64 = Buffer.from(fileBuffer).toString("base64");
+    const dataUrl = `data:${file.type};base64,${base64}`;
+
+    // 1. Create a topup record with receipt data embedded
     const { data: topup, error: topupError } = await supabase
       .from("topups")
       .insert([{
         user_id: userId,
         email: email.trim(),
         amount: priceNum,
+        receipt_url: dataUrl,
+        receipt_data: dataUrl,
+        receipt_hash: receiptHash,
         status: "pending"
       }])
       .select()
@@ -88,35 +101,6 @@ export async function POST(req: NextRequest) {
 
     if (topupError) {
       throw topupError;
-    }
-
-    // 2. Upload file to 'receipts' storage
-    const fileExt = file.name.split(".").pop() || "png";
-    const fileName = buildReceiptFileName(`topup_${topup.id}`, receiptHash, email.trim(), fileExt);
-
-    const { error: uploadError } = await supabase.storage
-      .from("receipts")
-      .upload(fileName, file, {
-        upsert: true
-      });
-
-    if (uploadError) {
-      throw uploadError;
-    }
-
-    // 3. Get the public URL of the receipt image
-    const { data: publicUrlData } = supabase.storage
-      .from("receipts")
-      .getPublicUrl(fileName);
-
-    // 4. Update the topup record with the receipt public URL
-    const { error: updateError } = await supabase
-      .from("topups")
-      .update({ receipt_url: publicUrlData.publicUrl })
-      .eq("id", topup.id);
-
-    if (updateError) {
-      throw updateError;
     }
 
     await syncBackupAdminClients(async (backupClient) => {
@@ -127,18 +111,20 @@ export async function POST(req: NextRequest) {
           user_id: userId,
           email: email.trim(),
           amount: priceNum,
-          receipt_url: publicUrlData.publicUrl,
+          receipt_url: dataUrl,
+          receipt_data: dataUrl,
+          receipt_hash: receiptHash,
           status: "pending",
         });
     }, "top-up creation sync");
 
-    // 5. Send Telegram notification with receipt photo and approve/reject buttons
+    // 2. Send Telegram notification with receipt photo and approve/reject buttons
     try {
       await sendTopupNotification({
         topupId: topup.id,
         email: email.trim(),
         amount: priceNum,
-        receiptUrl: publicUrlData.publicUrl,
+        receiptUrl: dataUrl,
       });
     } catch (telegramErr) {
       console.error("Telegram top-up notification failed (non-blocking):", telegramErr);

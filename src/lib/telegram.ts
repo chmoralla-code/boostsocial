@@ -194,6 +194,16 @@ export async function sendOrderCompleteNotification(order: {
   }
 }
 
+async function dataUrlToBlob(dataUrl: string): Promise<{ blob: Blob; mimeType: string } | null> {
+  const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+  if (!match) return null;
+  const mimeType = match[1];
+  const base64 = match[2];
+  const buffer = Buffer.from(base64, "base64");
+  const blob = new Blob([buffer], { type: mimeType });
+  return { blob, mimeType };
+}
+
 export async function sendTopupNotification(topup: {
   topupId: string;
   email: string;
@@ -213,7 +223,38 @@ export async function sendTopupNotification(topup: {
       `🕐 Time: ${phTime} PHT\n\n` +
       `⬇️ Tap a button below to approve or reject.`;
 
-    // Send receipt photo with inline approve/reject buttons
+    // Handle data URL by uploading the file directly (bypasses Supabase Storage restriction)
+    const isDataUrl = topup.receiptUrl.startsWith("data:");
+    if (isDataUrl) {
+      const result = await dataUrlToBlob(topup.receiptUrl);
+      if (result) {
+        const formData = new FormData();
+        formData.append("chat_id", config.chat_id);
+        formData.append("photo", result.blob, "receipt.png");
+        formData.append("caption", caption);
+        formData.append("reply_markup", JSON.stringify({
+          inline_keyboard: [
+            [
+              { text: "✅ Approve Top-Up", callback_data: `topup_approve_${topup.topupId}` },
+              { text: "❌ Reject", callback_data: `topup_reject_${topup.topupId}` }
+            ]
+          ]
+        }));
+
+        const res = await fetch(`https://api.telegram.org/bot${config.bot_token}/sendPhoto`, {
+          method: "POST",
+          body: formData,
+        });
+
+        const data = await res.json();
+        if (!data.ok) {
+          console.error("Telegram sendPhoto failed:", data.description);
+        }
+        return;
+      }
+    }
+
+    // Fallback: send as URL
     const res = await fetch(`https://api.telegram.org/bot${config.bot_token}/sendPhoto`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
