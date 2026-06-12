@@ -211,8 +211,8 @@ export function AdminShell({ children }: { children: ReactNode }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-[#121212] text-slate-300 lg:flex">
-      <header className="sticky top-0 z-40 border-b border-slate-800/80 bg-[#121212]/95 px-3 py-2 backdrop-blur-md lg:hidden">
+    <div className="min-h-screen bg-bg text-fg lg:flex">
+      <header className="sticky top-0 z-40 border-b border-slate-800/80 bg-[#121212]/95 px-3 pb-2 pt-[calc(env(safe-area-inset-top)+0.5rem)] backdrop-blur-md lg:hidden">
         <div className="flex items-center justify-between gap-2">
           <button
             type="button"
@@ -341,7 +341,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
         </div>
       </aside>
 
-      <main className="relative min-h-screen flex-grow overflow-hidden px-3 py-4 pb-28 sm:px-5 lg:ml-72 lg:p-8">
+      <main className="relative min-h-screen flex-grow overflow-hidden px-3 pb-28 pt-5 sm:px-5 lg:ml-72 lg:p-8">
         <div className="pointer-events-none absolute right-0 top-0 h-80 w-80 rounded-full bg-[#1DB954]/5 blur-3xl" />
         <div className="relative z-10 mx-auto w-full max-w-[1500px]">{children}</div>
       </main>

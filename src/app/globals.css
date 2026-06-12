@@ -627,6 +627,12 @@ html { scroll-behavior: smooth; }
   color: #475569 !important;
 }
 
+[data-theme="light"] .text-slate-650,
+[data-theme="light"] .text-slate-750,
+[data-theme="light"] .text-slate-850 {
+  color: #475569 !important;
+}
+
 [data-theme="light"] .text-slate-700 {
   color: #334155 !important;
 }

@@ -120,9 +120,9 @@ export function MobileAppSettingsPanel() {
 
   if (fetching) {
     return (
-      <div className="flex items-center gap-3 rounded-2xl border border-slate-850/85 bg-[#181818] p-6">
+      <div className="flex items-center gap-3 rounded-2xl border border-border bg-card p-6">
         <Loader2 className="animate-spin text-[#1DB954]" size={20} />
-        <span className="text-xs font-semibold text-slate-400">Loading mobile app dashboard...</span>
+        <span className="text-xs font-semibold text-muted">Loading mobile app dashboard...</span>
       </div>
     );
   }
@@ -132,10 +132,10 @@ export function MobileAppSettingsPanel() {
       <section className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <VersionCard label="Current APK" value={settings.appVersion} active={!settings.updateAvailable} />
         <VersionCard label="Latest Version" value={settings.latestVersion} active={settings.updateAvailable} />
-        <div className="rounded-2xl border border-slate-850 bg-[#181818] p-5">
+        <div className="rounded-2xl border border-border bg-card p-5">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Update Status</p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-muted">Update Status</p>
               <h2 className={`mt-2 text-xl font-black ${settings.updateAvailable ? "text-amber-300" : "text-[#1DB954]"}`}>
                 {settings.updateAvailable ? "Update shown" : "Up to date"}
               </h2>
@@ -148,21 +148,21 @@ export function MobileAppSettingsPanel() {
               <Power size={20} />
             </span>
           </div>
-          <p className="mt-3 text-xs font-semibold leading-5 text-slate-500">
+          <p className="mt-3 text-xs font-semibold leading-5 text-muted">
             Saving changed app content automatically bumps 1.0 to 2.0, 2.0 to 3.0, and so on.
           </p>
         </div>
       </section>
 
-      <section className="rounded-2xl border border-slate-850 bg-[#181818] p-5 text-white shadow-md">
-        <div className="mb-5 flex flex-col gap-4 border-b border-slate-850 pb-5 sm:flex-row sm:items-center sm:justify-between">
+      <section className="rounded-2xl border border-border bg-card p-4 text-fg shadow-md sm:p-5">
+        <div className="mb-5 flex flex-col gap-4 border-b border-border pb-5 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-start gap-3">
             <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[#1DB954]/20 bg-[#1DB954]/10 text-[#1DB954]">
               <Smartphone size={22} />
             </span>
             <div>
-              <h2 className="text-base font-black tracking-tight text-white">APK App Editor</h2>
-              <p className="mt-1 max-w-2xl text-xs font-semibold leading-relaxed text-slate-400">
+              <h2 className="text-base font-black tracking-tight text-fg">APK App Editor</h2>
+              <p className="mt-1 max-w-2xl text-xs font-semibold leading-relaxed text-muted">
                 These fields control the simplified `/app` screen used by the APK. Services still come from the main services database.
               </p>
             </div>
@@ -172,7 +172,7 @@ export function MobileAppSettingsPanel() {
             type="button"
             onClick={() => submitSettings("mark_up_to_date")}
             disabled={saving || !settings.updateAvailable}
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-slate-700 bg-slate-900 px-5 py-3 text-xs font-black uppercase tracking-wider text-slate-200 transition hover:border-[#1DB954]/40 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-border bg-elevated px-5 py-3 text-xs font-black uppercase tracking-wider text-fg transition hover:border-[#1DB954]/40 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
           >
             <CheckCircle size={14} />
             Mark Up To Date
@@ -184,8 +184,8 @@ export function MobileAppSettingsPanel() {
           <TextField label="Subtitle" value={settings.appSubtitle} onChange={(value) => updateField("appSubtitle", value)} />
           <TextField label="Main Heading" value={settings.heroTitle} onChange={(value) => updateField("heroTitle", value)} />
           <div className="space-y-1.5">
-            <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Default Theme</label>
-            <div className="grid grid-cols-2 gap-2 rounded-xl border border-slate-850 bg-[#121212] p-1">
+            <label className="text-[10px] font-black uppercase tracking-wider text-muted">Default Theme</label>
+            <div className="grid grid-cols-2 gap-2 rounded-xl border border-border bg-elevated p-1">
               {(["light", "dark"] as MobileAppTheme[]).map((theme) => {
                 const Icon = theme === "light" ? Sun : Moon;
                 const active = settings.defaultTheme === theme;
@@ -196,7 +196,7 @@ export function MobileAppSettingsPanel() {
                     type="button"
                     onClick={() => updateField("defaultTheme", theme)}
                     className={`flex min-h-10 items-center justify-center gap-2 rounded-lg text-xs font-black uppercase tracking-wider transition ${
-                      active ? "bg-[#1DB954] text-black" : "text-slate-500 hover:text-white"
+                      active ? "bg-[#1DB954] text-black" : "text-muted hover:text-fg"
                     }`}
                   >
                     <Icon size={14} />
@@ -243,7 +243,7 @@ export function MobileAppSettingsPanel() {
             type="button"
             onClick={() => submitSettings("publish_update")}
             disabled={saving}
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-amber-400/20 bg-amber-400/10 px-5 py-3 text-xs font-black uppercase tracking-wider text-amber-200 transition hover:border-amber-300/40 hover:text-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-amber-400/30 bg-amber-400/10 px-5 py-3 text-xs font-black uppercase tracking-wider text-amber-600 transition hover:border-amber-500/50 hover:text-amber-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <RefreshCw size={14} />
             Publish New Version
@@ -254,8 +254,8 @@ export function MobileAppSettingsPanel() {
           <div
             className={`mt-5 flex items-start gap-2.5 rounded-xl border p-3.5 text-left text-xs font-semibold leading-relaxed ${
               result.success
-                ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-400"
-                : "border-red-500/20 bg-red-500/10 text-red-400"
+                ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-600"
+                : "border-red-500/20 bg-red-500/10 text-red-500"
             }`}
           >
             {result.success ? <CheckCircle size={15} className="mt-0.5 shrink-0" /> : <XCircle size={15} className="mt-0.5 shrink-0" />}
@@ -270,10 +270,10 @@ export function MobileAppSettingsPanel() {
 function VersionCard({ label, value, active }: { label: string; value: string; active: boolean }) {
   return (
     <div className={`rounded-2xl border p-5 ${
-      active ? "border-[#1DB954]/25 bg-[#1DB954]/10" : "border-slate-850 bg-[#181818]"
+      active ? "border-[#1DB954]/25 bg-[#1DB954]/10" : "border-border bg-card"
     }`}>
-      <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">{label}</p>
-      <p className={`mt-2 text-3xl font-black ${active ? "text-[#1DB954]" : "text-white"}`}>v{value}</p>
+      <p className="text-[10px] font-black uppercase tracking-widest text-muted">{label}</p>
+      <p className={`mt-2 text-3xl font-black ${active ? "text-[#1DB954]" : "text-fg"}`}>v{value}</p>
     </div>
   );
 }
@@ -289,11 +289,11 @@ function TextField({
 }) {
   return (
     <div className="space-y-1.5">
-      <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">{label}</label>
+      <label className="text-[10px] font-black uppercase tracking-wider text-muted">{label}</label>
       <input
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="w-full rounded-xl border border-slate-850 bg-[#121212] px-4 py-3 text-xs font-bold text-white outline-none transition focus:border-[#1DB954]"
+        className="w-full rounded-xl border border-border bg-elevated px-4 py-3 text-xs font-bold text-fg outline-none transition focus:border-[#1DB954]"
       />
     </div>
   );
@@ -310,12 +310,12 @@ function TextAreaField({
 }) {
   return (
     <div className="space-y-1.5">
-      <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">{label}</label>
+      <label className="text-[10px] font-black uppercase tracking-wider text-muted">{label}</label>
       <textarea
         value={value}
         onChange={(event) => onChange(event.target.value)}
         rows={4}
-        className="w-full resize-none rounded-xl border border-slate-850 bg-[#121212] px-4 py-3 text-xs font-bold leading-relaxed text-white outline-none transition focus:border-[#1DB954]"
+        className="w-full resize-none rounded-xl border border-border bg-elevated px-4 py-3 text-xs font-bold leading-relaxed text-fg outline-none transition focus:border-[#1DB954]"
       />
     </div>
   );

@@ -34,12 +34,12 @@ export default async function AdminMobileAppPage() {
   );
 
   return (
-    <div className="space-y-6 text-slate-300">
-      <div className="border-b border-slate-850/60 pb-5">
-        <h1 className="text-2xl font-black tracking-tight text-white sm:text-3xl">
+    <div className="space-y-6 pt-2 text-fg sm:pt-0">
+      <div className="border-b border-border/60 pb-5">
+        <h1 className="text-2xl font-black tracking-tight text-fg sm:text-3xl">
           Mobile App Dashboard
         </h1>
-        <p className="mt-1 max-w-2xl text-xs font-semibold leading-relaxed text-slate-400">
+        <p className="mt-1 max-w-2xl text-xs font-semibold leading-relaxed text-muted">
           Edit the simplified APK experience, publish update notices, and control version status separately from the website homepage.
         </p>
       </div>
@@ -106,16 +106,16 @@ function AppOperationsPanel({
   ];
 
   return (
-    <section className="rounded-2xl border border-slate-850 bg-[#181818] p-5 shadow-md">
-      <div className="mb-5 flex flex-col gap-3 border-b border-slate-850 pb-5 sm:flex-row sm:items-end sm:justify-between">
+    <section className="rounded-2xl border border-border bg-card p-4 shadow-md sm:p-5">
+      <div className="mb-5 flex flex-col gap-3 border-b border-border pb-5 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-[10px] font-black uppercase tracking-widest text-[#1DB954]">App operations center</p>
-          <h2 className="mt-1 text-lg font-black tracking-tight text-white">Orders, top-ups, and Telegram reports</h2>
-          <p className="mt-1 max-w-3xl text-xs font-semibold leading-relaxed text-slate-400">
+          <h2 className="mt-1 text-lg font-black tracking-tight text-fg">Orders, top-ups, and Telegram reports</h2>
+          <p className="mt-1 max-w-3xl text-xs font-semibold leading-relaxed text-muted">
             The app keeps a unique customer design, while admin work stays in the same order, wallet, and Telegram control center.
           </p>
         </div>
-        <Link href="/admin" className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full border border-slate-700 bg-slate-900 px-4 text-xs font-black uppercase tracking-wider text-slate-200 transition hover:border-[#1DB954]/40 hover:text-white">
+        <Link href="/admin" className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full border border-border bg-elevated px-4 text-xs font-black uppercase tracking-wider text-fg transition hover:border-[#1DB954]/40 hover:text-primary">
           Full Dashboard
           <ArrowUpRight size={14} />
         </Link>
@@ -129,18 +129,18 @@ function AppOperationsPanel({
             <Link
               key={card.label}
               href={card.href}
-              className="group flex min-h-36 flex-col justify-between rounded-2xl border border-slate-850 bg-[#121212] p-4 transition hover:border-[#1DB954]/30 hover:bg-[#151515]"
+              className="group flex min-h-36 flex-col justify-between rounded-2xl border border-border bg-elevated p-4 transition hover:border-[#1DB954]/30 hover:bg-card"
             >
               <span className="flex items-start justify-between gap-3">
                 <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border ${card.toneClass}`}>
                   <Icon size={20} />
                 </span>
-                <ArrowUpRight size={15} className="text-slate-650 transition group-hover:text-[#1DB954]" />
+                <ArrowUpRight size={15} className="text-muted transition group-hover:text-[#1DB954]" />
               </span>
               <span className="mt-4 block">
-                <span className="block text-xs font-black uppercase tracking-wider text-slate-400">{card.label}</span>
-                <span className="mt-1 block text-xl font-black text-white">{card.value}</span>
-                <span className="mt-2 block text-xs font-semibold leading-5 text-slate-500">{card.description}</span>
+                <span className="block text-xs font-black uppercase tracking-wider text-muted">{card.label}</span>
+                <span className="mt-1 block text-xl font-black text-fg">{card.value}</span>
+                <span className="mt-2 block text-xs font-semibold leading-5 text-muted">{card.description}</span>
               </span>
             </Link>
           );
