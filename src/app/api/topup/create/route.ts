@@ -4,7 +4,6 @@ import { sendTopupNotification } from "@/lib/telegram";
 import { syncBackupAdminClients } from "@/utils/supabase/dual-db";
 import { createClient as createServerClient } from "@/utils/supabase/server";
 import { enforceRateLimit } from "@/utils/security/rate-limit";
-import { hashReceiptFile } from "@/lib/receiptGuard";
 import { notifyCustomer } from "@/lib/customerNotifications";
 
 const MAX_RECEIPT_FILE_BYTES = 8 * 1024 * 1024;
@@ -66,19 +65,6 @@ export async function POST(req: NextRequest) {
       auth: { persistSession: false }
     });
 
-    // Check for duplicate receipt using DB hash
-    const receiptHash = await hashReceiptFile(file);
-    const { data: existingTopup } = await supabase
-      .from("topups")
-      .select("id")
-      .eq("receipt_hash", receiptHash)
-      .limit(1);
-    if (existingTopup && existingTopup.length > 0) {
-      return NextResponse.json({
-        error: "This receipt image was already used before. Please upload a fresh GCash proof for this top-up.",
-      }, { status: 409 });
-    }
-
     // Convert file to base64 data URL
     const fileBuffer = await file.arrayBuffer();
     const base64 = Buffer.from(fileBuffer).toString("base64");
@@ -92,8 +78,6 @@ export async function POST(req: NextRequest) {
         email: email.trim(),
         amount: priceNum,
         receipt_url: dataUrl,
-        receipt_data: dataUrl,
-        receipt_hash: receiptHash,
         status: "pending"
       }])
       .select()
@@ -112,8 +96,6 @@ export async function POST(req: NextRequest) {
           email: email.trim(),
           amount: priceNum,
           receipt_url: dataUrl,
-          receipt_data: dataUrl,
-          receipt_hash: receiptHash,
           status: "pending",
         });
     }, "top-up creation sync");
