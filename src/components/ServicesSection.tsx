@@ -131,10 +131,10 @@ const ORDER_PAGE_CANDIDATE = {
 };
 
 const PLATFORM_SERVICE_CHIPS: Record<PlatformType, string[]> = {
-  facebook: ["Like", "Heart/Love", "Care", "Haha", "Wow", "Sad", "Angry"],
-  instagram: ["Post Likes", "Reel Likes", "Story Likes", "Saves", "Shares"],
-  tiktok: ["Hearts", "Favorites", "Shares", "Comments", "Live Likes"],
-  youtube: ["Video Likes", "Shorts Likes", "Comment Likes", "Live Likes"]
+  facebook: ["FB Followers", "FB Views", "FB Comments", "Like", "Love", "Care", "Haha", "Wow", "Sad", "Angry"],
+  instagram: ["IG Followers", "Post Likes", "Reel Likes", "Story Likes", "Saves", "Shares", "Views"],
+  tiktok: ["TT Followers", "Hearts", "Live Likes", "Favorites", "Shares", "Comments", "Views"],
+  youtube: ["YT Subs", "Watch Hours", "Video Likes", "Shorts Likes", "Comment Likes", "Live Likes"]
 };
 
 const PLATFORM_CARD_COPY: Record<PlatformType, { title: string; description: string }> = {
@@ -879,7 +879,7 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
                 {platformChips && (
                   <div className="w-full mb-6">
                     <span className="block text-muted text-[9px] font-black uppercase tracking-wider mb-2">
-                      Reaction Services Inside
+                      Services Inside
                     </span>
                     <div className="flex flex-wrap gap-1.5">
                       {platformChips.map((chip) => (
@@ -1287,14 +1287,14 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
                       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2 mb-4">
                         <div>
                           <h3 className="text-sm font-black text-fg uppercase tracking-widest">
-                            Reaction Services Inside
+                            All Services Inside
                           </h3>
                           <p className="text-xs text-slate-450 mt-1">
                             Pick the exact engagement type before checkout.
                           </p>
                         </div>
                         <span className="text-[10px] font-black text-[#1DB954] uppercase tracking-widest">
-                          {platformSubModalType} variants
+                          {platformSubModalType} service variants
                         </span>
                       </div>
 

@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-06-12T16:35:28.450Z",
+  "timestamp": "2026-06-12T21:50:28.764Z",
   "projectRoot": "C:\\Users\\chmor\\boostsocial",
   "structure": {
     "hasPackageJson": true,
@@ -7,5 +7,5 @@
     "hasClaudeConfig": true,
     "hasClaudeFlow": true
   },
-  "scannedAt": 1781282128451
+  "scannedAt": 1781301028765
 }
