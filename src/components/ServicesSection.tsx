@@ -139,20 +139,20 @@ const PLATFORM_SERVICE_CHIPS: Record<PlatformType, string[]> = {
 
 const PLATFORM_CARD_COPY: Record<PlatformType, { title: string; description: string }> = {
   facebook: {
-    title: "Page & Reaction Menu",
-    description: "Scale pages and posts with followers, views, comments, and exact Facebook reactions like Like, Heart/Love, Care, Haha, Wow, Sad, and Angry."
+    title: "FB Page & Reactions",
+    description: "Followers, views, comments & 7 exact Facebook reactions — Like, Love, Care, Haha, Wow, Sad, Angry."
   },
   instagram: {
-    title: "Likes, Reels & Growth",
-    description: "Build authority with targeted followers, post likes, reel likes, story likes, saves, shares, views, and profile impressions."
+    title: "IG Likes & Growth",
+    description: "Followers, post/reel/story likes, saves, shares, views & profile impressions."
   },
   tiktok: {
-    title: "Hearts, Shares & Views",
-    description: "Amplify TikTok videos with followers, video hearts, live likes, favorites, comments, shares, and high-speed views."
+    title: "TT Hearts & Views",
+    description: "Followers, video hearts, live likes, favorites, comments, shares & high-speed views."
   },
   youtube: {
-    title: "Subscribers & Likes",
-    description: "Unlock monetization support with subscribers, watch hours, views, video likes, Shorts likes, comment likes, and live likes."
+    title: "YT Subs & Watch Time",
+    description: "Subscribers, watch hours, video/Shorts likes, comment likes & live likes."
   }
 };
 
@@ -566,9 +566,9 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
       id: "pisowifi-package",
       emoji: "Wifi",
       tag: "PISOWIFI PACKAGE",
-      title: "PISOWIFI PACKAGE",
+      title: "PisoWiFi Bundles",
       caption: "Starter, Professional & Enterprise",
-      description: "Dedicated PisoWiFi package bundles with the existing GCash QR payment flow, receipt upload, and installation details for manual admin review.",
+      description: "Ready-to-deploy PisoWiFi bundles with GCash QR checkout, receipt upload & manual admin review.",
       rate_prefix: "Package Rates",
       rate_text: "Starter \u20B15,800 | Professional \u20B18,500 | Enterprise \u20B111,000",
       theme_color: "#1877F2",
@@ -579,10 +579,10 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
       id: "other",
       emoji: "Layers",
       tag: "OTHER SERVICES",
-      title: "Specialty & Utilities",
-      description: "Premium digital memberships, network router optimizations, and pre-activated professional architectural design tools.",
+      title: "Specialty Tools",
+      description: "Gemini subscriptions, EAP TP-Link router setups & pre-activated architectural design software.",
       rate_prefix: "Included services",
-      rate_text: "Gemini Subscriptions, EAP TP-Link routers, and Architectural Software",
+      rate_text: "Gemini AI, EAP routers & Architectural Software",
       theme_color: "#1877F2",
       btn_bg: "bg-[#1877F2] hover:bg-[#4e8df5]",
       glow_color: "rgba(24, 119, 242, 0.45)"
@@ -591,8 +591,8 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
       id: "catalog",
       emoji: "Layers",
       tag: "ALL SERVICES",
-      title: "ALL SERVICES",
-      description: "Instantly search and order from 1,100+ premium boosts and custom digital services at direct reseller pricing.",
+      title: "Full Catalog",
+      description: "Search & order from 1,100+ premium boosts at direct reseller prices \u2014 IG, TT, YT, Telegram, Twitter & more.",
       rate_prefix: "Direct Reseller Rates",
       rate_text: "Instagram Followers, TikTok Hearts, YouTube Sub Packs, Telegram, Twitter, & more",
       theme_color: "#1DB954",
