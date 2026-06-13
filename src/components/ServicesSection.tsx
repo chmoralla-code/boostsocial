@@ -707,7 +707,7 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
             Choose Your <span className="text-[#1877F2]">Boost Tier</span>
           </h2>
           <p className="text-muted text-xs mt-2 text-center max-w-md">
-            Premium growth bundles, high-speed reseller SMM boosts, and smart local hardware integration setups.
+            CHOOSE
           </p>
         </div>
 
