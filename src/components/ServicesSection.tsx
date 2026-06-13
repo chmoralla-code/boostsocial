@@ -639,7 +639,23 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
   const configuredCandidates = servicesCandidates && Array.isArray(servicesCandidates) && servicesCandidates.length > 0
     ? servicesCandidates
     : DEFAULT_CANDIDATES;
-  const activeCandidates = mergeCandidatesWithDefaults(configuredCandidates);
+  const PLATFORM_TAG_MAP: Record<PlatformType, string> = {
+    facebook: "FB Followers & Reactions",
+    instagram: "IG Followers & Likes",
+    tiktok: "TT Followers & Hearts",
+    youtube: "YT Subs & Watch Time"
+  };
+  const activeCandidates = mergeCandidatesWithDefaults(configuredCandidates).map(card => {
+    // Force known titles & tags to match current code — overrides stale DB values
+    if (card.id === "facebook" || card.id === "instagram" || card.id === "tiktok" || card.id === "youtube") {
+      const platform = card.id as PlatformType;
+      return { ...card, title: PLATFORM_CARD_COPY[platform].title, tag: PLATFORM_TAG_MAP[platform], description: PLATFORM_CARD_COPY[platform].description };
+    }
+    if (card.id === "pisowifi-package") return { ...card, title: "PisoWiFi Bundles", tag: "PISOWIFI BUNDLES" };
+    if (card.id === "other") return { ...card, title: "Specialty Tools", tag: "SPECIALTY TOOLS" };
+    if (card.id === "catalog") return { ...card, title: "Full Catalog", tag: "1,100+ SERVICES" };
+    return card;
+  });
 
   const getCandidateRateAmount = (rateText: string) => {
     const match = String(rateText || "").match(/₱\s*([\d,]+(?:\.\d+)?)/);
