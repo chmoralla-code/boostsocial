@@ -139,20 +139,20 @@ const PLATFORM_SERVICE_CHIPS: Record<PlatformType, string[]> = {
 
 const PLATFORM_CARD_COPY: Record<PlatformType, { title: string; description: string }> = {
   facebook: {
-    title: "FB Page & Reactions",
-    description: "Followers, views, comments & 7 exact Facebook reactions — Like, Love, Care, Haha, Wow, Sad, Angry."
+    title: "Followers & Reactions",
+    description: "FB followers, views, comments & 7 exact reactions — Like, Love, Care, Haha, Wow, Sad, Angry."
   },
   instagram: {
-    title: "IG Likes & Growth",
-    description: "Followers, post/reel/story likes, saves, shares, views & profile impressions."
+    title: "Followers & Likes",
+    description: "IG followers, post/reel/story likes, saves, shares, views & profile impressions."
   },
   tiktok: {
-    title: "TT Hearts & Views",
-    description: "Followers, video hearts, live likes, favorites, comments, shares & high-speed views."
+    title: "Followers & Hearts",
+    description: "TT followers, video hearts, live likes, favorites, comments, shares & high-speed views."
   },
   youtube: {
-    title: "YT Subs & Watch Time",
-    description: "Subscribers, watch hours, video/Shorts likes, comment likes & live likes."
+    title: "Subs & Watch Time",
+    description: "YT subscribers, watch hours, video/Shorts likes, comment likes & live likes."
   }
 };
 
@@ -517,7 +517,7 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
     {
       id: "facebook",
       emoji: "📘",
-      tag: "Facebook Boosts",
+      tag: "FB Followers & Reactions",
       title: PLATFORM_CARD_COPY.facebook.title,
       description: PLATFORM_CARD_COPY.facebook.description,
       rate_prefix: "Starting Rate",
@@ -529,7 +529,7 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
     {
       id: "instagram",
       emoji: "📸",
-      tag: "Instagram Boosts",
+      tag: "IG Followers & Likes",
       title: PLATFORM_CARD_COPY.instagram.title,
       description: PLATFORM_CARD_COPY.instagram.description,
       rate_prefix: "Starting Rate",
@@ -541,7 +541,7 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
     {
       id: "tiktok",
       emoji: "🎵",
-      tag: "TikTok Boosts",
+      tag: "TT Followers & Hearts",
       title: PLATFORM_CARD_COPY.tiktok.title,
       description: PLATFORM_CARD_COPY.tiktok.description,
       rate_prefix: "Starting Rate",
@@ -553,7 +553,7 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
     {
       id: "youtube",
       emoji: "🎥",
-      tag: "YouTube Boosts",
+      tag: "YT Subs & Watch Time",
       title: PLATFORM_CARD_COPY.youtube.title,
       description: PLATFORM_CARD_COPY.youtube.description,
       rate_prefix: "Starting Rate",
@@ -565,7 +565,7 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
     {
       id: "pisowifi-package",
       emoji: "Wifi",
-      tag: "PISOWIFI PACKAGE",
+      tag: "PISOWIFI BUNDLES",
       title: "PisoWiFi Bundles",
       caption: "Starter, Professional & Enterprise",
       description: "Ready-to-deploy PisoWiFi bundles with GCash QR checkout, receipt upload & manual admin review.",
@@ -578,7 +578,7 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
     {
       id: "other",
       emoji: "Layers",
-      tag: "OTHER SERVICES",
+      tag: "SPECIALTY TOOLS",
       title: "Specialty Tools",
       description: "Gemini subscriptions, EAP TP-Link router setups & pre-activated architectural design software.",
       rate_prefix: "Included services",
@@ -590,7 +590,7 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
     {
       id: "catalog",
       emoji: "Layers",
-      tag: "ALL SERVICES",
+      tag: "1,100+ SERVICES",
       title: "Full Catalog",
       description: "Search & order from 1,100+ premium boosts at direct reseller prices \u2014 IG, TT, YT, Telegram, Twitter & more.",
       rate_prefix: "Direct Reseller Rates",
