@@ -58,7 +58,9 @@ function cleanSpec(value: string) {
 }
 
 function getErrorMessage(err: unknown) {
-  return err instanceof Error ? err.message : String(err);
+  if (err instanceof Error) return err.message;
+  if (err && typeof err === "object" && "message" in err) return String((err as Record<string, unknown>).message || err);
+  return String(err);
 }
 
 export default function OrderPage() {

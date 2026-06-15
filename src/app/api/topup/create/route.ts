@@ -173,6 +173,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, topupId: topup.id });
   } catch (err: any) {
     console.error("Top-up creation API failed:", err);
-    return NextResponse.json({ error: err.message || err.toString() }, { status: 500 });
+    return NextResponse.json({ error: err?.message || (typeof err === "object" ? JSON.stringify(err) : String(err)) }, { status: 500 });
   }
 }

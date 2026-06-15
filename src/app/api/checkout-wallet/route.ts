@@ -32,7 +32,11 @@ type OrderVipFields = {
   vip_discount_amount?: number;
 };
 
-const getErrorMessage = (error: unknown) => error instanceof Error ? error.message : String(error);
+const getErrorMessage = (error: unknown) => {
+  if (error instanceof Error) return error.message;
+  if (error && typeof error === "object" && "message" in error) return String((error as Record<string, unknown>).message || error);
+  return String(error);
+};
 const looksLikeMissingVipSchema = (error: unknown) => {
   const message = getErrorMessage(error).toLowerCase();
   return message.includes("vip_") || message.includes("original_amount") || message.includes("schema cache");

@@ -10,7 +10,11 @@ import { resolveOrderPricing } from "@/lib/orderPricing";
 const MAX_TARGET_LENGTH = 7000;
 
 const clean = (value: unknown) => (typeof value === "string" ? value.trim() : "");
-const getErrorMessage = (error: unknown) => error instanceof Error ? error.message : String(error);
+const getErrorMessage = (error: unknown) => {
+  if (error instanceof Error) return error.message;
+  if (error && typeof error === "object" && "message" in error) return String((error as Record<string, unknown>).message || error);
+  return String(error);
+};
 const looksLikeMissingVipSchema = (error: unknown) => {
   const message = getErrorMessage(error).toLowerCase();
   return message.includes("vip_") || message.includes("original_amount") || message.includes("schema cache");

@@ -217,6 +217,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, data: uploadData, email, receiptUrl });
   } catch (err: any) {
     console.error("Upload endpoint failed:", err);
-    return NextResponse.json({ error: err.message || err.toString() }, { status: 500 });
+    return NextResponse.json({ error: err?.message || (typeof err === "object" ? JSON.stringify(err) : String(err)) }, { status: 500 });
   }
 }
