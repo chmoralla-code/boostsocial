@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ClipboardList, Copy, Home, LogIn, RefreshCw, Search, UserPlus, X } from "lucide-react";
+import { ArrowLeft, ClipboardList, Copy, Home, LogIn, RefreshCw, Search, UserPlus, Wallet, X } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/utils/supabase/client";
 import { formatSmmServiceName } from "@/utils/serviceHelpers";
@@ -17,6 +17,26 @@ type AppOrder = {
   target_url?: string | null;
   smm_service_id?: string | number | null;
   services?: { title?: string | null } | null;
+};
+
+type TopupEntry = {
+  id: string;
+  created_at?: string | null;
+  amount?: number | string | null;
+  status?: string | null;
+  payment_method?: string | null;
+  reviewed_at?: string | null;
+  reviewed_by?: string | null;
+};
+
+type TransactionEntry = {
+  kind: "order" | "topup";
+  id: string;
+  created_at?: string | null;
+  amount?: number | string | null;
+  status?: string | null;
+  order?: AppOrder;
+  topup?: TopupEntry;
 };
 
 type SmmCatalogService = {
@@ -42,9 +62,16 @@ function shortDate(value?: string | null) {
   return date.toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" });
 }
 
+function fullDate(value?: string | null) {
+  if (!value) return "Recent";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Recent";
+  return date.toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" });
+}
+
 function statusClass(status?: string | null) {
   const value = (status || "Pending").toLowerCase();
-  if (value.includes("complete")) return "bg-emerald-50 text-emerald-700 border-emerald-100";
+  if (value.includes("complete") || value.includes("approved")) return "bg-emerald-50 text-emerald-700 border-emerald-100";
   if (value.includes("cancel") || value.includes("reject")) return "bg-red-50 text-red-700 border-red-100";
   if (value.includes("process")) return "bg-blue-50 text-blue-700 border-blue-100";
   return "bg-amber-50 text-amber-700 border-amber-100";
@@ -75,29 +102,42 @@ export default function AppOrdersPage() {
   const supabase = useMemo(() => createClient(), []);
   const [user, setUser] = useState<User | null>(null);
   const [orders, setOrders] = useState<AppOrder[]>([]);
+  const [topups, setTopups] = useState<TopupEntry[]>([]);
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedOrder, setSelectedOrder] = useState<AppOrder | null>(null);
+  const [selectedTransaction, setSelectedTransaction] = useState<TransactionEntry | null>(null);
   const [copiedTracking, setCopiedTracking] = useState(false);
   const [smmServiceNames, setSmmServiceNames] = useState<Record<string, string>>({});
+  const [activeTab, setActiveTab] = useState<"all" | "orders" | "topups">("all");
 
-  const loadOrders = useCallback(async (currentUser: User | null) => {
+  const loadData = useCallback(async (currentUser: User | null) => {
     if (!currentUser?.email) {
       setOrders([]);
+      setTopups([]);
       setLoading(false);
       return;
     }
 
     setRefreshing(true);
-    const { data } = await supabase
-      .from("orders")
-      .select("id,created_at,quantity,amount,status,target_url,smm_service_id,services(title)")
-      .eq("customer_email", currentUser.email)
-      .order("created_at", { ascending: false })
-      .limit(40);
 
-    setOrders(Array.isArray(data) ? (data as unknown as AppOrder[]) : []);
+    const [ordersRes, topupsRes] = await Promise.all([
+      supabase
+        .from("orders")
+        .select("id,created_at,quantity,amount,status,target_url,smm_service_id,services(title)")
+        .eq("customer_email", currentUser.email)
+        .order("created_at", { ascending: false })
+        .limit(40),
+      supabase
+        .from("topups")
+        .select("id,created_at,amount,status,payment_method,reviewed_at,reviewed_by")
+        .eq("email", currentUser.email)
+        .order("created_at", { ascending: false })
+        .limit(40),
+    ]);
+
+    setOrders(Array.isArray(ordersRes.data) ? (ordersRes.data as unknown as AppOrder[]) : []);
+    setTopups(Array.isArray(topupsRes.data) ? (topupsRes.data as unknown as TopupEntry[]) : []);
     setLoading(false);
     setRefreshing(false);
   }, [supabase]);
@@ -114,7 +154,7 @@ export default function AppOrdersPage() {
       if (!alive) return;
       const sessionUser = data.session?.user || null;
       setUser(sessionUser);
-      void loadOrders(sessionUser).finally(() => window.clearTimeout(fallback));
+      void loadData(sessionUser).finally(() => window.clearTimeout(fallback));
     }).catch(() => {
       if (!alive) return;
       window.clearTimeout(fallback);
@@ -126,7 +166,7 @@ export default function AppOrdersPage() {
       alive = false;
       window.clearTimeout(fallback);
     };
-  }, [loadOrders, supabase.auth]);
+  }, [loadData, supabase.auth]);
 
   useEffect(() => {
     let alive = true;
@@ -153,30 +193,75 @@ export default function AppOrdersPage() {
     };
   }, []);
 
-  const filteredOrders = useMemo(() => {
-    const cleanQuery = query.trim().toLowerCase();
-    if (!cleanQuery) return orders;
+  const mergedTransactions = useMemo<TransactionEntry[]>(() => {
+    const orderEntries: TransactionEntry[] = orders.map((order) => ({
+      kind: "order" as const,
+      id: order.id,
+      created_at: order.created_at,
+      amount: order.amount,
+      status: order.status,
+      order,
+    }));
 
-    return orders.filter((order) => {
-      const displayTitle = orderServiceTitle(order, smmServiceNames);
-      const haystack = [
-        order.id,
-        trackingId(order.id),
-        order.status,
-        displayTitle,
-        order.smm_service_id,
-        order.target_url,
-      ].join(" ").toLowerCase();
+    const topupEntries: TransactionEntry[] = topups.map((topup) => ({
+      kind: "topup" as const,
+      id: topup.id,
+      created_at: topup.created_at,
+      amount: topup.amount,
+      status: topup.status,
+      topup,
+    }));
+
+    const combined = [...orderEntries, ...topupEntries];
+    combined.sort((a, b) => {
+      const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return dateB - dateA;
+    });
+    return combined;
+  }, [orders, topups]);
+
+  const tabTransactions = useMemo(() => {
+    if (activeTab === "orders") return mergedTransactions.filter((t) => t.kind === "order");
+    if (activeTab === "topups") return mergedTransactions.filter((t) => t.kind === "topup");
+    return mergedTransactions;
+  }, [mergedTransactions, activeTab]);
+
+  const filteredTransactions = useMemo(() => {
+    const cleanQuery = query.trim().toLowerCase();
+    if (!cleanQuery) return tabTransactions;
+
+    return tabTransactions.filter((entry) => {
+      const haystackParts: string[] = [
+        entry.id,
+        trackingId(entry.id),
+        entry.status,
+        entry.kind,
+      ];
+
+      if (entry.order) {
+        const displayTitle = orderServiceTitle(entry.order, smmServiceNames);
+        haystackParts.push(displayTitle, String(entry.order.smm_service_id ?? ""), entry.order.target_url ?? "");
+      }
+
+      if (entry.topup) {
+        haystackParts.push("topup", "gcash", "wallet topup", "add funds", entry.topup.payment_method ?? "");
+      }
+
+      const haystack = haystackParts.join(" ").toLowerCase();
       return haystack.includes(cleanQuery);
     });
-  }, [orders, query, smmServiceNames]);
+  }, [tabTransactions, query, smmServiceNames]);
 
   const copySelectedTracking = async () => {
-    if (!selectedOrder) return;
-    await navigator.clipboard.writeText(trackingId(selectedOrder.id));
+    if (!selectedTransaction) return;
+    await navigator.clipboard.writeText(trackingId(selectedTransaction.id));
     setCopiedTracking(true);
     window.setTimeout(() => setCopiedTracking(false), 1600);
   };
+
+  const orderCount = orders.length;
+  const topupCount = topups.length;
 
   return (
     <main className="min-h-screen bg-[#f7f8f5] px-4 pb-24 pt-[calc(env(safe-area-inset-top)+1rem)] text-zinc-950">
@@ -188,10 +273,10 @@ export default function AppOrdersPage() {
           <Home size={17} />
         </Link>
         <div className="min-w-0 flex-1 px-2">
-          <p className="truncate text-base font-black">App Orders</p>
-          <p className="truncate text-xs font-semibold text-zinc-500">Track purchases saved to your account</p>
+          <p className="truncate text-base font-black">Orders &amp; Top-ups</p>
+          <p className="truncate text-xs font-semibold text-zinc-500">Track purchases and wallet top-ups</p>
         </div>
-        <button type="button" onClick={() => void loadOrders(user)} disabled={!user || refreshing} className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-700 shadow-sm disabled:opacity-50" aria-label="Refresh orders">
+        <button type="button" onClick={() => void loadData(user)} disabled={!user || refreshing} className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-700 shadow-sm disabled:opacity-50" aria-label="Refresh">
           <RefreshCw size={16} className={refreshing ? "animate-spin" : ""} />
         </button>
       </header>
@@ -203,7 +288,7 @@ export default function AppOrdersPage() {
           </span>
           <h1 className="mt-4 text-2xl font-black">Login to view orders</h1>
           <p className="mt-2 text-sm font-medium leading-6 text-zinc-600">
-            Orders are private to your app account. Login or register first, then return here.
+            Orders and top-ups are private to your app account. Login or register first, then return here.
           </p>
           <div className="mt-5 grid grid-cols-2 gap-2">
             <Link href="/app/auth?mode=login&return=1" className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-emerald-600 text-sm font-black text-white">
@@ -218,10 +303,52 @@ export default function AppOrdersPage() {
         </section>
       ) : (
         <section className="mx-auto mt-5 max-w-3xl">
+          {/* Search bar */}
           <label className="flex h-12 items-center gap-3 rounded-2xl border border-zinc-200 bg-white px-4 shadow-sm">
             <Search size={18} className="text-zinc-400" />
-            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search Tracking ID or status" className="h-full min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none placeholder:text-zinc-400" />
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search by tracking ID, status, service, or payment method"
+              className="h-full min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none placeholder:text-zinc-400"
+            />
+            {query && (
+              <button type="button" onClick={() => setQuery("")} className="rounded-full p-1 text-zinc-400 hover:text-zinc-600">
+                <X size={16} />
+              </button>
+            )}
           </label>
+
+          {/* Tab toggles */}
+          <div className="mt-4 flex gap-1 rounded-2xl bg-zinc-100 p-1">
+            <button
+              type="button"
+              onClick={() => setActiveTab("all")}
+              className={`flex-1 rounded-xl py-2 text-xs font-black transition-colors ${
+                activeTab === "all" ? "bg-white text-zinc-950 shadow-sm" : "text-zinc-500"
+              }`}
+            >
+              All ({mergedTransactions.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("orders")}
+              className={`flex-1 rounded-xl py-2 text-xs font-black transition-colors ${
+                activeTab === "orders" ? "bg-white text-zinc-950 shadow-sm" : "text-zinc-500"
+              }`}
+            >
+              Orders ({orderCount})
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("topups")}
+              className={`flex-1 rounded-xl py-2 text-xs font-black transition-colors ${
+                activeTab === "topups" ? "bg-white text-zinc-950 shadow-sm" : "text-zinc-500"
+              }`}
+            >
+              Top-ups ({topupCount})
+            </button>
+          </div>
 
           {loading ? (
             <div className="mt-5 space-y-3">
@@ -229,45 +356,83 @@ export default function AppOrdersPage() {
                 <div key={item} className="h-28 animate-pulse rounded-3xl border border-zinc-200 bg-white" />
               ))}
             </div>
-          ) : filteredOrders.length > 0 ? (
+          ) : filteredTransactions.length > 0 ? (
             <div className="mt-5 space-y-3">
-              {filteredOrders.map((order) => (
-                <article key={order.id} className="rounded-3xl border border-zinc-200 bg-white p-4 shadow-sm">
+              {filteredTransactions.map((entry) => (
+                <article key={`${entry.kind}-${entry.id}`} className="rounded-3xl border border-zinc-200 bg-white p-4 shadow-sm">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-black">{orderServiceTitle(order, smmServiceNames)}</p>
-                      <p className="mt-1 text-xs font-bold text-zinc-500">{trackingId(order.id)} - {shortDate(order.created_at)}</p>
+                      {entry.kind === "topup" ? (
+                        <>
+                          <div className="flex items-center gap-2">
+                            <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-violet-100 text-violet-700">
+                              <Wallet size={13} />
+                            </span>
+                            <p className="truncate text-sm font-black">Wallet Top-up</p>
+                          </div>
+                          <p className="mt-1 text-xs font-bold text-zinc-500">
+                            {trackingId(entry.id)} &middot; {entry.topup?.payment_method || "GCash"}
+                          </p>
+                        </>
+                      ) : (
+                        <>
+                          <p className="truncate text-sm font-black">
+                            {entry.order ? orderServiceTitle(entry.order, smmServiceNames) : "Order"}
+                          </p>
+                          <p className="mt-1 text-xs font-bold text-zinc-500">
+                            {trackingId(entry.id)} &middot; {shortDate(entry.created_at)}
+                          </p>
+                        </>
+                      )}
                     </div>
-                    <span className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-black uppercase ${statusClass(order.status)}`}>
-                      {order.status || "Pending"}
+                    <span className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-black uppercase ${statusClass(entry.status)}`}>
+                      {entry.status || "Pending"}
                     </span>
                   </div>
                   <div className="mt-4 grid grid-cols-2 gap-2 text-xs font-bold text-zinc-600">
                     <div className="rounded-2xl bg-zinc-50 p-3">
-                      Quantity
-                      <span className="mt-1 block text-sm font-black text-zinc-950">{order.quantity || 0}</span>
+                      {entry.kind === "topup" ? "Amount" : "Quantity"}
+                      <span className="mt-1 block text-sm font-black text-zinc-950">
+                        {entry.kind === "topup" ? money(entry.amount) : (entry.order?.quantity || 0)}
+                      </span>
                     </div>
                     <div className="rounded-2xl bg-zinc-50 p-3">
-                      Amount
-                      <span className="mt-1 block text-sm font-black text-zinc-950">{money(order.amount)}</span>
+                      {entry.kind === "topup" ? "Date" : "Amount"}
+                      <span className="mt-1 block text-sm font-black text-zinc-950">
+                        {entry.kind === "topup" ? shortDate(entry.created_at) : money(entry.amount)}
+                      </span>
                     </div>
                   </div>
-                  <button type="button" onClick={() => {
-                    setCopiedTracking(false);
-                    setSelectedOrder(order);
-                  }} className="mt-3 flex h-11 w-full items-center justify-center rounded-2xl bg-zinc-950 text-sm font-black text-white">
-                    View app details
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCopiedTracking(false);
+                      setSelectedTransaction(entry);
+                    }}
+                    className="mt-3 flex h-11 w-full items-center justify-center rounded-2xl bg-zinc-950 text-sm font-black text-white"
+                  >
+                    View details
                   </button>
                 </article>
               ))}
             </div>
           ) : (
             <div className="mt-5 rounded-3xl border border-dashed border-zinc-300 bg-white p-6 text-center">
-              <p className="text-sm font-black">No app orders found</p>
-              <p className="mt-2 text-xs font-semibold leading-5 text-zinc-500">Buy from SERVICES after logging in and your orders will appear here.</p>
-              <Link href="/app" className="mt-4 inline-flex h-11 items-center justify-center rounded-2xl bg-emerald-600 px-5 text-sm font-black text-white">
-                Open services
-              </Link>
+              <p className="text-sm font-black">
+                {query ? "No results match your search" : activeTab === "topups" ? "No top-ups yet" : activeTab === "orders" ? "No orders yet" : "No transactions yet"}
+              </p>
+              <p className="mt-2 text-xs font-semibold leading-5 text-zinc-500">
+                {query
+                  ? "Try a different search term or clear the filter."
+                  : activeTab === "topups"
+                    ? "Add funds to your wallet from the Profile tab."
+                    : "Buy from Services after logging in and your orders will appear here."}
+              </p>
+              {!query && (
+                <Link href="/app" className="mt-4 inline-flex h-11 items-center justify-center rounded-2xl bg-emerald-600 px-5 text-sm font-black text-white">
+                  Open services
+                </Link>
+              )}
             </div>
           )}
         </section>
@@ -290,77 +455,151 @@ export default function AppOrdersPage() {
         </div>
       </nav>
 
-      {selectedOrder && (
+      {/* Detail modal */}
+      {selectedTransaction && (
         <div className="fixed inset-0 z-[90] flex items-end bg-black/35 px-3 pb-[calc(env(safe-area-inset-bottom)+0.8rem)] backdrop-blur-sm sm:items-center sm:justify-center">
-          <button type="button" className="absolute inset-0" aria-label="Close order details" onClick={() => setSelectedOrder(null)} />
+          <button type="button" className="absolute inset-0" aria-label="Close details" onClick={() => setSelectedTransaction(null)} />
           <section className="relative mx-auto max-h-[86vh] w-full max-w-md overflow-hidden rounded-[1.75rem] border border-zinc-200 bg-white text-zinc-950 shadow-2xl">
             <div className="flex items-center justify-between border-b border-zinc-100 px-4 py-4">
               <div className="flex min-w-0 items-center gap-3">
-                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-600 text-white">
-                  <ClipboardList size={21} />
+                <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-white ${selectedTransaction.kind === "topup" ? "bg-violet-600" : "bg-emerald-600"}`}>
+                  {selectedTransaction.kind === "topup" ? <Wallet size={21} /> : <ClipboardList size={21} />}
                 </span>
                 <div className="min-w-0">
-                  <h2 className="truncate text-lg font-black">Order Details</h2>
-                  <p className="truncate text-xs font-semibold text-zinc-500">{trackingId(selectedOrder.id)}</p>
+                  <h2 className="truncate text-lg font-black">
+                    {selectedTransaction.kind === "topup" ? "Top-up Details" : "Order Details"}
+                  </h2>
+                  <p className="truncate text-xs font-semibold text-zinc-500">{trackingId(selectedTransaction.id)}</p>
                 </div>
               </div>
-              <button type="button" onClick={() => setSelectedOrder(null)} className="rounded-full p-2 text-zinc-500" aria-label="Close order details">
+              <button type="button" onClick={() => setSelectedTransaction(null)} className="rounded-full p-2 text-zinc-500" aria-label="Close details">
                 <X size={18} />
               </button>
             </div>
 
             <div className="max-h-[72vh] space-y-4 overflow-y-auto p-4">
-              <div className="rounded-3xl border border-zinc-200 bg-zinc-50 p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="text-[10px] font-black uppercase tracking-wider text-zinc-400">Service</p>
-                    <h3 className="mt-1 line-clamp-2 text-base font-black">{orderServiceTitle(selectedOrder, smmServiceNames)}</h3>
+              {/* Order details */}
+              {selectedTransaction.kind === "order" && selectedTransaction.order && (
+                <>
+                  <div className="rounded-3xl border border-zinc-200 bg-zinc-50 p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-[10px] font-black uppercase tracking-wider text-zinc-400">Service</p>
+                        <h3 className="mt-1 line-clamp-2 text-base font-black">{orderServiceTitle(selectedTransaction.order, smmServiceNames)}</h3>
+                      </div>
+                      <span className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-black uppercase ${statusClass(selectedTransaction.status)}`}>
+                        {selectedTransaction.status || "Pending"}
+                      </span>
+                    </div>
+                    <div className="mt-4 flex items-center gap-2 rounded-2xl bg-white px-3 py-2">
+                      <span className="min-w-0 flex-1 truncate text-xs font-black">{trackingId(selectedTransaction.id)}</span>
+                      <button type="button" onClick={copySelectedTracking} className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-50 px-3 py-2 text-[11px] font-black text-emerald-700">
+                        <Copy size={13} />
+                        {copiedTracking ? "Copied" : "Copy"}
+                      </button>
+                    </div>
                   </div>
-                  <span className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-black uppercase ${statusClass(selectedOrder.status)}`}>
-                    {selectedOrder.status || "Pending"}
-                  </span>
-                </div>
-                <div className="mt-4 flex items-center gap-2 rounded-2xl bg-white px-3 py-2">
-                  <span className="min-w-0 flex-1 truncate text-xs font-black">{trackingId(selectedOrder.id)}</span>
-                  <button type="button" onClick={copySelectedTracking} className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-50 px-3 py-2 text-[11px] font-black text-emerald-700">
-                    <Copy size={13} />
-                    {copiedTracking ? "Copied" : "Copy"}
-                  </button>
-                </div>
-              </div>
 
-              <div className="grid grid-cols-2 gap-2 text-xs font-bold text-zinc-600">
-                <div className="rounded-2xl border border-zinc-200 bg-white p-3">
-                  Quantity
-                  <span className="mt-1 block text-sm font-black text-zinc-950">{selectedOrder.quantity || 0}</span>
-                </div>
-                <div className="rounded-2xl border border-zinc-200 bg-white p-3">
-                  Amount
-                  <span className="mt-1 block text-sm font-black text-zinc-950">{money(selectedOrder.amount)}</span>
-                </div>
-                <div className="rounded-2xl border border-zinc-200 bg-white p-3">
-                  Ordered
-                  <span className="mt-1 block text-sm font-black text-zinc-950">{shortDate(selectedOrder.created_at)}</span>
-                </div>
-                <div className="rounded-2xl border border-zinc-200 bg-white p-3">
-                  Payment review
-                  <span className="mt-1 block text-sm font-black text-zinc-950">{selectedOrder.status || "Pending"}</span>
-                </div>
-              </div>
+                  <div className="grid grid-cols-2 gap-2 text-xs font-bold text-zinc-600">
+                    <div className="rounded-2xl border border-zinc-200 bg-white p-3">
+                      Quantity
+                      <span className="mt-1 block text-sm font-black text-zinc-950">{selectedTransaction.order.quantity || 0}</span>
+                    </div>
+                    <div className="rounded-2xl border border-zinc-200 bg-white p-3">
+                      Amount
+                      <span className="mt-1 block text-sm font-black text-zinc-950">{money(selectedTransaction.amount)}</span>
+                    </div>
+                    <div className="rounded-2xl border border-zinc-200 bg-white p-3">
+                      Ordered
+                      <span className="mt-1 block text-sm font-black text-zinc-950">{shortDate(selectedTransaction.created_at)}</span>
+                    </div>
+                    <div className="rounded-2xl border border-zinc-200 bg-white p-3">
+                      Status
+                      <span className="mt-1 block text-sm font-black text-zinc-950">{selectedTransaction.status || "Pending"}</span>
+                    </div>
+                  </div>
 
-              <div className="rounded-3xl border border-zinc-200 bg-white p-4">
-                <p className="text-[10px] font-black uppercase tracking-wider text-zinc-400">Target / Details</p>
-                <p className="mt-2 break-words text-sm font-semibold leading-6 text-zinc-700">
-                  {selectedOrder.target_url || "No target details were attached."}
-                </p>
-              </div>
+                  <div className="rounded-3xl border border-zinc-200 bg-white p-4">
+                    <p className="text-[10px] font-black uppercase tracking-wider text-zinc-400">Target / Details</p>
+                    <p className="mt-2 break-words text-sm font-semibold leading-6 text-zinc-700">
+                      {selectedTransaction.order.target_url || "No target details were attached."}
+                    </p>
+                  </div>
 
-              <div className="rounded-3xl border border-emerald-100 bg-emerald-50 p-4">
-                <p className="text-sm font-black text-emerald-900">Managed in the app</p>
-                <p className="mt-1 text-xs font-semibold leading-5 text-emerald-800">
-                  This order uses the same admin order queue and Telegram sales alerts, but customers stay inside the app view.
-                </p>
-              </div>
+                  <div className="rounded-3xl border border-emerald-100 bg-emerald-50 p-4">
+                    <p className="text-sm font-black text-emerald-900">Managed in the app</p>
+                    <p className="mt-1 text-xs font-semibold leading-5 text-emerald-800">
+                      This order uses the same admin order queue and Telegram sales alerts, but customers stay inside the app view.
+                    </p>
+                  </div>
+                </>
+              )}
+
+              {/* Topup details */}
+              {selectedTransaction.kind === "topup" && selectedTransaction.topup && (
+                <>
+                  <div className="rounded-3xl border border-zinc-200 bg-zinc-50 p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-[10px] font-black uppercase tracking-wider text-zinc-400">Wallet Top-up</p>
+                        <h3 className="mt-1 text-base font-black">{money(selectedTransaction.topup.amount)}</h3>
+                      </div>
+                      <span className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-black uppercase ${statusClass(selectedTransaction.status)}`}>
+                        {selectedTransaction.status || "Pending"}
+                      </span>
+                    </div>
+                    <div className="mt-4 flex items-center gap-2 rounded-2xl bg-white px-3 py-2">
+                      <span className="min-w-0 flex-1 truncate text-xs font-black">{trackingId(selectedTransaction.id)}</span>
+                      <button type="button" onClick={copySelectedTracking} className="inline-flex shrink-0 items-center gap-1 rounded-full bg-violet-50 px-3 py-2 text-[11px] font-black text-violet-700">
+                        <Copy size={13} />
+                        {copiedTracking ? "Copied" : "Copy"}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 text-xs font-bold text-zinc-600">
+                    <div className="rounded-2xl border border-zinc-200 bg-white p-3">
+                      Amount
+                      <span className="mt-1 block text-sm font-black text-zinc-950">{money(selectedTransaction.topup.amount)}</span>
+                    </div>
+                    <div className="rounded-2xl border border-zinc-200 bg-white p-3">
+                      Payment Method
+                      <span className="mt-1 block text-sm font-black text-zinc-950">{selectedTransaction.topup.payment_method || "GCash"}</span>
+                    </div>
+                    <div className="rounded-2xl border border-zinc-200 bg-white p-3">
+                      Submitted
+                      <span className="mt-1 block text-sm font-black text-zinc-950">{fullDate(selectedTransaction.topup.created_at)}</span>
+                    </div>
+                    <div className="rounded-2xl border border-zinc-200 bg-white p-3">
+                      Status
+                      <span className="mt-1 block text-sm font-black text-zinc-950">{selectedTransaction.status || "Pending"}</span>
+                    </div>
+                  </div>
+
+                  {selectedTransaction.topup.reviewed_at && (
+                    <div className="rounded-2xl border border-zinc-200 bg-white p-3 text-xs font-bold text-zinc-600">
+                      Reviewed
+                      <span className="mt-1 block text-sm font-black text-zinc-950">
+                        {fullDate(selectedTransaction.topup.reviewed_at)}
+                        {selectedTransaction.topup.reviewed_by ? ` by ${selectedTransaction.topup.reviewed_by}` : ""}
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="rounded-3xl border border-violet-100 bg-violet-50 p-4">
+                    <p className="text-sm font-black text-violet-900">Top-up Tracking</p>
+                    <p className="mt-1 text-xs font-semibold leading-5 text-violet-800">
+                      {selectedTransaction.status === "approved"
+                        ? "Your top-up has been approved and the funds have been added to your wallet balance."
+                        : selectedTransaction.status === "pending"
+                          ? "Your top-up is pending review. Admin will verify your payment receipt and approve it shortly."
+                          : selectedTransaction.status === "rejected"
+                            ? "Your top-up was rejected. Please check your receipt and try again, or contact support."
+                            : "Track the status of your wallet top-up here. Approved funds appear in your wallet balance."}
+                    </p>
+                  </div>
+                </>
+              )}
             </div>
           </section>
         </div>
