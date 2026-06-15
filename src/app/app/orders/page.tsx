@@ -232,10 +232,10 @@ export default function AppOrdersPage() {
     if (!cleanQuery) return tabTransactions;
 
     return tabTransactions.filter((entry) => {
-      const haystackParts: string[] = [
+      const haystackParts = [
         entry.id,
         trackingId(entry.id),
-        entry.status,
+        String(entry.status ?? ""),
         entry.kind,
       ];
 
