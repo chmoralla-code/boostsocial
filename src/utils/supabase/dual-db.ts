@@ -552,10 +552,14 @@ export async function fallbackRead<T = any>(
         from: (table: string) => new SpyQueryBuilder(table, null, sqlDo),
       };
       const res = await operation(doClient);
-      if (!res.error) {
+      if (!res.error && res.data != null) {
         return { data: res.data, error: null, databaseUsed: "primary" };
       }
-      console.warn("DigitalOcean primary read failed. Falling back to Supabase backups...", res.error.message || res.error);
+      if (!res.error && res.data == null) {
+        console.warn("DigitalOcean primary read returned empty. Falling back to Supabase backups...");
+      } else {
+        console.warn("DigitalOcean primary read failed. Falling back to Supabase backups...", res.error?.message || res.error);
+      }
     } catch (err) {
       console.warn("DigitalOcean primary read network error. Falling back to Supabase backups...", err);
     }
