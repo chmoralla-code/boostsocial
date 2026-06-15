@@ -232,7 +232,7 @@ export async function sendTopupNotification(topup: {
   receiptUrl: string;
 }) {
   try {
-    const config = await getAnyTelegramConfig();
+    const config = await getTopupTelegramConfig() || await getAnyTelegramConfig();
     if (!config?.bot_token || !config?.chat_id) return;
 
     const phTime = new Date().toLocaleString("en-PH", { timeZone: "Asia/Manila" });

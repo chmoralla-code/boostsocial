@@ -50,7 +50,7 @@ async function getOrderActionConfig() {
   return await getTelegramConfig("topup") || await getTelegramConfig("order");
 }
 
-async function getOrderActionConfigs() {
+async function getAllActionConfigs() {
   const configs = [
     await getTelegramConfig("topup"),
     await getTelegramConfig("order"),
@@ -110,8 +110,8 @@ export async function POST(req: NextRequest) {
 }
 
 async function handleTopupAction(callbackData: string, chatId: number, messageId: number, callbackQueryId: string) {
-  const config = await getTelegramConfig("topup");
-  if (!config?.bot_token) return;
+  const configs = await getAllActionConfigs();
+  if (configs.length === 0) return;
 
   const isApprove = callbackData.startsWith("topup_approve_");
   const topupId = callbackData.replace("topup_approve_", "").replace("topup_reject_", "");
@@ -126,13 +126,13 @@ async function handleTopupAction(callbackData: string, chatId: number, messageId
   });
 
   if (topupError || !topup) {
-    await answerCallback(config.bot_token, callbackQueryId, "Top-up not found.");
+    await answerWithOrderBots(configs, callbackQueryId, "Top-up not found.");
     return;
   }
 
   if (topup.status !== "pending") {
-    await answerCallback(config.bot_token, callbackQueryId, `Already ${topup.status}.`);
-    await removeButtons(config.bot_token, chatId, messageId);
+    await answerWithOrderBots(configs, callbackQueryId, `Already ${topup.status}.`);
+    await removeButtonsWithOrderBots(configs, chatId, messageId);
     return;
   }
 
@@ -145,7 +145,7 @@ async function handleTopupAction(callbackData: string, chatId: number, messageId
     });
 
     if (approvalError) {
-      await answerCallback(config.bot_token, callbackQueryId, approvalError.message || "Top-up approval failed.");
+      await answerWithOrderBots(configs, callbackQueryId, approvalError.message || "Top-up approval failed.");
       return;
     }
 
@@ -154,7 +154,7 @@ async function handleTopupAction(callbackData: string, chatId: number, messageId
       : approvalRows as TopupApprovalRow | undefined;
 
     if (!approval) {
-      await answerCallback(config.bot_token, callbackQueryId, "Top-up approval did not complete.");
+      await answerWithOrderBots(configs, callbackQueryId, "Top-up approval did not complete.");
       return;
     }
 
@@ -184,7 +184,7 @@ async function handleTopupAction(callbackData: string, chatId: number, messageId
       console.error("Telegram top-up referral commission failed:", commissionError);
     }
 
-    await answerCallback(config.bot_token, callbackQueryId, `Approved! PHP ${Number(approval.amount).toFixed(2)} credited.`);
+    await answerWithOrderBots(configs, callbackQueryId, `Approved! PHP ${Number(approval.amount).toFixed(2)} credited.`);
     notifyCustomer({
       client: supabase,
       email: approval.email || topup.email,
@@ -192,8 +192,8 @@ async function handleTopupAction(callbackData: string, chatId: number, messageId
     }).catch((notificationErr) => {
       console.error("Telegram top-up approval customer notification failed:", notificationErr);
     });
-    await editCaption(
-      config.bot_token,
+    await editCaptionWithOrderBots(
+      configs,
       chatId,
       messageId,
       `TOP-UP APPROVED\n\nCustomer: ${approval.email || topup.email}\nAmount: PHP ${Number(approval.amount).toFixed(2)}\nNew Balance: PHP ${newBalance.toFixed(2)}\n\nApproved via Telegram by Admin.`
@@ -206,7 +206,7 @@ async function handleTopupAction(callbackData: string, chatId: number, messageId
         .eq("id", topupId);
     }, "telegram topup rejection sync");
 
-    await answerCallback(config.bot_token, callbackQueryId, "Top-up rejected.");
+    await answerWithOrderBots(configs, callbackQueryId, "Top-up rejected.");
     notifyCustomer({
       client: supabase,
       email: topup.email,
@@ -214,19 +214,19 @@ async function handleTopupAction(callbackData: string, chatId: number, messageId
     }).catch((notificationErr) => {
       console.error("Telegram top-up rejection customer notification failed:", notificationErr);
     });
-    await editCaption(
-      config.bot_token,
+    await editCaptionWithOrderBots(
+      configs,
       chatId,
       messageId,
       `TOP-UP REJECTED\n\nCustomer: ${topup.email}\nAmount: PHP ${Number(topup.amount).toFixed(2)}\n\nRejected via Telegram by Admin.`
     );
   }
 
-  await removeButtons(config.bot_token, chatId, messageId);
+  await removeButtonsWithOrderBots(configs, chatId, messageId);
 }
 
 async function handleOrderAction(callbackData: string, chatId: number, messageId: number, callbackQueryId: string) {
-  const configs = await getOrderActionConfigs();
+  const configs = await getAllActionConfigs();
   const config = configs[0] || await getOrderActionConfig();
   if (!config?.bot_token) return;
 
