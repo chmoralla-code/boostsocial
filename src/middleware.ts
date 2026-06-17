@@ -29,6 +29,11 @@ export async function middleware(request: NextRequest) {
     response.headers.set("Cross-Origin-Opener-Policy", "same-origin");
     response.headers.set("Cross-Origin-Resource-Policy", "same-origin");
     response.headers.set("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload");
+    if (pathname.startsWith("/api/")) {
+      response.headers.set("Access-Control-Allow-Origin", "*");
+      response.headers.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+      response.headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    }
     return response;
   };
 

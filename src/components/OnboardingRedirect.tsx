@@ -37,10 +37,8 @@ export function OnboardingRedirect() {
         } else {
           router.push("/quick-start");
         }
-      }).catch(() => {
-        if (isMounted) {
-          router.push("/quick-start");
-        }
+      }).catch((err) => {
+        console.warn("Onboarding redirect auth check failed:", err);
       });
     }
 

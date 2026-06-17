@@ -13,6 +13,19 @@ type RateEntry = {
 
 const requestBuckets = new Map<string, RateEntry>();
 
+let lastCleanup = 0;
+const CLEANUP_INTERVAL = 60_000;
+
+function cleanupExpiredBuckets(now: number) {
+  if (now - lastCleanup < CLEANUP_INTERVAL) return;
+  lastCleanup = now;
+  for (const [key, entry] of requestBuckets) {
+    if (entry.resetAt <= now) {
+      requestBuckets.delete(key);
+    }
+  }
+}
+
 function getClientIp(req: NextRequest) {
   const forwarded = req.headers.get("x-forwarded-for");
   if (forwarded) {
@@ -28,6 +41,7 @@ function getClientIp(req: NextRequest) {
 
 export function enforceRateLimit(req: NextRequest, config: RateLimitConfig) {
   const now = Date.now();
+  cleanupExpiredBuckets(now);
   const bucketKey = `${config.key}:${getClientIp(req)}`;
   const existing = requestBuckets.get(bucketKey);
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from 'next/link';
 import { Rocket, LogOut, ClipboardList, X, Loader2, Wallet, Gift, Crown, Menu } from 'lucide-react';
 import { ThemeToggle } from "./ThemeToggle";
@@ -37,7 +37,7 @@ export function Header() {
   const [showReferralsModal, setShowReferralsModal] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [loadingOrders, setLoadingOrders] = useState(false);
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
 

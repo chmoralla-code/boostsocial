@@ -3,12 +3,16 @@
  * Resizes and compresses images using canvas for extremely high storage efficiency.
  */
 export function compressImage(file: File, maxDimension = 1200, quality = 0.7): Promise<File> {
-  return new Promise((resolve) => {
-    // If the file is not an image, return the original file
+  return new Promise((resolve, reject) => {
     if (!file.type.startsWith("image/")) {
       resolve(file);
       return;
     }
+
+    const TIMEOUT_MS = 30_000;
+    const timeoutId = setTimeout(() => {
+      reject(new Error("Image compression timed out."));
+    }, TIMEOUT_MS);
 
     const reader = new FileReader();
     reader.readAsDataURL(file);
@@ -20,7 +24,6 @@ export function compressImage(file: File, maxDimension = 1200, quality = 0.7): P
         let width = img.width;
         let height = img.height;
 
-        // Apply scale containment to maxDimension
         if (width > maxDimension || height > maxDimension) {
           if (width > height) {
             height = Math.round((height * maxDimension) / width);
@@ -36,18 +39,17 @@ export function compressImage(file: File, maxDimension = 1200, quality = 0.7): P
 
         const ctx = canvas.getContext("2d");
         if (!ctx) {
+          clearTimeout(timeoutId);
           resolve(file);
           return;
         }
 
-        // Draw image onto canvas
         ctx.drawImage(img, 0, 0, width, height);
 
-        // Convert canvas image to highly compressed JPEG blob
         canvas.toBlob(
           (blob) => {
+            clearTimeout(timeoutId);
             if (blob) {
-              // Convert blob back to a File object, swapping original extension with .jpg
               const originalName = file.name;
               const dotIndex = originalName.lastIndexOf(".");
               const baseName = dotIndex !== -1 ? originalName.slice(0, dotIndex) : originalName;
@@ -66,8 +68,14 @@ export function compressImage(file: File, maxDimension = 1200, quality = 0.7): P
           quality
         );
       };
-      img.onerror = () => resolve(file);
+      img.onerror = () => {
+        clearTimeout(timeoutId);
+        resolve(file);
+      };
     };
-    reader.onerror = () => resolve(file);
+    reader.onerror = () => {
+      clearTimeout(timeoutId);
+      resolve(file);
+    };
   });
 }

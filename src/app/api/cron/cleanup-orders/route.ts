@@ -42,7 +42,7 @@ export async function GET(request: Request) {
       return NextResponse.json({
         success: true,
         deleted: 0,
-        message: "No orders older than ${RETENTION_DAYS} days to clean up.",
+        message: `No orders older than ${RETENTION_DAYS} days to clean up.`,
       });
     }
 
