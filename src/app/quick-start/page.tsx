@@ -249,6 +249,13 @@ export default function QuickStartPage() {
   };
 
   const handleSkip = () => {
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem("onboarded", "true");
+      } catch {
+        // ignore storage errors (private mode / quota)
+      }
+    }
     router.replace("/");
   };
 
