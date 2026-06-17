@@ -124,6 +124,7 @@ export async function getSmmCatalogServices() {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({ key: apiKey, action: "services" }),
+      signal: AbortSignal.timeout(8000),
       next: { revalidate: 300 },
     });
 

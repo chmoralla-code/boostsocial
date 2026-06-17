@@ -65,7 +65,12 @@ export function getDigitalOceanSql() {
       const dbUrl = getDigitalOceanDatabaseUrl();
       // Clean connection pooler URL if transaction mode
       const cleanUrl = dbUrl.replace("?pgbouncer=true", "");
-      sqlDo = postgres(cleanUrl, { ssl: "require" });
+      sqlDo = postgres(cleanUrl, {
+        ssl: "require",
+        idle_timeout: 10,
+        max_lifetime: 60,
+        connect_timeout: 5,
+      });
     } catch (err) {
       console.error("Failed to initialize DigitalOcean PG connection pool:", err);
     }
@@ -480,36 +485,36 @@ export async function dualWrite<T = any>(
   const sqlDo = getDigitalOceanSql();
   const backups = getBackupAdminClients();
 
-  let primaryResult: T | null = null;
-  let primaryError: any = null;
-  const backupResults: Array<{ label: BackupLabel; data: T | null; error: any }> = [];
+  // 1. Write to DigitalOcean and Supabase backups in parallel.
+  // Even if DO hangs, Supabase still completes and the order succeeds.
+  const doClient = {
+    from: (table: string) => new SpyQueryBuilder(table, null, sqlDo),
+  };
 
-  // 1. Write to DigitalOcean first (Master Write)
-  try {
-    const doClient = {
-      from: (table: string) => new SpyQueryBuilder(table, null, sqlDo),
-    };
-    const res = await operation(doClient);
-    primaryResult = res.data;
-    primaryError = res.error;
-  } catch (err: any) {
-    primaryError = err;
-  }
+  const backupWrites = backups.map(async (backup) => {
+    try {
+      const backupSpy = {
+        from: (table: string) => new SpyQueryBuilder(table, backup.client, null),
+      };
+      const res = await operation(backupSpy);
+      return { label: backup.label, data: res.data, error: res.error };
+    } catch (err: any) {
+      return { label: backup.label, data: null, error: err };
+    }
+  });
 
-  // 2. Write to Supabase backups as replicas in parallel.
-  backupResults.push(...await Promise.all(
-    backups.map(async (backup) => {
-      try {
-        const backupSpy = {
-          from: (table: string) => new SpyQueryBuilder(table, backup.client, null),
-        };
-        const res = await operation(backupSpy);
-        return { label: backup.label, data: res.data, error: res.error };
-      } catch (err: any) {
-        return { label: backup.label, data: null, error: err };
-      }
-    })
-  ));
+  const doWrite = (async () => {
+    try {
+      const res = await operation(doClient);
+      return { data: res.data, error: res.error };
+    } catch (err: any) {
+      return { data: null, error: err };
+    }
+  })();
+
+  const [doResult, ...backupResults] = await Promise.all([doWrite, ...backupWrites]);
+  const primaryResult = doResult.data;
+  const primaryError = doResult.error;
 
   if (!primaryError) {
     const allBackupsSynced = backupResults.every((result) => !result.error);

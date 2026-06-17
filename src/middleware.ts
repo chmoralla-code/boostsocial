@@ -45,14 +45,20 @@ export async function middleware(request: NextRequest) {
   // 2. Perform maintenance lockout if not on a bypass route
   if (!isBypassPath) {
     try {
-      const adminDb = getServiceRoleClient()
-      const { data: configRecord } = await adminDb
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000);
+
+      const adminDb = getServiceRoleClient();
+      const result = await adminDb
         .from('settings')
         .select('value')
         .eq('key', 'maintenance_mode')
-        .single()
+        .abortSignal(controller.signal)
+        .single();
 
-      const configValue = configRecord?.value as { enabled?: boolean } | null
+      clearTimeout(timeoutId);
+
+      const configValue = result.data?.value as { enabled?: boolean } | null
       
       if (configValue?.enabled) {
         return applySecurityHeaders(new NextResponse(
@@ -333,6 +339,8 @@ export async function middleware(request: NextRequest) {
   }
 
   // 3. Perform standard administrator authentication enforcement
+  const needsAuthCheck = isAdminArea || isAdminApi;
+
   const supabase = createServerClient(
     getSupabaseUrl(),
     getSupabaseAnonKey(),
@@ -354,9 +362,11 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  let user: { email?: string } | null = null;
+  if (needsAuthCheck) {
+    const { data } = await supabase.auth.getUser();
+    user = data.user ?? null;
+  }
 
   if (isAdminArea && request.nextUrl.pathname !== '/admin/login') {
     if (!user) {
