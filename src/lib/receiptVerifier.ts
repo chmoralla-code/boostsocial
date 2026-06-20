@@ -1,8 +1,8 @@
-import { createHash } from "crypto";
 import { SupabaseClient } from "@supabase/supabase-js";
 
-const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || process.env.GEMINI_API_KEY;
-const VISION_MODEL = "xiaomi/mimo-v2.5";
+const OPENCODE_ZEN_API_KEY = process.env.OPENCODE_ZEN_API_KEY || process.env.OPENROUTER_API_KEY || process.env.GEMINI_API_KEY;
+const OPENCODE_ZEN_BASE = "https://opencode.ai/zen/v1";
+const VISION_MODEL = "mimo-v2.5-free";
 
 export interface VerificationResult {
   success: boolean;
@@ -17,14 +17,14 @@ export interface VerificationResult {
 }
 
 async function callVisionModel(imageBase64: string, mimeType: string, prompt: string): Promise<string> {
-  if (!OPENROUTER_API_KEY) {
+  if (!OPENCODE_ZEN_API_KEY) {
     throw new Error("No API key configured for receipt verification");
   }
 
-  const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+  const res = await fetch(`${OPENCODE_ZEN_BASE}/chat/completions`, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+      Authorization: `Bearer ${OPENCODE_ZEN_API_KEY}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
