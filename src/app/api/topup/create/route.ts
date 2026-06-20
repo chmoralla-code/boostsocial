@@ -138,7 +138,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 2. Run AI receipt verification to auto-approve if amount matches
-    let autoApproval: Awaited<ReturnType<typeof autoVerifyAndApproveTopup>> | null = null;
+    let autoApproval: Record<string, any> | null = null;
     let finalStatus = "pending";
 
     try {
@@ -147,6 +147,8 @@ export async function POST(req: NextRequest) {
         topupId: topup.id,
         requestedAmount: priceNum,
         imageBuffer: Buffer.from(fileBuffer),
+        mimeType: file.type,
+        userEmail: email.trim(),
       });
 
       if (autoApproval.autoApproved) {
@@ -214,6 +216,8 @@ export async function POST(req: NextRequest) {
       success: true,
       topupId: topup.id,
       autoApproved: autoApproval?.autoApproved ?? false,
+      rejectedAsFake: autoApproval?.rejectedAsFake ?? false,
+      rejectedAsDuplicate: autoApproval?.rejectedAsDuplicate ?? false,
       extractedAmount: autoApproval?.extractedAmount ?? null,
       aiConfidence: autoApproval?.confidence ?? null,
       aiReason: autoApproval?.reason ?? null,

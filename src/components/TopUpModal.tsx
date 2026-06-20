@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { X, Loader2, Upload, Wallet, CheckCircle, Clock } from "lucide-react";
+import { useState, useRef } from "react";
+import { X, Loader2, Upload, Wallet, CheckCircle, Clock, AlertTriangle, Ban } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 
 const MAX_RECEIPT_DIMENSION = 1280;
@@ -54,6 +54,7 @@ export function TopUpModal({ isOpen, onClose, user, onTopUpSuccess }: { isOpen: 
   const [success, setSuccess] = useState(false);
   const [successAutoApproved, setSuccessAutoApproved] = useState(false);
   const [error, setError] = useState("");
+  const [uploadStatus, setUploadStatus] = useState<"idle" | "submitting" | "reading" | "verifying">("idle");
   const supabase = createClient();
 
   if (!isOpen) return null;
@@ -70,6 +71,7 @@ export function TopUpModal({ isOpen, onClose, user, onTopUpSuccess }: { isOpen: 
 
     setIsUploading(true);
     setError("");
+    setUploadStatus("submitting");
 
     try {
       const uploadFile = await compressReceiptImage(file);
@@ -79,14 +81,31 @@ export function TopUpModal({ isOpen, onClose, user, onTopUpSuccess }: { isOpen: 
       formData.append("email", user.email);
       formData.append("amount", amount);
 
+      // Show reading status midway through upload
+      setTimeout(() => setUploadStatus("reading"), 800);
+
       const res = await fetch("/api/topup/create", {
         method: "POST",
         body: formData,
       });
 
+      setUploadStatus("verifying");
+
       const data = await res.json();
       if (!res.ok) {
         throw new Error(data.error || "Failed to submit top-up request.");
+      }
+
+      if (data.rejectedAsFake) {
+        setError("Suspicious receipt detected — the image appears to be AI-generated. Please upload a real GCash screenshot.");
+        setUploadStatus("idle");
+        return;
+      }
+
+      if (data.rejectedAsDuplicate) {
+        setError("Duplicate receipt detected — this receipt was already used for another transaction. Please upload a different one.");
+        setUploadStatus("idle");
+        return;
       }
 
       setSuccess(true);
@@ -96,11 +115,13 @@ export function TopUpModal({ isOpen, onClose, user, onTopUpSuccess }: { isOpen: 
         onClose();
         setSuccess(false);
         setSuccessAutoApproved(false);
+        setUploadStatus("idle");
         setAmount("");
         setFile(null);
       }, 2500);
     } catch (err: any) {
       setError(err.message || "Failed to submit top-up request.");
+      setUploadStatus("idle");
     } finally {
       setIsUploading(false);
     }
@@ -194,7 +215,12 @@ export function TopUpModal({ isOpen, onClose, user, onTopUpSuccess }: { isOpen: 
                 className="w-full bg-[#1877F2] hover:bg-[#4e8df5] text-white font-extrabold py-3.5 rounded-xl transition-all shadow-[0_0_15px_rgba(24,119,242,0.3)] disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2"
               >
                 {isUploading ? (
-                  <><Loader2 className="animate-spin" size={18} /> Submitting...</>
+                  <><Loader2 className="animate-spin" size={18} /> {
+                    uploadStatus === "submitting" ? "Submitting..." :
+                    uploadStatus === "reading" ? "Reading receipt..." :
+                    uploadStatus === "verifying" ? "Verifying amount..." :
+                    "Submitting..."
+                  }</>
                 ) : (
                   "Submit Top-Up"
                 )}

@@ -77,6 +77,7 @@ export default function AppProfilePage() {
   const [topUpAmount, setTopUpAmount] = useState("");
   const [topUpReceipt, setTopUpReceipt] = useState<File | null>(null);
   const [topUpSubmitting, setTopUpSubmitting] = useState(false);
+  const [topUpStatus, setTopUpStatus] = useState<"idle" | "submitting" | "reading" | "verifying">("idle");
   const [topUpError, setTopUpError] = useState("");
   const [topUpSuccess, setTopUpSuccess] = useState("");
   const [copied, setCopied] = useState(false);
@@ -237,6 +238,7 @@ export default function AppProfilePage() {
     setTopUpSubmitting(true);
     setTopUpError("");
     setTopUpSuccess("");
+    setTopUpStatus("submitting");
 
     try {
       const formData = new FormData();
@@ -245,14 +247,36 @@ export default function AppProfilePage() {
       formData.append("email", user.email);
       formData.append("amount", String(amount));
 
+      setTimeout(() => setTopUpStatus("reading"), 800);
+
       const res = await fetch("/api/topup/create", {
         method: "POST",
         body: formData,
       });
-      const data = (await res.json().catch(() => ({}))) as { error?: string; autoApproved?: boolean };
+
+      setTopUpStatus("verifying");
+
+      const data = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        autoApproved?: boolean;
+        rejectedAsFake?: boolean;
+        rejectedAsDuplicate?: boolean;
+      };
 
       if (!res.ok) {
         throw new Error(data.error || "Failed to submit top-up request.");
+      }
+
+      if (data.rejectedAsFake) {
+        setTopUpError("Suspicious receipt — image appears AI-generated. Please upload a real GCash screenshot.");
+        setTopUpStatus("idle");
+        return;
+      }
+
+      if (data.rejectedAsDuplicate) {
+        setTopUpError("Duplicate receipt — this was already used for another transaction.");
+        setTopUpStatus("idle");
+        return;
       }
 
       setTopUpAmount("");
@@ -267,6 +291,7 @@ export default function AppProfilePage() {
       setTopUpError(err instanceof Error ? err.message : "Failed to submit top-up request.");
     } finally {
       setTopUpSubmitting(false);
+      setTopUpStatus("idle");
     }
   };
 
@@ -572,7 +597,12 @@ export default function AppProfilePage() {
                     className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 text-sm font-black text-white shadow-lg shadow-emerald-600/20 hover:bg-emerald-500 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 transition-all"
                   >
                     {topUpSubmitting ? <Loader2 size={17} className="animate-spin" /> : <Wallet size={17} />}
-                    {topUpSubmitting ? "Submitting..." : "Submit top-up"}
+                    {topUpSubmitting
+                      ? topUpStatus === "submitting" ? "Submitting..."
+                        : topUpStatus === "reading" ? "Reading receipt..."
+                        : topUpStatus === "verifying" ? "Verifying amount..."
+                        : "Submitting..."
+                      : "Submit top-up"}
                   </button>
                 </>
               )}
