@@ -99,9 +99,10 @@ export function TopupsList({ initialTopups }: { initialTopups: any[] }) {
               <tr className="bg-[#1c1c1c] border-b border-slate-850/60">
                 <th className="py-4 px-6 font-extrabold text-slate-400 text-xs uppercase tracking-wider w-52">Date Submitted</th>
                 <th className="py-4 px-6 font-extrabold text-slate-400 text-xs uppercase tracking-wider">Customer Email</th>
-                <th className="py-4 px-6 font-extrabold text-slate-400 text-xs uppercase tracking-wider w-44">Deposit Amount</th>
+                <th className="py-4 px-6 font-extrabold text-slate-400 text-xs uppercase tracking-wider w-40">Deposit Amount</th>
                 <th className="py-4 px-6 font-extrabold text-slate-400 text-xs uppercase tracking-wider w-48">Receipt Proof</th>
-                <th className="py-4 px-6 font-extrabold text-slate-400 text-xs uppercase tracking-wider w-40">Top-Up Status</th>
+                <th className="py-4 px-6 font-extrabold text-slate-400 text-xs uppercase tracking-wider w-40">AI Verification</th>
+                <th className="py-4 px-6 font-extrabold text-slate-400 text-xs uppercase tracking-wider w-36">Top-Up Status</th>
                 <th className="py-4 px-6 font-extrabold text-slate-400 text-xs uppercase tracking-wider text-right w-36">Actions</th>
               </tr>
             </thead>
@@ -144,6 +145,29 @@ export function TopupsList({ initialTopups }: { initialTopups: any[] }) {
                     )}
                   </td>
                   <td className="py-4 px-6 text-sm whitespace-nowrap">
+                    {(() => {
+                      let aiData: any = null;
+                      try {
+                        if (topup.receipt_data) aiData = typeof topup.receipt_data === 'string' ? JSON.parse(topup.receipt_data) : topup.receipt_data;
+                      } catch {}
+                      if (aiData?.auto_approved) {
+                        return (
+                          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-extrabold border uppercase tracking-wider bg-sky-500/10 text-sky-400 border-sky-500/20">
+                            AI ✓ ₱{aiData.extracted_amount}
+                          </span>
+                        );
+                      }
+                      if (aiData?.extracted_amount) {
+                        return (
+                          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-semibold border bg-amber-500/10 text-amber-400 border-amber-500/20" title={aiData.reason || ''}>
+                            AI ₱{aiData.extracted_amount} ({(aiData.confidence * 100).toFixed(0)}%)
+                          </span>
+                        );
+                      }
+                      return <span className="text-slate-600 text-[10px] font-semibold">—</span>;
+                    })()}
+                  </td>
+                  <td className="py-4 px-6 text-sm whitespace-nowrap">
                     <span className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold border uppercase tracking-wider ${
                       topup.status === 'pending' ? 'bg-orange-500/10 text-orange-400 border-orange-500/20' :
                       topup.status === 'approved' ? 'bg-[#1DB954]/10 text-[#1DB954] border-[#1DB954]/20' :
@@ -180,7 +204,7 @@ export function TopupsList({ initialTopups }: { initialTopups: any[] }) {
               ))}
               {filteredTopups.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="py-12 text-center text-slate-500 text-sm font-semibold">
+                  <td colSpan={7} className="py-12 text-center text-slate-500 text-sm font-semibold">
                     No top-up requests found matching criteria.
                   </td>
                 </tr>

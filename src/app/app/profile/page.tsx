@@ -249,7 +249,7 @@ export default function AppProfilePage() {
         method: "POST",
         body: formData,
       });
-      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      const data = (await res.json().catch(() => ({}))) as { error?: string; autoApproved?: boolean };
 
       if (!res.ok) {
         throw new Error(data.error || "Failed to submit top-up request.");
@@ -257,7 +257,11 @@ export default function AppProfilePage() {
 
       setTopUpAmount("");
       setTopUpReceipt(null);
-      setTopUpSuccess("Top-up submitted. Admin verification is now pending.");
+      setTopUpSuccess(
+        data.autoApproved
+          ? "Top-up approved! AI verified and instantly credited to your wallet. 🚀"
+          : "Top-up submitted. Admin verification is now pending."
+      );
       await loadProfile(user);
     } catch (err: unknown) {
       setTopUpError(err instanceof Error ? err.message : "Failed to submit top-up request.");

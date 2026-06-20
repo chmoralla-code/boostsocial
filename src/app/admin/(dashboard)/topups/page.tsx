@@ -8,7 +8,7 @@ export default async function TopupsPage() {
   const { data: topups } = await fallbackRead(async (db) => {
     return db
       .from("topups")
-      .select("id,user_id,email,amount,receipt_url,status,created_at,reviewed_at,reviewed_by")
+      .select("id,user_id,email,amount,receipt_url,receipt_data,status,created_at,reviewed_at,reviewed_by")
       .order("created_at", { ascending: false })
       .limit(100);
   });

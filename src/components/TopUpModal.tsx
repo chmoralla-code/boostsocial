@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { X, Loader2, Upload, Wallet } from "lucide-react";
+import { X, Loader2, Upload, Wallet, CheckCircle, Clock } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 
 const MAX_RECEIPT_DIMENSION = 1280;
@@ -52,6 +52,7 @@ export function TopUpModal({ isOpen, onClose, user, onTopUpSuccess }: { isOpen: 
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [successAutoApproved, setSuccessAutoApproved] = useState(false);
   const [error, setError] = useState("");
   const supabase = createClient();
 
@@ -89,13 +90,15 @@ export function TopUpModal({ isOpen, onClose, user, onTopUpSuccess }: { isOpen: 
       }
 
       setSuccess(true);
+      setSuccessAutoApproved(data.autoApproved === true);
       setTimeout(() => {
         onTopUpSuccess();
         onClose();
         setSuccess(false);
+        setSuccessAutoApproved(false);
         setAmount("");
         setFile(null);
-      }, 1200);
+      }, 2500);
     } catch (err: any) {
       setError(err.message || "Failed to submit top-up request.");
     } finally {
@@ -119,13 +122,18 @@ export function TopUpModal({ isOpen, onClose, user, onTopUpSuccess }: { isOpen: 
 
         <div className="p-6 space-y-6">
           {success ? (
-            <div className="bg-[#1877F2]/10 border border-[#1877F2]/20 p-6 rounded-xl text-center space-y-3">
-              <div className="w-16 h-16 bg-[#1877F2]/20 text-[#1877F2] rounded-full flex items-center justify-center mx-auto mb-4">
-                <Wallet size={32} />
+            <div className={`${successAutoApproved ? 'bg-[#1DB954]/10 border-[#1DB954]/20' : 'bg-[#1877F2]/10 border-[#1877F2]/20'} border p-6 rounded-xl text-center space-y-3`}>
+              <div className={`w-16 h-16 ${successAutoApproved ? 'bg-[#1DB954]/20 text-[#1DB954]' : 'bg-[#1877F2]/20 text-[#1877F2]'} rounded-full flex items-center justify-center mx-auto mb-4`}>
+                {successAutoApproved ? <CheckCircle size={32} /> : <Clock size={32} />}
               </div>
-              <h3 className="text-lg font-bold text-[#1877F2]">Top-Up Submitted!</h3>
+              <h3 className={`text-lg font-bold ${successAutoApproved ? 'text-[#1DB954]' : 'text-[#1877F2]'}`}>
+                {successAutoApproved ? 'Top-Up Approved! 🚀' : 'Top-Up Submitted!'}
+              </h3>
               <p className="text-sm text-fg font-medium leading-relaxed">
-                Your GCash receipt has been securely uploaded. An admin will verify the payment and credit ₱{Number(amount).toFixed(0)} to your wallet shortly.
+                {successAutoApproved
+                  ? `Your PHP ${Number(amount).toFixed(0)} has been AI-verified and instantly credited to your wallet!`
+                  : `Your GCash receipt has been securely uploaded. An admin will verify the payment and credit ₱${Number(amount).toFixed(0)} to your wallet shortly.`
+                }
               </p>
             </div>
           ) : (

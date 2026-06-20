@@ -6,6 +6,8 @@ import { createClient as createServerClient } from "@/utils/supabase/server";
 import { enforceRateLimit } from "@/utils/security/rate-limit";
 import { notifyCustomer } from "@/lib/customerNotifications";
 import { hashReceiptFile } from "@/lib/receiptGuard";
+import { autoVerifyAndApproveTopup } from "@/lib/receiptVerifier";
+import { creditReferralCommission } from "@/utils/referrals";
 
 const MAX_RECEIPT_FILE_BYTES = 8 * 1024 * 1024;
 const ALLOWED_RECEIPT_TYPES = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp"]);
@@ -135,7 +137,27 @@ export async function POST(req: NextRequest) {
       throw topupError;
     }
 
+    // 2. Run AI receipt verification to auto-approve if amount matches
+    let autoApproval: Awaited<ReturnType<typeof autoVerifyAndApproveTopup>> | null = null;
+    let finalStatus = "pending";
+
+    try {
+      autoApproval = await autoVerifyAndApproveTopup({
+        supabase,
+        topupId: topup.id,
+        requestedAmount: priceNum,
+        imageBuffer: Buffer.from(fileBuffer),
+      });
+
+      if (autoApproval.autoApproved) {
+        finalStatus = "approved";
+      }
+    } catch (ocrErr) {
+      console.error("AI receipt verification failed (graceful fallback):", ocrErr);
+    }
+
     after(async () => {
+      // Sync to backup databases
       await syncBackupAdminClients(async (backupClient) => {
         return backupClient
           .from("topups")
@@ -146,10 +168,26 @@ export async function POST(req: NextRequest) {
             amount: priceNum,
             receipt_url: dataUrl,
             receipt_hash: receiptHash,
-            status: "pending",
+            status: finalStatus,
           });
       }, "top-up creation sync");
 
+      if (autoApproval?.autoApproved) {
+        // Credit referral commission for auto-approved topups
+        try {
+          await creditReferralCommission({
+            primaryClient: supabase,
+            customerId: userId,
+            source: "topup",
+            amount: priceNum,
+            referenceId: topup.id,
+          });
+        } catch (commissionError) {
+          console.error("Auto-approval referral commission failed:", commissionError);
+        }
+      }
+
+      // Always send Telegram notification for manual review or audit
       try {
         await sendTopupNotification({
           topupId: topup.id,
@@ -164,13 +202,22 @@ export async function POST(req: NextRequest) {
       notifyCustomer({
         client: supabase,
         email: email.trim(),
-        message: `System update: Your PHP ${priceNum.toFixed(2)} wallet top-up receipt was uploaded. Admin verification is now pending.`,
+        message: autoApproval?.autoApproved
+          ? `System update: Your PHP ${priceNum.toFixed(2)} wallet top-up was AI-verified and instantly approved! New balance has been credited. 🚀`
+          : `System update: Your PHP ${priceNum.toFixed(2)} wallet top-up receipt was uploaded and queued for admin verification. Please wait for manual approval.`,
       }).catch((notificationErr) => {
         console.error("Top-up customer notification failed:", notificationErr);
       });
     });
 
-    return NextResponse.json({ success: true, topupId: topup.id });
+    return NextResponse.json({
+      success: true,
+      topupId: topup.id,
+      autoApproved: autoApproval?.autoApproved ?? false,
+      extractedAmount: autoApproval?.extractedAmount ?? null,
+      aiConfidence: autoApproval?.confidence ?? null,
+      aiReason: autoApproval?.reason ?? null,
+    });
   } catch (err: any) {
     console.error("Top-up creation API failed:", err);
     return NextResponse.json({ error: err?.message || (typeof err === "object" ? JSON.stringify(err) : String(err)) }, { status: 500 });
