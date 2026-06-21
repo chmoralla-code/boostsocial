@@ -347,27 +347,22 @@ export function ServicesCandidatesPanel() {
                               setResult({ success: true, message: `Uploading ${file.name} (${(file.size/1024/1024).toFixed(1)}MB)...` });
                               if (file.size > 50 * 1024 * 1024) {
                                 setResult({ success: false, message: "Video too large. Max 50MB." });
-                                e.currentTarget.value = "";
                                 return;
                               }
                               setUploadingCardId(card.id);
                               try {
-                                const { createClient } = await import("@/utils/supabase/client");
-                                const supabase = createClient();
-                                const safeId = card.id.replace(/[^a-z0-9-]/g, "-");
-                                const ext = file.name.split(".").pop() || "mp4";
-                                const path = `admin-config/service-candidates/videos/${safeId}-${Date.now()}.${ext}`;
-                                const { data: uploadData, error: uploadError } = await supabase.storage
-                                  .from("receipts")
-                                  .upload(path, file, { cacheControl: "3600", upsert: true });
-                                if (uploadError) throw new Error(uploadError.message);
-                                const { data: urlData } = await supabase.storage
-                                  .from("receipts")
-                                  .getPublicUrl(path);
-                                handleFieldChange(idx, "video_url" as any, urlData.publicUrl);
-                                setResult({ success: true, message: "Video uploaded! Save the candidates to publish." });
+                                const fd = new FormData();
+                                fd.append("file", file);
+                                fd.append("candidateId", card.id);
+                                const res = await fetch("/api/admin/upload-service-candidate-video", {
+                                  method: "POST", body: fd,
+                                });
+                                const data = await res.json();
+                                if (!res.ok) throw new Error(data.error || "Upload failed");
+                                handleFieldChange(idx, "video_url" as any, data.url);
+                                setResult({ success: true, message: "Video uploaded! Save the candidates configuration to publish." });
                               } catch (err) {
-                                setResult({ success: false, message: getErrorMessage(err, "Video upload failed. Try a smaller file or paste URL directly.") });
+                                setResult({ success: false, message: getErrorMessage(err, "Video upload failed") });
                               } finally {
                                 setUploadingCardId(null);
                                 e.currentTarget.value = "";
