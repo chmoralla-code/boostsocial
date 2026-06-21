@@ -8,9 +8,12 @@ const CONFIG_BUCKET = "receipts";
 const MAX_VIDEO_BYTES = 50 * 1024 * 1024;
 const ALLOWED_VIDEO_TYPES = new Set([
   "video/mp4",
+  "video/x-m4v",
+  "video/mpeg",
   "video/webm",
   "video/quicktime",
   "video/x-msvideo",
+  "application/mp4",
 ]);
 
 function getErrorMessage(err: unknown) {
@@ -63,7 +66,7 @@ export async function POST(req: NextRequest) {
 
     const contentType = file.type.toLowerCase();
     if (!ALLOWED_VIDEO_TYPES.has(contentType)) {
-      return NextResponse.json({ error: "Invalid video type. Use MP4, WebM, or MOV." }, { status: 400 });
+      return NextResponse.json({ error: `Invalid video type "${contentType}". Use MP4, WebM, or MOV.` }, { status: 400 });
     }
 
     if (file.size <= 0 || file.size > MAX_VIDEO_BYTES) {

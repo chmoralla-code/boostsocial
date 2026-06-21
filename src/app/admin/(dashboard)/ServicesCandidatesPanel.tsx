@@ -339,13 +339,17 @@ export function ServicesCandidatesPanel() {
                           Upload Video
                           <input
                             type="file"
-                            accept="video/mp4,video/webm,video/quicktime"
+                            accept="video/*,.mp4,.webm,.mov"
                             disabled={uploadingCardId === card.id}
                             onChange={async (e) => {
                               const file = e.target.files?.[0];
                               if (!file) return;
                               if (file.size > 50 * 1024 * 1024) {
                                 setResult({ success: false, message: "Video too large. Max 50MB." });
+                                return;
+                              }
+                              if (!file.type.startsWith("video/") && !file.name.match(/\.(mp4|webm|mov|avi)$/i)) {
+                                setResult({ success: false, message: `Unsupported file type: ${file.type || file.name}. Use MP4, WebM, or MOV.` });
                                 return;
                               }
                               setUploadingCardId(card.id);
