@@ -14,9 +14,6 @@ export type ServiceCandidate = {
   glow_color?: string;
   layout?: string;
   image_url?: string;
-  video_url?: string;
-  media_type?: "image" | "video" | "none";
-  chroma_key?: string; // hex color like "#00FF00" for green screen removal
 };
 
 export const DEFAULT_SERVICE_CANDIDATES: ServiceCandidate[] = [
@@ -139,9 +136,6 @@ function normalizeCandidate(value: unknown): ServiceCandidate | null {
     glow_color: typeof item.glow_color === "string" ? item.glow_color : "",
     layout: typeof item.layout === "string" ? item.layout : "standard",
     image_url: typeof item.image_url === "string" ? item.image_url : "",
-    video_url: typeof item.video_url === "string" ? item.video_url : "",
-    media_type: item.media_type === "image" || item.media_type === "video" ? item.media_type : (item.video_url ? "video" : item.image_url ? "image" : "none"),
-    chroma_key: typeof item.chroma_key === "string" ? item.chroma_key : "",
   };
 }
 

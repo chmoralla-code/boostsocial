@@ -67,9 +67,6 @@ interface ServiceCandidate {
   caption?: string;
   layout?: string;
   image_url?: string;
-  video_url?: string;
-  media_type?: string;
-  chroma_key?: string;
   logo_url?: string;
 }
 
@@ -781,20 +778,7 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
                   e.currentTarget.style.borderColor = `rgba(255, 255, 255, 0.04)`;
                 }}
               >
-                {card.video_url ? (
-                  <div
-                    className="relative w-full aspect-[16/9] rounded-2xl overflow-hidden mb-5 border bg-black/30 shadow-inner"
-                    style={{ borderColor: `${card.theme_color}25` }}
-                  >
-                    <video
-                      src={card.video_url}
-                      autoPlay muted loop playsInline
-                      className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
-                      style={{ mixBlendMode: "screen" }}
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-transparent pointer-events-none"></div>
-                  </div>
-                ) : candidateImageUrl ? (
+                {candidateImageUrl ? (
                   <div
                     className="relative w-full aspect-[16/9] rounded-2xl overflow-hidden mb-5 border bg-black/30 shadow-inner"
                     style={{ borderColor: `${card.theme_color}25` }}
