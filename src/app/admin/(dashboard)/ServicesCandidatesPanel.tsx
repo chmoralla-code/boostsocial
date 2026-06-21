@@ -339,21 +339,17 @@ export function ServicesCandidatesPanel() {
                           Upload Video
                           <input
                             type="file"
-                            accept="video/*,.mp4,.webm,.mov"
+                            accept="video/*"
                             disabled={uploadingCardId === card.id}
                             onChange={async (e) => {
                               const file = e.target.files?.[0];
                               if (!file) return;
+                              setResult({ success: true, message: `Uploading ${file.name} (${(file.size/1024/1024).toFixed(1)}MB)...` });
                               if (file.size > 50 * 1024 * 1024) {
                                 setResult({ success: false, message: "Video too large. Max 50MB." });
                                 return;
                               }
-                              if (!file.type.startsWith("video/") && !file.name.match(/\.(mp4|webm|mov|avi)$/i)) {
-                                setResult({ success: false, message: `Unsupported file type: ${file.type || file.name}. Use MP4, WebM, or MOV.` });
-                                return;
-                              }
                               setUploadingCardId(card.id);
-                              setResult(null);
                               try {
                                 const fd = new FormData();
                                 fd.append("file", file);
@@ -364,7 +360,7 @@ export function ServicesCandidatesPanel() {
                                 const data = await res.json();
                                 if (!res.ok) throw new Error(data.error || "Upload failed");
                                 handleFieldChange(idx, "video_url" as any, data.url);
-                                setResult({ success: true, message: "Video uploaded. Save to publish." });
+                                setResult({ success: true, message: "Video uploaded! Save the candidates configuration to publish." });
                               } catch (err) {
                                 setResult({ success: false, message: getErrorMessage(err, "Video upload failed") });
                               } finally {

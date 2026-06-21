@@ -70,7 +70,13 @@ export async function POST(req: NextRequest) {
     }
 
     if (file.size <= 0 || file.size > MAX_VIDEO_BYTES) {
-      return NextResponse.json({ error: "Video is too large. Maximum size is 50MB." }, { status: 400 });
+      return NextResponse.json({ error: `Video is too large (${(file.size/1024/1024).toFixed(1)}MB). Maximum size is 50MB.` }, { status: 400 });
+    }
+
+    // Vercel serverless has a ~4.5MB body limit, so warn if approaching it
+    const totalBodySize = Number(req.headers.get("content-length") || file.size);
+    if (totalBodySize > 4.5 * 1024 * 1024) {
+      console.warn(`Large video upload (${(totalBodySize/1024/1024).toFixed(1)}MB) — may hit Vercel body size limit.`);
     }
 
     const supabaseUrl = getEnv("NEXT_PUBLIC_SUPABASE_URL");
