@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Layers, Save, CheckCircle, XCircle, Loader2, Sparkles, ChevronDown, ChevronUp, Upload, Image as ImageIcon, Trash2 } from "lucide-react";
+import { Layers, Save, CheckCircle, XCircle, Loader2, Sparkles, ChevronDown, ChevronUp, Upload, Image as ImageIcon, Trash2, Video, Film } from "lucide-react";
 
 interface Candidate {
   id: string;
@@ -316,6 +316,85 @@ export function ServicesCandidatesPanel() {
                         <div className="text-slate-600 flex flex-col items-center gap-2 text-[10px] font-black uppercase tracking-widest">
                           <ImageIcon size={22} />
                           No Image
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Video Upload (optional) */}
+                  <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_220px] gap-4 items-stretch">
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-black uppercase text-slate-500 tracking-wider">
+                        Promo Video URL  <span className="text-slate-600 font-normal normal-case tracking-normal">(auto-plays with bg removal)</span>
+                      </label>
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <input
+                          type="url"
+                          value={(card as any).video_url || ""}
+                          onChange={(e) => handleFieldChange(idx, "video_url" as any, e.target.value)}
+                          placeholder="https://..."
+                          className="flex-grow bg-[#181818] border border-slate-850 rounded-xl px-4.5 py-2.5 text-xs font-bold text-white placeholder-slate-650 focus:outline-none focus:border-[#1DB954]"
+                        />
+                        <label className="inline-flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-500 disabled:bg-slate-850 disabled:text-slate-550 text-white font-extrabold px-4 py-2.5 rounded-xl text-xs uppercase tracking-wider transition-all cursor-pointer shadow-md whitespace-nowrap">
+                          Upload Video
+                          <input
+                            type="file"
+                            accept="video/mp4,video/webm,video/quicktime"
+                            disabled={uploadingCardId === card.id}
+                            onChange={async (e) => {
+                              const file = e.target.files?.[0];
+                              if (!file) return;
+                              if (file.size > 50 * 1024 * 1024) {
+                                setResult({ success: false, message: "Video too large. Max 50MB." });
+                                return;
+                              }
+                              setUploadingCardId(card.id);
+                              setResult(null);
+                              try {
+                                const fd = new FormData();
+                                fd.append("file", file);
+                                fd.append("candidateId", card.id);
+                                const res = await fetch("/api/admin/upload-service-candidate-video", {
+                                  method: "POST", body: fd,
+                                });
+                                const data = await res.json();
+                                if (!res.ok) throw new Error(data.error || "Upload failed");
+                                handleFieldChange(idx, "video_url" as any, data.url);
+                                setResult({ success: true, message: "Video uploaded. Save to publish." });
+                              } catch (err) {
+                                setResult({ success: false, message: getErrorMessage(err, "Video upload failed") });
+                              } finally {
+                                setUploadingCardId(null);
+                                e.currentTarget.value = "";
+                              }
+                            }}
+                            className="hidden"
+                          />
+                        </label>
+                        {(card as any).video_url && (
+                          <button
+                            type="button"
+                            onClick={() => handleFieldChange(idx, "video_url" as any, "")}
+                            className="inline-flex items-center justify-center gap-2 bg-slate-800 hover:bg-red-500/15 text-red-300 border border-slate-700 hover:border-red-500/30 font-extrabold px-4 py-2.5 rounded-xl text-xs uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap"
+                          >
+                            <Trash2 size={14} />
+                            Remove
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    <div className="bg-[#181818] border border-slate-850 rounded-xl overflow-hidden min-h-[126px] flex items-center justify-center">
+                      {(card as any).video_url ? (
+                        <video
+                          src={(card as any).video_url}
+                          autoPlay muted loop playsInline
+                          className="w-full h-full min-h-[126px] object-cover"
+                          style={{ mixBlendMode: "screen" }}
+                        />
+                      ) : (
+                        <div className="text-slate-600 flex flex-col items-center gap-2 text-[10px] font-black uppercase tracking-widest">
+                          <Video size={22} />
+                          No Video
                         </div>
                       )}
                     </div>
