@@ -1,10 +1,8 @@
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { ServicesSection } from "@/components/ServicesSection";
-import { HeroVideoBackground } from "@/components/HeroVideoBackground";
 import { createClient } from "@/utils/supabase/server";
-import { getEnv } from "@/utils/env";
-import { Download, Shield, Zap, Smartphone, Star, Users, Layers } from "lucide-react";
+import { Download, Shield, Zap, Star, Layers } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -49,32 +47,11 @@ export default async function Home() {
     console.error("Failed to load services candidates settings:", err);
   }
 
-  // Fetch custom hero video URL and opacity from Supabase Storage config
-  let videoUrl = "/hero-bg.mp4";
-  let opacity = 0.45;
-  try {
-    const supabaseUrl = getEnv("NEXT_PUBLIC_SUPABASE_URL");
-    if (supabaseUrl) {
-      const configUrl = `${supabaseUrl}/storage/v1/object/public/receipts/admin-config/hero-video.png`;
-      const res = await fetch(configUrl, { cache: "no-store" });
-      if (res.ok) {
-        const config = await res.json();
-        videoUrl = config.videoUrl || "/hero-bg.mp4";
-        opacity = config.opacity !== undefined ? Number(config.opacity) : 0.45;
-      }
-    }
-  } catch (err) {
-    console.error("Failed to load custom hero video configuration:", err);
-  }
-
   return (
     <>
       <Header />
       
       <main className="flex-grow flex flex-col items-center pt-8 sm:pt-14 md:pt-24 relative overflow-x-hidden bg-bg min-h-screen">
-        {/* Video Background */}
-        <HeroVideoBackground videoUrl={videoUrl} opacity={opacity} />
-        
         {/* Futuristic Technical Grid Backdrop */}
         <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.012)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.012)_1px,transparent_1px)] bg-[size:44px_44px] pointer-events-none -z-10 light-mode:bg-[linear-gradient(rgba(15,23,42,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(15,23,42,0.03)_1px,transparent_1px)]"></div>
         
