@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Loader2, ShieldCheck, Copy, Check, Download, Laptop, HelpCircle, Plus, Trash2, Terminal, CheckCircle2, Lock, User, Image, AlertCircle } from "lucide-react";
+import { X, Loader2, ShieldCheck, Copy, Check, Download, Laptop, HelpCircle, Plus, Trash2, Terminal, CheckCircle2, Lock, User, Image, AlertCircle, AlertTriangle } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { useWidgetVisibility } from "@/hooks/useWidgetVisibility";
 import { LinkPreviewWindow } from "./LinkPreviewWindow";
@@ -24,6 +24,13 @@ interface OrderModalProps {
     starting_price: number;
     icon_type: string;
   } | null;
+  /**
+   * Set of SMM provider service IDs currently listed on rixeysmm.shop.
+   * When provided, the modal blocks checkout for services whose mapped
+   * `smm_service_id` is missing from this set. Services without an SMM
+   * mapping (manual fulfillment) are always allowed.
+   */
+  availableSmmIds?: Set<string>;
 }
 
 const REACTION_OPTIONS = [
@@ -36,7 +43,7 @@ const REACTION_OPTIONS = [
   { name: "Angry", emoji: "😡", color: "#E96630", glow: "rgba(233, 102, 48, 0.4)" }
 ];
 
-export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBasePrice, presetQuantity, service }: OrderModalProps) {
+export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBasePrice, presetQuantity, service, availableSmmIds }: OrderModalProps) {
   const [email, setEmail] = useState("");
   const { featureBadges } = useWidgetVisibility();
   const [url, setUrl] = useState("");
@@ -260,6 +267,20 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
     ? 1
     : Math.max(parsedDetails.min_quantity || 100, 1);
 
+  // Determine if the mapped upstream SMM provider service is still listed on
+  // rixeysmm.shop. Reaction services resolve their SMM ID dynamically from the
+  // selected reaction emojis, so we check the resolved ID too. Services with
+  // no SMM mapping (manual fulfillment) are always available.
+  const resolvedSmmIdForAvailability = parsedDetails.smm_service_id
+    ? String(parsedDetails.smm_service_id)
+    : (isReactionService ? String(getFBReactionsSMMDetails(selectedReactions).smmId) : null);
+
+  const isServiceAvailable = (() => {
+    if (!resolvedSmmIdForAvailability) return true;
+    if (!availableSmmIds || availableSmmIds.size === 0) return true;
+    return availableSmmIds.has(resolvedSmmIdForAvailability);
+  })();
+
   useEffect(() => {
     if (minQty > 0 && quantity < minQty) {
       setQuantity(minQty);
@@ -362,6 +383,11 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!serviceId) return;
+
+    if (!isServiceAvailable) {
+      setError("This service is temporarily unavailable from our SMM provider. Please pick another service from the catalog.");
+      return;
+    }
 
     if (!receiptFile) {
       setError("Please attach your payment receipt screenshot first.");
@@ -485,6 +511,11 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
   const handleWalletCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!serviceId || !user) return;
+
+    if (!isServiceAvailable) {
+      setError("This service is temporarily unavailable from our SMM provider. Please pick another service from the catalog.");
+      return;
+    }
 
     const finalQuantity = Math.max(quantity, minQty);
 
@@ -895,6 +926,15 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
+              {!isServiceAvailable && (
+                <div className="bg-red-500/10 border border-red-500/30 text-red-400 p-3.5 rounded-xl flex items-start gap-2.5 text-xs font-bold uppercase tracking-wide">
+                  <AlertTriangle size={16} className="shrink-0 mt-0.5" />
+                  <span>
+                    This service is currently unavailable from our SMM provider (rixeysmm.shop).
+                    Please close this window and pick another service from the catalog.
+                  </span>
+                </div>
+              )}
               {isCheckingAuth ? (
                 <div className="flex justify-center items-center py-4 bg-[#1e1e1e]/50 border border-border rounded-xl h-[86px]">
                   <Loader2 size={24} className="text-[#1877F2] animate-spin" />
@@ -1603,8 +1643,8 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                   <button 
                     type="button" 
                     onClick={handleWalletCheckout}
-                    disabled={isSubmitting}
-                    className="w-full bg-[#1877F2]/20 hover:bg-[#1877F2]/30 border border-[#1877F2]/50 disabled:opacity-50 text-[#1877F2] font-extrabold py-3.5 rounded-full transition-all duration-300 flex justify-center items-center gap-2 tracking-wider uppercase text-xs"
+                    disabled={isSubmitting || !isServiceAvailable}
+                    className="w-full bg-[#1877F2]/20 hover:bg-[#1877F2]/30 border border-[#1877F2]/50 disabled:opacity-50 disabled:cursor-not-allowed text-[#1877F2] font-extrabold py-3.5 rounded-full transition-all duration-300 flex justify-center items-center gap-2 tracking-wider uppercase text-xs"
                   >
                     {isSubmitting ? <Loader2 className="animate-spin text-[#1877F2]" size={18} /> : `Pay with Wallet (₱${formatPrice(payableTotal)})`}
                   </button>
@@ -1612,8 +1652,8 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                 
                 <button 
                   type="submit" 
-                  disabled={isSubmitting}
-                  className="w-full bg-[#1877F2] hover:bg-[#4e8df5] disabled:bg-slate-700 text-white font-extrabold py-3.5 rounded-full transition-all duration-300 flex justify-center items-center gap-2 tracking-wider uppercase text-xs shadow-[0_0_15px_rgba(24,119,242,0.35)]"
+                  disabled={isSubmitting || !isServiceAvailable}
+                  className="w-full bg-[#1877F2] hover:bg-[#4e8df5] disabled:bg-slate-700 disabled:cursor-not-allowed text-white font-extrabold py-3.5 rounded-full transition-all duration-300 flex justify-center items-center gap-2 tracking-wider uppercase text-xs shadow-[0_0_15px_rgba(24,119,242,0.35)]"
                 >
                   {isSubmitting ? <Loader2 className="animate-spin text-black" size={18} /> : (hasWalletBalanceForOrder ? 'Pay via GCash Instead' : 'Place Order')}
                 </button>

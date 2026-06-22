@@ -67,18 +67,32 @@ function isCustomPageOrder(targetUrl: string, requestedSmmServiceId?: string | n
   return /^Page Wants:/i.test(targetUrl.trim()) || /custom facebook page|Compiling custom Facebook page/i.test(targetUrl);
 }
 
-async function fetchService(client: SupabaseClient, serviceId: string): Promise<ServiceRow> {
+async function fetchService(client: SupabaseClient, serviceId: string): Promise<ServiceRow | null> {
   const { data, error } = await client
     .from("services")
     .select("id, title, description, starting_price, price_per_unit, min_quantity, max_quantity, smm_service_id")
     .eq("id", serviceId)
-    .single();
+    .maybeSingle();
 
-  if (error || !data) {
+  if (error) {
     throw new Error("Selected service was not found.");
   }
 
-  return data as ServiceRow;
+  return data as ServiceRow | null;
+}
+
+/**
+ * Verifies that an SMM service ID is currently listed on the upstream RixeySMM
+ * provider catalog. Throws a clear, user-facing error when the provider has
+ * delisted the service so clients are blocked from paying for something that
+ * can no longer be fulfilled.
+ */
+async function assertSmmServiceAvailable(smmServiceId: string | number) {
+  const catalogService = await getSmmCatalogServiceById(smmServiceId);
+  if (!catalogService) {
+    throw new Error("This service is temporarily unavailable from our provider. Please pick another service from the catalog.");
+  }
+  return catalogService;
 }
 
 export async function resolveOrderPricing({
@@ -92,19 +106,53 @@ export async function resolveOrderPricing({
     throw new Error("Invalid order quantity.");
   }
 
-  const service = await fetchService(client, serviceId);
-  const parsed = parseDescription(service.description) || {};
-  const title = String(service.title || "SMM Service");
-  const isCatalog = service.id === CATALOG_SERVICE_ID || /^all services$/i.test(title.trim());
   const cleanRequestedSmmId = requestedSmmServiceId === undefined || requestedSmmServiceId === null
     ? ""
     : String(requestedSmmServiceId).trim();
 
-  if (isCatalog && cleanRequestedSmmId) {
-    const catalogService = await getSmmCatalogServiceById(cleanRequestedSmmId);
-    if (!catalogService) {
-      throw new Error("Selected SMM provider service is not available.");
+  // Catalog ("All Services") orders: the umbrella catalog row may have been
+  // deleted from the Supabase `services` table. Resolve pricing directly from
+  // the live RixeySMM catalog instead of failing with "Selected service was
+  // not found." — this is what allows the SMM catalog modal to keep working
+  // even when the DB row is missing.
+  if (serviceId === CATALOG_SERVICE_ID) {
+    if (!cleanRequestedSmmId) {
+      throw new Error("Please pick a specific service from the catalog before ordering.");
     }
+
+    const catalogService = await assertSmmServiceAvailable(cleanRequestedSmmId);
+
+    const minimumQuantity = Math.max(Number(catalogService.min || 1), 1);
+    const finalQuantity = Math.max(quantity, minimumQuantity);
+    const maximumQuantity = Number(catalogService.max || 0);
+    if (maximumQuantity > 0 && finalQuantity > maximumQuantity) {
+      throw new Error(`Quantity cannot exceed ${maximumQuantity.toLocaleString()}.`);
+    }
+
+    const regularAmount = isCustomPageOrder(targetUrl, cleanRequestedSmmId)
+      ? BASE_PAGE_PRICE + Math.max(finalQuantity - INCLUDED_PAGE_FOLLOWERS, 0) * (catalogService.startingPrice || FALLBACK_PAGE_FOLLOWER_PRICE)
+      : Math.max(finalQuantity * catalogService.startingPrice, MIN_ORDER_AMOUNT);
+
+    return {
+      serviceId: CATALOG_SERVICE_ID,
+      serviceTitle: `[SMM #${catalogService.id}] ${catalogService.name}`,
+      quantity: finalQuantity,
+      regularAmount: roundMoney(regularAmount),
+      smmServiceId: String(catalogService.id),
+    };
+  }
+
+  const service = await fetchService(client, serviceId);
+  if (!service) {
+    throw new Error("Selected service was not found.");
+  }
+
+  const parsed = parseDescription(service.description) || {};
+  const title = String(service.title || "SMM Service");
+  const isCatalog = service.id === CATALOG_SERVICE_ID || /^all services$/i.test(title.trim());
+
+  if (isCatalog && cleanRequestedSmmId) {
+    const catalogService = await assertSmmServiceAvailable(cleanRequestedSmmId);
 
     const minimumQuantity = Math.max(Number(catalogService.min || 1), 1);
     const finalQuantity = Math.max(quantity, minimumQuantity);
@@ -139,6 +187,8 @@ export async function resolveOrderPricing({
   const reactions = /reaction|react/i.test(title) ? parseSelectedReactions(targetUrl) : null;
   if (reactions) {
     const reactionDetails = getFBReactionsSMMDetails(reactions);
+    // Verify the mapped reaction SMM service is still listed by the provider.
+    await assertSmmServiceAvailable(reactionDetails.smmId);
     return {
       serviceId: service.id,
       serviceTitle: title,
@@ -156,6 +206,13 @@ export async function resolveOrderPricing({
 
   if (cleanRequestedSmmId && canonicalSmmId && String(canonicalSmmId) !== cleanRequestedSmmId) {
     throw new Error("Selected provider service does not match this product.");
+  }
+
+  // For any service mapped to an upstream SMM provider service, verify the
+  // provider still lists it. Manual services (no smm_service_id) skip this
+  // check because they are fulfilled by the admin directly.
+  if (canonicalSmmId) {
+    await assertSmmServiceAvailable(canonicalSmmId);
   }
 
   return {
