@@ -300,44 +300,24 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 3. Create the auth user using the client-facing signUp API.
-    //    This generates a confirmation token AND sends the verification email automatically.
-    //    We use the anon key (not admin) so GoTrue runs the full signup flow.
-    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    if (!anonKey) {
-      return NextResponse.json({ error: "Server configuration missing" }, { status: 500 });
-    }
-
-    const siteUrl = "https://faceboosting.vercel.app";
-
-    const signUpRes = await fetch(`${primaryUrl}/auth/v1/signup`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        apikey: anonKey
-      },
-      body: JSON.stringify({
-        email: cleanEmail,
-        password: password,
-        redirect_to: `${siteUrl}/auth/callback`
-      })
+    // 3. Create the auth user in the PRIMARY database via Admin API.
+    //    email_confirm: false so the user must verify via OTP before they can sign in.
+    const { data: createData, error: createError } = await primaryAdmin.auth.admin.createUser({
+      email: cleanEmail,
+      password: password,
+      email_confirm: false
     });
 
-    const signUpData = await signUpRes.json();
-
-    if (!signUpRes.ok) {
-      const errMsg = signUpData?.msg || signUpData?.error || "Failed to create account.";
-      return NextResponse.json({ error: errMsg }, { status: 400 });
+    if (createError) {
+      return NextResponse.json({ error: createError.message }, { status: 400 });
     }
 
-    // GoTrue's /auth/v1/signup returns user fields at the top level, not nested under "user"
-    const newUserId = signUpData?.id || signUpData?.user?.id;
+    const newUserId = createData.user?.id;
     if (!newUserId) {
-      console.error("Signup response missing user ID. Response:", JSON.stringify(signUpData));
       return NextResponse.json({ error: "Failed to generate user ID" }, { status: 500 });
     }
 
-    console.log(`User ${cleanEmail} created via signUp. Confirmation email sent by GoTrue.`);
+    console.log(`User ${cleanEmail} created via admin API (unconfirmed, OTP required).`);
 
     // 4. Create the auth user inside every configured backup auth database.
     for (const backupAdmin of backupAdmins) {
@@ -437,7 +417,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ 
       success: true, 
       user: { id: newUserId, email: cleanEmail },
-      message: "📬 Registration Successful! We've sent a confirmation link to your email. Please check your inbox (and spam folder) and click the link to activate your account before signing in. 🚀" 
+      otp_required: true,
+      message: "Account created! A verification code has been sent to your email. Please enter it below to activate your account. 🚀" 
     });
   } catch (err: any) {
     console.error("Signup endpoint failed:", err);
