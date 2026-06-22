@@ -72,52 +72,6 @@ function AnnouncementModal({ onClose }: { onClose: () => void }) {
   );
 }
 
-type StepperEntry = { num: number; label: string };
-
-const STEPPER: StepperEntry[] = [
-  { num: 1, label: "Account Setup" },
-  { num: 2, label: "Pick Boost" },
-  { num: 3, label: "Checkout" },
-  { num: 4, label: "Launch & Track" },
-];
-
-function Stepper({ currentStep = 1 }: { currentStep?: number }) {
-  return (
-    <div className="relative grid grid-cols-4 items-center w-full max-w-xs sm:max-w-md md:max-w-xl mx-auto select-none bg-[#121212]/90 border border-slate-800/80 p-3 sm:p-4 md:p-5 rounded-full shadow-lg overflow-hidden">
-      <div className="absolute left-6 right-6 top-1/2 -translate-y-1/2 h-[1px] bg-slate-800 z-0" />
-      {STEPPER.map((st) => {
-        const isCompleted = st.num < currentStep;
-        const isActive = st.num === currentStep;
-        return (
-          <div
-            key={st.num}
-            className="relative z-10 flex flex-col items-center space-y-1.5"
-          >
-            <div
-              className={`w-9 h-9 rounded-full flex items-center justify-center font-black text-xs border transition-all duration-350 ${
-                isCompleted
-                  ? "bg-[#1DB954] border-[#1DB954] text-black shadow-[0_0_12px_rgba(29,185,84,0.35)]"
-                  : isActive
-                    ? "bg-[#0a0a0a] border-[#1DB954] text-[#1DB954] shadow-[0_0_12px_rgba(29,185,84,0.35)]"
-                    : "bg-[#121212] border-slate-800 text-slate-500"
-              }`}
-            >
-              {isCompleted ? <Check size={16} strokeWidth={3} /> : st.num}
-            </div>
-            <span
-              className={`text-[9px] font-black uppercase tracking-wider hidden sm:block ${
-                isCompleted ? "text-[#1DB954]" : isActive ? "text-white" : "text-slate-500"
-              }`}
-            >
-              {st.label}
-            </span>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
 function ShimmerHero() {
   const renderWord = (
     word: string,
@@ -407,10 +361,6 @@ export default function QuickStartPage() {
           <p className="text-slate-400 text-xs sm:text-sm font-bold uppercase tracking-wide max-w-xl mx-auto leading-relaxed">
             CONGRATS, YOU HAVE ARRIVE AT DIRECT SUPPLIER BOOSTING. MEANING YOU WILL GET EVERYTHING AFFORDABLE
           </p>
-        </div>
-
-        <div className="w-full max-w-lg md:max-w-2xl mx-auto">
-          <Stepper currentStep={otpVerified ? 2 : 1} />
         </div>
 
         <div className="w-full max-w-sm sm:max-w-md md:max-w-lg mx-auto bg-[#121212]/95 border border-slate-800/85 p-6 sm:p-8 rounded-3xl shadow-2xl relative overflow-hidden">
