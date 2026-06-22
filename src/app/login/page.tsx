@@ -188,9 +188,8 @@ export default function LoginPage() {
           setError(resData.error || "Failed to create account.");
           setLoading(false);
         } else {
-          setSuccess(resData.message || "🎉 Registration Successful! Your account has been instantly activated. You can now sign in immediately! 🚀");
+          setSuccess(resData.message || "📬 Registration Successful! We've sent a confirmation link to your email. Please check your inbox (and spam folder) and click the link to activate your account before signing in. 🚀");
           setLoading(false);
-          setMode("signin"); // Go straight to Sign In
           setPassword("");
           setConfirmPassword("");
         }
@@ -205,6 +204,28 @@ export default function LoginPage() {
         setError(`Please wait ${resendCountdown} seconds before requesting another recovery email.`);
         setLoading(false);
         return;
+      }
+
+      // First, verify the email exists and is valid via the verification API
+      setEmailVerifying(true);
+      try {
+        const verifyRes = await fetch("/api/auth/verify-email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: loginEmail })
+        });
+        const verifyData = await verifyRes.json();
+        setEmailVerifying(false);
+
+        if (!verifyData.valid) {
+          setError(verifyData.error || "Email verification failed. Please check your email address.");
+          setLoading(false);
+          return;
+        }
+      } catch (verifyErr) {
+        console.warn("Email verifier error during forgot password:", verifyErr);
+        setEmailVerifying(false);
+        // Continue anyway if verification endpoint fails (degraded mode)
       }
 
       try {

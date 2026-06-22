@@ -267,12 +267,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "This email is already registered. Please sign in!" }, { status: 400 });
     }
 
-    // 3. Create the auth user in the PRIMARY database via Admin API to bypass SMTP rate limits!
-    //    This automatically confirms the email, enabling unlimited and instant registrations.
+    // 3. Create the auth user in the PRIMARY database via Admin API.
+    //    email_confirm: false so the user must verify before they can sign in.
     const { data: createData, error: createError } = await primaryAdmin.auth.admin.createUser({
       email: cleanEmail,
       password: password,
-      email_confirm: true
+      email_confirm: false
     });
 
     if (createError) {
@@ -284,6 +284,37 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Failed to generate user ID" }, { status: 500 });
     }
 
+    // 4a. Send email confirmation via GoTrue API.
+    //     The admin API doesn't trigger confirmation emails, so we call user-facing
+    //     resend endpoint with the anon key to deliver the verification link.
+    try {
+      const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+      if (anonKey) {
+        const confirmRes = await fetch(
+          `${primaryUrl}/auth/v1/resend`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              apikey: anonKey
+            },
+            body: JSON.stringify({
+              type: "signup",
+              email: cleanEmail
+            })
+          }
+        );
+        if (!confirmRes.ok) {
+          const confirmBody = await confirmRes.text();
+          console.warn(`Confirmation email trigger returned ${confirmRes.status}: ${confirmBody}`);
+        } else {
+          console.log(`Confirmation email sent to ${cleanEmail}`);
+        }
+      }
+    } catch (confirmErr: any) {
+      console.warn("Failed to trigger confirmation email:", confirmErr.message);
+    }
+
     // 4. Create the auth user inside every configured backup auth database.
     for (const backupAdmin of backupAdmins) {
       try {
@@ -291,7 +322,7 @@ export async function POST(req: NextRequest) {
           id: newUserId,
           email: cleanEmail,
           password: password,
-          email_confirm: true
+          email_confirm: false
         });
         console.log(`Successfully replicated auth user ${newUserId} to ${backupAdmin.displayName} Auth database.`);
       } catch (backupAuthErr: any) {
@@ -382,7 +413,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ 
       success: true, 
       user: createData.user,
-      message: "🎉 Registration Successful! Your account has been instantly activated. You can now sign in immediately! 🚀" 
+      message: "📬 Registration Successful! We've sent a confirmation link to your email. Please check your inbox (and spam folder) and click the link to activate your account before signing in. 🚀" 
     });
   } catch (err: any) {
     console.error("Signup endpoint failed:", err);
