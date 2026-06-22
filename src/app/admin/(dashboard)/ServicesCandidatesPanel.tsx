@@ -17,6 +17,7 @@ interface Candidate {
   btn_bg: string;
   glow_color: string;
   image_url?: string;
+  smm_service_id?: string;
 }
 
 function getErrorMessage(err: unknown, fallback: string) {
@@ -30,7 +31,8 @@ const normalizeCandidates = (items: Candidate[]) =>
     ...item,
     caption: item.caption || "",
     layout: item.layout || "standard",
-    image_url: item.image_url || ""
+    image_url: item.image_url || "",
+    smm_service_id: item.smm_service_id || "",
   }));
 
 export function ServicesCandidatesPanel() {
@@ -218,6 +220,11 @@ export function ServicesCandidatesPanel() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2.5">
+                  {card.smm_service_id && (
+                    <span className="text-[9px] bg-emerald-500/10 border border-emerald-500/20 text-[#1DB954] px-2 py-0.5 rounded-full font-black uppercase tracking-wider inline-flex items-center gap-1 shadow-sm">
+                      <Layers size={9} strokeWidth={3} /> SMM ID: {card.smm_service_id}
+                    </span>
+                  )}
                   <span 
                     className="w-2.5 h-2.5 rounded-full border border-white/10" 
                     style={{ backgroundColor: card.theme_color }}
@@ -399,6 +406,20 @@ export function ServicesCandidatesPanel() {
                         ></div>
                       </div>
                     </div>
+                  </div>
+
+                  {/* SMM Service ID field */}
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-black uppercase text-slate-500 tracking-wider flex items-center gap-1.5">
+                      <Layers size={10} className="text-[#1DB954]" /> SMM Service ID (Linked RixeySMM Service)
+                    </label>
+                    <input
+                      type="text"
+                      value={card.smm_service_id || ""}
+                      onChange={(e) => handleFieldChange(idx, "smm_service_id", e.target.value)}
+                      placeholder="e.g. 2026 (auto-populated by SMM reimport sync)"
+                      className="w-full bg-[#181818] border border-slate-850 rounded-xl px-4.5 py-2.5 text-xs font-bold text-white placeholder-slate-650 focus:outline-none focus:border-[#1DB954]"
+                    />
                   </div>
 
                 </div>

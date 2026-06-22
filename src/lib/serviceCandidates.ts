@@ -14,6 +14,7 @@ export type ServiceCandidate = {
   glow_color?: string;
   layout?: string;
   image_url?: string;
+  smm_service_id?: string;
 };
 
 export const DEFAULT_SERVICE_CANDIDATES: ServiceCandidate[] = [
@@ -136,6 +137,7 @@ function normalizeCandidate(value: unknown): ServiceCandidate | null {
     glow_color: typeof item.glow_color === "string" ? item.glow_color : "",
     layout: typeof item.layout === "string" ? item.layout : "standard",
     image_url: typeof item.image_url === "string" ? item.image_url : "",
+    smm_service_id: item.smm_service_id ? String(item.smm_service_id) : "",
   };
 }
 

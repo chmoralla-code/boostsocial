@@ -270,6 +270,7 @@ export async function POST(req: NextRequest) {
         const best = platformBestPrices[platform];
         const oldRate = candidate.rate_text;
         candidate.rate_text = `₱${best.retailPer1k.toFixed(2)} per 1k boosts`;
+        candidate.smm_service_id = best.service;
         candidateUpdates[candidate.id] = { old: oldRate, new: candidate.rate_text, smmService: best.service };
       }
     }
