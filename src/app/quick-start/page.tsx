@@ -192,7 +192,6 @@ export default function QuickStartPage() {
   const [otpVerified, setOtpVerified] = useState(false);
   const [otpCountdown, setOtpCountdown] = useState(0);
 
-  // Track which stepper step we're on
   const [step, setStep] = useState(1);
 
   const [announcement, setAnnouncement] = useState<AnnouncementState>("checking");
@@ -346,8 +345,8 @@ export default function QuickStartPage() {
 
         try { localStorage.setItem("onboarded", "true"); } catch {}
 
-        // Advance to step 2
-        setStep(2);
+        // Redirect to homepage after brief delay
+        setTimeout(() => router.replace("/"), 2000);
       } else {
         setFormMessage({ type: "error", text: data.error || "Invalid code." });
       }
@@ -411,7 +410,7 @@ export default function QuickStartPage() {
         </div>
 
         <div className="w-full max-w-lg md:max-w-2xl mx-auto">
-          <Stepper currentStep={step} />
+          <Stepper currentStep={otpVerified ? 2 : 1} />
         </div>
 
         <div className="w-full max-w-sm sm:max-w-md md:max-w-lg mx-auto bg-[#121212]/95 border border-slate-800/85 p-6 sm:p-8 rounded-3xl shadow-2xl relative overflow-hidden">
@@ -419,16 +418,10 @@ export default function QuickStartPage() {
 
           <div className="text-center pb-4 mb-6 border-b border-slate-800/60 select-none">
             <h2 className="text-sm font-black uppercase tracking-[0.2em] text-[#1DB954]">
-              {step === 1 && "Register New Account"}
-              {step === 2 && "Pick Your Boost"}
-              {step === 3 && "Checkout"}
-              {step === 4 && "Launch & Track"}
+              Register New Account
             </h2>
             <p className="text-[10px] text-slate-500 font-semibold mt-1">
-              {step === 1 && "Complete registration and verify your email to get started."}
-              {step === 2 && "Choose a service to boost your first campaign."}
-              {step === 3 && "Place your first order and let the boost begin."}
-              {step === 4 && "Your order is live — track it anytime."}
+              Complete registration and verify your email to get started.
             </p>
           </div>
 
@@ -588,79 +581,15 @@ export default function QuickStartPage() {
                 </div>
               )}
 
-              {otpVerified && step === 2 && (
-                <div className="text-center space-y-3 pt-2">
-                  <p className="text-[11px] text-slate-400">Select a platform to get started</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    {[
-                      { emoji: "📘", name: "Facebook", href: "/?smm_search=facebook" },
-                      { emoji: "📸", name: "Instagram", href: "/?smm_search=instagram" },
-                      { emoji: "🎵", name: "TikTok", href: "/?smm_search=tiktok" },
-                      { emoji: "🎥", name: "YouTube", href: "/?smm_search=youtube" }
-                    ].map(p => (
-                      <Link
-                        key={p.name}
-                        href={p.href}
-                        className="bg-[#0a0a0a] hover:bg-[#1DB954]/10 border border-slate-800 hover:border-[#1DB954]/40 p-4 rounded-xl transition-all duration-200 flex flex-col items-center gap-2"
-                      >
-                        <span className="text-2xl">{p.emoji}</span>
-                        <span className="text-[10px] font-bold text-white">{p.name}</span>
-                      </Link>
-                    ))}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setStep(3)}
-                    className="text-[10px] text-slate-500 hover:text-[#1DB954] font-bold transition-colors cursor-pointer"
-                  >
-                    I&apos;ll decide later →
-                  </button>
-                </div>
-              )}
-
-              {step === 3 && (
-                <div className="text-center space-y-3 pt-2">
-                  <p className="text-[11px] text-slate-400 leading-relaxed">
-                    Browse the full catalog to find the perfect service for your needs.
-                    Pick any boost, enter your link, and place your order in seconds.
-                  </p>
-                  <Link
-                    href="/?smm_search="
-                    className="inline-block w-full bg-[#1DB954] hover:bg-[#1ed760] text-black font-black py-3 rounded-xl transition-all duration-200 text-xs uppercase tracking-wider"
-                  >
-                    Browse Full Catalog →
-                  </Link>
-                  <button
-                    type="button"
-                    onClick={() => setStep(4)}
-                    className="text-[10px] text-slate-500 hover:text-[#1DB954] font-bold transition-colors cursor-pointer"
-                  >
-                    Skip to tracking →
-                  </button>
-                </div>
-              )}
-
-              {step === 4 && (
+              {otpVerified && (
                 <div className="text-center space-y-3 pt-2">
                   <div className="w-12 h-12 bg-[#1DB954]/20 rounded-full flex items-center justify-center mx-auto">
                     <Check size={24} className="text-[#1DB954]" strokeWidth={3} />
                   </div>
-                  <p className="text-xs font-bold text-white">You&apos;re all set!</p>
-                  <p className="text-[10px] text-slate-500 leading-relaxed">
-                    Your account is ready. Place your first order, then track its status in real time from your dashboard.
+                  <p className="text-xs font-bold text-white">Account verified!</p>
+                  <p className="text-[10px] text-slate-500">
+                    Redirecting you to the homepage...
                   </p>
-                  <Link
-                    href="/app/orders"
-                    className="inline-block w-full bg-[#1DB954] hover:bg-[#1ed760] text-black font-black py-3 rounded-xl transition-all duration-200 text-xs uppercase tracking-wider"
-                  >
-                    Go to Dashboard →
-                  </Link>
-                  <Link
-                    href="/"
-                    className="inline-block w-full border border-slate-700 hover:border-slate-500 text-slate-200 font-black py-3 rounded-xl transition-all duration-200 text-xs uppercase tracking-wider"
-                  >
-                    Browse Services
-                  </Link>
                 </div>
               )}
             </div>
