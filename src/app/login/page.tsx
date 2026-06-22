@@ -320,7 +320,7 @@ export default function LoginPage() {
   };
 
   const handleResend = async () => {
-    if (!unconfirmedEmail || resending) return;
+    if (!unconfirmedEmail || resending || resendCountdown > 0) return;
     setResending(true);
     setResendSent(false);
     try {
@@ -333,8 +333,13 @@ export default function LoginPage() {
       if (res.ok) {
         setResendSent(true);
         setError("");
+        setResendCountdown(60);
+      } else if (data.error === "rate_limited") {
+        const remaining = data.remaining || 60;
+        setError(data.message || `Please wait ${remaining} seconds before trying again.`);
+        setResendCountdown(remaining);
       } else {
-        setError(data.error || "Failed to resend. Try again later.");
+        setError(data.message || "Failed to resend. Try again later.");
       }
     } catch {
       setError("Network error. Please try again.");
@@ -512,18 +517,26 @@ export default function LoginPage() {
               </div>
               {/* Resend confirmation button shown when sign-in is blocked by unverified email */}
               {unconfirmedEmail && !resendSent && (
-                <button
-                  type="button"
-                  onClick={handleResend}
-                  disabled={resending}
-                  className="mt-2.5 w-full bg-[#1877F2]/20 hover:bg-[#1877F2]/30 text-[#1877F2] font-black py-2 rounded-lg transition-all duration-300 text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  {resending ? (
-                    <><Loader2 className="animate-spin" size={13} /> Sending...</>
+                <>
+                  {resendCountdown > 0 ? (
+                    <div className="mt-2.5 w-full bg-slate-800/50 text-slate-400 font-black py-2 rounded-lg text-[10px] uppercase tracking-widest text-center">
+                      Resend available in {resendCountdown}s
+                    </div>
                   ) : (
-                    <>📬 Resend Confirmation Email</>
+                    <button
+                      type="button"
+                      onClick={handleResend}
+                      disabled={resending}
+                      className="mt-2.5 w-full bg-[#1877F2]/20 hover:bg-[#1877F2]/30 text-[#1877F2] font-black py-2 rounded-lg transition-all duration-300 text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      {resending ? (
+                        <><Loader2 className="animate-spin" size={13} /> Sending...</>
+                      ) : (
+                        <>📬 Resend Confirmation Email</>
+                      )}
+                    </button>
                   )}
-                </button>
+                </>
               )}
               {unconfirmedEmail && resendSent && (
                 <div className="mt-2 flex items-start gap-2 text-[#1877F2] text-[10px] font-bold">
