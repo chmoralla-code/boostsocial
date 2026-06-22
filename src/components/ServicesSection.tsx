@@ -68,6 +68,7 @@ interface ServiceCandidate {
   layout?: string;
   image_url?: string;
   logo_url?: string;
+  video_url?: string;
 }
 
 /* Real official brand logos (SVG) — keyed by ServiceCandidate.id.
@@ -573,7 +574,8 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
       rate_text: "Starter \u20B15,800 | Professional \u20B18,500 | Enterprise \u20B111,000",
       theme_color: "#1877F2",
       btn_bg: "bg-[#1877F2] hover:bg-[#4e8df5]",
-      glow_color: "rgba(24, 119, 242, 0.45)"
+      glow_color: "rgba(24, 119, 242, 0.45)",
+      video_url: "/pisowifi-promo.mp4"
     },
     {
       id: "other",
@@ -761,6 +763,7 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
             const candidateVipAmount = candidateRateAmount ? applyVipPrice(candidateRateAmount) : null;
             const hasCandidateVipPrice = Boolean(vipDiscountPercent && candidateRateAmount && candidateVipAmount && candidateVipAmount < candidateRateAmount);
             const candidateImageUrl = card.image_url?.trim();
+            const candidateVideoUrl = card.video_url?.trim();
 
             return (
               <div 
@@ -778,7 +781,23 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
                   e.currentTarget.style.borderColor = `rgba(255, 255, 255, 0.04)`;
                 }}
               >
-                {candidateImageUrl ? (
+                {candidateVideoUrl ? (
+                  <div
+                    className="relative w-full aspect-[16/9] rounded-2xl overflow-hidden mb-5 border bg-black/30 shadow-inner"
+                    style={{ borderColor: `${card.theme_color}25` }}
+                  >
+                    <video
+                      src={candidateVideoUrl}
+                      autoPlay
+                      muted
+                      loop
+                      playsInline
+                      preload="metadata"
+                      className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-transparent pointer-events-none"></div>
+                  </div>
+                ) : candidateImageUrl ? (
                   <div
                     className="relative w-full aspect-[16/9] rounded-2xl overflow-hidden mb-5 border bg-black/30 shadow-inner"
                     style={{ borderColor: `${card.theme_color}25` }}
