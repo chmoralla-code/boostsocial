@@ -25,6 +25,9 @@ export default function LoginPage() {
 
   // Forgot password countdown state
   const [resendCountdown, setResendCountdown] = useState(0);
+  const [unconfirmedEmail, setUnconfirmedEmail] = useState<string | null>(null);
+  const [resending, setResending] = useState(false);
+  const [resendSent, setResendSent] = useState(false);
 
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
@@ -260,8 +263,10 @@ export default function LoginPage() {
         setEmailVerifying(false);
 
         if (confirmData.exists && !confirmData.confirmed) {
+          setUnconfirmedEmail(loginEmail);
           setError("📬 Email not confirmed yet. Please check your inbox (and spam folder) for the confirmation link we sent you, then click it to activate your account before signing in.");
           setLoading(false);
+          setResendSent(false);
           return;
         }
       } catch (checkErr) {
@@ -277,6 +282,8 @@ export default function LoginPage() {
 
       if (signInError) {
         if (signInError.message.toLowerCase().includes("confirm")) {
+          setUnconfirmedEmail(loginEmail);
+          setResendSent(false);
           setError("📬 Email not confirmed. Please check your email inbox and click the verification link to activate your account!");
         } else {
           setError(signInError.message);
@@ -308,6 +315,32 @@ export default function LoginPage() {
     setPassword("");
     setConfirmPassword("");
     setEmailVerifiedDetails(null);
+    setUnconfirmedEmail(null);
+    setResendSent(false);
+  };
+
+  const handleResend = async () => {
+    if (!unconfirmedEmail || resending) return;
+    setResending(true);
+    setResendSent(false);
+    try {
+      const res = await fetch("/api/auth/resend-confirmation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: unconfirmedEmail })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setResendSent(true);
+        setError("");
+      } else {
+        setError(data.error || "Failed to resend. Try again later.");
+      }
+    } catch {
+      setError("Network error. Please try again.");
+    } finally {
+      setResending(false);
+    }
   };
 
   return (
@@ -472,9 +505,32 @@ export default function LoginPage() {
           )}
 
           {error && (
-            <div className="text-red-500 text-xs font-semibold bg-red-500/10 border border-red-500/20 p-3.5 rounded-xl text-left leading-relaxed flex items-start gap-2 animate-shake">
-              <AlertCircle className="shrink-0 mt-0.5" size={14} />
-              <span>{error}</span>
+            <div className="bg-red-500/10 border border-red-500/20 p-3.5 rounded-xl text-left leading-relaxed">
+              <div className="flex items-start gap-2 text-red-500 text-xs font-semibold">
+                <AlertCircle className="shrink-0 mt-0.5" size={14} />
+                <span>{error}</span>
+              </div>
+              {/* Resend confirmation button shown when sign-in is blocked by unverified email */}
+              {unconfirmedEmail && !resendSent && (
+                <button
+                  type="button"
+                  onClick={handleResend}
+                  disabled={resending}
+                  className="mt-2.5 w-full bg-[#1877F2]/20 hover:bg-[#1877F2]/30 text-[#1877F2] font-black py-2 rounded-lg transition-all duration-300 text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  {resending ? (
+                    <><Loader2 className="animate-spin" size={13} /> Sending...</>
+                  ) : (
+                    <>📬 Resend Confirmation Email</>
+                  )}
+                </button>
+              )}
+              {unconfirmedEmail && resendSent && (
+                <div className="mt-2 flex items-start gap-2 text-[#1877F2] text-[10px] font-bold">
+                  <MailCheck className="shrink-0 mt-0.5" size={13} />
+                  <span>Confirmation email resent! Check your inbox and spam folder.</span>
+                </div>
+              )}
             </div>
           )}
           
