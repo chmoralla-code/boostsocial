@@ -39,7 +39,7 @@ interface Profile {
 }
 
 const CUSTOM_PAGE_SERVICE_ID = "e6f61249-71fe-40df-84f3-96d03d3e8dcf";
-const FACEBOOK_FOLLOWERS_SMM_ID = "1141";
+const FACEBOOK_FOLLOWERS_SMM_ID = "2026";
 const BASE_PAGE_PRICE = 1999;
 const INCLUDED_FOLLOWERS = 10000;
 const FALLBACK_FOLLOWER_PRICE = 0.02752;
@@ -135,7 +135,7 @@ export default function OrderPage() {
         const service = (data as SmmService[]).find((item) => String(item.id) === FACEBOOK_FOLLOWERS_SMM_ID);
         if (service && isMounted) setFacebookFollowerService(service);
       } catch (err) {
-        console.warn("Falling back to cached SMM #1141 price:", err);
+        console.warn("Falling back to cached SMM #2026 price:", err);
       } finally {
         if (isMounted) setLoadingCatalog(false);
       }
@@ -262,7 +262,7 @@ export default function OrderPage() {
           body: JSON.stringify({
             userId: user.id,
             serviceId: CUSTOM_PAGE_SERVICE_ID,
-            serviceTitle: "Custom Facebook Page + SMM #1141 Followers",
+            serviceTitle: "Custom Facebook Page + SMM #2026 Followers",
             email: user.email,
             url: "Compiling custom Facebook page order assets...",
             quantity: normalizedQuantity,
@@ -367,7 +367,7 @@ export default function OrderPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           trackingId: `BS-${order.id.slice(0, 8).toUpperCase()}`,
-          service: "Custom Facebook Page + Facebook Followers SMM #1141",
+          service: "Custom Facebook Page + Facebook Followers SMM #2026",
           email: email.trim(),
           quantity: normalizedQuantity,
           amount: payableTotal,
@@ -554,7 +554,7 @@ export default function OrderPage() {
                   {loadingCatalog && (
                     <p className="mt-3 flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">
                       <Loader2 size={12} className="animate-spin" />
-                      Loading live SMM #1141 pricing
+                      Loading live SMM #2026 pricing
                     </p>
                   )}
                 </div>

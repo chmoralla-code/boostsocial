@@ -79,7 +79,7 @@ export const DEFAULT_SERVICE_CANDIDATES: ServiceCandidate[] = [
     tag: "ORDER PAGE",
     title: "Custom Facebook Page",
     caption: "Page setup + FB followers",
-    description: "Launch a custom Facebook page with profile and cover assets, FB bio, transfer link, GCash or wallet checkout, and follower quantity priced from SMM #1141.",
+    description: "Launch a custom Facebook page with profile and cover assets, FB bio, transfer link, GCash or wallet checkout, and follower quantity priced from SMM #2026.",
     rate_prefix: "Base Package",
     rate_text: "PHP 1,999 includes 10k followers",
     layout: "standard",
