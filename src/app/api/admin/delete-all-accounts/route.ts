@@ -31,8 +31,11 @@ export async function POST(req: NextRequest) {
       await syncBackupAdminClients(async (backupClient) => {
         const topupDelete = await backupClient.from("topups").delete().eq("user_id", user.id);
         if (topupDelete.error) return topupDelete;
-        return backupClient.from("profiles").delete().eq("id", user.id);
-      }, "bulk customer deletion sync");
+        const profileDelete = await backupClient.from("profiles").delete().eq("id", user.id);
+        if (profileDelete.error) return profileDelete;
+        // Also delete auth user from backup databases so the email can be re-registered
+        return backupClient.auth.admin.deleteUser(user.id);
+      }, "bulk customer full deletion sync (profiles + auth)");
       
       // Delete auth user record
       const { error: deleteError } = await supabase.auth.admin.deleteUser(user.id);

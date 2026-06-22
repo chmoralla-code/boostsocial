@@ -248,6 +248,28 @@ export default function LoginPage() {
 
     // C. Sign In Flow
     } else {
+      // Server-side check: verify email is confirmed before attempting login
+      setEmailVerifying(true);
+      try {
+        const confirmCheck = await fetch("/api/auth/check-confirmation", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: loginEmail })
+        });
+        const confirmData = await confirmCheck.json();
+        setEmailVerifying(false);
+
+        if (confirmData.exists && !confirmData.confirmed) {
+          setError("📬 Email not confirmed yet. Please check your inbox (and spam folder) for the confirmation link we sent you, then click it to activate your account before signing in.");
+          setLoading(false);
+          return;
+        }
+      } catch (checkErr) {
+        console.warn("Confirmation check error - proceeding with normal sign-in:", checkErr);
+        setEmailVerifying(false);
+        // Fall through to normal sign-in if the check fails
+      }
+
       const { error: signInError } = await supabase.auth.signInWithPassword({
         email: loginEmail,
         password,
@@ -466,10 +488,39 @@ export default function LoginPage() {
           <button 
             type="submit" 
             disabled={loading || emailVerifying}
-            className="w-full bg-[#1877F2] hover:bg-[#4e8df5] text-white font-black py-3.5 rounded-full transition-all duration-300 transform hover:scale-[1.02] flex justify-center items-center gap-2 mt-6 uppercase tracking-wider text-xs shadow-lg shadow-blue-500/10 cursor-pointer animate-fade-in"
+            className={`w-full text-white font-black py-3.5 rounded-full transition-all duration-300 transform flex justify-center items-center gap-2 mt-6 uppercase tracking-wider text-xs shadow-lg cursor-pointer relative overflow-hidden
+              ${loading || emailVerifying 
+                ? "bg-[#1877F2]/70 cursor-wait scale-[0.98] shadow-none" 
+                : "bg-[#1877F2] hover:bg-[#4e8df5] hover:scale-[1.02] shadow-blue-500/10 animate-fade-in"}`}
+            style={loading || emailVerifying ? { boxShadow: '0 0 20px rgba(24, 119, 242, 0.2)' } : {}}
           >
+            {/* Loading shimmer overlay */}
+            {(loading || emailVerifying) && (
+              <div className="absolute inset-0 overflow-hidden rounded-full">
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/15 to-transparent animate-shimmer" 
+                     style={{ backgroundSize: '200% 100%', animation: 'shimmer 2s infinite' }} />
+              </div>
+            )}
+
             {loading ? (
-              <Loader2 className="animate-spin" size={16} />
+              <div className="flex items-center gap-2.5 relative z-10">
+                {/* Pulsing ring */}
+                <span className="relative flex h-4 w-4">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white/40 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-4 w-4 bg-white/80"></span>
+                </span>
+                <span className="flex gap-0.5">
+                  {"Creating".split("").map((letter, i) => (
+                    <span key={i} className="animate-bounce" style={{ animationDelay: `${i * 0.08}s`, animationDuration: '0.6s' }}>{letter}</span>
+                  ))}
+                </span>
+                {/* Animated dots */}
+                <span className="flex gap-0.5">
+                  {[0,1,2].map((i) => (
+                    <span key={i} className="w-1 h-1 bg-white/60 rounded-full animate-bounce" style={{ animationDelay: `${i * 0.15}s`, animationDuration: '0.6s' }} />
+                  ))}
+                </span>
+              </div>
             ) : emailVerifying ? (
               <>
                 <Loader2 className="animate-spin" size={16} /> Checking Mail Domain...
