@@ -81,12 +81,13 @@ const STEPPER: StepperEntry[] = [
   { num: 4, label: "Launch & Track" },
 ];
 
-function Stepper() {
+function Stepper({ currentStep = 1 }: { currentStep?: number }) {
   return (
     <div className="relative grid grid-cols-4 items-center w-full max-w-xs sm:max-w-md md:max-w-xl mx-auto select-none bg-[#121212]/90 border border-slate-800/80 p-3 sm:p-4 md:p-5 rounded-full shadow-lg overflow-hidden">
       <div className="absolute left-6 right-6 top-1/2 -translate-y-1/2 h-[1px] bg-slate-800 z-0" />
       {STEPPER.map((st) => {
-        const isActive = st.num === 1;
+        const isCompleted = st.num < currentStep;
+        const isActive = st.num === currentStep;
         return (
           <div
             key={st.num}
@@ -94,16 +95,18 @@ function Stepper() {
           >
             <div
               className={`w-9 h-9 rounded-full flex items-center justify-center font-black text-xs border transition-all duration-350 ${
-                isActive
-                  ? "bg-[#0a0a0a] border-[#1DB954] text-[#1DB954] shadow-[0_0_12px_rgba(29,185,84,0.35)]"
-                  : "bg-[#121212] border-slate-800 text-slate-500"
+                isCompleted
+                  ? "bg-[#1DB954] border-[#1DB954] text-black shadow-[0_0_12px_rgba(29,185,84,0.35)]"
+                  : isActive
+                    ? "bg-[#0a0a0a] border-[#1DB954] text-[#1DB954] shadow-[0_0_12px_rgba(29,185,84,0.35)]"
+                    : "bg-[#121212] border-slate-800 text-slate-500"
               }`}
             >
-              {st.num}
+              {isCompleted ? <Check size={16} strokeWidth={3} /> : st.num}
             </div>
             <span
               className={`text-[9px] font-black uppercase tracking-wider hidden sm:block ${
-                isActive ? "text-white" : "text-slate-500"
+                isCompleted ? "text-[#1DB954]" : isActive ? "text-white" : "text-slate-500"
               }`}
             >
               {st.label}
@@ -188,6 +191,9 @@ export default function QuickStartPage() {
   const [otpVerifying, setOtpVerifying] = useState(false);
   const [otpVerified, setOtpVerified] = useState(false);
   const [otpCountdown, setOtpCountdown] = useState(0);
+
+  // Track which stepper step we're on (1 = Account Setup, 2 = Pick Boost, etc.)
+  const currentStep = otpVerified ? 2 : 1;
 
   const [announcement, setAnnouncement] = useState<AnnouncementState>("checking");
 
@@ -330,8 +336,24 @@ export default function QuickStartPage() {
         setOtpVerified(true);
         setFormMessage({
           type: "success",
-          text: "✅ Email verified successfully! You can now sign in."
+          text: "✅ Email verified! Redirecting you to pick your first boost..."
         });
+
+        // Auto sign in so the user can proceed to step 2 (Pick Boost)
+        try {
+          await supabase.auth.signInWithPassword({
+            email: email.trim(),
+            password
+          });
+        } catch {
+          // If auto sign-in fails, redirect to login page
+        }
+
+        // Mark onboarded so they skip the quick-start redirect next time
+        try { localStorage.setItem("onboarded", "true"); } catch {}
+
+        // Redirect to homepage — step 2: Pick Boost
+        setTimeout(() => router.replace("/"), 1500);
       } else {
         setFormMessage({ type: "error", text: data.error || "Invalid code." });
       }
@@ -395,7 +417,7 @@ export default function QuickStartPage() {
         </div>
 
         <div className="w-full max-w-lg md:max-w-2xl mx-auto">
-          <Stepper />
+          <Stepper currentStep={currentStep} />
         </div>
 
         <div className="w-full max-w-sm sm:max-w-md md:max-w-lg mx-auto bg-[#121212]/95 border border-slate-800/85 p-6 sm:p-8 rounded-3xl shadow-2xl relative overflow-hidden">
@@ -568,12 +590,10 @@ export default function QuickStartPage() {
 
               {otpVerified && (
                 <div className="text-center pt-2">
-                  <Link
-                    href="/login"
-                    className="inline-block w-full bg-[#1DB954] hover:bg-[#1ed760] text-black font-black py-3 rounded-xl transition-all duration-200 text-xs uppercase tracking-wider text-center"
-                  >
-                    Go to Sign In →
-                  </Link>
+                  <div className="w-full bg-[#1DB954]/20 text-[#1DB954] font-black py-3 rounded-xl text-xs uppercase tracking-wider flex items-center justify-center gap-2">
+                    <Loader2 className="animate-spin" size={14} />
+                    Redirecting to pick your boost...
+                  </div>
                 </div>
               )}
             </div>
