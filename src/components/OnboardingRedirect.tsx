@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 
@@ -18,7 +18,6 @@ const SKIP_PATHS = [
 export function OnboardingRedirect() {
   const router = useRouter();
   const pathname = usePathname();
-  const supabase = createClient();
 
   const shouldSkip = SKIP_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"));
 
@@ -30,6 +29,7 @@ export function OnboardingRedirect() {
       const onboarded = localStorage.getItem("onboarded");
       if (onboarded === "true") return;
 
+      const supabase = createClient();
       supabase.auth.getUser().then(({ data }) => {
         if (!isMounted) return;
         if (data?.user) {
@@ -45,7 +45,7 @@ export function OnboardingRedirect() {
     return () => {
       isMounted = false;
     };
-  }, [router, supabase, shouldSkip]);
+  }, [router, shouldSkip]);
 
   return null;
 }

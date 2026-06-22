@@ -71,7 +71,7 @@ export function LiveOrderTicker() {
         async (payload) => {
           console.log("Real-time order placed by customer:", payload.new);
           const newOrder = payload.new;
-          
+
           // Get service title
           let serviceName = servicesMap[newOrder.service_id] || "SMM Boost";
           if (!servicesMap[newOrder.service_id]) {
@@ -94,7 +94,7 @@ export function LiveOrderTicker() {
             location: randomPH,
             timestamp: "Just now"
           };
-          
+
           triggerNotification(newNotif);
         }
       )

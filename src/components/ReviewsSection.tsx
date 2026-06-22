@@ -17,7 +17,7 @@ const STATIC_REVIEWS: Review[] = [
     id: "rev-1",
     name: "Harold S.",
     rating: 5,
-    content: "Sobrang bilis! Subsub ko lang yung link for 1k followers tapos wala pang 10 mins nagdadatingan na agad. Salamat FaceBoosting! 🌟",
+    content: "Sobrang bilis! Subsub ko lang yung link for 1k followers tapos wala pang 10 mins nagdadatingan na agad. Salamat PinoyBoosting! 🌟",
     date: "May 15, 2026"
   },
   {
@@ -86,7 +86,7 @@ export function ReviewsSection() {
         try {
           const parsed = JSON.parse(stored);
           updatedCustom.push(...parsed);
-        } catch (e) {}
+        } catch {}
       }
       localStorage.setItem("custom_reviews", JSON.stringify(updatedCustom));
     }
@@ -228,7 +228,7 @@ export function ReviewsSection() {
               
               {/* Comment */}
               <p className="text-fg text-xs font-medium leading-relaxed italic">
-                "{rev.content}"
+                &ldquo;{rev.content}&rdquo;
               </p>
             </div>
 

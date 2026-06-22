@@ -302,7 +302,7 @@ export function Header() {
         )}
       </header>
 
-      {/* Sleek Spotify-Themed User Orders Dashboard Modal */}
+      {/* User Orders Dashboard Modal */}
       {showOrdersModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#090909]/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
           <div className="bg-card border border-border/80 rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden relative transform transition-all animate-in zoom-in-95 duration-200 flex flex-col max-h-[85vh]">
