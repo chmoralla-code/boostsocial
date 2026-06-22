@@ -67,17 +67,14 @@ function isCustomPageOrder(targetUrl: string, requestedSmmServiceId?: string | n
   return /^Page Wants:/i.test(targetUrl.trim()) || /custom facebook page|Compiling custom Facebook page/i.test(targetUrl);
 }
 
-async function fetchService(client: SupabaseClient, serviceId: string): Promise<ServiceRow> {
+async function fetchService(client: SupabaseClient, serviceId: string): Promise<ServiceRow | null> {
   const { data, error } = await client
     .from("services")
     .select("id, title, description, starting_price, min_quantity, max_quantity, smm_service_id")
     .eq("id", serviceId)
     .single();
 
-  if (error || !data) {
-    throw new Error("Selected service was not found.");
-  }
-
+  if (error || !data) return null;
   return data as ServiceRow;
 }
 
@@ -92,13 +89,31 @@ export async function resolveOrderPricing({
     throw new Error("Invalid order quantity.");
   }
 
-  const service = await fetchService(client, serviceId);
-  const parsed = parseDescription(service.description) || {};
-  const title = String(service.title || "SMM Service");
-  const isCatalog = service.id === CATALOG_SERVICE_ID || /^all services$/i.test(title.trim());
   const cleanRequestedSmmId = requestedSmmServiceId === undefined || requestedSmmServiceId === null
     ? ""
     : String(requestedSmmServiceId).trim();
+
+  const service = await fetchService(client, serviceId);
+
+  // If the service doesn't exist in the DB but it's the catalog UUID with an SMM ID,
+  // use a synthetic row so catalog checkout still works
+  const isCatalogUuid = serviceId === CATALOG_SERVICE_ID;
+  if (!service && !isCatalogUuid) {
+    throw new Error("Selected service was not found.");
+  }
+  const syntheticService: ServiceRow = service ?? {
+    id: serviceId,
+    title: "All Services",
+    description: null,
+    starting_price: 0,
+    min_quantity: null,
+    max_quantity: null,
+    smm_service_id: null,
+  };
+
+  const parsed = parseDescription(syntheticService.description) || {};
+  const title = String(syntheticService.title || "SMM Service");
+  const isCatalog = syntheticService.id === CATALOG_SERVICE_ID || /^all services$/i.test(title.trim());
 
   if (isCatalog && cleanRequestedSmmId) {
     const catalogService = await getSmmCatalogServiceById(cleanRequestedSmmId);
@@ -118,7 +133,7 @@ export async function resolveOrderPricing({
       : Math.max(finalQuantity * catalogService.startingPrice, MIN_ORDER_AMOUNT);
 
     return {
-      serviceId: service.id,
+      serviceId: syntheticService.id,
       serviceTitle: `[SMM #${catalogService.id}] ${catalogService.name}`,
       quantity: finalQuantity,
       regularAmount: roundMoney(regularAmount),
@@ -129,9 +144,9 @@ export async function resolveOrderPricing({
   const singleItem = isSingleItemService(title);
   const minimumQuantity = singleItem
     ? 1
-    : Math.max(toNumber(parsed.min_quantity ?? parsed.smm_min ?? service.min_quantity, 100), 1);
+    : Math.max(toNumber(parsed.min_quantity ?? parsed.smm_min ?? syntheticService.min_quantity, 100), 1);
   const finalQuantity = Math.max(quantity, minimumQuantity);
-  const maximumQuantity = toNumber(parsed.smm_max ?? service.max_quantity, 0);
+  const maximumQuantity = toNumber(parsed.smm_max ?? syntheticService.max_quantity, 0);
   if (maximumQuantity > 0 && finalQuantity > maximumQuantity) {
     throw new Error(`Quantity cannot exceed ${maximumQuantity.toLocaleString()}.`);
   }
@@ -141,7 +156,7 @@ export async function resolveOrderPricing({
     const markupMultiplier = await getMarkupMultiplier();
     const reactionDetails = getFBReactionsSMMDetails(reactions);
     return {
-      serviceId: service.id,
+      serviceId: syntheticService.id,
       serviceTitle: title,
       quantity: finalQuantity,
       regularAmount: roundMoney(Math.max(finalQuantity * getFBReactionRetailPrice(reactions, markupMultiplier), MIN_ORDER_AMOUNT)),
@@ -149,8 +164,8 @@ export async function resolveOrderPricing({
     };
   }
 
-  const canonicalSmmId = parsed.smm_service_id || service.smm_service_id || null;
-  const unitPrice = toNumber(service.starting_price, 0);
+  const canonicalSmmId = parsed.smm_service_id || syntheticService.smm_service_id || null;
+  const unitPrice = toNumber(syntheticService.starting_price, 0);
   if (unitPrice <= 0) {
     throw new Error("Selected service has invalid pricing.");
   }
@@ -160,7 +175,7 @@ export async function resolveOrderPricing({
   }
 
   return {
-    serviceId: service.id,
+    serviceId: syntheticService.id,
     serviceTitle: title,
     quantity: finalQuantity,
     regularAmount: roundMoney(Math.max(finalQuantity * unitPrice, MIN_ORDER_AMOUNT)),

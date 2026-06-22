@@ -39,10 +39,32 @@ export async function GET(request: Request) {
     if (fetchError) throw fetchError;
 
     if (!oldOrders || oldOrders.length === 0) {
+      // Still check topups even if no orders to clean
+      let topupsDeleted = 0;
+      try {
+        const { data: oldTopups } = await supabase
+          .from("topups")
+          .select("id")
+          .in("status", ["Approved", "Rejected", "Cancelled"])
+          .lt("created_at", cutoffDate.toISOString());
+        if (oldTopups && oldTopups.length > 0) {
+          const topupIds = oldTopups.map((t) => t.id);
+          await supabase.from("topups").delete().in("id", topupIds);
+          topupsDeleted = topupIds.length;
+          await syncBackupAdminClients(async (backupClient) => {
+            return backupClient.from("topups").delete().in("id", topupIds);
+          }, "cron cleanup old topups");
+        }
+      } catch (topupErr) {
+        console.warn("Topups cleanup failed:", topupErr);
+      }
       return NextResponse.json({
         success: true,
         deleted: 0,
-        message: `No orders older than ${RETENTION_DAYS} days to clean up.`,
+        topupsDeleted,
+        message: topupsDeleted > 0
+          ? `No old orders. Deleted ${topupsDeleted} topups older than ${RETENTION_DAYS} days.`
+          : `No orders or topups older than ${RETENTION_DAYS} days to clean up.`,
       });
     }
 
@@ -73,10 +95,39 @@ export async function GET(request: Request) {
       return backupClient.from("orders").delete().in("id", orderIds);
     }, "cron cleanup old orders");
 
+    // Also cleanup old topups with Approved/Rejected status
+    let topupsDeleted = 0;
+    try {
+      const { data: oldTopups } = await supabase
+        .from("topups")
+        .select("id")
+        .in("status", ["Approved", "Rejected", "Cancelled"])
+        .lt("created_at", cutoffDate.toISOString());
+
+      if (oldTopups && oldTopups.length > 0) {
+        const topupIds = oldTopups.map((t) => t.id);
+        const { error: topupDeleteErr } = await supabase
+          .from("topups")
+          .delete()
+          .in("id", topupIds);
+        if (topupDeleteErr) {
+          console.warn("Topups cleanup warning:", topupDeleteErr);
+        } else {
+          topupsDeleted = topupIds.length;
+          await syncBackupAdminClients(async (backupClient) => {
+            return backupClient.from("topups").delete().in("id", topupIds);
+          }, "cron cleanup old topups");
+        }
+      }
+    } catch (topupErr) {
+      console.warn("Topups cleanup failed:", topupErr);
+    }
+
     return NextResponse.json({
       success: true,
       deleted: orderIds.length,
-      message: `Deleted ${orderIds.length} orders older than ${RETENTION_DAYS} days.`,
+      topupsDeleted,
+      message: `Deleted ${orderIds.length} orders${topupsDeleted > 0 ? ` and ${topupsDeleted} topups` : ""} older than ${RETENTION_DAYS} days.`,
     });
   } catch (err: unknown) {
     console.error("Cron cleanup failed:", err);

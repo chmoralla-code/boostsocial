@@ -214,6 +214,9 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
   const [platformSubModalType, setPlatformSubModalType] = useState<PlatformType | null>(null);
 
   const [vipDiscountPercent, setVipDiscountPercent] = useState(0);
+  const [platformAvailability, setPlatformAvailability] = useState<Record<string, boolean>>({
+    facebook: true, instagram: true, tiktok: true, youtube: true
+  });
 
   const applyVipPrice = (amount: number) => {
     if (!vipDiscountPercent || amount <= 0) return amount;
@@ -267,6 +270,22 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
     return () => {
       isMounted = false;
     };
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/smm/availability")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && typeof data === "object") {
+          setPlatformAvailability({
+            facebook: data.facebook !== false,
+            instagram: data.instagram !== false,
+            tiktok: data.tiktok !== false,
+            youtube: data.youtube !== false,
+          });
+        }
+      })
+      .catch(() => {});
   }, []);
 
   const getPlatformSmmCandidates = (platform: PlatformType) => {
@@ -717,15 +736,17 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 justify-center max-w-6xl mx-auto">
           {activeCandidates.map((card) => {
             // Determine button click action
+            const isPlatform = card.id === "facebook" || card.id === "instagram" || card.id === "tiktok" || card.id === "youtube";
+            const isAvailable = !isPlatform || platformAvailability[card.id] !== false;
             let clickAction = () => {};
             if (card.id === "facebook") {
-              clickAction = () => openPlatformServices("facebook");
+              clickAction = () => { if (isAvailable) openPlatformServices("facebook"); };
             } else if (card.id === "instagram") {
-              clickAction = () => openPlatformServices("instagram");
+              clickAction = () => { if (isAvailable) openPlatformServices("instagram"); };
             } else if (card.id === "tiktok") {
-              clickAction = () => openPlatformServices("tiktok");
+              clickAction = () => { if (isAvailable) openPlatformServices("tiktok"); };
             } else if (card.id === "youtube") {
-              clickAction = () => openPlatformServices("youtube");
+              clickAction = () => { if (isAvailable) openPlatformServices("youtube"); };
             } else if (card.id === "order-page") {
               clickAction = () => {
                 window.location.href = "/order-page";
@@ -768,7 +789,7 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
             return (
               <div 
                 key={card.id} 
-                className={`bg-elevated/50 hover:bg-elevated/90 backdrop-blur-md rounded-3xl ${cardPaddingClass} ${cardLayoutClass} flex flex-col items-start text-left w-full border border-white/[0.04] shadow-[0_12px_40px_rgba(0,0,0,0.4)] transition-all duration-500 transform hover:-translate-y-2 group`}
+                className={`relative bg-elevated/50 hover:bg-elevated/90 backdrop-blur-md rounded-3xl ${cardPaddingClass} ${cardLayoutClass} flex flex-col items-start text-left w-full border border-white/[0.04] shadow-[0_12px_40px_rgba(0,0,0,0.4)] transition-all duration-500 transform hover:-translate-y-2 group`}
                 style={{ 
                   boxShadow: `0 12px 40px rgba(0,0,0,0.4)`
                 }}
@@ -781,6 +802,12 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
                   e.currentTarget.style.borderColor = `rgba(255, 255, 255, 0.04)`;
                 }}
               >
+                {!isAvailable && isPlatform && (
+                  <div className="absolute top-4 right-4 z-10 bg-red-500/15 border border-red-500/30 text-red-400 text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full flex items-center gap-1.5 backdrop-blur-sm">
+                    <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse"></span>
+                    Temporarily Unavailable
+                  </div>
+                )}
                 {candidateVideoUrl ? (
                   <div
                     className="relative w-full aspect-[16/9] rounded-2xl overflow-hidden mb-5 border bg-black/30 shadow-inner"
@@ -932,15 +959,16 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
                 
                 <button 
                   onClick={clickAction}
-                  className={`w-full py-3.5 rounded-full transition-all duration-300 uppercase text-xs tracking-wider transform group-hover:scale-[1.02] shadow-lg cursor-pointer text-center ${btnTextColor}`}
-                  style={{ 
+                  disabled={!isAvailable && isPlatform}
+                  className={`w-full py-3.5 rounded-full transition-all duration-300 uppercase text-xs tracking-wider transform group-hover:scale-[1.02] shadow-lg text-center ${!isAvailable && isPlatform ? "opacity-50 cursor-not-allowed bg-slate-800 text-slate-400" : `${btnTextColor} cursor-pointer`}`}
+                  style={!isAvailable && isPlatform ? {} : { 
                     backgroundColor: btnBgColor,
                     boxShadow: `0 8px 20px ${card.theme_color}20`
                   }}
-                  onMouseEnter={(e) => e.currentTarget.style.filter = "brightness(1.1)"}
-                  onMouseLeave={(e) => e.currentTarget.style.filter = "none"}
+                  onMouseEnter={(e) => { if (isAvailable || !isPlatform) e.currentTarget.style.filter = "brightness(1.1)"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.filter = "none"; }}
                 >
-                  {card.id === "order-page" ? "ORDER PAGE" : card.id === "pisowifi-package" ? "VIEW PACKAGES" : "VIEW"}
+                  {card.id === "order-page" ? "ORDER PAGE" : card.id === "pisowifi-package" ? "VIEW PACKAGES" : !isAvailable && isPlatform ? "UNAVAILABLE" : "VIEW"}
                 </button>
               </div>
             );
