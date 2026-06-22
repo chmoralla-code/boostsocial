@@ -43,17 +43,26 @@ function parseAvgTime(t: string | undefined | null): number {
 
 function isPlatform(name: string, cat: string, platform: string): boolean {
   const n = name.toLowerCase(), c = cat.toLowerCase();
-  const exclude = ["instagram", "ig ", " ig", "tiktok", "tik tok", "youtube", "yt ", " yt", "twitter", "twitch", "telegram"];
-  const checkPlatform = (matchers: string[]) => {
-    const matched = matchers.some(kw => n.includes(kw) || c.includes(kw));
-    if (!matched) return false;
-    return !exclude.some(ex => (platform !== "instagram" && (n.includes(ex) || c.includes(ex))) ||
-      (platform === "instagram" && ex !== "instagram" && ex !== "ig " && ex !== " ig" && (n.includes(ex) || c.includes(ex))));
-  };
-  if (platform === "facebook") return checkPlatform(["facebook", "fb"]) && !(n.includes("instagram") || n.includes("tiktok") || n.includes("youtube") || n.includes("twitter") || n.includes("telegram") || c.includes("instagram") || c.includes("tiktok") || c.includes("youtube"));
-  if (platform === "instagram") return checkPlatform(["instagram", "ig"]) && !(n.includes("facebook") || n.includes("fb") || n.includes("tiktok") || n.includes("youtube") || n.includes("twitter") || c.includes("facebook") || c.includes("tiktok") || c.includes("youtube"));
-  if (platform === "tiktok") return checkPlatform(["tiktok", "tik tok"]) && !(n.includes("facebook") || n.includes("fb") || n.includes("instagram") || n.includes("youtube") || n.includes("twitter") || c.includes("facebook") || c.includes("instagram") || c.includes("youtube"));
-  if (platform === "youtube") return checkPlatform(["youtube", "yt"]) && !(n.includes("facebook") || n.includes("fb") || n.includes("instagram") || n.includes("tiktok") || n.includes("twitter") || c.includes("facebook") || c.includes("instagram") || c.includes("tiktok"));
+  if (platform === "facebook") {
+    const isFB = n.includes("facebook") || n.includes("fb") || c.includes("facebook") || c.includes("fb");
+    if (!isFB) return false;
+    return !(n.includes("instagram") || n.includes("ig ") || n.includes(" ig") || n.includes("tiktok") || n.includes("tik tok") || n.includes("youtube") || n.includes("yt ") || n.includes(" yt") || n.includes("twitter") || n.includes("twitch") || n.includes("telegram") || c.includes("instagram") || c.includes("tiktok") || c.includes("youtube") || c.includes("twitter") || c.includes("twitch") || c.includes("telegram"));
+  }
+  if (platform === "instagram") {
+    const isIG = n.includes("instagram") || n.includes("ig") || c.includes("instagram") || c.includes("ig");
+    if (!isIG) return false;
+    return !(n.includes("facebook") || n.includes("fb") || n.includes("tiktok") || n.includes("tik tok") || n.includes("youtube") || n.includes("yt ") || n.includes(" yt") || n.includes("twitter") || n.includes("twitch") || n.includes("telegram") || c.includes("facebook") || c.includes("tiktok") || c.includes("youtube") || c.includes("twitter") || c.includes("twitch") || c.includes("telegram"));
+  }
+  if (platform === "tiktok") {
+    const isTT = n.includes("tiktok") || n.includes("tik tok") || c.includes("tiktok") || c.includes("tik tok");
+    if (!isTT) return false;
+    return !(n.includes("facebook") || n.includes("fb") || n.includes("instagram") || n.includes("ig ") || n.includes(" ig") || n.includes("youtube") || n.includes("yt ") || n.includes(" yt") || n.includes("twitter") || n.includes("twitch") || n.includes("telegram") || c.includes("facebook") || c.includes("instagram") || c.includes("youtube") || c.includes("twitter") || c.includes("twitch") || c.includes("telegram"));
+  }
+  if (platform === "youtube") {
+    const isYT = n.includes("youtube") || n.includes("yt") || c.includes("youtube") || c.includes("yt");
+    if (!isYT) return false;
+    return !(n.includes("facebook") || n.includes("fb") || n.includes("instagram") || n.includes("ig ") || n.includes(" ig") || n.includes("tiktok") || n.includes("tik tok") || n.includes("twitter") || n.includes("twitch") || n.includes("telegram") || c.includes("facebook") || c.includes("instagram") || c.includes("tiktok") || c.includes("twitter") || c.includes("twitch") || c.includes("telegram"));
+  }
   return false;
 }
 
@@ -67,6 +76,7 @@ function matchType(name: string, cat: string, config: CoreServiceConfig): boolea
     return !(n.includes("like") || n.includes("reaction") || n.includes("view") || n.includes("play") || n.includes("comment") || n.includes("share") || n.includes("watch"));
   }
   if (config.type === "likes") {
+    if (n.includes("story") && config.platform === "facebook") return false;
     return !(n.includes("follower") || n.includes("subscriber") || n.includes("view") || n.includes("play") || n.includes("comment") || n.includes("share"));
   }
   if (config.type === "views") {
@@ -147,20 +157,21 @@ export async function POST(req: NextRequest) {
         return true;
       });
 
-      // Prefer candidates with valid average time, then sort by cheapest rate, then fastest time
-      const withAvgTime = candidates.filter(s => {
-        const at = averageTimes[String(s.service)];
-        return at && !at.toLowerCase().includes("not enough data");
-      });
-
-      const pool = withAvgTime.length > 0 ? withAvgTime : candidates;
-      pool.sort((a, b) => {
+      // Sort by cheapest rate first, then fastest avg time as tiebreaker
+      // Don't exclude services without avg time data — just deprioritize them
+      candidates.sort((a, b) => {
         const rateDiff = Number(a.rate) - Number(b.rate);
         if (rateDiff !== 0) return rateDiff;
-        return parseAvgTime(averageTimes[String(a.service)]) - parseAvgTime(averageTimes[String(b.service)]);
+        const atA = averageTimes[String(a.service)];
+        const atB = averageTimes[String(b.service)];
+        const hasA = atA && !atA.toLowerCase().includes("not enough data");
+        const hasB = atB && !atB.toLowerCase().includes("not enough data");
+        if (hasA && !hasB) return -1;
+        if (!hasA && hasB) return 1;
+        return parseAvgTime(atA) - parseAvgTime(atB);
       });
 
-      const best = pool[0];
+      const best = candidates[0];
       if (!best) {
         syncResults[key] = { success: false, error: "No suitable service found" };
         continue;
