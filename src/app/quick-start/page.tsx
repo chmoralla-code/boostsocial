@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Mail, Lock, Megaphone, X, UserPlus, Check } from "lucide-react";
+import { Mail, Lock, Megaphone, X, UserPlus, Check, Loader2 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 
 const ANNOUNCEMENT_DISMISS_KEY = "pb_apk_announcement_dismissed";
@@ -179,6 +179,14 @@ export default function QuickStartPage() {
     text: string;
   } | null>(null);
 
+  // OTP verification states
+  const [otpMode, setOtpMode] = useState(false);
+  const [otpCode, setOtpCode] = useState("");
+  const [otpSending, setOtpSending] = useState(false);
+  const [otpVerifying, setOtpVerifying] = useState(false);
+  const [otpVerified, setOtpVerified] = useState(false);
+  const [otpCountdown, setOtpCountdown] = useState(0);
+
   const [announcement, setAnnouncement] = useState<AnnouncementState>("checking");
 
   useEffect(() => {
@@ -207,6 +215,14 @@ export default function QuickStartPage() {
     setAnnouncement("dismissed");
   };
 
+  // OTP countdown timer
+  useEffect(() => {
+    if (otpCountdown > 0) {
+      const timer = setTimeout(() => setOtpCountdown(otpCountdown - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [otpCountdown]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim() || !password) {
@@ -221,23 +237,39 @@ export default function QuickStartPage() {
     setFormMessage(null);
 
     try {
-      const { data, error } = await supabase.auth.signUp({
-        email: email.trim(),
-        password,
+      const res = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim(), password })
       });
 
-      if (error) {
-        setFormMessage({ type: "error", text: error.message });
+      const data = await res.json();
+
+      if (!res.ok) {
+        setFormMessage({ type: "error", text: data.error || "Failed to create account." });
         return;
       }
 
-      const created = Boolean(data?.user);
+      // Switch to OTP verification mode
+      setOtpMode(true);
       setFormMessage({
         type: "success",
-        text: created
-          ? "Account created! Check your inbox to confirm and you're all set."
-          : "Sign-up request received. Check your inbox to finish setting up your account.",
+        text: "📬 Verification code sent! Please check your inbox for the 6-digit code."
       });
+
+      // Auto-send OTP code
+      try {
+        setOtpSending(true);
+        await fetch("/api/auth/send-otp", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: email.trim() })
+        });
+        setOtpSending(false);
+        setOtpCountdown(30);
+      } catch {
+        setOtpSending(false);
+      }
     } catch (err) {
       setFormMessage({
         type: "error",
@@ -245,6 +277,58 @@ export default function QuickStartPage() {
       });
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    if (!email.trim() || otpSending || otpCountdown > 0) return;
+    setOtpSending(true);
+    try {
+      const res = await fetch("/api/auth/send-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim() })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setOtpCountdown(30);
+        setFormMessage({ type: "success", text: "📬 A new verification code has been sent." });
+      } else if (data.error === "rate_limited") {
+        if (data.remaining) setOtpCountdown(data.remaining);
+        setFormMessage({ type: "error", text: data.message });
+      } else {
+        setFormMessage({ type: "error", text: data.error || "Failed to send code." });
+      }
+    } catch {
+      setFormMessage({ type: "error", text: "Network error." });
+    } finally {
+      setOtpSending(false);
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    if (!email.trim() || !otpCode || otpVerifying) return;
+    setOtpVerifying(true);
+    try {
+      const res = await fetch("/api/auth/verify-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim(), code: otpCode })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setOtpVerified(true);
+        setFormMessage({
+          type: "success",
+          text: "✅ Email verified successfully! You can now sign in."
+        });
+      } else {
+        setFormMessage({ type: "error", text: data.error || "Invalid code." });
+      }
+    } catch {
+      setFormMessage({ type: "error", text: "Network error." });
+    } finally {
+      setOtpVerifying(false);
     }
   };
 
@@ -332,6 +416,7 @@ export default function QuickStartPage() {
             </div>
           )}
 
+          {!otpMode ? (
           <form onSubmit={handleSubmit} className="space-y-4 text-left">
             <div>
               <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5">
@@ -384,6 +469,77 @@ export default function QuickStartPage() {
               {submitting ? "Creating Account..." : "Create Account & Proceed"}
             </button>
           </form>
+          ) : (
+          <div className="space-y-4 text-left">
+            <div>
+              <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5">Email</label>
+              <div className="w-full px-4 py-2.5 rounded-xl bg-[#0a0a0a] border border-slate-800 text-xs font-semibold text-white">{email}</div>
+            </div>
+
+            <div className="bg-[#0a0a0a] border border-slate-800/80 p-4 rounded-xl space-y-3">
+              <div className="text-center">
+                <p className="text-[10px] font-black uppercase tracking-widest text-[#1DB954]">Verify Your Email</p>
+                <p className="text-[11px] text-slate-400 mt-1">Enter the 6-digit code sent to your email</p>
+              </div>
+
+              <div className="flex justify-center">
+                <input
+                  type="text"
+                  maxLength={6}
+                  placeholder="000000"
+                  value={otpCode}
+                  onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  className="w-40 bg-black border border-slate-800 px-4 py-3 rounded-xl text-center text-white text-lg font-black tracking-[0.3em] focus:outline-none focus:border-[#1DB954] transition-all font-mono"
+                  disabled={otpVerified}
+                  autoFocus
+                />
+              </div>
+
+              <button
+                type="button"
+                onClick={handleVerifyOtp}
+                disabled={otpCode.length !== 6 || otpVerifying || otpVerified}
+                className="w-full bg-[#1DB954] hover:bg-[#1ed760] disabled:bg-[#1DB954]/50 disabled:cursor-not-allowed text-black font-black py-3 rounded-xl transition-all duration-200 text-xs uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98]"
+              >
+                {otpVerifying ? (
+                  <><Loader2 className="animate-spin" size={13} /> Verifying...</>
+                ) : otpVerified ? (
+                  <>✅ Verified</>
+                ) : (
+                  <>Verify Code</>
+                )}
+              </button>
+
+              {!otpVerified && (
+                <div className="text-center">
+                  {otpCountdown > 0 ? (
+                    <span className="text-[10px] text-slate-500 font-bold">Resend in {otpCountdown}s</span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleResendOtp}
+                      disabled={otpSending}
+                      className="text-[10px] text-[#1DB954] hover:underline font-bold cursor-pointer"
+                    >
+                      {otpSending ? "Sending..." : "📬 Resend Code"}
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {otpVerified && (
+                <div className="text-center pt-2">
+                  <Link
+                    href="/login"
+                    className="inline-block w-full bg-[#1DB954] hover:bg-[#1ed760] text-black font-black py-3 rounded-xl transition-all duration-200 text-xs uppercase tracking-wider text-center"
+                  >
+                    Go to Sign In →
+                  </Link>
+                </div>
+              )}
+            </div>
+          </div>
+          )}
 
           <div className="mt-5 text-center flex flex-col gap-3.5 select-none border-t border-slate-800/50 pt-4">
             <button
