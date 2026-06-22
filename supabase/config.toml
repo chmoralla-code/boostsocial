@@ -228,15 +228,15 @@ otp_length = 6
 # Number of seconds before the email OTP expires (defaults to 1 hour).
 otp_expiry = 3600
 
-# Use a production-ready SMTP server
-# [auth.email.smtp]
-# enabled = true
-# host = "smtp.sendgrid.net"
-# port = 587
-# user = "apikey"
-# pass = "env(SENDGRID_API_KEY)"
-# admin_email = "admin@email.com"
-# sender_name = "Admin"
+# Use a production-ready SMTP server (Resend)
+[auth.email.smtp]
+enabled = true
+host = "smtp.resend.com"
+port = 465
+user = "resend"
+pass = "re_hDykSiph_NBT7jK2kZbp4QM7d2a8ciNga"
+admin_email = "onboarding@resend.dev"
+sender_name = "CYNETWORK"
 
 # Uncomment to customize email template
 # [auth.email.template.invite]
