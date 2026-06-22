@@ -534,7 +534,7 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
       title: PLATFORM_CARD_COPY.instagram.title,
       description: PLATFORM_CARD_COPY.instagram.description,
       rate_prefix: "Starting Rate",
-      rate_text: "₱24.98 per 1k boosts",
+      rate_text: "₱37.47 per 1k boosts",
       theme_color: "#E1306C",
       btn_bg: "bg-[#E1306C] hover:bg-[#eb5286]",
       glow_color: "rgba(225, 48, 108, 0.45)"

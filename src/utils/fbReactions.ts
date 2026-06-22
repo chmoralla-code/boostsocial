@@ -56,5 +56,5 @@ export function getFBReactionsSMMDetails(selected: string[]): { smmId: number; r
  */
 export function getFBReactionRetailPrice(selected: string[]): number {
   const details = getFBReactionsSMMDetails(selected);
-  return (details.rate / 1000) * 2; // Standard markup factor = 2.0
+  return (details.rate / 1000) * 3; // Standard markup factor = 3.0
 }

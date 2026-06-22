@@ -3,7 +3,7 @@ import { parseDescription } from "@/utils/serviceHelpers";
 
 const RIXEYSMM_API_URL = "https://rixeysmm.shop/api/v2";
 const CACHE_TTL = 5 * 60 * 1000;
-const MARKUP_MULTIPLIER = 2.0;
+const MARKUP_MULTIPLIER = 3.0;
 
 type RixeyService = {
   service?: string | number;

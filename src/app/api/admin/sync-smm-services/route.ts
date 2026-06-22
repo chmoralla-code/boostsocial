@@ -498,8 +498,8 @@ export async function POST(req: NextRequest) {
       const smmRate = Number(cheapest.rate); // per 1000
       const smmServiceId = cheapest.service;
       
-      // Calculate per-piece starting price with automatic x2 multiplier for reseller price
-      const calculatedPerPiece = (smmRate / 1000) * 2;
+      // Calculate per-piece starting price with automatic x3 multiplier for reseller price
+      const calculatedPerPiece = (smmRate / 1000) * 3;
 
       // Fetch the current service row in the database
       const { data: dbService, error: fetchErr } = await supabase
