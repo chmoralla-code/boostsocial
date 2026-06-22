@@ -192,8 +192,18 @@ export default function QuickStartPage() {
   const [otpVerified, setOtpVerified] = useState(false);
   const [otpCountdown, setOtpCountdown] = useState(0);
 
-  // Track which stepper step we're on (1 = Account Setup, 2 = Pick Boost, etc.)
-  const currentStep = otpVerified ? 2 : 1;
+  // Track which stepper step we're on (1 = Account Setup, 2 = Pick Boost, 3 = Checkout, 4 = Launch & Track)
+  const [step, setStep] = useState(1);
+  const currentStep = step;
+
+  // Step 2 state
+  const [selectedService, setSelectedService] = useState<{ id: string; name: string; price: number } | null>(null);
+
+  // Step 3 state
+  const [targetLink, setTargetLink] = useState("");
+  const [quantity, setQuantity] = useState(1000);
+  const [ordering, setOrdering] = useState(false);
+  const [orderResult, setOrderResult] = useState<{ id?: string; error?: string } | null>(null);
 
   const [announcement, setAnnouncement] = useState<AnnouncementState>("checking");
 
@@ -334,26 +344,20 @@ export default function QuickStartPage() {
       const data = await res.json();
       if (res.ok) {
         setOtpVerified(true);
-        setFormMessage({
-          type: "success",
-          text: "✅ Email verified! Redirecting you to pick your first boost..."
-        });
+        setFormMessage(null);
 
-        // Auto sign in so the user can proceed to step 2 (Pick Boost)
+        // Auto sign in
         try {
           await supabase.auth.signInWithPassword({
             email: email.trim(),
             password
           });
-        } catch {
-          // If auto sign-in fails, redirect to login page
-        }
+        } catch {}
 
-        // Mark onboarded so they skip the quick-start redirect next time
         try { localStorage.setItem("onboarded", "true"); } catch {}
 
-        // Redirect to homepage — step 2: Pick Boost
-        setTimeout(() => router.replace("/"), 1500);
+        // Advance to step 2: Pick Boost
+        setStep(2);
       } else {
         setFormMessage({ type: "error", text: data.error || "Invalid code." });
       }
@@ -425,10 +429,16 @@ export default function QuickStartPage() {
 
           <div className="text-center pb-4 mb-6 border-b border-slate-800/60 select-none">
             <h2 className="text-sm font-black uppercase tracking-[0.2em] text-[#1DB954]">
-              Register New Account
+              {step === 1 && "Register New Account"}
+              {step === 2 && "Pick Your Boost"}
+              {step === 3 && "Checkout"}
+              {step === 4 && "Launch & Track"}
             </h2>
             <p className="text-[10px] text-slate-500 font-semibold mt-1">
-              Quickstart is strictly for new users to amplify their first campaign.
+              {step === 1 && "Quickstart is strictly for new users to amplify their first campaign."}
+              {step === 2 && "Choose a service to get started with your first boost."}
+              {step === 3 && "Enter your details to place the order."}
+              {step === 4 && "Your order is being processed. Track it below."}
             </p>
           </div>
 
@@ -588,12 +598,150 @@ export default function QuickStartPage() {
                 </div>
               )}
 
-              {otpVerified && (
-                <div className="text-center pt-2">
-                  <div className="w-full bg-[#1DB954]/20 text-[#1DB954] font-black py-3 rounded-xl text-xs uppercase tracking-wider flex items-center justify-center gap-2">
-                    <Loader2 className="animate-spin" size={14} />
-                    Redirecting to pick your boost...
+              {otpVerified && step === 2 && (
+                <div className="space-y-3">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-[#1DB954] text-center">Pick Your First Boost</p>
+                  <p className="text-[11px] text-slate-400 text-center">Select a service to get started</p>
+                  {[
+                    { id: "facebook", name: "Facebook Followers & Reactions", icon: "📘", search: "facebook" },
+                    { id: "instagram", name: "Instagram Followers & Likes", icon: "📸", search: "instagram" },
+                    { id: "tiktok", name: "TikTok Followers & Hearts", icon: "🎵", search: "tiktok" },
+                    { id: "youtube", name: "YouTube Subscribers & Watch Time", icon: "🎥", search: "youtube" }
+                  ].map(svc => (
+                    <button
+                      key={svc.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedService(svc as any);
+                        setStep(3);
+                      }}
+                      className="w-full bg-[#0a0a0a] hover:bg-[#1DB954]/10 border border-slate-800 hover:border-[#1DB954]/40 p-3.5 rounded-xl transition-all duration-200 flex items-center gap-3 cursor-pointer text-left"
+                    >
+                      <span className="text-2xl">{svc.icon}</span>
+                      <div className="flex-1">
+                        <p className="text-xs font-bold text-white">{svc.name}</p>
+                      </div>
+                      <span className="text-[10px] text-[#1DB954] font-black uppercase">Select →</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {step === 3 && selectedService && (
+                <div className="space-y-3">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-[#1DB954] text-center">Checkout</p>
+                  <p className="text-[11px] text-slate-400 text-center">{selectedService.name}</p>
+
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5">Profile / Post Link</label>
+                    <input
+                      type="url"
+                      placeholder="https://facebook.com/yourpage"
+                      value={targetLink}
+                      onChange={(e) => setTargetLink(e.target.value)}
+                      className="w-full px-4 py-2.5 rounded-xl bg-[#0a0a0a] border border-slate-800 focus:outline-none focus:border-[#1DB954] text-xs font-semibold text-white placeholder-slate-500 transition-all"
+                    />
                   </div>
+
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5">Quantity</label>
+                    <input
+                      type="number"
+                      min={100}
+                      step={100}
+                      value={quantity}
+                      onChange={(e) => setQuantity(Math.max(100, Number(e.target.value) || 100))}
+                      className="w-full px-4 py-2.5 rounded-xl bg-[#0a0a0a] border border-slate-800 focus:outline-none focus:border-[#1DB954] text-xs font-semibold text-white text-center transition-all"
+                    />
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setOrdering(true);
+                      setOrderResult(null);
+                      try {
+                        const res = await fetch("/api/smm/services");
+                        const services = await res.json();
+                        const match = Array.isArray(services) ? services.find((s: any) =>
+                          s.category?.toLowerCase().includes((selectedService as any).search) ||
+                          s.name?.toLowerCase().includes((selectedService as any).search)
+                        ) : null;
+                        const serviceId = match?.id || (selectedService as any).search;
+
+                        const orderRes = await fetch("/api/orders/create", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            service_id: serviceId,
+                            target: targetLink.trim(),
+                            quantity
+                          })
+                        });
+                        const data = await orderRes.json();
+                        if (orderRes.ok) {
+                          setOrderResult({ id: data.order_id || data.id || "Order placed" });
+                          setStep(4);
+                        } else {
+                          setOrderResult({ error: data.error || "Order failed." });
+                        }
+                      } catch {
+                        setOrderResult({ error: "Network error." });
+                      } finally {
+                        setOrdering(false);
+                      }
+                    }}
+                    disabled={!targetLink.trim() || ordering}
+                    className="w-full bg-[#1DB954] hover:bg-[#1ed760] disabled:bg-[#1DB954]/50 disabled:cursor-not-allowed text-black font-black py-3 rounded-xl transition-all duration-200 text-xs uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98]"
+                  >
+                    {ordering ? (
+                      <><Loader2 className="animate-spin" size={14} /> Placing Order...</>
+                    ) : (
+                      <>Place Order</>
+                    )}
+                  </button>
+
+                  {orderResult?.error && (
+                    <p className="text-red-400 text-[10px] font-bold text-center">{orderResult.error}</p>
+                  )}
+                </div>
+              )}
+
+              {step === 4 && (
+                <div className="text-center space-y-3">
+                  <div className="w-12 h-12 bg-[#1DB954]/20 rounded-full flex items-center justify-center mx-auto">
+                    <Check size={24} className="text-[#1DB954]" strokeWidth={3} />
+                  </div>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-[#1DB954]">Launch & Track</p>
+                  <p className="text-xs font-bold text-white">
+                    {orderResult?.id ? "Your order is live!" : "You're all set!"}
+                  </p>
+                  {orderResult?.id ? (
+                    <>
+                      <p className="text-[11px] text-slate-400">Order #{orderResult.id}</p>
+                      <p className="text-[10px] text-slate-500 leading-relaxed">
+                        Your boost is being processed. Track your order status in real time from your account dashboard.
+                      </p>
+                      <Link
+                        href="/app/orders"
+                        className="inline-block w-full bg-[#1DB954] hover:bg-[#1ed760] text-black font-black py-3 rounded-xl transition-all duration-200 text-xs uppercase tracking-wider text-center"
+                      >
+                        Track Your Order →
+                      </Link>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-[10px] text-slate-500 leading-relaxed">
+                        Your account is ready. Browse the full catalog to pick and order any service you need.
+                      </p>
+                      <Link
+                        href="/"
+                        className="inline-block w-full bg-[#1DB954] hover:bg-[#1ed760] text-black font-black py-3 rounded-xl transition-all duration-200 text-xs uppercase tracking-wider text-center"
+                      >
+                        Browse Full Catalog →
+                      </Link>
+                    </>
+                  )}
                 </div>
               )}
             </div>
