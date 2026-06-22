@@ -300,53 +300,39 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 3. Create the auth user in the PRIMARY database via Admin API.
-    //    email_confirm: false so the user must verify before they can sign in.
-    const { data: createData, error: createError } = await primaryAdmin.auth.admin.createUser({
-      email: cleanEmail,
-      password: password,
-      email_confirm: false
-    });
-
-    if (createError) {
-      return NextResponse.json({ error: createError.message }, { status: 400 });
+    // 3. Create the auth user using the client-facing signUp API.
+    //    This generates a confirmation token AND sends the verification email automatically.
+    //    We use the anon key (not admin) so GoTrue runs the full signup flow.
+    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    if (!anonKey) {
+      return NextResponse.json({ error: "Server configuration missing" }, { status: 500 });
     }
 
-    const newUserId = createData.user?.id;
+    const signUpRes = await fetch(`${primaryUrl}/auth/v1/signup`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: anonKey
+      },
+      body: JSON.stringify({
+        email: cleanEmail,
+        password: password
+      })
+    });
+
+    const signUpData = await signUpRes.json();
+
+    if (!signUpRes.ok) {
+      const errMsg = signUpData?.msg || signUpData?.error || "Failed to create account.";
+      return NextResponse.json({ error: errMsg }, { status: 400 });
+    }
+
+    const newUserId = signUpData?.user?.id;
     if (!newUserId) {
       return NextResponse.json({ error: "Failed to generate user ID" }, { status: 500 });
     }
 
-    // 4a. Send email confirmation via GoTrue API.
-    //     The admin API doesn't trigger confirmation emails, so we call user-facing
-    //     resend endpoint with the anon key to deliver the verification link.
-    try {
-      const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-      if (anonKey) {
-        const confirmRes = await fetch(
-          `${primaryUrl}/auth/v1/resend`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              apikey: anonKey
-            },
-            body: JSON.stringify({
-              type: "signup",
-              email: cleanEmail
-            })
-          }
-        );
-        if (!confirmRes.ok) {
-          const confirmBody = await confirmRes.text();
-          console.warn(`Confirmation email trigger returned ${confirmRes.status}: ${confirmBody}`);
-        } else {
-          console.log(`Confirmation email sent to ${cleanEmail}`);
-        }
-      }
-    } catch (confirmErr: any) {
-      console.warn("Failed to trigger confirmation email:", confirmErr.message);
-    }
+    console.log(`User ${cleanEmail} created via signUp. Confirmation email sent by GoTrue.`);
 
     // 4. Create the auth user inside every configured backup auth database.
     for (const backupAdmin of backupAdmins) {
@@ -445,7 +431,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ 
       success: true, 
-      user: createData.user,
+      user: { id: newUserId, email: cleanEmail },
       message: "📬 Registration Successful! We've sent a confirmation link to your email. Please check your inbox (and spam folder) and click the link to activate your account before signing in. 🚀" 
     });
   } catch (err: any) {
