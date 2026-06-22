@@ -19,7 +19,9 @@ type VipSubscribeBody = {
 
 function normalizeMethod(method: string | null | undefined) {
   const lower = String(method || "gcash").trim().toLowerCase();
-  return lower === "wallet" ? "wallet" : "gcash";
+  if (lower === "wallet") return "wallet";
+  if (lower === "bpi") return "BPI";
+  return "GCash";
 }
 
 type VipWalletRpcRow = {
@@ -185,7 +187,7 @@ export async function POST(req: NextRequest) {
 
     // GCash workflow: requires proof of payment
     if (!receiptFile) {
-      return NextResponse.json({ error: "Please upload a GCash payment receipt." }, { status: 400 });
+      return NextResponse.json({ error: "Please upload a payment receipt." }, { status: 400 });
     }
 
     if (!ALLOWED_VIP_TYPES.has(receiptFile.type.toLowerCase())) {
@@ -232,7 +234,7 @@ export async function POST(req: NextRequest) {
         user_id: user.id,
         email: user.email,
         plan_code: selectedPlan.id,
-        payment_method: "GCash",
+        payment_method: paymentMethod,
         amount: requestedAmount,
         receipt_url: receiptUrl,
         receipt_hash: receiptHash,
@@ -249,7 +251,7 @@ export async function POST(req: NextRequest) {
           user_id: user.id,
           email: user.email,
           plan_code: selectedPlan.id,
-          payment_method: "GCash",
+          payment_method: paymentMethod,
           amount: requestedAmount,
           receipt_url: receiptUrl,
           notes: notes || null,
@@ -269,7 +271,7 @@ export async function POST(req: NextRequest) {
           user_id: user.id,
           email: user.email,
           plan_code: selectedPlan.id,
-          payment_method: "GCash",
+          payment_method: paymentMethod,
           amount: requestedAmount,
           receipt_url: receiptUrl,
           receipt_hash: receiptHash,

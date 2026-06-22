@@ -76,7 +76,7 @@ export default function OrderPage() {
   const [profilePhoto, setProfilePhoto] = useState<File | null>(null);
   const [coverPhoto, setCoverPhoto] = useState<File | null>(null);
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
-  const [paymentMethod, setPaymentMethod] = useState<"GCash" | "Wallet">("GCash");
+  const [paymentMethod, setPaymentMethod] = useState<"GCash" | "BPI" | "Wallet">("GCash");
   const [facebookFollowerService, setFacebookFollowerService] = useState<SmmService | null>(null);
   const [loadingCatalog, setLoadingCatalog] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -231,8 +231,8 @@ export default function OrderPage() {
       return;
     }
 
-    if (paymentMethod === "GCash" && !receiptFile) {
-      setError("Please upload your GCash/top-up receipt before placing the order.");
+    if (paymentMethod !== "Wallet" && !receiptFile) {
+      setError("Please upload your payment receipt before placing the order.");
       return;
     }
 
@@ -561,7 +561,7 @@ export default function OrderPage() {
 
                 <div className="rounded-3xl border border-slate-800/80 bg-[#121212]/95 p-5 shadow-2xl sm:p-6">
                   <h3 className="text-lg font-black text-white">Payment</h3>
-                  <div className="mt-4 grid grid-cols-2 gap-2">
+                  <div className="mt-4 grid grid-cols-3 gap-2">
                     <button
                       type="button"
                       onClick={() => setPaymentMethod("GCash")}
@@ -572,6 +572,18 @@ export default function OrderPage() {
                       }`}
                     >
                       GCash
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMethod("BPI")}
+                      className={`flex items-center justify-center gap-1.5 rounded-2xl border px-4 py-3 text-xs font-black uppercase tracking-wider transition ${
+                        paymentMethod === "BPI"
+                          ? "border-[#D42027] bg-[#D42027]/15 text-[#D42027]"
+                          : "border-slate-800 bg-black/30 text-slate-400 hover:text-white"
+                      }`}
+                    >
+                      <img src="/bpi-logo.svg" alt="BPI" className="h-3.5 w-auto" />
+                      BPI
                     </button>
                     <button
                       type="button"
@@ -586,20 +598,51 @@ export default function OrderPage() {
                     </button>
                   </div>
 
-                  <div className="mt-5 rounded-2xl border border-slate-800 bg-black/35 p-4 text-center">
-                    <p className="text-xs font-black uppercase tracking-widest text-slate-400">Scan GCash QR</p>
-                    <div className="mx-auto mt-3 flex h-48 w-48 items-center justify-center rounded-2xl bg-white p-2">
-                      <Image src="/gcash-qr.png" alt="GCash QR code" width={192} height={192} className="h-full w-full object-contain" />
-                    </div>
-                    <p className="mt-3 text-[11px] font-semibold leading-relaxed text-slate-500">
-                      Pay exactly {formatPhp(payableTotal)}, then upload the receipt below before submitting.
-                    </p>
-                    {hasVipDiscount && (
-                      <p className="mt-2 rounded-xl border border-[#1DB954]/25 bg-[#1DB954]/10 px-3 py-2 text-[10px] font-black uppercase tracking-wider text-[#1DB954]">
-                        Regular {formatPhp(grandTotal)} {"->"} VIP {formatPhp(payableTotal)}
+                  {paymentMethod === "GCash" && (
+                    <div className="mt-5 rounded-2xl border border-slate-800 bg-black/35 p-4 text-center">
+                      <p className="text-xs font-black uppercase tracking-widest text-slate-400">Scan GCash QR</p>
+                      <div className="mx-auto mt-3 flex h-48 w-48 items-center justify-center rounded-2xl bg-white p-2">
+                        <Image src="/gcash-qr.png" alt="GCash QR code" width={192} height={192} className="h-full w-full object-contain" />
+                      </div>
+                      <p className="mt-3 text-[11px] font-semibold leading-relaxed text-slate-500">
+                        Pay exactly {formatPhp(payableTotal)}, then upload the receipt below before submitting.
                       </p>
-                    )}
-                  </div>
+                      {hasVipDiscount && (
+                        <p className="mt-2 rounded-xl border border-[#1DB954]/25 bg-[#1DB954]/10 px-3 py-2 text-[10px] font-black uppercase tracking-wider text-[#1DB954]">
+                          Regular {formatPhp(grandTotal)} {"->"} VIP {formatPhp(payableTotal)}
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {paymentMethod === "BPI" && (
+                    <div className="mt-5 rounded-2xl border border-slate-800 bg-black/35 p-4 text-center">
+                      <p className="text-xs font-black uppercase tracking-widest text-slate-400">BPI Bank Transfer</p>
+                      <div className="mx-auto mt-3 flex items-center justify-center rounded-2xl bg-white p-4">
+                        <div className="text-center">
+                          <img src="/bpi-logo.svg" alt="BPI" className="h-8 w-auto mx-auto mb-3" />
+                          <div className="bg-[#D42027]/5 border border-[#D42027]/20 rounded-lg p-3">
+                            <p className="text-[8px] font-black uppercase tracking-widest text-slate-500 mb-1">Account Number</p>
+                            <p className="text-xl font-black text-[#D42027] tracking-widest select-all">4059901356</p>
+                          </div>
+                        </div>
+                      </div>
+                      <button type="button" onClick={() => { navigator.clipboard.writeText('4059901356'); }} className="mt-2 text-[8px] bg-[#D42027]/10 hover:bg-[#D42027]/20 text-[#D42027] font-black uppercase tracking-wider px-3 py-1.5 rounded-lg transition-all cursor-pointer active:scale-95">Copy Account Number</button>
+                      <p className="mt-3 text-[11px] font-semibold leading-relaxed text-slate-500">
+                        Send exactly {formatPhp(payableTotal)}, then upload the receipt below before submitting.
+                      </p>
+                      <div className="mt-3 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
+                        <p className="text-[9px] text-amber-400 font-bold leading-relaxed">
+                          ⚠️ If paying via GCash to BPI, add ₱15 transfer fee or order stays Pending.
+                        </p>
+                      </div>
+                      {hasVipDiscount && (
+                        <p className="mt-2 rounded-xl border border-[#1DB954]/25 bg-[#1DB954]/10 px-3 py-2 text-[10px] font-black uppercase tracking-wider text-[#1DB954]">
+                          Regular {formatPhp(grandTotal)} {"->"} VIP {formatPhp(payableTotal)}
+                        </p>
+                      )}
+                    </div>
+                  )}
 
                   <div className="mt-5 rounded-2xl border border-slate-800 bg-black/35 p-4">
                     <div className="flex items-center justify-between gap-3">
@@ -626,9 +669,11 @@ export default function OrderPage() {
                     </div>
                   </div>
 
-                  <div className="mt-5">
-                    <FileUpload id="receipt-file" title="Upload Payment Receipt" file={receiptFile} onChange={setReceiptFile} compact />
-                  </div>
+                  {paymentMethod !== "Wallet" && (
+                    <div className="mt-5">
+                      <FileUpload id="receipt-file" title="Upload Payment Receipt" file={receiptFile} onChange={setReceiptFile} compact />
+                    </div>
+                  )}
 
                   <button
                     type="submit"

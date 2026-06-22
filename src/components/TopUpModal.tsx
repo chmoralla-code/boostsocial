@@ -54,6 +54,7 @@ export function TopUpModal({ isOpen, onClose, user, onTopUpSuccess }: { isOpen: 
   const [success, setSuccess] = useState(false);
   const [successAutoApproved, setSuccessAutoApproved] = useState(false);
   const [error, setError] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState<"GCash" | "BPI">("GCash");
   const [uploadStatus, setUploadStatus] = useState<"idle" | "submitting" | "reading" | "verifying">("idle");
   const supabase = createClient();
 
@@ -65,7 +66,7 @@ export function TopUpModal({ isOpen, onClose, user, onTopUpSuccess }: { isOpen: 
       return;
     }
     if (!file) {
-      setError("Please select a GCash receipt screenshot.");
+      setError("Please select a payment receipt screenshot.");
       return;
     }
 
@@ -97,7 +98,7 @@ export function TopUpModal({ isOpen, onClose, user, onTopUpSuccess }: { isOpen: 
       }
 
       if (data.rejectedAsFake) {
-        setError("Suspicious receipt detected — the image appears to be AI-generated. Please upload a real GCash screenshot.");
+        setError("Suspicious receipt detected — the image appears to be AI-generated. Please upload a real payment screenshot.");
         setUploadStatus("idle");
         return;
       }
@@ -153,7 +154,7 @@ export function TopUpModal({ isOpen, onClose, user, onTopUpSuccess }: { isOpen: 
               <p className="text-sm text-fg font-medium leading-relaxed">
                 {successAutoApproved
                   ? `Your PHP ${Number(amount).toFixed(0)} has been AI-verified and instantly credited to your wallet!`
-                  : `Your GCash receipt has been securely uploaded. An admin will verify the payment and credit ₱${Number(amount).toFixed(0)} to your wallet shortly.`
+                  : `Your payment receipt has been securely uploaded. An admin will verify the payment and credit ₱${Number(amount).toFixed(0)} to your wallet shortly.`
                 }
               </p>
             </div>
@@ -180,24 +181,81 @@ export function TopUpModal({ isOpen, onClose, user, onTopUpSuccess }: { isOpen: 
                 </div>
               </div>
 
-              {/* QR Code section */}
-              <div className="bg-card p-5 rounded-xl border border-border flex flex-col items-center gap-4">
-                <div className="text-center space-y-1">
-                  <p className="text-sm font-bold text-fg">Scan to Pay via GCash</p>
-                  <p className="text-xs text-muted">Send exactly the amount entered above</p>
-                </div>
-                <div className="w-48 h-48 bg-white p-2 rounded-xl flex items-center justify-center">
-                  <img src="/gcash-qr.png" alt="GCash QR" className="w-full h-full object-contain" />
-                </div>
-                <div className="flex items-center justify-center gap-2 mt-3 bg-[#1877F2]/10 border border-[#1877F2]/20 px-3 py-1.5 rounded-lg">
-                  <span className="text-[10px] font-black text-[#1877F2] tracking-wider">📞 09505339963 • Henry S.</span>
-                  <button type="button" onClick={() => { navigator.clipboard.writeText('09505339963'); }} className="text-[8px] bg-[#1877F2]/20 hover:bg-[#1877F2]/40 text-[#1877F2] font-black uppercase tracking-wider px-2 py-0.5 rounded-md transition-all cursor-pointer active:scale-95">Copy</button>
+              {/* Payment Method Selector */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-muted uppercase tracking-wider">Payment Method</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod("GCash")}
+                    className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 text-xs font-black uppercase tracking-wider transition-all ${
+                      paymentMethod === "GCash"
+                        ? "border-[#1877F2] bg-[#1877F2]/15 text-[#1877F2]"
+                        : "border-border bg-card text-muted hover:text-fg"
+                    }`}
+                  >
+                    📱 GCash
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod("BPI")}
+                    className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 text-xs font-black uppercase tracking-wider transition-all ${
+                      paymentMethod === "BPI"
+                        ? "border-[#D42027] bg-[#D42027]/15 text-[#D42027]"
+                        : "border-border bg-card text-muted hover:text-fg"
+                    }`}
+                  >
+                    <img src="/bpi-logo.svg" alt="BPI" className="h-4 w-auto" />
+                    BPI
+                  </button>
                 </div>
               </div>
 
+              {/* GCash QR */}
+              {paymentMethod === "GCash" && (
+                <div className="bg-card p-5 rounded-xl border border-border flex flex-col items-center gap-4">
+                  <div className="text-center space-y-1">
+                    <p className="text-sm font-bold text-fg">Scan to Pay via GCash</p>
+                    <p className="text-xs text-muted">Send exactly the amount entered above</p>
+                  </div>
+                  <div className="w-48 h-48 bg-white p-2 rounded-xl flex items-center justify-center">
+                    <img src="/gcash-qr.png" alt="GCash QR" className="w-full h-full object-contain" />
+                  </div>
+                  <div className="flex items-center justify-center gap-2 mt-3 bg-[#1877F2]/10 border border-[#1877F2]/20 px-3 py-1.5 rounded-lg">
+                    <span className="text-[10px] font-black text-[#1877F2] tracking-wider">📞 09505339963 • Henry S.</span>
+                    <button type="button" onClick={() => { navigator.clipboard.writeText('09505339963'); }} className="text-[8px] bg-[#1877F2]/20 hover:bg-[#1877F2]/40 text-[#1877F2] font-black uppercase tracking-wider px-2 py-0.5 rounded-md transition-all cursor-pointer active:scale-95">Copy</button>
+                  </div>
+                </div>
+              )}
+
+              {/* BPI Bank Transfer */}
+              {paymentMethod === "BPI" && (
+                <div className="bg-card p-5 rounded-xl border border-border flex flex-col items-center gap-4">
+                  <div className="text-center space-y-1">
+                    <p className="text-sm font-bold text-fg">BPI Bank Transfer</p>
+                    <p className="text-xs text-muted">Send exactly the amount entered above</p>
+                  </div>
+                  <div className="w-full bg-white p-4 rounded-xl flex items-center justify-center">
+                    <div className="text-center">
+                      <img src="/bpi-logo.svg" alt="BPI" className="h-10 w-auto mx-auto mb-3" />
+                      <div className="bg-[#D42027]/5 border border-[#D42027]/20 rounded-lg p-3">
+                        <p className="text-[8px] font-black uppercase tracking-widest text-muted mb-1">Account Number</p>
+                        <p className="text-xl font-black text-[#D42027] tracking-widest select-all">4059901356</p>
+                      </div>
+                      <button type="button" onClick={() => { navigator.clipboard.writeText('4059901356'); }} className="mt-2 text-[8px] bg-[#D42027]/10 hover:bg-[#D42027]/20 text-[#D42027] font-black uppercase tracking-wider px-3 py-1.5 rounded-lg transition-all cursor-pointer active:scale-95 w-full">Copy Account Number</button>
+                    </div>
+                  </div>
+                  <div className="w-full bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
+                    <p className="text-[9px] text-amber-400 font-bold leading-relaxed text-center">
+                      ⚠️ If paying via GCash to BPI, add ₱15 transfer fee or order stays Pending.
+                    </p>
+                  </div>
+                </div>
+              )}
+
               {/* File Upload */}
               <div className="space-y-2">
-                <label className="text-xs font-bold text-muted uppercase tracking-wider">Upload GCash Receipt</label>
+                <label className="text-xs font-bold text-muted uppercase tracking-wider">Upload Payment Receipt</label>
                 <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-border border-dashed rounded-xl cursor-pointer hover:bg-card hover:border-[#1877F2] transition-all group">
                   <div className="flex flex-col items-center justify-center pt-5 pb-6">
                     <Upload className="w-6 h-6 mb-2 text-muted group-hover:text-[#1877F2] transition-colors" />

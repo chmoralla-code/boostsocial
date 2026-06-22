@@ -49,6 +49,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
   const [isWalletPayment, setIsWalletPayment] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<"GCash" | "BPI">("GCash");
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [selectedReactions, setSelectedReactions] = useState<string[]>(["Like"]);
   const [eapDeviceCount, setEapDeviceCount] = useState<number>(1);
@@ -363,7 +364,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
     if (!serviceId) return;
 
     if (!receiptFile) {
-      setError("Please attach your GCash transaction receipt screenshot first.");
+      setError("Please attach your payment receipt screenshot first.");
       return;
     }
 
@@ -390,7 +391,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
           email: email.trim(),
           targetUrl: tempUrl,
           amount: totalPrice,
-          paymentMethod: "GCash",
+          paymentMethod,
           quantity: finalQuantity,
           smmServiceId: parsedDetails.smm_service_id ? String(parsedDetails.smm_service_id) : (isReactionService ? String(getFBReactionsSMMDetails(selectedReactions).smmId) : null)
         })
@@ -470,7 +471,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
           email: email.trim(),
           quantity: finalQuantity,
           amount: payableTotal,
-          paymentMethod: "📱 GCash",
+          paymentMethod: paymentMethod === "BPI" ? "🏦 BPI" : "📱 GCash",
           details: tempUrl,
         }),
       }).catch(() => {});
@@ -1454,10 +1455,40 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                   </div>
 )}
 
-                {/* GCash Payment Receipt Upload */}
+                {/* Payment Method Selector */}
+                <div className="bg-elevated border border-border p-4 rounded-xl mt-3 text-left">
+                  <label className="block text-[10px] font-black text-muted uppercase tracking-widest mb-3">Payment Method</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMethod("GCash")}
+                      className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 text-xs font-black uppercase tracking-wider transition-all ${
+                        paymentMethod === "GCash"
+                          ? "border-[#1877F2] bg-[#1877F2]/15 text-[#1877F2]"
+                          : "border-border bg-card text-muted hover:text-fg"
+                      }`}
+                    >
+                      📱 GCash
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMethod("BPI")}
+                      className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 text-xs font-black uppercase tracking-wider transition-all ${
+                        paymentMethod === "BPI"
+                          ? "border-[#D42027] bg-[#D42027]/15 text-[#D42027]"
+                          : "border-border bg-card text-muted hover:text-fg"
+                      }`}
+                    >
+                      <img src="/bpi-logo.svg" alt="BPI" className="h-4 w-auto" />
+                      BPI
+                    </button>
+                  </div>
+                </div>
+
+                {/* Payment Receipt Upload */}
                 <div className="space-y-2 bg-elevated border border-border p-4 rounded-xl mt-3 text-left">
                   <label className="block text-[10px] font-black text-muted uppercase tracking-widest flex justify-between items-center">
-                    <span>GCash Payment Receipt Screenshot {!hasWalletBalanceForOrder && <span className="text-red-500">*</span>}</span>
+                    <span>Payment Receipt Screenshot {!hasWalletBalanceForOrder && <span className="text-red-500">*</span>}</span>
                     <span className="text-[8px] font-black uppercase text-red-500">
                       {hasWalletBalanceForOrder ? "Optional for Wallet" : "Strictly Required"}
                     </span>
@@ -1484,8 +1515,8 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                   </div>
                 </div>
 
-                {/* GCash Quick QR for all manual checkouts to ensure the GCash payment flow is easily accessible */}
-                {!hasWalletBalanceForOrder && (
+                {/* Payment Details — GCash QR or BPI Account Info */}
+                {!hasWalletBalanceForOrder && paymentMethod === "GCash" && (
                   <div className="bg-elevated border border-border p-4 rounded-xl space-y-3 mt-3 animate-in fade-in duration-200">
                     <div className="flex justify-between items-center border-b border-border pb-2">
                       <span className="text-[10px] font-black uppercase tracking-widest text-[#1877F2] flex items-center gap-1.5">
@@ -1515,6 +1546,45 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                       <div className="flex items-center justify-center gap-2 mt-2 bg-[#1DB954]/10 border border-[#1DB954]/20 px-3 py-1.5 rounded-lg">
                         <span className="text-[10px] font-black text-[#1DB954] tracking-wider">📞 09505339963</span>
                         <button type="button" onClick={() => { navigator.clipboard.writeText('09505339963'); }} className="text-[8px] bg-[#1DB954]/20 hover:bg-[#1DB954]/40 text-[#1DB954] font-black uppercase tracking-wider px-2 py-0.5 rounded-md transition-all cursor-pointer active:scale-95">Copy</button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* BPI Payment Details */}
+                {!hasWalletBalanceForOrder && paymentMethod === "BPI" && (
+                  <div className="bg-elevated border border-border p-4 rounded-xl space-y-3 mt-3 animate-in fade-in duration-200">
+                    <div className="flex justify-between items-center border-b border-border pb-2">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-[#D42027] flex items-center gap-1.5">
+                        <img src="/bpi-logo.svg" alt="BPI" className="h-3.5 w-auto" />
+                        BPI Bank Transfer
+                      </span>
+                      <span className="text-[9px] text-slate-550 font-bold tracking-wider">Account</span>
+                    </div>
+                    <p className="text-[10px] text-fg leading-relaxed font-semibold text-left">
+                      {isSoftwareService ? (
+                        <>
+                          Send <strong className="text-fg">₱{formatPrice(payableTotal)} PHP</strong> to the BPI account below. Once paid, upload your receipt and send your Tracking ID to our support chatbot.
+                        </>
+                      ) : (
+                        <>
+                          Send <strong className="text-fg">₱{formatPrice(payableTotal)} PHP</strong> to the BPI account below. Once paid, upload your receipt screenshot for verification and activation!
+                        </>
+                      )}
+                    </p>
+                    <div className="text-center">
+                      <div className="bg-white p-4 rounded-xl inline-block max-w-[240px] mx-auto overflow-hidden border border-border">
+                        <img src="/bpi-logo.svg" alt="BPI" className="h-8 w-auto mx-auto mb-3" />
+                        <div className="bg-[#D42027]/5 border border-[#D42027]/20 rounded-lg p-3">
+                          <p className="text-[8px] font-black uppercase tracking-widest text-muted mb-1">Account Number</p>
+                          <p className="text-xl font-black text-[#D42027] tracking-widest select-all">4059901356</p>
+                        </div>
+                        <button type="button" onClick={() => { navigator.clipboard.writeText('4059901356'); }} className="mt-2 text-[8px] bg-[#D42027]/10 hover:bg-[#D42027]/20 text-[#D42027] font-black uppercase tracking-wider px-3 py-1.5 rounded-lg transition-all cursor-pointer active:scale-95 w-full">Copy Account Number</button>
+                      </div>
+                      <div className="mt-3 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
+                        <p className="text-[9px] text-amber-400 font-bold leading-relaxed">
+                          ⚠️ If paying via GCash to BPI, add ₱15 transfer fee or order stays Pending.
+                        </p>
                       </div>
                     </div>
                   </div>

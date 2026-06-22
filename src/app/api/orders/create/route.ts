@@ -102,7 +102,7 @@ export async function POST(req: NextRequest) {
       target_url: targetUrl,
       amount: finalAmount,
       status: "Pending",
-      payment_method: "GCash",
+      payment_method: paymentMethod,
       quantity: pricing.quantity,
       smm_service_id: pricing.smmServiceId,
     };
