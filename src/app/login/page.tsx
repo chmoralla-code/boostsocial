@@ -448,6 +448,8 @@ export default function LoginPage() {
         </div>
         
         <form onSubmit={handleSubmit} className="space-y-4">
+          {!otpMode ? (
+            <>
           <div>
             <div className="flex justify-between items-center mb-1.5">
               <label className="block text-xs font-black uppercase tracking-widest text-slate-400">Email / Username</label>
@@ -578,19 +580,20 @@ export default function LoginPage() {
             </div>
           )}
           
-          {success && (
-            <div className="text-[#1877F2] text-xs font-semibold bg-[#1877F2]/10 border border-[#1877F2]/20 p-3.5 rounded-xl text-left leading-relaxed flex items-start gap-2">
-              <MailCheck className="shrink-0 mt-0.5" size={14} />
-              <span>{success}</span>
+          </>
+          ) : (
+          <div className="space-y-4">
+            <div>
+              <label className="block text-xs font-black uppercase tracking-widest text-slate-400 mb-1.5">Email</label>
+              <div className="w-full bg-[#121212] border border-slate-800/80 px-4 py-3 rounded-xl text-white text-sm">
+                {registeredEmail}
+              </div>
             </div>
-          )}
 
-          {/* OTP Verification Step — shown after registration */}
-          {otpMode && (
-            <div className="bg-[#121212] border border-slate-800/80 p-4 rounded-xl space-y-3 mt-4">
+            <div className="bg-[#121212] border border-slate-800/80 p-4 rounded-xl space-y-3">
               <div className="text-center">
                 <p className="text-[10px] font-black uppercase tracking-widest text-muted">Verify Your Email</p>
-                <p className="text-[11px] text-slate-400 mt-1">Enter the 6-digit code sent to {registeredEmail}</p>
+                <p className="text-[11px] text-slate-400 mt-1">Enter the 6-digit code sent to your email</p>
               </div>
               
               <div className="flex justify-center gap-2">
@@ -602,6 +605,7 @@ export default function LoginPage() {
                   onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
                   className="w-40 bg-[#0a0a0a] border border-slate-800/80 px-4 py-3 rounded-xl text-center text-white text-lg font-black tracking-[0.3em] focus:outline-none focus:border-[#1877F2] transition-all font-mono"
                   disabled={otpVerified}
+                  autoFocus
                 />
               </div>
 
@@ -622,7 +626,6 @@ export default function LoginPage() {
                 </button>
               </div>
 
-              {/* Resend OTP link */}
               {!otpVerified && (
                 <div className="text-center">
                   {otpCountdown > 0 ? (
@@ -652,8 +655,27 @@ export default function LoginPage() {
                 </div>
               )}
             </div>
-          )}
 
+            {error && (
+              <div className="bg-red-500/10 border border-red-500/20 p-3.5 rounded-xl text-left leading-relaxed">
+                <div className="flex items-start gap-2 text-red-500 text-xs font-semibold">
+                  <AlertCircle className="shrink-0 mt-0.5" size={14} />
+                  <span>{error}</span>
+                </div>
+              </div>
+            )}
+            
+            {success && (
+              <div className="text-[#1877F2] text-xs font-semibold bg-[#1877F2]/10 border border-[#1877F2]/20 p-3.5 rounded-xl text-left leading-relaxed flex items-start gap-2">
+                <MailCheck className="shrink-0 mt-0.5" size={14} />
+                <span>{success}</span>
+              </div>
+            )}
+          </div>
+          )} {/* end of otpMode ternary */}
+
+          {/* OTP Verification Step — shown after registration */}
+          {!otpMode && (
           <button 
             type="submit" 
             disabled={loading || emailVerifying}
@@ -702,10 +724,13 @@ export default function LoginPage() {
               </>
             )}
           </button>
+          )}
 
         </form>
 
         <div className="mt-6 pt-6 border-t border-slate-800/80 text-center flex flex-col gap-3">
+          {!otpMode ? (
+          <>
           {mode === "forgot" ? (
             <button 
               onClick={() => switchMode("signin")}
@@ -721,6 +746,8 @@ export default function LoginPage() {
               {mode === "signup" ? "Already have an account? Sign In" : "Don't have an account? Create one"}
             </button>
           )}
+          </>
+          ) : null}
         </div>
       </div>
     </div>

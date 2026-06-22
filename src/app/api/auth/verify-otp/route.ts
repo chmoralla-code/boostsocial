@@ -1,18 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
-// In-memory OTP store: email → { code, expiresAt }
-const otpStore = new Map<string, { code: string; expiresAt: number }>();
-const OTP_EXPIRY_MS = 5 * 60 * 1000;
-
-// Clean up expired entries every 5 minutes
-setInterval(() => {
-  const now = Date.now();
-  for (const [email, data] of otpStore) {
-    if (data.expiresAt < now) otpStore.delete(email);
-  }
-}, 5 * 60 * 1000);
-
 export async function POST(req: NextRequest) {
   try {
     const { email, code } = await req.json();
@@ -21,23 +9,6 @@ export async function POST(req: NextRequest) {
     }
 
     const cleanEmail = email.trim().toLowerCase();
-
-    // Look up OTP
-    const stored = otpStore.get(cleanEmail);
-    if (!stored) {
-      return NextResponse.json({ error: "No verification code found. Please request a new one." }, { status: 400 });
-    }
-
-    if (Date.now() > stored.expiresAt) {
-      otpStore.delete(cleanEmail);
-      return NextResponse.json({ error: "Verification code has expired. Please request a new one." }, { status: 400 });
-    }
-
-    if (stored.code !== code.trim()) {
-      return NextResponse.json({ error: "Invalid verification code. Please check and try again." }, { status: 400 });
-    }
-
-    // Code is valid — confirm the user's email via Admin API
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
@@ -59,19 +30,40 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "User not found. Please register first." }, { status: 400 });
     }
 
-    // Update the user to mark email as confirmed
+    // Read OTP from user_metadata (persistent across serverless instances)
+    const meta = user.user_metadata || {};
+    const storedCode = meta.otp_code;
+    const expiresAt = meta.otp_expires_at ? Number(meta.otp_expires_at) : 0;
+
+    if (!storedCode) {
+      return NextResponse.json({ error: "No verification code found. Please request a new one." }, { status: 400 });
+    }
+
+    if (Date.now() > expiresAt) {
+      // Clear expired OTP
+      await supabase.auth.admin.updateUserById(user.id, {
+        user_metadata: { ...meta, otp_code: null, otp_expires_at: null, otp_sent_at: null }
+      });
+      return NextResponse.json({ error: "Verification code has expired. Please request a new one." }, { status: 400 });
+    }
+
+    if (storedCode !== code.trim()) {
+      return NextResponse.json({ error: "Invalid verification code. Please check and try again." }, { status: 400 });
+    }
+
+    // Code is valid — confirm the user's email
     const { error: updateError } = await supabase.auth.admin.updateUserById(
       user.id,
-      { email_confirm: true }
+      { 
+        email_confirm: true,
+        user_metadata: { ...meta, otp_code: null, otp_expires_at: null, otp_sent_at: null }
+      }
     );
 
     if (updateError) {
       console.error("Failed to confirm user email:", updateError);
       return NextResponse.json({ error: "Failed to activate account. Please try again." }, { status: 500 });
     }
-
-    // Clean up OTP
-    otpStore.delete(cleanEmail);
 
     return NextResponse.json({
       success: true,
