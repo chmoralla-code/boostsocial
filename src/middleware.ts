@@ -320,7 +320,7 @@ export async function middleware(request: NextRequest) {
     </div>
     
     <h1>
-      <span class="gradient-text">WEBSITE IS UNDER MAINTAINANCE,<br>WE WILL BE BACK SOON</span>
+      <span class="gradient-text">WEBSITE IS UNDER MAINTENANCE,<br>WE WILL BE BACK SOON</span>
     </h1>
     
     <p>
@@ -380,7 +380,7 @@ export async function middleware(request: NextRequest) {
       return applySecurityHeaders(NextResponse.redirect(url))
     }
 
-    // Strict role-based protection: only allow emails ending in @boostsocial.com to view administrative console
+    // Strict role-based protection: only allow configured admin emails (ADMIN_EMAILS / ADMIN_EMAIL_DOMAIN) to view administrative console
     if (!isAdminEmail(user.email)) {
       const url = request.nextUrl.clone()
       url.pathname = '/'

@@ -13,7 +13,7 @@ export function Footer() {
         <Link href="#contact" className="hover:text-[#1877F2] transition-colors">Contact</Link>
       </div>
       <p className="text-[10px] text-slate-600 mt-4">
-        © {new Date().getFullYear()} CYNETWORK. Powered by Spotify Design Concept. All Rights Reserved.
+        © {new Date().getFullYear()} CYNETWORK. All Rights Reserved.
       </p>
     </footer>
   );

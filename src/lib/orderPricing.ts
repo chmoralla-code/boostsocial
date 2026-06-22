@@ -2,7 +2,6 @@ import { SupabaseClient } from "@supabase/supabase-js";
 import { getFBReactionRetailPrice, getFBReactionsSMMDetails } from "@/utils/fbReactions";
 import { parseDescription } from "@/utils/serviceHelpers";
 import { getSmmCatalogServiceById } from "@/lib/smmCatalog";
-import { getMarkupMultiplier } from "@/lib/markupConfig";
 
 const CATALOG_SERVICE_ID = "e6f61249-71fe-40df-84f3-96d03d3e8dcf";
 const CUSTOM_PAGE_SMM_ID = "1141";
@@ -16,6 +15,7 @@ type ServiceRow = {
   title: string;
   description: unknown;
   starting_price: number | string;
+  price_per_unit?: number | string | null;
   min_quantity?: number | string | null;
   max_quantity?: number | string | null;
   smm_service_id?: string | number | null;
@@ -70,12 +70,29 @@ function isCustomPageOrder(targetUrl: string, requestedSmmServiceId?: string | n
 async function fetchService(client: SupabaseClient, serviceId: string): Promise<ServiceRow | null> {
   const { data, error } = await client
     .from("services")
-    .select("id, title, description, starting_price, min_quantity, max_quantity, smm_service_id")
+    .select("id, title, description, starting_price, price_per_unit, min_quantity, max_quantity, smm_service_id")
     .eq("id", serviceId)
-    .single();
+    .maybeSingle();
 
-  if (error || !data) return null;
-  return data as ServiceRow;
+  if (error) {
+    throw new Error("Selected service was not found.");
+  }
+
+  return data as ServiceRow | null;
+}
+
+/**
+ * Verifies that an SMM service ID is currently listed on the upstream RixeySMM
+ * provider catalog. Throws a clear, user-facing error when the provider has
+ * delisted the service so clients are blocked from paying for something that
+ * can no longer be fulfilled.
+ */
+async function assertSmmServiceAvailable(smmServiceId: string | number) {
+  const catalogService = await getSmmCatalogServiceById(smmServiceId);
+  if (!catalogService) {
+    throw new Error("This service is temporarily unavailable from our provider. Please pick another service from the catalog.");
+  }
+  return catalogService;
 }
 
 export async function resolveOrderPricing({
@@ -93,33 +110,17 @@ export async function resolveOrderPricing({
     ? ""
     : String(requestedSmmServiceId).trim();
 
-  const service = await fetchService(client, serviceId);
-
-  // If the service doesn't exist in the DB but it's the catalog UUID with an SMM ID,
-  // use a synthetic row so catalog checkout still works
-  const isCatalogUuid = serviceId === CATALOG_SERVICE_ID;
-  if (!service && !isCatalogUuid) {
-    throw new Error("Selected service was not found.");
-  }
-  const syntheticService: ServiceRow = service ?? {
-    id: serviceId,
-    title: "All Services",
-    description: null,
-    starting_price: 0,
-    min_quantity: null,
-    max_quantity: null,
-    smm_service_id: null,
-  };
-
-  const parsed = parseDescription(syntheticService.description) || {};
-  const title = String(syntheticService.title || "SMM Service");
-  const isCatalog = syntheticService.id === CATALOG_SERVICE_ID || /^all services$/i.test(title.trim());
-
-  if (isCatalog && cleanRequestedSmmId) {
-    const catalogService = await getSmmCatalogServiceById(cleanRequestedSmmId);
-    if (!catalogService) {
-      throw new Error("Selected SMM provider service is not available.");
+  // Catalog ("All Services") orders: the umbrella catalog row may have been
+  // deleted from the Supabase `services` table. Resolve pricing directly from
+  // the live RixeySMM catalog instead of failing with "Selected service was
+  // not found." — this is what allows the SMM catalog modal to keep working
+  // even when the DB row is missing.
+  if (serviceId === CATALOG_SERVICE_ID) {
+    if (!cleanRequestedSmmId) {
+      throw new Error("Please pick a specific service from the catalog before ordering.");
     }
+
+    const catalogService = await assertSmmServiceAvailable(cleanRequestedSmmId);
 
     const minimumQuantity = Math.max(Number(catalogService.min || 1), 1);
     const finalQuantity = Math.max(quantity, minimumQuantity);
@@ -133,7 +134,39 @@ export async function resolveOrderPricing({
       : Math.max(finalQuantity * catalogService.startingPrice, MIN_ORDER_AMOUNT);
 
     return {
-      serviceId: syntheticService.id,
+      serviceId: CATALOG_SERVICE_ID,
+      serviceTitle: `[SMM #${catalogService.id}] ${catalogService.name}`,
+      quantity: finalQuantity,
+      regularAmount: roundMoney(regularAmount),
+      smmServiceId: String(catalogService.id),
+    };
+  }
+
+  const service = await fetchService(client, serviceId);
+  if (!service) {
+    throw new Error("Selected service was not found.");
+  }
+
+  const parsed = parseDescription(service.description) || {};
+  const title = String(service.title || "SMM Service");
+  const isCatalog = service.id === CATALOG_SERVICE_ID || /^all services$/i.test(title.trim());
+
+  if (isCatalog && cleanRequestedSmmId) {
+    const catalogService = await assertSmmServiceAvailable(cleanRequestedSmmId);
+
+    const minimumQuantity = Math.max(Number(catalogService.min || 1), 1);
+    const finalQuantity = Math.max(quantity, minimumQuantity);
+    const maximumQuantity = Number(catalogService.max || 0);
+    if (maximumQuantity > 0 && finalQuantity > maximumQuantity) {
+      throw new Error(`Quantity cannot exceed ${maximumQuantity.toLocaleString()}.`);
+    }
+
+    const regularAmount = isCustomPageOrder(targetUrl, cleanRequestedSmmId)
+      ? BASE_PAGE_PRICE + Math.max(finalQuantity - INCLUDED_PAGE_FOLLOWERS, 0) * (catalogService.startingPrice || FALLBACK_PAGE_FOLLOWER_PRICE)
+      : Math.max(finalQuantity * catalogService.startingPrice, MIN_ORDER_AMOUNT);
+
+    return {
+      serviceId: service.id,
       serviceTitle: `[SMM #${catalogService.id}] ${catalogService.name}`,
       quantity: finalQuantity,
       regularAmount: roundMoney(regularAmount),
@@ -144,28 +177,29 @@ export async function resolveOrderPricing({
   const singleItem = isSingleItemService(title);
   const minimumQuantity = singleItem
     ? 1
-    : Math.max(toNumber(parsed.min_quantity ?? parsed.smm_min ?? syntheticService.min_quantity, 100), 1);
+    : Math.max(toNumber(parsed.min_quantity ?? parsed.smm_min ?? service.min_quantity, 100), 1);
   const finalQuantity = Math.max(quantity, minimumQuantity);
-  const maximumQuantity = toNumber(parsed.smm_max ?? syntheticService.max_quantity, 0);
+  const maximumQuantity = toNumber(parsed.smm_max ?? service.max_quantity, 0);
   if (maximumQuantity > 0 && finalQuantity > maximumQuantity) {
     throw new Error(`Quantity cannot exceed ${maximumQuantity.toLocaleString()}.`);
   }
 
   const reactions = /reaction|react/i.test(title) ? parseSelectedReactions(targetUrl) : null;
   if (reactions) {
-    const markupMultiplier = await getMarkupMultiplier();
     const reactionDetails = getFBReactionsSMMDetails(reactions);
+    // Verify the mapped reaction SMM service is still listed by the provider.
+    await assertSmmServiceAvailable(reactionDetails.smmId);
     return {
-      serviceId: syntheticService.id,
+      serviceId: service.id,
       serviceTitle: title,
       quantity: finalQuantity,
-      regularAmount: roundMoney(Math.max(finalQuantity * getFBReactionRetailPrice(reactions, markupMultiplier), MIN_ORDER_AMOUNT)),
+      regularAmount: roundMoney(Math.max(finalQuantity * getFBReactionRetailPrice(reactions), MIN_ORDER_AMOUNT)),
       smmServiceId: String(reactionDetails.smmId),
     };
   }
 
-  const canonicalSmmId = parsed.smm_service_id || syntheticService.smm_service_id || null;
-  const unitPrice = toNumber(syntheticService.starting_price, 0);
+  const canonicalSmmId = parsed.smm_service_id || service.smm_service_id || null;
+  const unitPrice = toNumber(service.price_per_unit ?? service.starting_price, 0);
   if (unitPrice <= 0) {
     throw new Error("Selected service has invalid pricing.");
   }
@@ -174,8 +208,15 @@ export async function resolveOrderPricing({
     throw new Error("Selected provider service does not match this product.");
   }
 
+  // For any service mapped to an upstream SMM provider service, verify the
+  // provider still lists it. Manual services (no smm_service_id) skip this
+  // check because they are fulfilled by the admin directly.
+  if (canonicalSmmId) {
+    await assertSmmServiceAvailable(canonicalSmmId);
+  }
+
   return {
-    serviceId: syntheticService.id,
+    serviceId: service.id,
     serviceTitle: title,
     quantity: finalQuantity,
     regularAmount: roundMoney(Math.max(finalQuantity * unitPrice, MIN_ORDER_AMOUNT)),

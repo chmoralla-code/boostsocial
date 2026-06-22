@@ -1,6 +1,6 @@
 "use client";
 
-import { Users, ThumbsUp, Play, ExternalLink, Wifi, Sparkles } from "lucide-react";
+import { Users, ThumbsUp, Play, ExternalLink, Wifi, Sparkles, AlertTriangle } from "lucide-react";
 import { parseDescription } from "@/utils/serviceHelpers";
 
 interface ServiceCardProps {
@@ -11,9 +11,16 @@ interface ServiceCardProps {
   iconType: string;
   vipDiscountPercent?: number;
   onOrder: (serviceId: string, serviceTitle: string, startingPrice: number) => void;
+  /**
+   * Set of SMM provider service IDs currently listed on rixeysmm.shop.
+   * When provided, services whose `smm_service_id` is missing from this set
+   * are rendered as Unavailable and their order button is disabled.
+   * Services without an `smm_service_id` (manual fulfillment) are always available.
+   */
+  availableSmmIds?: Set<string>;
 }
 
-export function ServiceCard({ id, title, description, startingPrice, iconType, vipDiscountPercent = 0, onOrder }: ServiceCardProps) {
+export function ServiceCard({ id, title, description, startingPrice, iconType, vipDiscountPercent = 0, onOrder, availableSmmIds }: ServiceCardProps) {
   const getIcon = () => {
     if (iconType && (iconType.startsWith("http") || iconType.startsWith("data:image"))) {
       return (
@@ -136,21 +143,42 @@ export function ServiceCard({ id, title, description, startingPrice, iconType, v
     : startingTotal;
   const hasVipPrice = vipDiscountPercent > 0 && vipTotal < startingTotal;
 
+  // A service is considered unavailable when it is mapped to an upstream SMM
+  // provider service ID that is no longer listed on rixeysmm.shop. Services
+  // without an SMM mapping (manual fulfillment: PisoWiFi, Gemini, EAP, custom
+  // FB page, software licenses) are always considered available.
+  const hasSmmMapping = Boolean(parsed.smm_service_id);
+  const isAvailable = !hasSmmMapping || !availableSmmIds || availableSmmIds.has(String(parsed.smm_service_id));
+
+  const handleOrderClick = () => {
+    if (!isAvailable || parsed.redirect_url) {
+      return;
+    }
+    onOrder(id, title, startingPrice);
+  };
+
   return (
-    <div className={`bg-elevated/50 hover:bg-card/90 backdrop-blur-md rounded-3xl p-8 flex flex-col items-start text-left w-full border border-border/40 shadow-[0_12px_40px_rgba(0,0,0,0.4)] transition-all duration-500 transform hover:-translate-y-2 group ${getGlowClass()}`}>
+    <div className={`bg-elevated/50 hover:bg-card/90 backdrop-blur-md rounded-3xl p-8 flex flex-col items-start text-left w-full border border-border/40 shadow-[0_12px_40px_rgba(0,0,0,0.4)] transition-all duration-500 transform hover:-translate-y-2 group ${getGlowClass()} ${!isAvailable ? "opacity-60 grayscale-[0.4]" : ""}`}>
       <div className="h-16 flex items-center justify-center group-hover:scale-115 group-hover:rotate-6 transition-transform duration-500 ease-out">
         {getIcon()}
       </div>
       
       <h3 className="uppercase text-xs font-black tracking-widest text-muted mb-2">{title}</h3>
       <h4 className="text-xl font-bold text-fg mb-1 group-hover:text-primary transition-colors">{parsed.subtitle}</h4>
-      
-      {parsed.smm_average_time && parsed.smm_average_time !== "Not enough data" ? (
+
+      {!isAvailable && (
+        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-500/10 text-red-400 border border-red-500/25 text-[9px] font-black uppercase tracking-wider mb-4 select-none">
+          <AlertTriangle size={11} />
+          Unavailable from provider
+        </span>
+      )}
+
+      {isAvailable && parsed.smm_average_time && parsed.smm_average_time !== "Not enough data" ? (
         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[9px] font-black uppercase tracking-wider mb-4 select-none">
           ⏱️ Avg Delivery: {parsed.smm_average_time}
         </span>
       ) : (
-        iconType !== "pisowifi" && !parsed.redirect_url && (
+        isAvailable && iconType !== "pisowifi" && !parsed.redirect_url && (
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary-dark/10 text-primary-dark border border-primary-dark/20 text-[9px] font-black uppercase tracking-wider mb-4 select-none">
             ⚡ Instant start queue
           </span>
@@ -227,9 +255,20 @@ export function ServiceCard({ id, title, description, startingPrice, iconType, v
           <ExternalLink size={14} />
           {parsed.button_text || "Visit Site"}
         </button>
+      ) : !isAvailable ? (
+        <button
+          type="button"
+          disabled
+          onClick={handleOrderClick}
+          className="w-full font-extrabold py-3.5 rounded-full transition-all duration-300 uppercase text-xs tracking-wider flex items-center justify-center gap-2 cursor-not-allowed bg-red-500/10 text-red-400 border border-red-500/25"
+          title="This service is no longer available from our SMM provider. Please pick another service."
+        >
+          <AlertTriangle size={14} />
+          Unavailable
+        </button>
       ) : (
         <button 
-          onClick={() => onOrder(id, title, startingPrice)}
+          onClick={handleOrderClick}
           className={`w-full font-extrabold py-3.5 rounded-full transition-all duration-300 uppercase text-xs tracking-wider transform group-hover:scale-[1.02] shadow-lg cursor-pointer ${getButtonClass()}`}
         >
           {parsed.button_text}

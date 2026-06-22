@@ -189,6 +189,11 @@ const PLATFORM_REACTION_VARIANTS: Record<PlatformType, ReactionVariantConfig[]> 
   ]
 };
 
+// Module-level flag that dedupes the mount-time RixeySMM catalog pre-fetch
+// across re-renders so we don't double-fetch before `smmServices` state lands.
+// Lives outside the component to avoid tripping the react-hooks/refs rule.
+let smmCatalogPrefetched = false;
+
 export function ServicesSection({ services, servicesBg, servicesCandidates }: ServicesSectionProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
@@ -237,6 +242,13 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
       .finally(() => setLoadingSmm(false));
   };
 
+  // Build a lookup set of SMM provider service IDs currently listed on
+  // rixeysmm.shop. Used to flag database services whose upstream provider
+  // service has been delisted so clients can't buy them.
+  const availableSmmIds = new Set(
+    smmServices.map((s) => String(s.id)).filter(Boolean)
+  );
+
   const openPlatformServices = (platform: PlatformType) => {
     setPlatformSubModalType(platform);
     ensureSmmServices();
@@ -266,6 +278,26 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
         setVipDiscountPercent(getVipDiscountPercent(profile));
       }
     }).catch(() => {});
+
+    // Pre-fetch the live RixeySMM catalog so we can flag database services
+    // whose upstream provider service has been delisted. All setState calls
+    // happen inside async callbacks so we don't trip the
+    // react-hooks/set-state-in-effect rule; the module-level flag dedupes
+    // across re-renders before `smmServices` state lands.
+    if (!smmCatalogPrefetched && smmServices.length === 0) {
+      smmCatalogPrefetched = true;
+      fetch("/api/smm/services")
+        .then((res) => res.json())
+        .then((data) => {
+          if (isMounted && Array.isArray(data)) {
+            setSmmServices(data);
+          }
+        })
+        .catch((err) => {
+          console.error("Error preloading SMM services:", err);
+          smmCatalogPrefetched = false;
+        });
+    }
 
     return () => {
       isMounted = false;
@@ -1111,6 +1143,7 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
         serviceBasePrice={selectedServicePrice}
         presetQuantity={presetQty}
         service={selectedService}
+        availableSmmIds={availableSmmIds}
       />
 
       {/* 7. Other Services Selection Sub-Modal */}
@@ -1158,6 +1191,7 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
                     startingPrice={service.starting_price}
                     iconType={service.icon_type}
                     vipDiscountPercent={vipDiscountPercent}
+                    availableSmmIds={availableSmmIds}
                     onOrder={(id, title, price) => {
                       setIsOtherModalOpen(false); // Auto-close selector sub-modal
                       setOtherServiceGroup("utilities");
