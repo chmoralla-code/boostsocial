@@ -10,6 +10,7 @@ import { ServicesBgSettingsPanel } from "./ServicesBgSettingsPanel";
 import { ServicesCandidatesPanel } from "./ServicesCandidatesPanel";
 import { WidgetVisibilityPanel } from "./WidgetVisibilityPanel";
 import { ShowcaseVideoSettingsPanel } from "./ShowcaseVideoSettingsPanel";
+import { MarkupSettingsPanel } from "./MarkupSettingsPanel";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 import { InstallAppButton } from "./InstallAppButton";
@@ -476,6 +477,7 @@ export default async function AdminOverview() {
               <ServicesBgSettingsPanel />
               <ServicesCandidatesPanel />
               <WidgetVisibilityPanel />
+              <MarkupSettingsPanel />
             </div>
           </section>
 
