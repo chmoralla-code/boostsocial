@@ -47,7 +47,7 @@ const DEFAULT_CANDIDATES = [
     title: "Subs & Watch Time",
     description: "YT subscribers, watch hours, video/Shorts likes, comment likes & live likes.",
     rate_prefix: "Starting Rate",
-    rate_text: "₱132.21 per 1k boosts",
+    rate_text: "₱198.32 per 1k boosts",
     theme_color: "#FF0000",
     btn_bg: "bg-[#FF0000] hover:bg-[#ff3b3b]",
     glow_color: "rgba(255, 0, 0, 0.45)"
