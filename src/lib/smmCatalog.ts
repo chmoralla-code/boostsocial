@@ -1,9 +1,9 @@
 import { createClient } from "@supabase/supabase-js";
 import { parseDescription } from "@/utils/serviceHelpers";
+import { getMarkupMultiplier } from "@/lib/markupConfig";
 
 const RIXEYSMM_API_URL = "https://rixeysmm.shop/api/v2";
 const CACHE_TTL = 5 * 60 * 1000;
-const MARKUP_MULTIPLIER = 3.0;
 
 type RixeyService = {
   service?: string | number;
@@ -35,13 +35,13 @@ function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
 }
 
-function processRixeyService(service: RixeyService): SmmCatalogService | null {
+function processRixeyService(service: RixeyService, markupMultiplier: number): SmmCatalogService | null {
   if (service.service === undefined || service.service === null || !service.name) {
     return null;
   }
 
   const originalRate = Number(service.rate || 0);
-  const ratePer1k = originalRate * MARKUP_MULTIPLIER;
+  const ratePer1k = originalRate * markupMultiplier;
 
   return {
     id: String(service.service),
@@ -56,7 +56,7 @@ function processRixeyService(service: RixeyService): SmmCatalogService | null {
   };
 }
 
-async function getStoredServicesFallback() {
+async function getStoredServicesFallback(markupMultiplier: number) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
@@ -84,7 +84,7 @@ async function getStoredServicesFallback() {
 
       const startingPrice = Number(service.starting_price || 0);
       const ratePer1k = Number.isFinite(startingPrice) ? Number((startingPrice * 1000).toFixed(6)) : 0;
-      const originalRate = Number(parsed?.smm_original_rate || (ratePer1k > 0 ? ratePer1k / MARKUP_MULTIPLIER : 0));
+      const originalRate = Number(parsed?.smm_original_rate || (ratePer1k > 0 ? ratePer1k / markupMultiplier : 0));
 
       return {
         id: smmServiceId,
@@ -102,17 +102,18 @@ async function getStoredServicesFallback() {
     .filter(Boolean) as SmmCatalogService[];
 }
 
-async function getFallbackCatalog() {
+async function getFallbackCatalog(markupMultiplier: number) {
   if (cachedServices?.length) {
     return { services: cachedServices, source: "stale_rixeysmm_cache" };
   }
 
-  return { services: await getStoredServicesFallback(), source: "stored_supabase_catalog" };
+  return { services: await getStoredServicesFallback(markupMultiplier), source: "stored_supabase_catalog" };
 }
 
 export async function getSmmCatalogServices() {
+  const markupMultiplier = await getMarkupMultiplier();
   const apiKey = process.env.RIXEYSMM_API_KEY?.replace(/[\'"\r\n]/g, "").trim();
-  if (!apiKey) return getFallbackCatalog();
+  if (!apiKey) return getFallbackCatalog(markupMultiplier);
 
   const now = Date.now();
   if (cachedServices && now - lastFetchTime < CACHE_TTL) {
@@ -133,12 +134,12 @@ export async function getSmmCatalogServices() {
     const services = await res.json();
     if (!Array.isArray(services)) throw new Error("Invalid response format from RixeySMM API");
 
-    cachedServices = services.map(processRixeyService).filter(Boolean) as SmmCatalogService[];
+    cachedServices = services.map((s: RixeyService) => processRixeyService(s, markupMultiplier)).filter(Boolean) as SmmCatalogService[];
     lastFetchTime = now;
     return { services: cachedServices, source: "rixeysmm" };
   } catch (error) {
     console.error("Failed fetching SMM services catalog:", error);
-    const fallback = await getFallbackCatalog();
+    const fallback = await getFallbackCatalog(markupMultiplier);
     if (fallback.services.length > 0) return fallback;
     throw new Error(`SMM services are currently unavailable. ${getErrorMessage(error)}`);
   }

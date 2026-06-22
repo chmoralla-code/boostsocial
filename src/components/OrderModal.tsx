@@ -50,6 +50,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
   const [profile, setProfile] = useState<any>(null);
   const [isWalletPayment, setIsWalletPayment] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<"GCash" | "BPI">("GCash");
+  const [markupMultiplier, setMarkupMultiplier] = useState(3.0);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [selectedReactions, setSelectedReactions] = useState<string[]>(["Like"]);
   const [eapDeviceCount, setEapDeviceCount] = useState<number>(1);
@@ -326,6 +327,14 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
       };
 
       checkAuth();
+      
+      // Fetch current markup multiplier
+      fetch("/api/admin/markup-settings")
+        .then(r => r.json())
+        .then(data => {
+          if (data.markupMultiplier) setMarkupMultiplier(Number(data.markupMultiplier));
+        })
+        .catch(() => {});
     }
   }, [isOpen, presetQuantity, isPageService, isEapService, isSoftwareService, isPisoWifiService]);
 

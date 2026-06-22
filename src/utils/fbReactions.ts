@@ -52,9 +52,10 @@ export function getFBReactionsSMMDetails(selected: string[]): { smmId: number; r
 }
 
 /**
- * Calculates the retail price per single reaction (piece) in PHP based on standard markup (x2 reseller price).
+ * Calculates the retail price per single reaction (piece) in PHP based on the given markup multiplier.
+ * Defaults to 3.0x if no multiplier is provided (backward compatible).
  */
-export function getFBReactionRetailPrice(selected: string[]): number {
+export function getFBReactionRetailPrice(selected: string[], markupMultiplier: number = 3.0): number {
   const details = getFBReactionsSMMDetails(selected);
-  return (details.rate / 1000) * 3; // Standard markup factor = 3.0
+  return (details.rate / 1000) * markupMultiplier;
 }

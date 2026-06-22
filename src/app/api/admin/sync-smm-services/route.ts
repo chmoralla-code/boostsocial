@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { parseDescription } from "@/utils/serviceHelpers";
 import { syncBackupAdminClients } from "@/utils/supabase/dual-db";
+import { getMarkupMultiplier } from "@/lib/markupConfig";
 
 interface CoreServiceConfig {
   dbId: string;
@@ -208,6 +209,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid markup percentage" }, { status: 400 });
     }
 
+    const markupMultiplier = await getMarkupMultiplier();
+
     const rawApiKey = process.env.RIXEYSMM_API_KEY;
     const apiKey = rawApiKey?.replace(/['"\r\n]/g, "").trim();
     if (!apiKey) {
@@ -343,7 +346,7 @@ export async function POST(req: NextRequest) {
 
         if (cheapest) {
           const smmRate = Number(cheapest.rate);
-          const calculatedPerPiece = (smmRate / 1000) * 2;
+          const calculatedPerPiece = (smmRate / 1000) * markupMultiplier;
           let descriptionObj = parsed || { description: dbService.description };
           
           descriptionObj.smm_service_id = cheapest.service;
@@ -498,8 +501,8 @@ export async function POST(req: NextRequest) {
       const smmRate = Number(cheapest.rate); // per 1000
       const smmServiceId = cheapest.service;
       
-      // Calculate per-piece starting price with automatic x3 multiplier for reseller price
-      const calculatedPerPiece = (smmRate / 1000) * 3;
+      // Calculate per-piece starting price with the configured markup multiplier
+      const calculatedPerPiece = (smmRate / 1000) * markupMultiplier;
 
       // Fetch the current service row in the database
       const { data: dbService, error: fetchErr } = await supabase

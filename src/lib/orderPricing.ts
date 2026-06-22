@@ -2,6 +2,7 @@ import { SupabaseClient } from "@supabase/supabase-js";
 import { getFBReactionRetailPrice, getFBReactionsSMMDetails } from "@/utils/fbReactions";
 import { parseDescription } from "@/utils/serviceHelpers";
 import { getSmmCatalogServiceById } from "@/lib/smmCatalog";
+import { getMarkupMultiplier } from "@/lib/markupConfig";
 
 const CATALOG_SERVICE_ID = "e6f61249-71fe-40df-84f3-96d03d3e8dcf";
 const CUSTOM_PAGE_SMM_ID = "1141";
@@ -15,7 +16,6 @@ type ServiceRow = {
   title: string;
   description: unknown;
   starting_price: number | string;
-  price_per_unit?: number | string | null;
   min_quantity?: number | string | null;
   max_quantity?: number | string | null;
   smm_service_id?: string | number | null;
@@ -70,7 +70,7 @@ function isCustomPageOrder(targetUrl: string, requestedSmmServiceId?: string | n
 async function fetchService(client: SupabaseClient, serviceId: string): Promise<ServiceRow> {
   const { data, error } = await client
     .from("services")
-    .select("id, title, description, starting_price, price_per_unit, min_quantity, max_quantity, smm_service_id")
+    .select("id, title, description, starting_price, min_quantity, max_quantity, smm_service_id")
     .eq("id", serviceId)
     .single();
 
@@ -138,18 +138,19 @@ export async function resolveOrderPricing({
 
   const reactions = /reaction|react/i.test(title) ? parseSelectedReactions(targetUrl) : null;
   if (reactions) {
+    const markupMultiplier = await getMarkupMultiplier();
     const reactionDetails = getFBReactionsSMMDetails(reactions);
     return {
       serviceId: service.id,
       serviceTitle: title,
       quantity: finalQuantity,
-      regularAmount: roundMoney(Math.max(finalQuantity * getFBReactionRetailPrice(reactions), MIN_ORDER_AMOUNT)),
+      regularAmount: roundMoney(Math.max(finalQuantity * getFBReactionRetailPrice(reactions, markupMultiplier), MIN_ORDER_AMOUNT)),
       smmServiceId: String(reactionDetails.smmId),
     };
   }
 
   const canonicalSmmId = parsed.smm_service_id || service.smm_service_id || null;
-  const unitPrice = toNumber(service.price_per_unit ?? service.starting_price, 0);
+  const unitPrice = toNumber(service.starting_price, 0);
   if (unitPrice <= 0) {
     throw new Error("Selected service has invalid pricing.");
   }
