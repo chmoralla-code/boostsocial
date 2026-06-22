@@ -327,8 +327,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: errMsg }, { status: 400 });
     }
 
-    const newUserId = signUpData?.user?.id;
+    // GoTrue's /auth/v1/signup returns user fields at the top level, not nested under "user"
+    const newUserId = signUpData?.id || signUpData?.user?.id;
     if (!newUserId) {
+      console.error("Signup response missing user ID. Response:", JSON.stringify(signUpData));
       return NextResponse.json({ error: "Failed to generate user ID" }, { status: 500 });
     }
 
