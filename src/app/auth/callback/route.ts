@@ -12,6 +12,11 @@ export async function GET(request: Request) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     
     if (!error) {
+      // If no custom next redirect, this is likely an email confirmation → show success on login page
+      if (next === "/") {
+        return NextResponse.redirect(`${origin}/login?verified=true`);
+      }
+
       const forwardedHost = request.headers.get("x-forwarded-host"); // Vercel / proxy header
       const isLocalEnv = process.env.NODE_ENV === "development";
 

@@ -308,6 +308,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Server configuration missing" }, { status: 500 });
     }
 
+    const siteUrl = "https://faceboosting.vercel.app";
+
     const signUpRes = await fetch(`${primaryUrl}/auth/v1/signup`, {
       method: "POST",
       headers: {
@@ -316,7 +318,8 @@ export async function POST(req: NextRequest) {
       },
       body: JSON.stringify({
         email: cleanEmail,
-        password: password
+        password: password,
+        redirect_to: `${siteUrl}/auth/callback`
       })
     });
 
