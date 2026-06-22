@@ -28,6 +28,7 @@ export default function LoginPage() {
   const [unconfirmedEmail, setUnconfirmedEmail] = useState<string | null>(null);
   const [resending, setResending] = useState(false);
   const [resendSent, setResendSent] = useState(false);
+  const [confirmationLink, setConfirmationLink] = useState<string | null>(null);
 
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
@@ -317,6 +318,7 @@ export default function LoginPage() {
     setEmailVerifiedDetails(null);
     setUnconfirmedEmail(null);
     setResendSent(false);
+    setConfirmationLink(null);
   };
 
   const handleResend = async () => {
@@ -333,7 +335,10 @@ export default function LoginPage() {
       if (res.ok) {
         setResendSent(true);
         setError("");
-        setResendCountdown(60);
+        setResendCountdown(30);
+        if (data.confirmationLink) {
+          setConfirmationLink(data.confirmationLink);
+        }
       } else if (data.error === "rate_limited") {
         const remaining = data.remaining || 60;
         setError(data.message || `Please wait ${remaining} seconds before trying again.`);
@@ -539,9 +544,21 @@ export default function LoginPage() {
                 </>
               )}
               {unconfirmedEmail && resendSent && (
-                <div className="mt-2 flex items-start gap-2 text-[#1877F2] text-[10px] font-bold">
-                  <MailCheck className="shrink-0 mt-0.5" size={13} />
-                  <span>Confirmation email resent! Check your inbox and spam folder.</span>
+                <div className="mt-2 space-y-2">
+                  <div className="flex items-start gap-2 text-[#1877F2] text-[10px] font-bold">
+                    <MailCheck className="shrink-0 mt-0.5" size={13} />
+                    <span>Confirmation link ready! Click below to activate instantly.</span>
+                  </div>
+                  {confirmationLink && (
+                    <a
+                      href={confirmationLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block w-full bg-[#1877F2]/20 hover:bg-[#1877F2] text-[#1877F2] hover:text-white font-black py-2.5 rounded-lg transition-all duration-300 text-[11px] uppercase tracking-widest text-center"
+                    >
+                      ✅ Click Here to Confirm Your Email
+                    </a>
+                  )}
                 </div>
               )}
             </div>
