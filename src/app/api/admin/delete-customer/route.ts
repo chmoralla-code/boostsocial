@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { syncBackupAdminClients } from "@/utils/supabase/dual-db";
+import { syncBackupAdminClients, getBackupAdminClients } from "@/utils/supabase/dual-db";
 
 export async function POST(req: NextRequest) {
   try {
@@ -61,17 +61,27 @@ export async function POST(req: NextRequest) {
       // Delete from topups (just in case cascade isn't working)
       await supabase.from("topups").delete().eq("user_id", user.id);
 
+      // Sync table deletions to backup databases
       await syncBackupAdminClients(async (backupClient) => {
         const topupDelete = await backupClient.from("topups").delete().eq("user_id", user.id);
         if (topupDelete.error) return topupDelete;
-        const profileDelete = await backupClient.from("profiles").delete().eq("id", user.id);
-        if (profileDelete.error) return profileDelete;
-        // Also delete auth user from backup databases so the email can be re-registered
-        return backupClient.auth.admin.deleteUser(user.id);
-      }, "customer full deletion sync (profiles + auth)");
+        return backupClient.from("profiles").delete().eq("id", user.id);
+      }, "customer table deletion sync");
 
-      const { error: deleteError } = await supabase.auth.admin.deleteUser(user.id);
+      // Hard-delete auth user from primary (shouldSoftDelete: false = permanent removal)
+      const { error: deleteError } = await supabase.auth.admin.deleteUser(user.id, false);
       if (deleteError) throw deleteError;
+
+      // Hard-delete auth user from ALL backup databases using real Supabase clients
+      // (syncBackupAdminClients passes mock clients without .auth, so we iterate directly)
+      for (const backup of getBackupAdminClients()) {
+        try {
+          await backup.client.auth.admin.deleteUser(user.id, false);
+          console.log(`Hard-deleted auth user from ${backup.displayName}`);
+        } catch (backupErr: any) {
+          console.warn(`Failed to delete auth user from ${backup.displayName}:`, backupErr.message);
+        }
+      }
     }
 
     if (!recordsFound) {

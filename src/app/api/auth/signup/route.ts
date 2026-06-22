@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { promises as dnsPromises } from "dns";
 import { dualWrite, getPrimaryAdminClient, getBackupAdminClients } from "@/utils/supabase/dual-db";
-
 // ─────────────────────────────────────────────────────────────
 // 1.  MASSIVE DISPOSABLE / BURNER DOMAIN BLOCKLIST (100+)
 // ─────────────────────────────────────────────────────────────
@@ -264,7 +263,41 @@ export async function POST(req: NextRequest) {
     }
 
     if (existingUser) {
-      return NextResponse.json({ error: "This email is already registered. Please sign in!" }, { status: 400 });
+      // If the user is soft-deleted or never confirmed their email, purge them so re-registration works
+      const isSoftDeleted = !!(existingUser as any).deleted_at;
+      const isUnconfirmed = !(existingUser as any).email_confirmed_at;
+
+      if (isSoftDeleted || isUnconfirmed) {
+        console.log(`Found stale user ${cleanEmail} (softDeleted: ${isSoftDeleted}, unconfirmed: ${isUnconfirmed}). Purging before re-registration.`);
+        
+        // Hard-delete from primary
+        try {
+          await primaryAdmin.auth.admin.deleteUser(existingUser.id, false);
+        } catch (e) {
+          console.warn("Failed to hard-delete stale user from primary:", e);
+        }
+
+        // Hard-delete from all backup databases
+        for (const backup of getBackupAdminClients()) {
+          try {
+            await backup.client.auth.admin.deleteUser(existingUser.id, false);
+          } catch (e) {
+            console.warn(`Failed to hard-delete stale user from ${backup.displayName}:`, e);
+          }
+        }
+
+        // Also clean up any leftover profile/topup records
+        try {
+          await primaryAdmin.from("profiles").delete().eq("id", existingUser.id);
+          await primaryAdmin.from("topups").delete().eq("user_id", existingUser.id);
+        } catch (e) {
+          console.warn("Failed to clean up stale user tables:", e);
+        }
+
+        existingUser = null; // Clear so registration proceeds
+      } else {
+        return NextResponse.json({ error: "This email is already registered. Please sign in!" }, { status: 400 });
+      }
     }
 
     // 3. Create the auth user in the PRIMARY database via Admin API.
