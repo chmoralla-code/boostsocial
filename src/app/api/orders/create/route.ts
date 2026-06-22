@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { dualWrite } from "@/utils/supabase/dual-db";
+import { dualWrite, ensureOrdersSchema } from "@/utils/supabase/dual-db";
 import { createClient as createServerClient } from "@/utils/supabase/server";
 import { enforceRateLimit } from "@/utils/security/rate-limit";
 import { getVipDiscountSummary } from "@/utils/vip";
@@ -93,6 +93,8 @@ export async function POST(req: NextRequest) {
     const regularAmount = pricing.regularAmount;
     const adjustedSummary = getVipDiscountSummary(profileData || null, regularAmount);
     const finalAmount = adjustedSummary.finalAmount;
+
+    await ensureOrdersSchema();
 
     const basePayload = {
       id: orderId,

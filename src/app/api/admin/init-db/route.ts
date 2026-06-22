@@ -125,6 +125,17 @@ export async function GET() {
       missingSql.push(PUSH_SUBSCRIPTIONS_SQL);
     }
 
+    // Check if orders table has service_title column (denormalized column
+    // used by the dual-db SELECT translation layer)
+    const { error: ordersColumnError } = await supabase
+      .from("orders")
+      .select("service_title")
+      .limit(1);
+
+    if (ordersColumnError && /column.*service_title.*does not exist/i.test(ordersColumnError.message)) {
+      missingSql.push("ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS service_title TEXT;");
+    }
+
     if (missingSql.length === 0) {
       return NextResponse.json({ status: "Database support tables already exist" });
     }

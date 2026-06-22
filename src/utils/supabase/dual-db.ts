@@ -434,6 +434,26 @@ class SpyQueryBuilder {
 //  REFACTORED DUAL-DB APIS (DIGITALOCEAN IS PRIMARY)
 // ══════════════════════════════════════════════════════
 
+let schemaEnsured = false;
+
+/**
+ * Ensures the `service_title` column exists on the DigitalOcean `orders` table.
+ * This is a denormalized column used by the dual-db SELECT translation layer
+ * (which maps `services(title)` → `service_title` for raw SQL queries).
+ * Idempotent — safe to call on every request.
+ */
+export async function ensureOrdersSchema() {
+  if (schemaEnsured) return;
+  const sql = getDigitalOceanSql();
+  if (!sql) return;
+  try {
+    await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS service_title TEXT`;
+    schemaEnsured = true;
+  } catch (err: any) {
+    console.warn("ensureOrdersSchema: failed to add service_title column:", err?.message || err);
+  }
+}
+
 export async function syncBackupAdminClients(
   operation: (client: any, label: BackupLabel) => Promise<{ error?: any } | void>,
   context: string

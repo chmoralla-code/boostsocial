@@ -2,7 +2,7 @@ import { after, NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { sendOrderNotification } from "@/lib/telegram";
 import { autoPlaceRixeyOrder } from "@/lib/rixeysmm";
-import { syncBackupAdminClients } from "@/utils/supabase/dual-db";
+import { syncBackupAdminClients, ensureOrdersSchema } from "@/utils/supabase/dual-db";
 import { createClient as createServerClient } from "@/utils/supabase/server";
 import { enforceRateLimit } from "@/utils/security/rate-limit";
 import { creditReferralCommission } from "@/utils/referrals";
@@ -150,6 +150,8 @@ export async function POST(req: NextRequest) {
           vip_discount_percent: discountSummary.discountPercent,
           vip_discount_amount: discountSummary.savingsAmount,
         };
+
+    await ensureOrdersSchema();
 
     const { data: walletRows, error: walletRpcError } = await supabase.rpc("create_wallet_order", {
       p_user_id: userId,
