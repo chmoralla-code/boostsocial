@@ -42,7 +42,7 @@ export async function GET() {
       .from("settings")
       .select("value")
       .eq("key", SETTINGS_KEY)
-      .single();
+      .maybeSingle();
 
     const [completedOrders, approvedTopups, totalOrders, totalTopups] = await Promise.all([
       serviceClient.from("orders").select("id", { count: "exact", head: true }).in("status", ["Completed"]),

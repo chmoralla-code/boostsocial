@@ -26,8 +26,9 @@ async function loadCleanupSettings(supabase: AdminClient) {
       .from("settings")
       .select("value")
       .eq("key", SETTINGS_KEY)
-      .single();
+      .maybeSingle();
     const config = data?.value || {};
+    // Default to DISABLED until an admin explicitly enables it
     return {
       enabled: config.auto_cleanup_enabled === true,
       orderRetentionHours: typeof config.order_retention_hours === "number"
@@ -38,9 +39,10 @@ async function loadCleanupSettings(supabase: AdminClient) {
         : DEFAULT_TOPUP_RETENTION_HOURS,
     };
   } catch {
-    // If settings can't be loaded, run with defaults
+    // If settings can't be loaded, default to DISABLED so we never
+    // accidentally delete data. Admin must explicitly opt in.
     return {
-      enabled: true,
+      enabled: false,
       orderRetentionHours: DEFAULT_ORDER_RETENTION_HOURS,
       topupRetentionHours: DEFAULT_TOPUP_RETENTION_HOURS,
     };
