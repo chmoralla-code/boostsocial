@@ -41,11 +41,20 @@ export const metadata: Metadata = {
     siteName: "PinoyBoosting",
     title: "PinoyBoosting | Philippines Social Media Boosting Services",
     description: "Order PH-focused Facebook, Instagram, TikTok, YouTube, Telegram, and social media boosting services with tracking, GCash payments, wallet top-ups, and VIP discounts.",
+    images: [
+      {
+        url: "/logo.png",
+        width: 512,
+        height: 512,
+        alt: "PinoyBoosting logo",
+      },
+    ],
   },
   twitter: {
-    card: "summary",
+    card: "summary_large_image",
     title: "PinoyBoosting | Philippines Social Media Boosting Services",
     description: "PH-focused social media boosting services with tracking, GCash payments, wallet top-ups, and VIP discounts.",
+    images: ["/logo.png"],
   },
   robots: {
     index: true,
@@ -57,10 +66,6 @@ export const metadata: Metadata = {
       "max-snippet": -1,
       "max-video-preview": -1,
     },
-  },
-  icons: {
-    icon: "/icon.svg",
-    apple: "/icon.svg",
   },
   appleWebApp: {
     capable: true,
@@ -95,7 +100,13 @@ export default function RootLayout({
         name: "PinoyBoosting",
         alternateName: "CYNETWORK",
         url: "https://pinoyboosting.com/",
-        logo: "https://pinoyboosting.com/icon.svg",
+        logo: {
+          "@type": "ImageObject",
+          url: "https://pinoyboosting.com/logo.png",
+          width: 512,
+          height: 512,
+        },
+        image: "https://pinoyboosting.com/logo.png",
         sameAs: ["https://www.pinoyboosting.com/"],
       },
       {
