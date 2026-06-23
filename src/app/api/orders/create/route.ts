@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { dualWrite, ensureOrdersSchema } from "@/utils/supabase/dual-db";
+import { dualWrite, ensureOrdersSchema, hasServiceTitleColumn } from "@/utils/supabase/dual-db";
 import { createClient as createServerClient } from "@/utils/supabase/server";
 import { enforceRateLimit } from "@/utils/security/rate-limit";
 import { getVipDiscountSummary } from "@/utils/vip";
@@ -18,6 +18,10 @@ const getErrorMessage = (error: unknown) => {
 const looksLikeMissingVipSchema = (error: unknown) => {
   const message = getErrorMessage(error).toLowerCase();
   return message.includes("vip_") || message.includes("original_amount") || message.includes("schema cache");
+};
+const looksLikeMissingServiceTitle = (error: unknown) => {
+  const message = getErrorMessage(error).toLowerCase();
+  return /column.*service_title.*does not exist/i.test(message);
 };
 
 export async function POST(req: NextRequest) {
@@ -95,11 +99,12 @@ export async function POST(req: NextRequest) {
     const finalAmount = adjustedSummary.finalAmount;
 
     await ensureOrdersSchema();
+    const serviceTitleAvailable = await hasServiceTitleColumn();
 
     const basePayload = {
       id: orderId,
       service_id: pricing.serviceId,
-      service_title: pricing.serviceTitle,
+      ...(serviceTitleAvailable ? { service_title: pricing.serviceTitle } : {}),
       customer_email: email,
       target_url: targetUrl,
       amount: finalAmount,
@@ -135,6 +140,33 @@ export async function POST(req: NextRequest) {
       });
       error = fallback.error;
       databaseUsed = fallback.databaseUsed;
+    }
+
+    if (error && looksLikeMissingServiceTitle(error)) {
+      const strippedBase = { ...basePayload } as Omit<typeof basePayload, "service_title">;
+      delete (strippedBase as Record<string, unknown>).service_title;
+      const strippedVipPayload = { ...strippedBase, original_amount: regularAmount, vip_plan: adjustedSummary.plan ? adjustedSummary.plan.id : null, vip_discount_percent: adjustedSummary.discountPercent, vip_discount_amount: adjustedSummary.savingsAmount };
+      const fallback = await dualWrite(async (dbClient) => {
+        return dbClient
+          .from("orders")
+          .insert([strippedVipPayload])
+          .select("id")
+          .single();
+      });
+      if (fallback.error && looksLikeMissingVipSchema(fallback.error)) {
+        const fallback2 = await dualWrite(async (dbClient) => {
+          return dbClient
+            .from("orders")
+            .insert([strippedBase])
+            .select("id")
+            .single();
+        });
+        error = fallback2.error;
+        databaseUsed = fallback2.databaseUsed;
+      } else {
+        error = fallback.error;
+        databaseUsed = fallback.databaseUsed;
+      }
     }
 
     if (error) {

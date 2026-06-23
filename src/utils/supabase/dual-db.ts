@@ -435,6 +435,7 @@ class SpyQueryBuilder {
 // ══════════════════════════════════════════════════════
 
 let schemaEnsured = false;
+let supabaseSchemaChecked = false;
 
 /**
  * Ensures the `service_title` column exists on the DigitalOcean `orders` table.
@@ -443,15 +444,63 @@ let schemaEnsured = false;
  * Idempotent — safe to call on every request.
  */
 export async function ensureOrdersSchema() {
-  if (schemaEnsured) return;
-  const sql = getDigitalOceanSql();
-  if (!sql) return;
-  try {
-    await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS service_title TEXT`;
-    schemaEnsured = true;
-  } catch (err: any) {
-    console.warn("ensureOrdersSchema: failed to add service_title column:", err?.message || err);
+  if (!schemaEnsured) {
+    const sql = getDigitalOceanSql();
+    if (sql) {
+      try {
+        await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS service_title TEXT`;
+        schemaEnsured = true;
+      } catch (err: any) {
+        console.warn("ensureOrdersSchema: failed to add service_title column on DigitalOcean:", err?.message || err);
+      }
+    }
   }
+
+  // Also ensure the column exists on all Supabase backup databases.
+  // We can't run ALTER TABLE via the Supabase JS SDK, so we detect the missing
+  // column via a probe SELECT and expose the result via hasServiceTitleColumn().
+  if (!supabaseSchemaChecked) {
+    supabaseSchemaChecked = true;
+    const backups = getBackupAdminClients();
+    for (const backup of backups) {
+      try {
+        const { error } = await backup.client
+          .from("orders")
+          .select("service_title")
+          .limit(1);
+        if (error && /column.*service_title.*does not exist/i.test(error.message)) {
+          console.warn(`ensureOrdersSchema: service_title column missing on ${backup.displayName}. Orders will omit this field.`);
+        }
+      } catch (err: any) {
+        console.warn(`ensureOrdersSchema: probe failed on ${backup.displayName}:`, err?.message || err);
+      }
+    }
+  }
+}
+
+/**
+ * Returns true if the `service_title` column is known to be missing on any
+ * configured Supabase database. When true, callers should omit `service_title`
+ * from insert payloads to avoid "column does not exist" errors.
+ */
+export async function hasServiceTitleColumn(): Promise<boolean> {
+  await ensureOrdersSchema();
+  const backups = getBackupAdminClients();
+  for (const backup of backups) {
+    try {
+      const { error } = await backup.client
+        .from("orders")
+        .select("service_title")
+        .limit(1);
+      if (error && /column.*service_title.*does not exist/i.test(error.message)) {
+        return false;
+      }
+    } catch {
+      // If the probe itself fails, assume the column exists to avoid
+      // unnecessarily degrading functionality.
+    }
+  }
+  return true;
 }
 
 export async function syncBackupAdminClients(

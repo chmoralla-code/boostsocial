@@ -2,7 +2,7 @@ import { after, NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { sendOrderNotification } from "@/lib/telegram";
 import { autoPlaceRixeyOrder } from "@/lib/rixeysmm";
-import { syncBackupAdminClients, ensureOrdersSchema } from "@/utils/supabase/dual-db";
+import { syncBackupAdminClients, ensureOrdersSchema, hasServiceTitleColumn } from "@/utils/supabase/dual-db";
 import { createClient as createServerClient } from "@/utils/supabase/server";
 import { enforceRateLimit } from "@/utils/security/rate-limit";
 import { creditReferralCommission } from "@/utils/referrals";
@@ -152,12 +152,13 @@ export async function POST(req: NextRequest) {
         };
 
     await ensureOrdersSchema();
+    const serviceTitleAvailable = await hasServiceTitleColumn();
 
     const { data: walletRows, error: walletRpcError } = await supabase.rpc("create_wallet_order", {
       p_user_id: userId,
       p_existing_order_id: existingOrderId || null,
       p_service_id: pricing.serviceId,
-      p_service_title: pricing.serviceTitle,
+      p_service_title: serviceTitleAvailable ? pricing.serviceTitle : null,
       p_customer_email: String(email).trim(),
       p_target_url: String(url).trim(),
       p_amount: cost,
@@ -171,6 +172,11 @@ export async function POST(req: NextRequest) {
 
     if (walletRpcError) {
       const message = getErrorMessage(walletRpcError);
+      if (/column.*service_title.*does not exist/i.test(message)) {
+        return NextResponse.json({
+          error: "Database schema needs updating. Please run: ALTER TABLE orders ADD COLUMN IF NOT EXISTS service_title TEXT; in your Supabase SQL Editor, then try again.",
+        }, { status: 500 });
+      }
       const status = /insufficient|pending order|only pending|profile|not found/i.test(message) ? 400 : 500;
       return NextResponse.json({ error: message }, { status });
     }
@@ -201,7 +207,7 @@ export async function POST(req: NextRequest) {
             .upsert({
               id: order.id,
               service_id: pricing.serviceId,
-              service_title: pricing.serviceTitle,
+              ...(serviceTitleAvailable ? { service_title: pricing.serviceTitle } : {}),
               customer_email: String(email).trim(),
               target_url: String(url).trim(),
               amount: cost,

@@ -1,4 +1,4 @@
-import { createClient } from "@/utils/supabase/server";
+import { fallbackRead } from "@/utils/supabase/dual-db";
 import { DollarSign, ShoppingCart, Activity, Users, ArrowUpRight, TrendingUp, Sparkles, Clock, Globe, Wallet, Settings, FileText } from "lucide-react";
 import { StorageOptimizingPanel } from "./StorageOptimizingPanel";
 import { MaintenanceSettingsPanel } from "./MaintenanceSettingsPanel";
@@ -39,7 +39,6 @@ type EnrichedDashboardOrder = DashboardOrder & {
 };
 
 export default async function AdminOverview() {
-  const supabase = await createClient();
 
   // Fetch RixeySMM live balance
   const apiKey = process.env.RIXEYSMM_API_KEY;
@@ -67,20 +66,22 @@ export default async function AdminOverview() {
   }
 
   // Fetch orders with services details
-  const { data: orders } = await supabase
-    .from('orders')
-    .select(`
-      id,
-      amount,
-      status,
-      created_at,
-      customer_email,
-      target_url,
-      quantity,
-      smm_service_id,
-      services ( title )
-    `)
-    .order('created_at', { ascending: false });
+  const { data: orders } = await fallbackRead(async (db) => {
+    return db
+      .from('orders')
+      .select(`
+        id,
+        amount,
+        status,
+        created_at,
+        customer_email,
+        target_url,
+        quantity,
+        smm_service_id,
+        services ( title )
+      `)
+      .order('created_at', { ascending: false });
+  });
 
   const enrichedOrders = (await enrichOrdersWithResolvedServiceTitles(
     (orders || []) as DashboardOrder[]
