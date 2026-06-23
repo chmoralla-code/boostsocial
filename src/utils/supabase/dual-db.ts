@@ -312,6 +312,13 @@ class SpyQueryBuilder {
         hasServicesRelation = true;
       }
 
+      // Deduplicate columns — the original list may already contain `service_title`
+      // alongside `services(title)`, causing "column specified more than once" errors.
+      if (hasServicesRelation) {
+        const colParts = cleanCols.split(",").map(c => c.trim());
+        cleanCols = [...new Set(colParts)].join(", ");
+      }
+
       if (this.action === "select") {
         let queryStr = `SELECT ${cleanCols} FROM ${this.table}`;
         const params: any[] = [];
