@@ -11,6 +11,7 @@ import { ServicesCandidatesPanel } from "./ServicesCandidatesPanel";
 import { WidgetVisibilityPanel } from "./WidgetVisibilityPanel";
 import { ShowcaseVideoSettingsPanel } from "./ShowcaseVideoSettingsPanel";
 import { MarkupSettingsPanel } from "./MarkupSettingsPanel";
+import { CleanupSettingsPanel } from "./CleanupSettingsPanel";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 import { InstallAppButton } from "./InstallAppButton";
@@ -612,6 +613,7 @@ export default async function AdminOverview() {
             />
             <div className="space-y-4">
               <TelegramSettingsPanel />
+              <CleanupSettingsPanel />
               <StorageOptimizingPanel />
               <MaintenanceSettingsPanel />
             </div>

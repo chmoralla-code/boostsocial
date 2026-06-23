@@ -3,8 +3,11 @@ import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { syncBackupAdminClients } from "@/utils/supabase/dual-db";
 
 const CRON_SECRET = process.env.CRON_SECRET;
-const RETENTION_DAYS = 7;
+const DEFAULT_ORDER_RETENTION_HOURS = 24;
+const DEFAULT_TOPUP_RETENTION_HOURS = 24;
 const ABANDONED_PENDING_DAYS = 30;
+
+const SETTINGS_KEY = "auto_cleanup";
 
 type DeletedTally = {
   orders: number;
@@ -16,6 +19,33 @@ type DeletedTally = {
 };
 
 type AdminClient = SupabaseClient<any, "public", any>;
+
+async function loadCleanupSettings(supabase: AdminClient) {
+  try {
+    const { data } = await supabase
+      .from("settings")
+      .select("value")
+      .eq("key", SETTINGS_KEY)
+      .single();
+    const config = data?.value || {};
+    return {
+      enabled: config.auto_cleanup_enabled === true,
+      orderRetentionHours: typeof config.order_retention_hours === "number"
+        ? config.order_retention_hours
+        : DEFAULT_ORDER_RETENTION_HOURS,
+      topupRetentionHours: typeof config.topup_retention_hours === "number"
+        ? config.topup_retention_hours
+        : DEFAULT_TOPUP_RETENTION_HOURS,
+    };
+  } catch {
+    // If settings can't be loaded, run with defaults
+    return {
+      enabled: true,
+      orderRetentionHours: DEFAULT_ORDER_RETENTION_HOURS,
+      topupRetentionHours: DEFAULT_TOPUP_RETENTION_HOURS,
+    };
+  }
+}
 
 async function deleteReceiptsForOrders(supabase: AdminClient, orderIds: string[]): Promise<number> {
   if (orderIds.length === 0) return 0;
@@ -76,8 +106,27 @@ export async function GET(request: Request) {
       auth: { persistSession: false },
     });
 
-    const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - RETENTION_DAYS);
+    const settings = await loadCleanupSettings(supabase);
+
+    if (!settings.enabled) {
+      return NextResponse.json({
+        success: true,
+        deleted: 0,
+        message: "Auto-cleanup is disabled in admin settings. Skipping scheduled cleanup.",
+        tally: {
+          orders: 0,
+          abandonedPendingOrders: 0,
+          topups: 0,
+          abandonedPendingTopups: 0,
+          vipSubscriptions: 0,
+          receipts: 0,
+        },
+      });
+    }
+
+    const now = new Date();
+    const orderCutoff = new Date(now.getTime() - settings.orderRetentionHours * 60 * 60 * 1000);
+    const topupCutoff = new Date(now.getTime() - settings.topupRetentionHours * 60 * 60 * 1000);
 
     const abandonedCutoffDate = new Date();
     abandonedCutoffDate.setDate(abandonedCutoffDate.getDate() - ABANDONED_PENDING_DAYS);
@@ -91,12 +140,12 @@ export async function GET(request: Request) {
       receipts: 0,
     };
 
-    // 1. Completed / Cancelled / Rejected orders older than RETENTION_DAYS
+    // 1. Completed / Cancelled / Rejected orders older than configured retention
     const { data: oldOrders, error: fetchError } = await supabase
       .from("orders")
       .select("id")
       .in("status", ["Completed", "Cancelled", "Rejected"])
-      .lt("created_at", cutoffDate.toISOString());
+      .lt("created_at", orderCutoff.toISOString());
 
     if (fetchError) throw fetchError;
 
@@ -105,7 +154,6 @@ export async function GET(request: Request) {
     tally.orders += await deleteRowsAndSync(supabase, "orders", orderIds);
 
     // 2. Abandoned pending orders older than ABANDONED_PENDING_DAYS
-    //    (checkout started but no receipt was ever uploaded / no payment made)
     const { data: abandonedOrders, error: abandonedOrdersError } = await supabase
       .from("orders")
       .select("id")
@@ -119,12 +167,12 @@ export async function GET(request: Request) {
     tally.receipts += await deleteReceiptsForOrders(supabase, abandonedOrderIds);
     tally.abandonedPendingOrders += await deleteRowsAndSync(supabase, "orders", abandonedOrderIds);
 
-    // 3. Approved / Rejected topups older than RETENTION_DAYS
+    // 3. Approved / Rejected topups older than configured retention
     const { data: oldTopups, error: topupsError } = await supabase
       .from("topups")
       .select("id")
       .in("status", ["approved", "rejected", "Approved", "Rejected"])
-      .lt("created_at", cutoffDate.toISOString());
+      .lt("created_at", topupCutoff.toISOString());
 
     if (topupsError) throw topupsError;
 
@@ -143,15 +191,14 @@ export async function GET(request: Request) {
     const abandonedTopupIds = (abandonedTopups || []).map((t) => t.id);
     tally.abandonedPendingTopups += await deleteRowsAndSync(supabase, "topups", abandonedTopupIds);
 
-    // 5. Approved / Rejected VIP subscriptions older than RETENTION_DAYS
+    // 5. Approved / Rejected VIP subscriptions older than configured retention
     const { data: oldVipSubs, error: vipSubsError } = await supabase
       .from("vip_subscriptions")
       .select("id")
       .in("status", ["approved", "rejected", "Approved", "Rejected"])
-      .lt("created_at", cutoffDate.toISOString());
+      .lt("created_at", orderCutoff.toISOString());
 
     if (vipSubsError) {
-      // vip_subscriptions table may not exist on every install — log and continue.
       console.warn("VIP subscriptions cleanup skipped:", vipSubsError.message);
     } else {
       const vipSubIds = (oldVipSubs || []).map((v) => v.id);
@@ -165,7 +212,7 @@ export async function GET(request: Request) {
         success: true,
         deleted: 0,
         tally,
-        message: `No records older than ${RETENTION_DAYS} days (or abandoned pending older than ${ABANDONED_PENDING_DAYS} days) to clean up.`,
+        message: `No records older than the configured retention period to clean up (order: ${settings.orderRetentionHours}h, topup: ${settings.topupRetentionHours}h).`,
       });
     }
 
