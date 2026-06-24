@@ -3,49 +3,10 @@
 import { useState, useRef } from "react";
 import { X, Loader2, Upload, Wallet, CheckCircle, Clock, AlertTriangle, Ban } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
+import { compressImageWithStats, formatBytes, type CompressResult } from "@/utils/imageCompressor";
 
 const MAX_RECEIPT_DIMENSION = 1280;
-const TARGET_RECEIPT_BYTES = 900 * 1024;
-
-async function compressReceiptImage(file: File): Promise<File> {
-  if (!file.type.startsWith("image/") || file.size <= TARGET_RECEIPT_BYTES) {
-    return file;
-  }
-
-  const objectUrl = URL.createObjectURL(file);
-  try {
-    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
-      const image = new Image();
-      image.onload = () => resolve(image);
-      image.onerror = reject;
-      image.src = objectUrl;
-    });
-
-    const scale = Math.min(1, MAX_RECEIPT_DIMENSION / Math.max(img.width, img.height));
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.max(1, Math.round(img.width * scale));
-    canvas.height = Math.max(1, Math.round(img.height * scale));
-
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return file;
-    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-    const blob = await new Promise<Blob | null>((resolve) => {
-      canvas.toBlob(resolve, "image/jpeg", 0.76);
-    });
-
-    if (!blob || blob.size >= file.size) return file;
-    return new File([blob], file.name.replace(/\.[^.]+$/, ".jpg"), {
-      type: "image/jpeg",
-      lastModified: Date.now(),
-    });
-  } catch (err) {
-    console.error("Receipt compression failed, using original image:", err);
-    return file;
-  } finally {
-    URL.revokeObjectURL(objectUrl);
-  }
-}
+const RECEIPT_QUALITY = 0.76;
 
 export function TopUpModal({ isOpen, onClose, user, onTopUpSuccess }: { isOpen: boolean, onClose: () => void, user: any, onTopUpSuccess: () => void }) {
   const [amount, setAmount] = useState<string>("");
@@ -55,7 +16,9 @@ export function TopUpModal({ isOpen, onClose, user, onTopUpSuccess }: { isOpen: 
   const [successAutoApproved, setSuccessAutoApproved] = useState(false);
   const [error, setError] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<"GCash" | "BPI">("GCash");
-  const [uploadStatus, setUploadStatus] = useState<"idle" | "submitting" | "reading" | "verifying">("idle");
+  const [uploadStatus, setUploadStatus] = useState<"idle" | "compressing" | "submitting" | "reading" | "verifying">("idle");
+  const [compressState, setCompressState] = useState<CompressResult | null>(null);
+  const [compressProgress, setCompressProgress] = useState(0);
   const supabase = createClient();
 
   if (!isOpen) return null;
@@ -72,12 +35,29 @@ export function TopUpModal({ isOpen, onClose, user, onTopUpSuccess }: { isOpen: 
 
     setIsUploading(true);
     setError("");
-    setUploadStatus("submitting");
+    setUploadStatus("compressing");
+    setCompressState(null);
+    setCompressProgress(0.1);
 
     try {
-      const uploadFile = await compressReceiptImage(file);
+      // Client-side compression shrinks the GCash receipt before upload,
+      // showing a live "compressing" effect with a real before/after byte
+      // readout. The server re-compresses as a safety net regardless.
+      const result = await compressImageWithStats(file, {
+        maxDimension: MAX_RECEIPT_DIMENSION,
+        quality: RECEIPT_QUALITY,
+        onProgress: (p) => {
+          setCompressProgress(p.stage === "loading" ? 0.2 : p.stage === "resizing" ? 0.45 : p.stage === "encoding" ? 0.7 : 0.95);
+        },
+      });
+      setCompressState(result);
+      setCompressProgress(1);
+      // Hold the "optimized" readout briefly so the user sees the savings.
+      await new Promise((r) => setTimeout(r, 350));
+      setUploadStatus("submitting");
+
       const formData = new FormData();
-      formData.append("file", uploadFile);
+      formData.append("file", result.file);
       formData.append("userId", user.id);
       formData.append("email", user.email);
       formData.append("amount", amount);
@@ -117,6 +97,8 @@ export function TopUpModal({ isOpen, onClose, user, onTopUpSuccess }: { isOpen: 
         setSuccess(false);
         setSuccessAutoApproved(false);
         setUploadStatus("idle");
+        setCompressState(null);
+        setCompressProgress(0);
         setAmount("");
         setFile(null);
       }, 2500);
@@ -265,6 +247,42 @@ export function TopUpModal({ isOpen, onClose, user, onTopUpSuccess }: { isOpen: 
                   </div>
                   <input type="file" className="hidden" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} />
                 </label>
+
+                {/* Compressing effect — live size reduction readout for GCash receipts. */}
+                {uploadStatus === "compressing" && file && (
+                  <div className="rounded-xl border border-[#1877F2]/25 bg-[#1877F2]/8 p-3 space-y-2 animate-in fade-in zoom-in duration-200">
+                    <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-wider">
+                      <span className="flex items-center gap-1.5 text-[#1877F2]">
+                        <Loader2 size={12} className="animate-spin" />
+                        {compressState?.savedBytes ? "Receipt optimized" : "Compressing receipt..."}
+                      </span>
+                      <span className="tabular-nums">
+                        {compressState?.savedBytes ? (
+                          <span className="text-[#1DB954]">
+                            {formatBytes(compressState.originalSize)} → {formatBytes(compressState.compressedSize)}
+                          </span>
+                        ) : (
+                          <span className="text-muted">{formatBytes(file.size)}</span>
+                        )}
+                      </span>
+                    </div>
+                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-[#1877F2]/15">
+                      <div
+                        className="h-full rounded-full bg-gradient-to-r from-[#1877F2] to-[#4e8df5] transition-[width] duration-300 ease-out"
+                        style={{ width: `${Math.round(compressProgress * 100)}%` }}
+                      />
+                    </div>
+                    {compressState?.savedBytes ? (
+                      <p className="text-[9px] text-[#1DB954] font-bold">
+                        Saved {formatBytes(compressState.savedBytes)} ({Math.round(compressState.ratio * 100)}% smaller) before upload.
+                      </p>
+                    ) : (
+                      <p className="text-[9px] text-muted font-semibold">
+                        Resizing & re-encoding to a compact JPEG before upload.
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
 
               <button
@@ -274,6 +292,7 @@ export function TopUpModal({ isOpen, onClose, user, onTopUpSuccess }: { isOpen: 
               >
                 {isUploading ? (
                   <><Loader2 className="animate-spin" size={18} /> {
+                    uploadStatus === "compressing" ? "Compressing receipt..." :
                     uploadStatus === "submitting" ? "Submitting..." :
                     uploadStatus === "reading" ? "Reading receipt..." :
                     uploadStatus === "verifying" ? "Verifying amount..." :

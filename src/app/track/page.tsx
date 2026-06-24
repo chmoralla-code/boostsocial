@@ -7,7 +7,7 @@ import { LinkPreviewWindow } from "@/components/LinkPreviewWindow";
 import { Search, Loader2, ShieldCheck, CheckCircle2, AlertCircle, Copy, Check, UploadCloud, Image, ArrowRight, MessageCircle } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { format } from "date-fns";
-import { compressImage } from "@/utils/imageCompressor";
+import { compressImageWithStats, formatBytes, type CompressResult } from "@/utils/imageCompressor";
 
 export default function TrackPage() {
   const [trackingInput, setTrackingInput] = useState("");
@@ -103,6 +103,8 @@ export default function TrackPage() {
   const [uploading, setUploading] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [receiptCompressState, setReceiptCompressState] = useState<CompressResult | null>(null);
+  const [receiptCompressProgress, setReceiptCompressProgress] = useState(0);
 
   const supabase = createClient();
   const [smmBalance, setSmmBalance] = useState<number>(100);
@@ -261,11 +263,24 @@ export default function TrackPage() {
 
     setUploading(true);
     setUploadSuccess(false);
+    setReceiptCompressState(null);
+    setReceiptCompressProgress(0.1);
 
     try {
-      const compressed = await compressImage(selectedFile);
+      // Client-side compression with a live "compressing" effect. The server
+      // re-compresses as a safety net regardless.
+      const result = await compressImageWithStats(selectedFile, {
+        onProgress: (p) => {
+          setReceiptCompressProgress(
+            p.stage === "loading" ? 0.2 : p.stage === "resizing" ? 0.45 : p.stage === "encoding" ? 0.7 : 0.95
+          );
+        },
+      });
+      setReceiptCompressState(result);
+      setReceiptCompressProgress(1);
+
       const formData = new FormData();
-      formData.append("file", compressed);
+      formData.append("file", result.file);
       formData.append("orderId", order.id);
 
       const res = await fetch("/api/upload-receipt", {
@@ -280,13 +295,15 @@ export default function TrackPage() {
 
       setUploadSuccess(true);
       setSelectedFile(null);
-      
+
       // Refresh order details to show pending payment verification is set up
       handleTrackOrder(order.id);
     } catch (err: any) {
       alert(`❌ Error uploading screenshot: ${err.message || err.toString()}`);
     } finally {
       setUploading(false);
+      setReceiptCompressState(null);
+      setReceiptCompressProgress(0);
     }
   };
 
@@ -923,7 +940,8 @@ export default function TrackPage() {
                         >
                           {uploading ? (
                             <>
-                              <Loader2 size={14} className="animate-spin" /> Uploading Receipt...
+                              <Loader2 size={14} className="animate-spin" />{" "}
+                              {receiptCompressState ? "Uploading Receipt..." : "Compressing Receipt..."}
                             </>
                           ) : (
                             <>
@@ -931,6 +949,38 @@ export default function TrackPage() {
                             </>
                           )}
                         </button>
+                      )}
+
+                      {uploading && (
+                        <div className="w-full bg-slate-900/80 border border-slate-700/60 rounded-xl p-3 space-y-2">
+                          <div className="flex items-center justify-between text-[11px] font-bold">
+                            <span className="text-[#1877F2]">
+                              {receiptCompressState?.savedBytes ? "Receipt optimized" : "Compressing receipt..."}
+                            </span>
+                            <span className="text-slate-400 tabular-nums">
+                              {receiptCompressState
+                                ? `${formatBytes(receiptCompressState.originalSize)} → ${formatBytes(receiptCompressState.compressedSize)}`
+                                : formatBytes(selectedFile?.size || 0)}
+                            </span>
+                          </div>
+                          <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-gradient-to-r from-[#1877F2] to-[#4e8df5] transition-all duration-300 rounded-full"
+                              style={{
+                                width: `${
+                                  receiptCompressState
+                                    ? 100
+                                    : Math.round(Math.max(10, Math.min(95, receiptCompressProgress * 100)))
+                                }%`,
+                              }}
+                            />
+                          </div>
+                          {receiptCompressState?.savedBytes ? (
+                            <p className="text-[10px] text-emerald-400 font-semibold">
+                              Saved {formatBytes(receiptCompressState.savedBytes)} ({Math.round(receiptCompressState.ratio * 100)}% smaller) before upload.
+                            </p>
+                          ) : null}
+                        </div>
                       )}
                     </form>
                   )}

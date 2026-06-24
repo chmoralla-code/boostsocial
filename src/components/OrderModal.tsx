@@ -5,7 +5,7 @@ import { X, Loader2, ShieldCheck, Copy, Check, Download, Laptop, HelpCircle, Plu
 import { createClient } from "@/utils/supabase/client";
 import { useWidgetVisibility } from "@/hooks/useWidgetVisibility";
 import { LinkPreviewWindow } from "./LinkPreviewWindow";
-import { compressImage } from "@/utils/imageCompressor";
+import { compressImage, compressImageWithStats, formatBytes, type CompressResult } from "@/utils/imageCompressor";
 import { parseDescription } from "@/utils/serviceHelpers";
 import { getFBReactionRetailPrice, getFBReactionsSMMDetails } from "@/utils/fbReactions";
 import { getVipDiscountSummary } from "@/utils/vip";
@@ -63,6 +63,8 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
   const [eapDeviceCount, setEapDeviceCount] = useState<number>(1);
   const [smmBalance, setSmmBalance] = useState<number>(100);
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [receiptCompressState, setReceiptCompressState] = useState<CompressResult | null>(null);
+  const [receiptCompressProgress, setReceiptCompressProgress] = useState(0);
   const toggleReaction = (name: string) => {
     if (selectedReactions.includes(name)) {
       if (selectedReactions.length > 1) {
@@ -304,6 +306,8 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
       setSuccess(false);
       setCustomFieldValues({});
       setReceiptFile(null);
+      setReceiptCompressState(null);
+      setReceiptCompressProgress(0);
       
       setSelectedReactions(["Like"]);
       setEapDeviceCount(1);
@@ -469,9 +473,20 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
 
       // Compress and upload receipt after final page details are saved so Telegram reports show complete order data.
       try {
-        const compressedReceipt = await compressImage(receiptFile);
+        setReceiptCompressState(null);
+        setReceiptCompressProgress(0.1);
+        const compressedReceiptResult = await compressImageWithStats(receiptFile, {
+          onProgress: (p) => {
+            setReceiptCompressProgress(
+              p.stage === "loading" ? 0.2 : p.stage === "resizing" ? 0.45 : p.stage === "encoding" ? 0.7 : 0.95
+            );
+          },
+        });
+        setReceiptCompressState(compressedReceiptResult);
+        setReceiptCompressProgress(1);
+
         const receiptFormData = new FormData();
-        receiptFormData.append("file", compressedReceipt);
+        receiptFormData.append("file", compressedReceiptResult.file);
         receiptFormData.append("orderId", insertData.id);
 
         const uploadRes = await fetch("/api/upload-receipt", {
@@ -1561,6 +1576,42 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                         ✓ File loaded: {(receiptFile.size / 1024).toFixed(1)} KB
                       </div>
                     )}
+
+                    {/* Compressing effect — live GCash receipt size reduction readout. */}
+                    {isSubmitting && receiptFile && (
+                      <div className="mt-2 rounded-xl border border-[#1877F2]/25 bg-[#1877F2]/8 p-2.5 space-y-1.5 animate-in fade-in zoom-in duration-200">
+                        <div className="flex items-center justify-between text-[9px] font-black uppercase tracking-wider">
+                          <span className="flex items-center gap-1.5 text-[#1877F2]">
+                            <Loader2 size={11} className="animate-spin" />
+                            {receiptCompressState?.savedBytes ? "Receipt optimized" : "Compressing receipt..."}
+                          </span>
+                          <span className="tabular-nums">
+                            {receiptCompressState?.savedBytes ? (
+                              <span className="text-[#1DB954]">
+                                {formatBytes(receiptCompressState.originalSize)} → {formatBytes(receiptCompressState.compressedSize)}
+                              </span>
+                            ) : (
+                              <span className="text-muted">{formatBytes(receiptFile.size)}</span>
+                            )}
+                          </span>
+                        </div>
+                        <div className="h-1.5 w-full overflow-hidden rounded-full bg-[#1877F2]/15">
+                          <div
+                            className="h-full rounded-full bg-gradient-to-r from-[#1877F2] to-[#4e8df5] transition-[width] duration-300 ease-out"
+                            style={{ width: `${Math.round(receiptCompressProgress * 100)}%` }}
+                          />
+                        </div>
+                        {receiptCompressState?.savedBytes ? (
+                          <p className="text-[8px] text-[#1DB954] font-bold">
+                            Saved {formatBytes(receiptCompressState.savedBytes)} ({Math.round(receiptCompressState.ratio * 100)}% smaller) before upload.
+                          </p>
+                        ) : (
+                          <p className="text-[8px] text-muted font-semibold">
+                            Resizing & re-encoding to a compact JPEG before upload.
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -1655,7 +1706,12 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                     disabled={isSubmitting || !isServiceAvailable}
                     className="w-full bg-[#1877F2]/20 hover:bg-[#1877F2]/30 border border-[#1877F2]/50 disabled:opacity-50 disabled:cursor-not-allowed text-[#1877F2] font-extrabold py-3.5 rounded-full transition-all duration-300 flex justify-center items-center gap-2 tracking-wider uppercase text-xs"
                   >
-                    {isSubmitting ? <Loader2 className="animate-spin text-[#1877F2]" size={18} /> : `Pay with Wallet (₱${formatPrice(payableTotal)})`}
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="animate-spin text-[#1877F2]" size={16} />
+                        {receiptCompressProgress > 0 && receiptCompressProgress < 1 ? "Compressing..." : "Submitting..."}
+                      </>
+                    ) : `Pay with Wallet (₱${formatPrice(payableTotal)})`}
                   </button>
                 )}
                 
@@ -1664,7 +1720,12 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                   disabled={isSubmitting || !isServiceAvailable}
                   className="w-full bg-[#1877F2] hover:bg-[#4e8df5] disabled:bg-slate-700 disabled:cursor-not-allowed text-white font-extrabold py-3.5 rounded-full transition-all duration-300 flex justify-center items-center gap-2 tracking-wider uppercase text-xs shadow-[0_0_15px_rgba(24,119,242,0.35)]"
                 >
-                  {isSubmitting ? <Loader2 className="animate-spin text-black" size={18} /> : (hasWalletBalanceForOrder ? 'Pay via GCash Instead' : 'Place Order')}
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="animate-spin text-black" size={16} />
+                      {receiptCompressProgress > 0 && receiptCompressProgress < 1 ? "Compressing..." : "Submitting..."}
+                    </>
+                  ) : (hasWalletBalanceForOrder ? 'Pay via GCash Instead' : 'Place Order')}
                 </button>
               </div>
             </form>

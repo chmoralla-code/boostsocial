@@ -6,7 +6,7 @@ import { createClient } from "@/utils/supabase/client";
 import { useWidgetVisibility } from "@/hooks/useWidgetVisibility";
 import { LinkPreviewWindow } from "./LinkPreviewWindow";
 import { isOrganic, formatSmmServiceName, matchesServiceQualityFilter } from "@/utils/serviceHelpers";
-import { compressImage } from "@/utils/imageCompressor";
+import { compressImageWithStats, formatBytes, type CompressResult } from "@/utils/imageCompressor";
 import { getVipDiscountSummary } from "@/utils/vip";
 
 
@@ -125,6 +125,8 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
   const [copied, setCopied] = useState(false);
   const [smmBalance, setSmmBalance] = useState<number>(100);
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [receiptCompressState, setReceiptCompressState] = useState<CompressResult | null>(null);
+  const [receiptCompressProgress, setReceiptCompressProgress] = useState(0);
 
   useEffect(() => {
     if (checkoutStep === "success") {
@@ -147,7 +149,9 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
       setSelectedService(null);
       setUrl("");
       setReceiptFile(null);
-      
+      setReceiptCompressState(null);
+      setReceiptCompressProgress(0);
+
       // Auto-initialize search query and platform tab from Puter AI prefill
       if (prefilledSearch) {
         setSearchTerm(prefilledSearch);
@@ -392,9 +396,20 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
 
       // Compress and upload receipt
       try {
-        const compressedReceipt = await compressImage(receiptFile);
+        setReceiptCompressState(null);
+        setReceiptCompressProgress(0.1);
+        const compressedReceiptResult = await compressImageWithStats(receiptFile, {
+          onProgress: (p) => {
+            setReceiptCompressProgress(
+              p.stage === "loading" ? 0.2 : p.stage === "resizing" ? 0.45 : p.stage === "encoding" ? 0.7 : 0.95
+            );
+          },
+        });
+        setReceiptCompressState(compressedReceiptResult);
+        setReceiptCompressProgress(1);
+
         const receiptFormData = new FormData();
-        receiptFormData.append("file", compressedReceipt);
+        receiptFormData.append("file", compressedReceiptResult.file);
         receiptFormData.append("orderId", insertData.id);
         
         const uploadRes = await fetch("/api/upload-receipt", {
@@ -987,6 +1002,42 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
                         ✓ File loaded: {(receiptFile.size / 1024).toFixed(1)} KB
                       </div>
                     )}
+
+                    {/* Compressing effect — live GCash receipt size reduction readout. */}
+                    {isSubmitting && receiptFile && (
+                      <div className="mt-2 rounded-xl border border-[#1DB954]/25 bg-[#1DB954]/8 p-2.5 space-y-1.5 animate-in fade-in zoom-in duration-200">
+                        <div className="flex items-center justify-between text-[9px] font-black uppercase tracking-wider">
+                          <span className="flex items-center gap-1.5 text-[#1DB954]">
+                            <Loader2 size={11} className="animate-spin" />
+                            {receiptCompressState?.savedBytes ? "Receipt optimized" : "Compressing receipt..."}
+                          </span>
+                          <span className="tabular-nums">
+                            {receiptCompressState?.savedBytes ? (
+                              <span className="text-[#1DB954]">
+                                {formatBytes(receiptCompressState.originalSize)} → {formatBytes(receiptCompressState.compressedSize)}
+                              </span>
+                            ) : (
+                              <span className="text-muted">{formatBytes(receiptFile.size)}</span>
+                            )}
+                          </span>
+                        </div>
+                        <div className="h-1.5 w-full overflow-hidden rounded-full bg-[#1DB954]/15">
+                          <div
+                            className="h-full rounded-full bg-gradient-to-r from-[#1DB954] to-[#1ed760] transition-[width] duration-300 ease-out"
+                            style={{ width: `${Math.round(receiptCompressProgress * 100)}%` }}
+                          />
+                        </div>
+                        {receiptCompressState?.savedBytes ? (
+                          <p className="text-[8px] text-[#1DB954] font-bold">
+                            Saved {formatBytes(receiptCompressState.savedBytes)} ({Math.round(receiptCompressState.ratio * 100)}% smaller) before upload.
+                          </p>
+                        ) : (
+                          <p className="text-[8px] text-muted font-semibold">
+                            Resizing & re-encoding to a compact JPEG before upload.
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -1044,7 +1095,10 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
                     className="flex-1 bg-[#1DB954] hover:bg-[#1ed760] disabled:bg-slate-800 text-black font-extrabold py-3 rounded-xl transition-all flex items-center justify-center gap-2 text-xs uppercase tracking-wider shadow-md"
                   >
                     {isSubmitting ? (
-                      <Loader2 size={14} className="animate-spin" />
+                      <>
+                        <Loader2 size={14} className="animate-spin" />
+                        {receiptCompressProgress > 0 && receiptCompressProgress < 1 ? "Compressing..." : "Submitting..."}
+                      </>
                     ) : (
                       "Place Boost Order"
                     )}

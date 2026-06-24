@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { format } from "date-fns";
 import { Search, ArrowUpDown, Mail, ShoppingBag, DollarSign, Calendar, Landmark, Trash2, Users, MessageSquare, Send, X, Loader2 } from "lucide-react";
+import { useCustomerMessagesRealtime } from "@/hooks/useCustomerMessagesRealtime";
+import type { CustomerMessageRow } from "@/utils/realtimeChat";
 
 interface Customer {
   id?: string;
@@ -67,6 +69,65 @@ export function CustomersList({
 
   const adminChatEndRef = useRef<HTMLDivElement>(null);
 
+  // ── Realtime chat plumbing ──────────────────────────────────────────────────
+  // One global admin subscription streams every customer_messages INSERT so
+  // the open chat drawer + the per-customer unread badges stay live without
+  // 4-second polling. seenIdsRef dedupes our own admin sends; chatCustomerRef
+  // lets the callback read the currently-open conversation.
+  const seenIdsRef = useRef<Set<string>>(new Set());
+  const chatCustomerRef = useRef<Customer | null>(chatCustomer);
+  useEffect(() => { chatCustomerRef.current = chatCustomer; }, [chatCustomer]);
+
+  const handleAdminInsert = useCallback((row: CustomerMessageRow) => {
+    if (seenIdsRef.current.has(row.id)) return;
+    seenIdsRef.current.add(row.id);
+
+    const openEmail = chatCustomerRef.current?.email?.trim().toLowerCase();
+    const rowEmail = row.customer_email?.trim().toLowerCase();
+
+    if (openEmail && rowEmail === openEmail) {
+      // Skip our own admin echo (we appended locally right after POST).
+      if (row.sender === "admin") return;
+      setChatMessages((prev) => [...prev, row]);
+      if (row.sender === "customer") {
+        fetch("/api/chat/messages", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: row.customer_email, reader: "admin" })
+        }).catch((err) => console.error("Error marking admin chat as read:", err));
+        setCustomers((prev) =>
+          prev.map((customer) =>
+            customer.email.toLowerCase() === rowEmail
+              ? { ...customer, unreadCustomerMessages: 0 }
+              : customer
+          )
+        );
+      }
+      return;
+    }
+
+    // Bump unread badge for the customer who sent a message in another thread.
+    if (row.sender === "customer") {
+      setCustomers((prev) => {
+        const idx = prev.findIndex((c) => c.email.toLowerCase() === rowEmail);
+        if (idx === -1) return prev;
+        const updated = [...prev];
+        updated[idx] = {
+          ...updated[idx],
+          unreadCustomerMessages: (updated[idx].unreadCustomerMessages || 0) + 1,
+          lastMessageAt: row.created_at || new Date().toISOString(),
+        };
+        return updated;
+      });
+    }
+  }, []);
+
+  useCustomerMessagesRealtime({
+    scope: "admin",
+    enabled: true,
+    onInsert: handleAdminInsert,
+  });
+
   useEffect(() => {
     if (!chatCustomer) {
       return;
@@ -78,7 +139,17 @@ export function CustomersList({
         if (res.ok) {
           const data = await res.json();
           const messages = (data.messages || []) as ChatMessage[];
-          setChatMessages(messages);
+          // Merge: keep any locally-appended rows we haven't seen a DB id for,
+          // then upsert fetched rows by id so realtime + backstop stay in sync.
+          setChatMessages((prev) => {
+            const byId = new Map<string, ChatMessage>();
+            for (const m of prev) byId.set(m.id, m);
+            for (const m of messages) byId.set(m.id, m);
+            return Array.from(byId.values()).sort(
+              (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+            );
+          });
+          seenIdsRef.current = new Set(messages.map((m) => m.id));
 
           const hasUnreadCustomerMessages = messages.some((msg) => msg.sender === "customer" && !msg.is_read);
           if (hasUnreadCustomerMessages) {
@@ -103,7 +174,9 @@ export function CustomersList({
 
     fetchMessages().finally(() => setIsLoadingChat(false));
 
-    const interval = setInterval(fetchMessages, 4000);
+    // Slow backstop — Realtime handles instant delivery; this only catches
+    // missed rows if the realtime channel is unavailable.
+    const interval = setInterval(fetchMessages, 15000);
     return () => clearInterval(interval);
   }, [chatCustomer]);
 
@@ -138,6 +211,7 @@ export function CustomersList({
 
   const openChatCustomer = (customer: Customer) => {
     setChatMessages([]);
+    seenIdsRef.current = new Set();
     setIsLoadingChat(true);
     setChatCustomer(customer);
     setCustomers((prev) =>
@@ -674,7 +748,16 @@ export function CustomersList({
                 <MessageSquare size={18} />
               </div>
               <div className="min-w-0">
-                <h3 className="font-black text-sm tracking-tight text-white">Customer Support Chat</h3>
+                <h3 className="font-black text-sm tracking-tight text-white flex items-center gap-1.5">
+                  Customer Support Chat
+                  <span className="inline-flex items-center gap-1 rounded-full bg-[#1DB954]/10 border border-[#1DB954]/25 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-widest text-[#1DB954]">
+                    <span className="relative flex h-1.5 w-1.5">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#1DB954] opacity-75" />
+                      <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-[#1DB954]" />
+                    </span>
+                    Live
+                  </span>
+                </h3>
                 <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider select-all truncate max-w-[280px]">{chatCustomer.email}</p>
               </div>
             </div>
@@ -754,6 +837,9 @@ export function CustomersList({
 
                 if (res.ok) {
                   const data = await res.json();
+                  // Record the DB id so the Realtime INSERT echo is suppressed
+                  // instead of double-appending the message we just sent.
+                  if (data?.message?.id) seenIdsRef.current.add(data.message.id);
                   setChatMessages(prev => [...prev, data.message]);
                 } else {
                   alert("Failed to send message.");

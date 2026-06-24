@@ -7,6 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "backfill:topups": "node scripts/backfill-topups.mjs",
+    "backfill:topups:dry": "node scripts/backfill-topups.mjs --dry-run",
     "android:add": "capacitor add android",
     "android:sync": "capacitor sync android",
     "android:open": "capacitor open android",

@@ -4,7 +4,9 @@ import { useState, useRef, useEffect, useCallback, type ReactNode } from "react"
 import { X, Send, Loader2, Image } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { parseDescription } from "@/utils/serviceHelpers";
-import { compressImage } from "@/utils/imageCompressor";
+import { compressImageWithStats, formatBytes, type CompressResult } from "@/utils/imageCompressor";
+import { useCustomerMessagesRealtime } from "@/hooks/useCustomerMessagesRealtime";
+import type { CustomerMessageRow } from "@/utils/realtimeChat";
 
 interface Message {
   role: 'user' | 'assistant' | 'system';
@@ -145,6 +147,65 @@ export function Chathead() {
     }).catch((err) => console.error("Error marking admin replies as read:", err));
   }, []);
 
+  // ── Realtime chat plumbing ──────────────────────────────────────────────────
+  // Supabase Realtime streams new customer_messages rows to this chathead so
+  // admin replies appear instantly without polling. A slow 30s backstop poll
+  // (below) catches anything the realtime channel misses.
+  const seenIdsRef = useRef<Set<string>>(new Set());
+  const localEchoRef = useRef<Array<{ content: string; role: Message["role"]; ts: number }>>([]);
+  const isOpenRef = useRef(isOpen);
+  const customerEmailRef = useRef(customerEmail);
+  const hasLoadedHistoryRef = useRef(false);
+  const [compressState, setCompressState] = useState<CompressResult | null>(null);
+
+  useEffect(() => { isOpenRef.current = isOpen; }, [isOpen]);
+  useEffect(() => { customerEmailRef.current = customerEmail; }, [customerEmail]);
+
+  const pushLocalMessage = useCallback((msg: Message) => {
+    localEchoRef.current.push({ content: msg.content, role: msg.role, ts: Date.now() });
+    if (localEchoRef.current.length > 20) localEchoRef.current = localEchoRef.current.slice(-20);
+    setMessages((prev) => [...prev, msg]);
+  }, []);
+
+  const applyRemoteInsert = useCallback(
+    (row: CustomerMessageRow, options?: { fromHistory?: boolean }) => {
+      if (seenIdsRef.current.has(row.id)) return;
+      const role: Message["role"] = row.sender === "customer" ? "user" : "assistant";
+      const now = Date.now();
+      if (!options?.fromHistory) {
+        // Suppress the echo of a message we just appended locally (customer's
+        // own message or the system reply we saved right after rendering it).
+        const echo = localEchoRef.current.find(
+          (e) => e.role === role && e.content === row.message && now - e.ts < 8000
+        );
+        if (echo) {
+          seenIdsRef.current.add(row.id);
+          return;
+        }
+      }
+      seenIdsRef.current.add(row.id);
+      setMessages((prev) => [...prev, { role, content: row.message }]);
+
+      if (row.sender === "customer") return;
+      if (isOpenRef.current) {
+        if (customerEmailRef.current) markAdminRepliesRead(customerEmailRef.current);
+        setUnreadAdminCount(0);
+        setAdminNotice("");
+      } else {
+        setUnreadAdminCount((c) => c + 1);
+        setAdminNotice(row.message);
+      }
+    },
+    [markAdminRepliesRead]
+  );
+
+  useCustomerMessagesRealtime({
+    email: customerEmail || undefined,
+    scope: "customer",
+    enabled: Boolean(customerEmail),
+    onInsert: (row) => applyRemoteInsert(row),
+  });
+
   const openSupportChat = useCallback((prefillMessage?: string) => {
     setIsOpen(true);
     setUnreadAdminCount(0);
@@ -183,51 +244,76 @@ export function Chathead() {
     });
   }, []);
 
-  // 2. Poll Database Chat History
+  // 2. Load chat history once on email connect, then backstop Realtime with a
+  //    slow 30s poll that catches any row the realtime channel missed and keeps
+  //    the unread badge in sync with the database.
   useEffect(() => {
     if (!customerEmail) return;
+    hasLoadedHistoryRef.current = false;
+    seenIdsRef.current = new Set();
+
+    const syncUnreadState = (dbMsgs: ChatDbMessage[]) => {
+      const unreadAdminMessages = dbMsgs.filter((m) => m.sender !== "customer" && !m.is_read);
+      if (isOpen) {
+        if (unreadAdminMessages.length > 0) {
+          markAdminRepliesRead(customerEmail);
+        }
+        setUnreadAdminCount(0);
+        setAdminNotice("");
+      } else if (unreadAdminMessages.length > 0) {
+        const latestAdminMessage = unreadAdminMessages[unreadAdminMessages.length - 1];
+        setUnreadAdminCount(unreadAdminMessages.length);
+        setAdminNotice(latestAdminMessage?.message || "Admin sent you a message.");
+      } else {
+        setUnreadAdminCount(0);
+        setAdminNotice("");
+      }
+    };
 
     const fetchDBChat = async () => {
       try {
         const res = await fetch(`/api/chat/messages?email=${encodeURIComponent(customerEmail)}`);
-        if (res.ok) {
-          const data = await res.json();
-          const dbMsgs = (data.messages || []) as ChatDbMessage[];
+        if (!res.ok) return;
+        const data = await res.json();
+        const dbMsgs = (data.messages || []) as ChatDbMessage[];
+
+        if (!hasLoadedHistoryRef.current) {
+          hasLoadedHistoryRef.current = true;
+          seenIdsRef.current = new Set(dbMsgs.map((m) => m.id));
           if (dbMsgs.length > 0) {
             const mapped: Message[] = dbMsgs.map((m) => ({
-              role: m.sender === 'customer' ? 'user' : 'assistant',
-              content: m.message
+              role: m.sender === "customer" ? "user" : "assistant",
+              content: m.message,
             }));
             setMessages(mapped);
           }
-
-          const unreadAdminMessages = dbMsgs.filter((m) => m.sender !== "customer" && !m.is_read);
-          if (isOpen) {
-            if (unreadAdminMessages.length > 0) {
-              markAdminRepliesRead(customerEmail);
+        } else {
+          // Backstop catch-up for rows Realtime missed.
+          for (const m of dbMsgs) {
+            if (!seenIdsRef.current.has(m.id)) {
+              applyRemoteInsert({
+                id: m.id,
+                customer_email: customerEmail,
+                sender: m.sender,
+                message: m.message,
+                is_read: Boolean(m.is_read),
+                created_at: "",
+              });
             }
-            setUnreadAdminCount(0);
-            setAdminNotice("");
-          } else if (unreadAdminMessages.length > 0) {
-            const latestAdminMessage = unreadAdminMessages[unreadAdminMessages.length - 1];
-            setUnreadAdminCount(unreadAdminMessages.length);
-            setAdminNotice(latestAdminMessage?.message || "Admin sent you a message.");
-          } else {
-            setUnreadAdminCount(0);
-            setAdminNotice("");
           }
         }
+
+        syncUnreadState(dbMsgs);
       } catch (err) {
         console.error("Error loading chat history:", err);
       }
     };
 
     fetchDBChat();
-
-    const interval = setInterval(fetchDBChat, 4000);
+    const interval = setInterval(fetchDBChat, 30000);
 
     return () => clearInterval(interval);
-  }, [customerEmail, isOpen, markAdminRepliesRead]);
+  }, [customerEmail, isOpen, markAdminRepliesRead, applyRemoteInsert]);
 
   useEffect(() => {
     const handleOpenSupportChat = (event: Event) => {
@@ -294,14 +380,37 @@ export function Chathead() {
 
     setUploading(true);
     const displayId = `BS-${resolvedId.slice(0, 8).toUpperCase()}`;
-    setMessages(prev => [...prev, { role: 'user', content: `[Attached GCash Receipt Screenshot for Order ${displayId}]` }]);
+    pushLocalMessage({ role: 'user', content: `[Attached GCash Receipt Screenshot for Order ${displayId}]` });
 
     try {
-      // Client-side compression saves upload bandwidth; the server re-compresses
-      // as a safety net regardless.
-      const optimizedFile = await compressImage(file);
+      // Client-side compression saves upload bandwidth and gives the user a
+      // live "compressing" effect with a real before/after byte readout. The
+      // server re-compresses as a safety net regardless.
+      setCompressState({
+        file,
+        originalSize: file.size,
+        compressedSize: file.size,
+        savedBytes: 0,
+        ratio: 0,
+        width: 0,
+        height: 0,
+        durationMs: 0,
+      });
+      const result = await compressImageWithStats(file, {
+        onProgress: (p) => {
+          // Drive the progress bar via the ratio field (0 → 1) as the image
+          // loads, resizes, and encodes to a compact JPEG.
+          setCompressState((prev) =>
+            prev ? { ...prev, ratio: p.progress } : prev
+          );
+        },
+      });
+      setCompressState(result);
+      // Briefly show the final compressed size, then clear after upload starts.
+      setTimeout(() => setCompressState(null), 2500);
+
       const formData = new FormData();
-      formData.append("file", optimizedFile);
+      formData.append("file", result.file);
       formData.append("orderId", resolvedId);
 
       // Route the file upload through the secure Next.js server API endpoint
@@ -315,20 +424,25 @@ export function Chathead() {
         throw new Error(errData.error || "Server upload failed");
       }
 
+      const savedLabel = result.savedBytes > 0
+        ? ` (${formatBytes(result.originalSize)} → ${formatBytes(result.compressedSize)})`
+        : "";
       // Add success response from AI
-      setMessages(prev => [...prev, { 
-        role: 'assistant', 
-        content: `🎉 **Receipt screenshot successfully received!**\n\nIt has been automatically linked to **Tracking ID: ${displayId}** and is now visible on the Admin Dashboard.\n\nOur operations team will verify the payment and begin your full package delivery shortly! Thank you for your payment! 🙏` 
-      }]);
+      pushLocalMessage({
+        role: 'assistant',
+        content: `🎉 **Receipt screenshot successfully received!**\n\nIt has been automatically linked to **Tracking ID: ${displayId}** and is now visible on the Admin Dashboard.\n\nOur operations team will verify the payment and begin your full package delivery shortly! Thank you for your payment! 🙏${savedLabel ? `\n\n📦 Image optimized${savedLabel}.`
+ : ""}`
+      });
 
     } catch (err: unknown) {
       console.error(err);
-      setMessages(prev => [...prev, { 
-        role: 'assistant', 
+      pushLocalMessage({
+        role: 'assistant',
         content: `❌ **Failed to upload screenshot:** ${getErrorMessage(err)}. Please try again or contact support.`
-      }]);
+      });
     } finally {
       setUploading(false);
+      setCompressState(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
@@ -408,7 +522,7 @@ export function Chathead() {
               ? 'Your order status is **Rejected**. Please contact support if you believe this is an error.'
               : 'Your order status is **Cancelled**. Please contact support if you believe this is an error.'
           }`;
-          setMessages(prev => [...prev, { role: 'assistant', content: reply }]);
+          pushLocalMessage({ role: 'assistant', content: reply });
           setIsLoading(false);
 
           if (customerEmail) {
@@ -426,7 +540,7 @@ export function Chathead() {
         } else {
           const checkId = uuidMatch ? uuidMatch[0] : `BS-${trackMatch![1].toUpperCase()}`;
           const notFoundReply = `❌ **Order ID Not Found**\n\nI couldn't locate any order with ID: **${checkId}**.\n\nPlease double-check the ID or copy it directly from your checkout success modal and try again!`;
-          setMessages(prev => [...prev, { role: 'assistant', content: notFoundReply }]);
+          pushLocalMessage({ role: 'assistant', content: notFoundReply });
           setIsLoading(false);
 
           if (customerEmail) {
@@ -538,7 +652,7 @@ Tone rules:
         }
       }
 
-      setMessages(prev => [...prev, { role: 'assistant', content: responseText }]);
+      pushLocalMessage({ role: 'assistant', content: responseText });
 
       // Save bot reply to Database in background
       if (customerEmail && responseText) {
@@ -555,7 +669,7 @@ Tone rules:
 
     } catch (err: unknown) {
       console.error(err);
-      setMessages(prev => [...prev, { role: 'assistant', content: `Sorry, I had trouble connecting for a moment. Please try again, or send your Tracking ID if you want me to check an order.` }]);
+      pushLocalMessage({ role: 'assistant', content: `Sorry, I had trouble connecting for a moment. Please try again, or send your Tracking ID if you want me to check an order.` });
     } finally {
       setIsLoading(false);
     }
@@ -567,13 +681,13 @@ Tone rules:
 
     const userMsg = input.trim();
     setInput("");
-    setMessages(prev => [...prev, { role: 'user', content: userMsg }]);
+    pushLocalMessage({ role: 'user', content: userMsg });
     await sendMessage(userMsg);
   };
 
   const handleQuickAction = async (text: string) => {
     if (isLoading) return;
-    setMessages(prev => [...prev, { role: 'user', content: text }]);
+    pushLocalMessage({ role: 'user', content: text });
     await sendMessage(text);
   };
 
@@ -735,6 +849,36 @@ Tone rules:
             <div ref={messagesEndRef} />
           </div>
 
+          {/* Compressing effect banner — shown while a GCash receipt is being
+              shrunk client-side before upload. */}
+          {uploading && compressState && (
+            <div className="px-3 pt-2 bg-elevated">
+              <div className="rounded-xl border border-[#1877F2]/25 bg-[#1877F2]/10 p-2.5 space-y-1.5">
+                <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-wider">
+                  <span className="flex items-center gap-1.5 text-[#1877F2]">
+                    <Loader2 size={12} className="animate-spin" />
+                    {compressState.savedBytes > 0 ? "Receipt optimized" : "Compressing receipt..."}
+                  </span>
+                  {compressState.savedBytes > 0 ? (
+                    <span className="text-[#1DB954] font-black tabular-nums">
+                      {formatBytes(compressState.originalSize)} → {formatBytes(compressState.compressedSize)}
+                    </span>
+                  ) : (
+                    <span className="text-muted tabular-nums">{formatBytes(compressState.originalSize)}</span>
+                  )}
+                </div>
+                <div className="h-1.5 w-full overflow-hidden rounded-full bg-[#1877F2]/15">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-[#1877F2] to-[#4e8df5] transition-[width] duration-300"
+                    style={{
+                      width: `${compressState.savedBytes > 0 ? 100 : Math.max(12, Math.min(90, 12 + compressState.ratio * 80))}%`,
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Input Area */}
           {/* Quick Action Chips */}
           <div className="px-3 py-2 bg-elevated border-t border-border/50 flex gap-2 overflow-x-auto select-none no-scrollbar">
@@ -782,7 +926,7 @@ Tone rules:
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onPaste={handlePaste}
-              placeholder={uploading ? "Uploading receipt..." : "Type message or paste screenshot..."}
+              placeholder={uploading ? (compressState ? "Compressing receipt..." : "Uploading receipt...") : "Type message or paste screenshot..."}
               className="flex-1 px-4 py-2 bg-card border border-slate-700/80 text-fg rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1877F2] text-sm font-medium placeholder-muted"
               disabled={isLoading || uploading}
             />
