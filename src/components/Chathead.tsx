@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback, type ReactNode } from "react"
 import { X, Send, Loader2, Image } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { parseDescription } from "@/utils/serviceHelpers";
+import { compressImage } from "@/utils/imageCompressor";
 
 interface Message {
   role: 'user' | 'assistant' | 'system';
@@ -296,8 +297,11 @@ export function Chathead() {
     setMessages(prev => [...prev, { role: 'user', content: `[Attached GCash Receipt Screenshot for Order ${displayId}]` }]);
 
     try {
+      // Client-side compression saves upload bandwidth; the server re-compresses
+      // as a safety net regardless.
+      const optimizedFile = await compressImage(file);
       const formData = new FormData();
-      formData.append("file", file);
+      formData.append("file", optimizedFile);
       formData.append("orderId", resolvedId);
 
       // Route the file upload through the secure Next.js server API endpoint

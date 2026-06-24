@@ -8,6 +8,7 @@ import { notifyCustomer } from "@/lib/customerNotifications";
 import { hashReceiptFile } from "@/lib/receiptGuard";
 import { autoVerifyAndApproveTopup } from "@/lib/receiptVerifier";
 import { creditReferralCommission } from "@/utils/referrals";
+import { compressReceiptImage, bufferToDataUrl } from "@/utils/serverImageCompressor";
 
 const MAX_RECEIPT_FILE_BYTES = 8 * 1024 * 1024;
 const ALLOWED_RECEIPT_TYPES = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp"]);
@@ -98,10 +99,11 @@ export async function POST(req: NextRequest) {
       }, { status: 409 });
     }
 
-    // Convert file to base64 data URL
-    const fileBuffer = await file.arrayBuffer();
-    const base64 = Buffer.from(fileBuffer).toString("base64");
-    const dataUrl = `data:${file.type};base64,${base64}`;
+    // Server-side compression: shrinks the base64 payload stored in the topups
+    // table and the bytes sent to the AI receipt verifier. Hash stays on the
+    // original bytes so duplicate detection remains consistent.
+    const compressed = await compressReceiptImage(file);
+    const dataUrl = bufferToDataUrl(compressed.buffer, compressed.mimeType);
 
     // 1. Create a topup record with receipt data embedded
     let { data: topup, error: topupError } = await supabase
@@ -146,8 +148,8 @@ export async function POST(req: NextRequest) {
         supabase,
         topupId: topup.id,
         requestedAmount: priceNum,
-        imageBuffer: Buffer.from(fileBuffer),
-        mimeType: file.type,
+        imageBuffer: compressed.buffer,
+        mimeType: compressed.mimeType,
         userEmail: email.trim(),
       });
 

@@ -6,7 +6,7 @@ import { getSupabaseServiceRoleKey, getSupabaseUrl } from "@/utils/env";
 import { getVipPlanById } from "@/utils/vip";
 import { sendVipSubscriptionNotification } from "@/lib/telegram";
 import { buildReceiptFileName, findDuplicateReceipt, hashReceiptFile } from "@/lib/receiptGuard";
-import { fileToDataUrl } from "@/lib/fileData";
+import { compressReceiptImage, bufferToDataUrl } from "@/utils/serverImageCompressor";
 
 const ALLOWED_VIP_TYPES = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp"]);
 const MAX_RECEIPT_BYTES = 8 * 1024 * 1024;
@@ -199,7 +199,6 @@ export async function POST(req: NextRequest) {
     }
 
     const safePlanSlug = String(selectedPlan.id).replace(/[^a-z0-9_]/gi, "_").toLowerCase();
-    const fileExt = receiptFile.name.split(".").pop() || "png";
     const receiptHash = await hashReceiptFile(receiptFile);
     const duplicateReceipt = await findDuplicateReceipt(adminClient, receiptHash)
       || await findDuplicateReceiptRecord(adminClient, receiptHash);
@@ -210,13 +209,18 @@ export async function POST(req: NextRequest) {
       }, { status: 409 });
     }
 
-    const storageName = buildReceiptFileName(`vip_${user.id}_${safePlanSlug}`, receiptHash, user.email, fileExt);
+    // Server-side compression: guarantees a compact JPEG is stored regardless
+    // of client behavior. Hash stays on the original bytes for consistent
+    // duplicate detection.
+    const compressed = await compressReceiptImage(receiptFile);
+
+    const storageName = buildReceiptFileName(`vip_${user.id}_${safePlanSlug}`, receiptHash, user.email, compressed.extension);
 
     let receiptUrl = "";
     try {
       const { error: receiptUploadError } = await adminClient.storage
         .from("receipts")
-        .upload(storageName, receiptFile, { upsert: false });
+        .upload(storageName, compressed.buffer, { upsert: false, contentType: compressed.mimeType });
       if (receiptUploadError) throw receiptUploadError;
 
       const { data: publicUrlData } = adminClient.storage
@@ -225,7 +229,7 @@ export async function POST(req: NextRequest) {
       receiptUrl = publicUrlData.publicUrl;
     } catch (storageError) {
       console.warn("VIP receipt storage upload failed; falling back to inline receipt data:", storageError);
-      receiptUrl = await fileToDataUrl(receiptFile);
+      receiptUrl = bufferToDataUrl(compressed.buffer, compressed.mimeType);
     }
 
     let subscription = await adminClient

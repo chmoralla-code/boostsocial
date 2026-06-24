@@ -7,7 +7,7 @@ import { isAdminEmail } from "@/utils/security/admin";
 import { resolveSmmServiceTitle } from "@/lib/smmServiceResolver";
 import { buildReceiptFileName, findDuplicateReceipt, hashReceiptFile } from "@/lib/receiptGuard";
 import { notifyCustomer } from "@/lib/customerNotifications";
-import { fileToDataUrl } from "@/lib/fileData";
+import { compressReceiptImage, bufferToDataUrl } from "@/utils/serverImageCompressor";
 import { syncBackupAdminClients } from "@/utils/supabase/dual-db";
 
 const MAX_RECEIPT_FILE_BYTES = 8 * 1024 * 1024;
@@ -137,7 +137,6 @@ export async function POST(req: NextRequest) {
     }
 
     const email = orderData?.customer_email ? orderData.customer_email.trim() : "unknown";
-    const fileExt = file.name.split('.').pop() || 'png';
     const receiptHash = await hashReceiptFile(file);
     const duplicateReceipt = await findDuplicateReceipt(supabase, receiptHash, orderId)
       || await findDuplicateReceiptRecord(supabase, receiptHash, orderId);
@@ -147,9 +146,14 @@ export async function POST(req: NextRequest) {
         error: "This receipt image was already used on another order or top-up. Please upload the correct GCash proof for this transaction.",
       }, { status: 409 });
     }
-    
+
+    // Server-side compression: guarantees a compact JPEG is stored regardless
+    // of whether the client compressed. Hash stays on the original bytes so
+    // duplicate detection remains consistent across uploads.
+    const compressed = await compressReceiptImage(file);
+
     // 2. Name the file [orderId]_[email].[ext] to instantly identify who is paying in the storage bucket
-    const fileName = buildReceiptFileName(orderId, receiptHash, email, fileExt);
+    const fileName = buildReceiptFileName(orderId, receiptHash, email, compressed.extension);
 
     let uploadData: { path?: string; fullPath?: string } | null = null;
     let receiptUrl = "";
@@ -157,8 +161,9 @@ export async function POST(req: NextRequest) {
     try {
       const { data, error } = await supabase.storage
         .from('receipts')
-        .upload(fileName, file, {
-          upsert: true
+        .upload(fileName, compressed.buffer, {
+          upsert: true,
+          contentType: compressed.mimeType,
         });
 
       if (error) throw error;
@@ -170,7 +175,7 @@ export async function POST(req: NextRequest) {
       receiptUrl = publicUrlData.publicUrl;
     } catch (storageError) {
       console.warn("Receipt storage upload failed; falling back to inline receipt data:", storageError);
-      receiptUrl = await fileToDataUrl(file);
+      receiptUrl = bufferToDataUrl(compressed.buffer, compressed.mimeType);
       uploadData = { path: `inline:${orderId}` };
     }
 

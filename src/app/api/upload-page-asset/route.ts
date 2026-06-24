@@ -3,7 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { createClient as createServerClient } from "@/utils/supabase/server";
 import { enforceRateLimit } from "@/utils/security/rate-limit";
 import { isAdminEmail } from "@/utils/security/admin";
-import { fileToDataUrl } from "@/lib/fileData";
+import { compressReceiptImage, bufferToDataUrl } from "@/utils/serverImageCompressor";
 
 const MAX_ASSET_FILE_BYTES = 10 * 1024 * 1024;
 const ALLOWED_ASSET_TYPES = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp"]);
@@ -75,15 +75,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "You can only upload assets for your own order." }, { status: 403 });
     }
 
-    const fileExt = file.name.split('.').pop() || 'png';
-    const fileName = `${orderId}_${assetType}.${fileExt}`;
+    // Server-side compression: keeps order profile/cover assets compact in the
+    // receipts bucket regardless of client behavior.
+    const compressed = await compressReceiptImage(file);
+
+    const fileName = `${orderId}_${assetType}.${compressed.extension}`;
 
     let publicUrl = "";
     try {
       const { error } = await supabase.storage
         .from('receipts')
-        .upload(fileName, file, {
-          upsert: true
+        .upload(fileName, compressed.buffer, {
+          upsert: true,
+          contentType: compressed.mimeType,
         });
 
       if (error) throw error;
@@ -94,20 +98,20 @@ export async function POST(req: NextRequest) {
         .upsert({
           order_id: orderId,
           asset_type: assetType,
-          content_type: file.type,
+          content_type: compressed.mimeType,
           storage_url: publicUrl,
           data_url: null,
           updated_at: new Date().toISOString(),
         }, { onConflict: "order_id,asset_type" });
     } catch (storageError) {
       console.warn(`Storage upload for ${assetType} asset failed; using DB fallback:`, storageError);
-      const dataUrl = await fileToDataUrl(file);
+      const dataUrl = bufferToDataUrl(compressed.buffer, compressed.mimeType);
       const { error: assetError } = await supabase
         .from("order_assets")
         .upsert({
           order_id: orderId,
           asset_type: assetType,
-          content_type: file.type,
+          content_type: compressed.mimeType,
           data_url: dataUrl,
           storage_url: null,
           updated_at: new Date().toISOString(),
