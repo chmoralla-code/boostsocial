@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { ThemeToggle } from "./ThemeToggle";
 import { NavigationProgress } from "@/components/NavigationProgress";
+import { AdminSecurityControls } from "./AdminSecurityControls";
 
 type AdminNavItem = {
   href: string;
@@ -207,7 +208,7 @@ function SignOutButton({ compact = false }: { compact?: boolean }) {
   );
 }
 
-export function AdminShell({ children }: { children: ReactNode }) {
+export function AdminShell({ children, email }: { children: ReactNode; email: string }) {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -295,6 +296,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
                 Visit Website <ExternalLink size={14} />
               </Link>
               <SignOutButton />
+              <AdminSecurityControls email={email} />
             </div>
           </aside>
         </div>
@@ -340,6 +342,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
             Visit Website <ExternalLink size={14} />
           </Link>
           <SignOutButton />
+          <AdminSecurityControls email={email} />
         </div>
       </aside>
 
