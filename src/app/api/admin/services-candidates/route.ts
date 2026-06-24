@@ -80,6 +80,21 @@ const DEFAULT_CANDIDATES = [
     glow_color: "rgba(24, 119, 242, 0.45)"
   },
   {
+    id: "hormachuelos-ai",
+    emoji: "🤖",
+    tag: "AI WEBSITE & APK BUILDER",
+    title: "HORMACHUELOS AI",
+    caption: "Make your own website & APK easily with just a prompt",
+    description: "Describe what you want in plain words and Hormachuelos AI builds a full website or Android APK for you — no code, no setup, just a prompt.",
+    rate_prefix: "Availability",
+    rate_text: "Coming Soon",
+    theme_color: "#8B5CF6",
+    btn_bg: "bg-[#8B5CF6] hover:bg-[#a78bfa] text-white",
+    glow_color: "rgba(139, 92, 246, 0.45)",
+    coming_soon: true,
+    page_href: "/hormachuelos-ai"
+  },
+  {
     id: "other",
     emoji: "Layers",
     tag: "SPECIALTY TOOLS",
@@ -107,7 +122,7 @@ const DEFAULT_CANDIDATES = [
 ];
 
 function mergeDefaultCandidates(savedCandidates: unknown) {
-  const candidateOrder = ["facebook", "instagram", "tiktok", "youtube", "order-page", "pisowifi-package", "other", "catalog"];
+  const candidateOrder = ["facebook", "instagram", "tiktok", "youtube", "order-page", "hormachuelos-ai", "pisowifi-package", "other", "catalog"];
   const sortCandidates = (cards: Array<{ id?: string }>) => [...cards].sort((a, b) => {
     const aRank = candidateOrder.indexOf(a.id || "");
     const bRank = candidateOrder.indexOf(b.id || "");
@@ -123,9 +138,11 @@ function mergeDefaultCandidates(savedCandidates: unknown) {
     if (!merged.some((item) => typeof item === "object" && item !== null && "id" in item && (item as { id?: unknown }).id === candidate.id)) {
       const insertIndex = candidate.id === "order-page"
         ? Math.min(4, merged.length)
-        : candidate.id === "pisowifi-package"
+        : candidate.id === "hormachuelos-ai"
           ? Math.min(5, merged.length)
-          : merged.length;
+          : candidate.id === "pisowifi-package"
+            ? Math.min(6, merged.length)
+            : merged.length;
       merged.splice(insertIndex, 0, candidate);
     }
   }

@@ -15,6 +15,8 @@ export type ServiceCandidate = {
   layout?: string;
   image_url?: string;
   smm_service_id?: string;
+  coming_soon?: boolean;
+  page_href?: string;
 };
 
 export const DEFAULT_SERVICE_CANDIDATES: ServiceCandidate[] = [
@@ -88,6 +90,20 @@ export const DEFAULT_SERVICE_CANDIDATES: ServiceCandidate[] = [
     glow_color: "rgba(24, 119, 242, 0.45)",
   },
   {
+    id: "hormachuelos-ai",
+    emoji: "🤖",
+    tag: "AI WEBSITE & APK BUILDER",
+    title: "HORMACHUELOS AI",
+    caption: "Make your own website & APK easily with just a prompt",
+    description: "Describe what you want in plain words and Hormachuelos AI builds a full website or Android APK for you — no code, no setup, just a prompt.",
+    rate_prefix: "Availability",
+    rate_text: "Coming Soon",
+    theme_color: "#8B5CF6",
+    glow_color: "rgba(139, 92, 246, 0.45)",
+    coming_soon: true,
+    page_href: "/hormachuelos-ai",
+  },
+  {
     id: "other",
     emoji: "Tools",
     tag: "OTHER SERVICES",
@@ -111,7 +127,7 @@ export const DEFAULT_SERVICE_CANDIDATES: ServiceCandidate[] = [
   },
 ];
 
-const CANDIDATE_ORDER = ["facebook", "instagram", "tiktok", "youtube", "order-page", "pisowifi-package", "other", "catalog"];
+const CANDIDATE_ORDER = ["facebook", "instagram", "tiktok", "youtube", "order-page", "hormachuelos-ai", "pisowifi-package", "other", "catalog"];
 
 function candidateRank(candidate: { id?: string }) {
   const rank = CANDIDATE_ORDER.indexOf(candidate.id || "");
@@ -138,6 +154,8 @@ function normalizeCandidate(value: unknown): ServiceCandidate | null {
     layout: typeof item.layout === "string" ? item.layout : "standard",
     image_url: typeof item.image_url === "string" ? item.image_url : "",
     smm_service_id: item.smm_service_id ? String(item.smm_service_id) : "",
+    coming_soon: item.coming_soon === true,
+    page_href: typeof item.page_href === "string" ? item.page_href : "",
   };
 }
 

@@ -69,6 +69,8 @@ interface ServiceCandidate {
   image_url?: string;
   logo_url?: string;
   video_url?: string;
+  coming_soon?: boolean;
+  page_href?: string;
 }
 
 /* Real official brand logos (SVG) — keyed by ServiceCandidate.id.
@@ -129,6 +131,22 @@ const ORDER_PAGE_CANDIDATE = {
   theme_color: "#1877F2",
   btn_bg: "bg-[#1877F2] hover:bg-[#4e8df5]",
   glow_color: "rgba(24, 119, 242, 0.45)"
+};
+
+const HORMACHUELOS_CANDIDATE: ServiceCandidate = {
+  id: "hormachuelos-ai",
+  emoji: "🤖",
+  tag: "AI WEBSITE & APK BUILDER",
+  title: "HORMACHUELOS AI",
+  caption: "Make your own website & APK easily with just a prompt",
+  description: "Describe what you want in plain words and Hormachuelos AI builds a full website or Android APK for you — no code, no setup, just a prompt.",
+  rate_prefix: "Availability",
+  rate_text: "Coming Soon",
+  theme_color: "#8B5CF6",
+  btn_bg: "bg-[#8B5CF6] hover:bg-[#a78bfa] text-white",
+  glow_color: "rgba(139, 92, 246, 0.45)",
+  coming_soon: true,
+  page_href: "/hormachuelos-ai"
 };
 
 const PLATFORM_SERVICE_CHIPS: Record<PlatformType, string[]> = {
@@ -656,7 +674,7 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
   ];
 
   const mergeCandidatesWithDefaults = (savedCandidates: unknown): ServiceCandidate[] => {
-    const candidateOrder = ["facebook", "instagram", "tiktok", "youtube", "order-page", "pisowifi-package", "other", "catalog"];
+    const candidateOrder = ["facebook", "instagram", "tiktok", "youtube", "order-page", "hormachuelos-ai", "pisowifi-package", "other", "catalog"];
     const sortCandidates = (cards: ServiceCandidate[]) => [...cards].sort((a, b) => {
       const aRank = candidateOrder.indexOf(a.id || "");
       const bRank = candidateOrder.indexOf(b.id || "");
@@ -667,6 +685,7 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
       return sortCandidates([
         ...DEFAULT_CANDIDATES.slice(0, 4),
         ORDER_PAGE_CANDIDATE,
+        HORMACHUELOS_CANDIDATE,
         ...DEFAULT_CANDIDATES.slice(4)
       ]);
     }
@@ -675,13 +694,18 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
     if (!merged.some((item) => typeof item === "object" && item !== null && "id" in item && (item as { id?: unknown }).id === ORDER_PAGE_CANDIDATE.id)) {
       merged.splice(Math.min(4, merged.length), 0, ORDER_PAGE_CANDIDATE);
     }
+    if (!merged.some((item) => typeof item === "object" && item !== null && "id" in item && (item as { id?: unknown }).id === HORMACHUELOS_CANDIDATE.id)) {
+      merged.splice(Math.min(5, merged.length), 0, HORMACHUELOS_CANDIDATE);
+    }
     for (const candidate of DEFAULT_CANDIDATES) {
       if (!merged.some((item) => typeof item === "object" && item !== null && "id" in item && (item as { id?: unknown }).id === candidate.id)) {
         const insertIndex = candidate.id === "order-page"
           ? Math.min(4, merged.length)
-          : candidate.id === "pisowifi-package"
+          : candidate.id === "hormachuelos-ai"
             ? Math.min(5, merged.length)
-            : merged.length;
+            : candidate.id === "pisowifi-package"
+              ? Math.min(6, merged.length)
+              : merged.length;
         merged.splice(insertIndex, 0, candidate);
       }
     }
@@ -770,8 +794,14 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
             // Determine button click action
             const isPlatform = card.id === "facebook" || card.id === "instagram" || card.id === "tiktok" || card.id === "youtube";
             const isAvailable = !isPlatform || platformAvailability[card.id] !== false;
+            const isComingSoon = card.coming_soon === true;
+            const comingSoonHref = card.page_href || "/hormachuelos-ai";
             let clickAction = () => {};
-            if (card.id === "facebook") {
+            if (isComingSoon) {
+              clickAction = () => {
+                window.location.href = comingSoonHref;
+              };
+            } else if (card.id === "facebook") {
               clickAction = () => { if (isAvailable) openPlatformServices("facebook"); };
             } else if (card.id === "instagram") {
               clickAction = () => { if (isAvailable) openPlatformServices("instagram"); };
@@ -838,6 +868,12 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
                   <div className="absolute top-4 right-4 z-10 bg-red-500/15 border border-red-500/30 text-red-400 text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full flex items-center gap-1.5 backdrop-blur-sm">
                     <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse"></span>
                     Temporarily Unavailable
+                  </div>
+                )}
+                {isComingSoon && (
+                  <div className="absolute top-4 right-4 z-10 bg-[#8B5CF6]/15 border border-[#8B5CF6]/40 text-[#a78bfa] text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full flex items-center gap-1.5 backdrop-blur-sm">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#a78bfa] animate-pulse"></span>
+                    Coming Soon
                   </div>
                 )}
                 {candidateVideoUrl ? (
@@ -962,12 +998,18 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
                 
                 <div className="flex justify-between items-end w-full mb-6 pt-4 border-t border-border/60">
                   <div className="w-full text-left">
-                    <span className="block text-muted text-[10px] font-bold uppercase tracking-wider mb-1">
-                      {card.rate_prefix}
-                    </span>
-                    {hasCandidateVipPrice && candidateRateAmount && candidateVipAmount ? (
+                    {isComingSoon ? (
+                      <span className="block">
+                        <span className="block text-muted text-[10px] font-bold uppercase tracking-wider mb-1">
+                          {card.rate_prefix}
+                        </span>
+                        <span className="block text-2xl font-black text-[#a78bfa]">
+                          {card.rate_text}
+                        </span>
+                      </span>
+                    ) : hasCandidateVipPrice && candidateRateAmount && candidateVipAmount ? (
                       <span className="block leading-tight">
-                        <span className="block text-[11px] text-muted line-through font-mono">
+                        <span className="block text-muted text-[11px] font-mono line-through">
                           Regular ₱{candidateRateAmount.toFixed(2)}
                         </span>
                         <span className="block text-2xl font-black text-[#1DB954]">
@@ -988,19 +1030,19 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
                     )}
                   </div>
                 </div>
-                
-                <button 
+
+                <button
                   onClick={clickAction}
-                  disabled={!isAvailable && isPlatform}
-                  className={`w-full py-3.5 rounded-full transition-all duration-300 uppercase text-xs tracking-wider transform group-hover:scale-[1.02] shadow-lg text-center ${!isAvailable && isPlatform ? "opacity-50 cursor-not-allowed bg-slate-800 text-slate-400" : `${btnTextColor} cursor-pointer`}`}
-                  style={!isAvailable && isPlatform ? {} : { 
+                  disabled={!isAvailable && isPlatform && !isComingSoon}
+                  className={`w-full py-3.5 rounded-full transition-all duration-300 uppercase text-xs tracking-wider transform group-hover:scale-[1.02] shadow-lg text-center ${!isAvailable && isPlatform && !isComingSoon ? "opacity-50 cursor-not-allowed bg-slate-800 text-slate-400" : `${isComingSoon ? "text-white" : btnTextColor} cursor-pointer`}`}
+                  style={!isAvailable && isPlatform && !isComingSoon ? {} : {
                     backgroundColor: btnBgColor,
                     boxShadow: `0 8px 20px ${card.theme_color}20`
                   }}
-                  onMouseEnter={(e) => { if (isAvailable || !isPlatform) e.currentTarget.style.filter = "brightness(1.1)"; }}
+                  onMouseEnter={(e) => { if (isAvailable || !isPlatform || isComingSoon) e.currentTarget.style.filter = "brightness(1.1)"; }}
                   onMouseLeave={(e) => { e.currentTarget.style.filter = "none"; }}
                 >
-                  {card.id === "order-page" ? "ORDER PAGE" : card.id === "pisowifi-package" ? "VIEW PACKAGES" : !isAvailable && isPlatform ? "UNAVAILABLE" : "VIEW"}
+                  {isComingSoon ? "NOTIFY ME" : card.id === "order-page" ? "ORDER PAGE" : card.id === "pisowifi-package" ? "VIEW PACKAGES" : !isAvailable && isPlatform ? "UNAVAILABLE" : "VIEW"}
                 </button>
               </div>
             );
