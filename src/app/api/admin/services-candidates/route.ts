@@ -91,6 +91,7 @@ const DEFAULT_CANDIDATES = [
     theme_color: "#8B5CF6",
     btn_bg: "bg-[#8B5CF6] hover:bg-[#a78bfa] text-white",
     glow_color: "rgba(139, 92, 246, 0.45)",
+    video_url: "/hormachuelos-promo.mp4",
     coming_soon: true,
     page_href: "/hormachuelos-ai"
   },

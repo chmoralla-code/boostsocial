@@ -14,6 +14,7 @@ export type ServiceCandidate = {
   glow_color?: string;
   layout?: string;
   image_url?: string;
+  video_url?: string;
   smm_service_id?: string;
   coming_soon?: boolean;
   page_href?: string;
@@ -100,6 +101,7 @@ export const DEFAULT_SERVICE_CANDIDATES: ServiceCandidate[] = [
     rate_text: "Coming Soon",
     theme_color: "#8B5CF6",
     glow_color: "rgba(139, 92, 246, 0.45)",
+    video_url: "/hormachuelos-promo.mp4",
     coming_soon: true,
     page_href: "/hormachuelos-ai",
   },
@@ -153,6 +155,7 @@ function normalizeCandidate(value: unknown): ServiceCandidate | null {
     glow_color: typeof item.glow_color === "string" ? item.glow_color : "",
     layout: typeof item.layout === "string" ? item.layout : "standard",
     image_url: typeof item.image_url === "string" ? item.image_url : "",
+    video_url: typeof item.video_url === "string" ? item.video_url : "",
     smm_service_id: item.smm_service_id ? String(item.smm_service_id) : "",
     coming_soon: item.coming_soon === true,
     page_href: typeof item.page_href === "string" ? item.page_href : "",
