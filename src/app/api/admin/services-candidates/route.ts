@@ -3,7 +3,26 @@ import { createClient as createServerClient } from "@/utils/supabase/server";
 import { syncBackupAdminClients } from "@/utils/supabase/dual-db";
 
 // Default candidates fallback structure
-const DEFAULT_CANDIDATES = [
+type CandidateRecord = {
+  id: string;
+  emoji: string;
+  tag: string;
+  title: string;
+  caption?: string;
+  description: string;
+  rate_prefix: string;
+  rate_text: string;
+  layout?: string;
+  theme_color: string;
+  btn_bg: string;
+  glow_color: string;
+  image_url?: string;
+  video_url?: string;
+  coming_soon?: boolean;
+  page_href?: string;
+};
+
+const DEFAULT_CANDIDATES: CandidateRecord[] = [
   {
     id: "facebook",
     emoji: "📘",
@@ -147,6 +166,20 @@ function mergeDefaultCandidates(savedCandidates: unknown) {
       merged.splice(insertIndex, 0, candidate);
     }
   }
+
+  // Backfill media fields (video_url, image_url) from defaults onto saved
+  // candidates that are missing them. Older saved configs predate these
+  // fields, so without this the pisowifi / hormachuelos promo videos would
+  // silently disappear whenever a DB config exists.
+  for (const card of merged) {
+    if (!card || typeof card !== "object") continue;
+    const def = DEFAULT_CANDIDATES.find((d) => d.id === (card as { id?: string }).id);
+    if (!def) continue;
+    const c = card as { video_url?: string; image_url?: string };
+    if (!c.video_url && def.video_url) c.video_url = def.video_url;
+    if (!c.image_url && def.image_url) c.image_url = def.image_url;
+  }
+
   return sortCandidates(merged);
 }
 

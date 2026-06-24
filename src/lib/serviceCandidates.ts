@@ -177,5 +177,16 @@ export function mergeServiceCandidates(savedCandidates: unknown) {
     }
   }
 
+  // Backfill media fields (video_url, image_url) from defaults onto saved
+  // candidates that are missing them. Older saved configs predate these
+  // fields, so without this the pisowifi / hormachuelos promo videos would
+  // silently disappear whenever a DB config exists.
+  for (const card of merged) {
+    const def = DEFAULT_SERVICE_CANDIDATES.find((d) => d.id === card.id);
+    if (!def) continue;
+    if (!card.video_url && def.video_url) card.video_url = def.video_url;
+    if (!card.image_url && def.image_url) card.image_url = def.image_url;
+  }
+
   return merged.sort((a, b) => candidateRank(a) - candidateRank(b));
 }

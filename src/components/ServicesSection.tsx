@@ -118,7 +118,7 @@ const REAL_LOGOS: Record<string, string> = {
     )
 };
 
-const ORDER_PAGE_CANDIDATE = {
+const ORDER_PAGE_CANDIDATE: ServiceCandidate = {
   id: "order-page",
   emoji: "📄",
   tag: "ORDER PAGE",
@@ -709,6 +709,19 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
               : merged.length;
         merged.splice(insertIndex, 0, candidate);
       }
+    }
+
+    // Backfill media fields (video_url, image_url, logo_url) from defaults onto
+    // saved candidates that are missing them. Older saved configs predate these
+    // fields, so without this the pisowifi / hormachuelos promo videos would
+    // silently disappear whenever a DB config exists.
+    const allDefaults = [ORDER_PAGE_CANDIDATE, HORMACHUELOS_CANDIDATE, ...DEFAULT_CANDIDATES];
+    for (const card of merged) {
+      const def = allDefaults.find((d) => d.id === card.id);
+      if (!def) continue;
+      if (!card.video_url && def.video_url) card.video_url = def.video_url;
+      if (!card.image_url && def.image_url) card.image_url = def.image_url;
+      if (!card.logo_url && def.logo_url) card.logo_url = def.logo_url;
     }
 
     return sortCandidates(merged);

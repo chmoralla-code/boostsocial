@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Layers, Save, CheckCircle, XCircle, Loader2, Sparkles, ChevronDown, ChevronUp, Upload, Image as ImageIcon, Trash2 } from "lucide-react";
+import { Layers, Save, CheckCircle, XCircle, Loader2, Sparkles, ChevronDown, ChevronUp, Upload, Image as ImageIcon, Trash2, Video } from "lucide-react";
 
 interface Candidate {
   id: string;
@@ -17,7 +17,10 @@ interface Candidate {
   btn_bg: string;
   glow_color: string;
   image_url?: string;
+  video_url?: string;
   smm_service_id?: string;
+  coming_soon?: boolean;
+  page_href?: string;
 }
 
 function getErrorMessage(err: unknown, fallback: string) {
@@ -32,7 +35,10 @@ const normalizeCandidates = (items: Candidate[]) =>
     caption: item.caption || "",
     layout: item.layout || "standard",
     image_url: item.image_url || "",
+    video_url: item.video_url || "",
     smm_service_id: item.smm_service_id || "",
+    coming_soon: item.coming_soon === true,
+    page_href: item.page_href || "",
   }));
 
 export function ServicesCandidatesPanel() {
@@ -326,6 +332,25 @@ export function ServicesCandidatesPanel() {
                         </div>
                       )}
                     </div>
+                  </div>
+
+                  {/* Promo Video URL field */}
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-black uppercase text-slate-500 tracking-wider flex items-center gap-1.5">
+                      <Video size={10} className="text-[#1DB954]" /> Promo Video URL (auto-plays on the homepage card)
+                    </label>
+                    <input
+                      type="url"
+                      value={card.video_url || ""}
+                      onChange={(e) => handleFieldChange(idx, "video_url", e.target.value)}
+                      placeholder="e.g. /pisowifi-promo.mp4 or https://..."
+                      className="w-full bg-[#181818] border border-slate-850 rounded-xl px-4.5 py-2.5 text-xs font-bold text-white placeholder-slate-650 focus:outline-none focus:border-[#1DB954]"
+                    />
+                    {card.video_url && (
+                      <p className="text-[10px] font-semibold text-slate-500">
+                        Current: <span className="text-[#1DB954] font-mono">{card.video_url}</span>
+                      </p>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
