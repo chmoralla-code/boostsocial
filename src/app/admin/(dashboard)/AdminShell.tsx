@@ -20,6 +20,7 @@ import {
   X,
 } from "lucide-react";
 import { ThemeToggle } from "./ThemeToggle";
+import { NavigationProgress } from "@/components/NavigationProgress";
 
 type AdminNavItem = {
   href: string;
@@ -212,6 +213,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-screen bg-bg text-fg lg:flex">
+      <NavigationProgress />
       <header className="sticky top-0 z-40 border-b border-slate-800/80 bg-[#121212]/95 px-3 pb-2 pt-[calc(env(safe-area-inset-top)+0.5rem)] backdrop-blur-md lg:hidden">
         <div className="flex items-center justify-between gap-2">
           <button

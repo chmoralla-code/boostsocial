@@ -41,48 +41,49 @@ type EnrichedDashboardOrder = DashboardOrder & {
 
 export default async function AdminOverview() {
 
-  // Fetch RixeySMM live balance
   const apiKey = process.env.RIXEYSMM_API_KEY;
-  let rixeyBalance = "0.00";
-  if (apiKey) {
-    try {
-      const res = await fetch("https://rixeysmm.shop/api/v2", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-        body: new URLSearchParams({
-          key: apiKey,
-          action: "balance",
-        }),
-        next: { revalidate: 30 }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        rixeyBalance = data.balance ? Number(data.balance).toFixed(2) : "0.00";
-      }
-    } catch (err) {
-      console.error("Failed to fetch RixeySMM balance:", err);
-    }
-  }
 
-  // Fetch orders with services details
-  const { data: orders } = await fallbackRead(async (db) => {
-    return db
-      .from('orders')
-      .select(`
-        id,
-        amount,
-        status,
-        created_at,
-        customer_email,
-        target_url,
-        quantity,
-        smm_service_id,
-        services ( title )
-      `)
-      .order('created_at', { ascending: false });
-  });
+  const [rixeyBalance, orders] = await Promise.all([
+    (async () => {
+      if (!apiKey) return "0.00";
+      try {
+        const res = await fetch("https://rixeysmm.shop/api/v2", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+          body: new URLSearchParams({
+            key: apiKey,
+            action: "balance",
+          }),
+          next: { revalidate: 30 }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          return data.balance ? Number(data.balance).toFixed(2) : "0.00";
+        }
+      } catch (err) {
+        console.error("Failed to fetch RixeySMM balance:", err);
+      }
+      return "0.00";
+    })(),
+    fallbackRead(async (db) => {
+      return db
+        .from('orders')
+        .select(`
+          id,
+          amount,
+          status,
+          created_at,
+          customer_email,
+          target_url,
+          quantity,
+          smm_service_id,
+          services ( title )
+        `)
+        .order('created_at', { ascending: false });
+    }).then((r) => r.data),
+  ]);
 
   const enrichedOrders = (await enrichOrdersWithResolvedServiceTitles(
     (orders || []) as DashboardOrder[]
