@@ -63,6 +63,7 @@ export function PinGate({ mode, variant = "fullscreen", email, onAfterChange }: 
   const [newPin, setNewPin] = useState("");
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
+  const [schemaMissing, setSchemaMissing] = useState(false);
   const [lockedRemainingMs, setLockedRemainingMs] = useState(0);
   const [attemptsRemaining, setAttemptsRemaining] = useState<number | null>(null);
   const lockTimer = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -95,6 +96,7 @@ export function PinGate({ mode, variant = "fullscreen", email, onAfterChange }: 
     async (action: "setup" | "unlock" | "change", payload: { pin: string; currentPin?: string }) => {
       setStep("submitting");
       setError("");
+      setSchemaMissing(false);
       try {
         const res = await fetch("/api/admin/pin", {
           method: "POST",
@@ -103,6 +105,9 @@ export function PinGate({ mode, variant = "fullscreen", email, onAfterChange }: 
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
+          if (data?.schemaMissing === true) {
+            setSchemaMissing(true);
+          }
           if (data?.locked && data?.remainingMs) {
             setLockedRemainingMs(data.remainingMs);
             setError(
@@ -316,7 +321,25 @@ export function PinGate({ mode, variant = "fullscreen", email, onAfterChange }: 
       {error && (
         <div className="mb-4 flex items-start gap-2 rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-left text-xs font-semibold text-red-300">
           <ShieldAlert className="mt-0.5 shrink-0" size={14} />
-          <span>{error}</span>
+          <span className="break-words whitespace-pre-wrap">{error}</span>
+        </div>
+      )}
+
+      {schemaMissing && (
+        <div className="mb-4 rounded-xl border border-orange-500/30 bg-orange-500/10 p-3 text-left text-[11px] text-orange-200">
+          <p className="font-bold">
+            The <code className="rounded bg-black/40 px-1">admin_secrets</code> table is missing
+            on your Supabase database. Run the SQL shown in the error above in the Supabase SQL
+            Editor (Database → SQL Editor), then retry.
+          </p>
+          <a
+            href="https://supabase.com/dashboard/project/_/sql/new"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-2 inline-flex items-center gap-1 rounded-lg bg-orange-500/20 px-2 py-1 text-[10px] font-black uppercase tracking-wider text-orange-100 hover:bg-orange-500/30"
+          >
+            Open Supabase SQL Editor
+          </a>
         </div>
       )}
 

@@ -83,6 +83,20 @@ CREATE TRIGGER touch_push_subscriptions_updated_at
   EXECUTE FUNCTION public.touch_push_subscriptions_updated_at();
 `.trim();
 
+const ADMIN_SECRETS_SQL = `
+CREATE TABLE IF NOT EXISTS public.admin_secrets (
+  key TEXT PRIMARY KEY,
+  value JSONB NOT NULL DEFAULT '{}'::jsonb,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE public.admin_secrets ENABLE ROW LEVEL SECURITY;
+
+-- Intentionally NO policies: only the service role (which bypasses RLS) can
+-- read or write this table. A 4-digit PIN hash stored here cannot be brute-forced
+-- by anon / authenticated users, unlike the public settings table.
+`.trim();
+
 export async function GET() {
   try {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -123,6 +137,19 @@ export async function GET() {
 
     if (pushCheckError) {
       missingSql.push(PUSH_SUBSCRIPTIONS_SQL);
+    }
+
+    // Check if admin_secrets table exists (used by adminPin.ts for the
+    // 4-digit dashboard PIN). A missing table here makes every PIN op fail
+    // with "Could not find the table 'public.admin_secrets' in the schema
+    // cache" — so surface the CREATE TABLE SQL for the admin to run.
+    const { error: adminSecretsCheckError } = await supabase
+      .from("admin_secrets")
+      .select("key")
+      .limit(1);
+
+    if (adminSecretsCheckError && /admin_secrets.*schema cache|could not find the table.*admin_secrets|relation.*admin_secrets.*does not exist/i.test(adminSecretsCheckError.message || "")) {
+      missingSql.push(ADMIN_SECRETS_SQL);
     }
 
     // Check if orders table has service_title column (denormalized column

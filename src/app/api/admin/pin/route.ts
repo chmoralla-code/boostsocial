@@ -81,7 +81,14 @@ export async function POST(req: NextRequest) {
       await setPin(pin);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to set PIN.";
-      return NextResponse.json({ error: message }, { status: 500 });
+      // Surface a 503 + schemaMissing flag when the admin_secrets table is
+      // missing so the frontend can render the actionable SQL instead of a
+      // generic 500 error.
+      const schemaMissing = /admin_secrets table does not exist/i.test(message);
+      return NextResponse.json(
+        { error: message, schemaMissing },
+        { status: schemaMissing ? 503 : 500 }
+      );
     }
     await resetAttempts();
     return buildUnlockResponse(email, { success: true });
@@ -172,7 +179,11 @@ export async function POST(req: NextRequest) {
       await setPin(pin);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to update PIN.";
-      return NextResponse.json({ error: message }, { status: 500 });
+      const schemaMissing = /admin_secrets table does not exist/i.test(message);
+      return NextResponse.json(
+        { error: message, schemaMissing },
+        { status: schemaMissing ? 503 : 500 }
+      );
     }
     await resetAttempts();
     return buildUnlockResponse(email, { success: true });

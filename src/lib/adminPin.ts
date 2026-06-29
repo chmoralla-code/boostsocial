@@ -6,6 +6,7 @@ import { getSupabaseUrl, getSupabaseServiceRoleKey } from "@/utils/env";
 const SECRETS_TABLE = "admin_secrets";
 const PIN_KEY = "admin_pin";
 const ATTEMPTS_KEY = "admin_pin_attempts";
+const SCHEMA_MISSING_RE = /admin_secrets.*schema cache|could not find the table.*admin_secrets|relation.*admin_secrets.*does not exist/i;
 
 export const UNLOCK_COOKIE = "admin_pin_unlocked";
 const COOKIE_MAX_AGE_SECONDS = 8 * 60 * 60;
@@ -27,6 +28,34 @@ function getServiceClient() {
     auth: { persistSession: false },
   });
 }
+
+/**
+ * The `admin_secrets` table is created by the Supabase migration
+ * `20260624000000_create_admin_secrets.sql`. On databases where that migration
+ * was never applied, every PIN operation fails with
+ * "Could not find the table 'public.admin_secrets' in the schema cache".
+ *
+ * We cannot run DDL (CREATE TABLE) through the Supabase JS SDK, so we cannot
+ * self-heal here. Instead we surface a precise, actionable error so the admin
+ * knows exactly which SQL to run, and we treat "table missing" as "no PIN is
+ * configured yet" for read paths so the dashboard still renders the setup
+ * gate instead of crashing the layout.
+ */
+function isSchemaMissingError(error: unknown): boolean {
+  if (!error) return false;
+  if (error instanceof Error) return SCHEMA_MISSING_RE.test(error.message);
+  const msg = (error as { message?: unknown })?.message;
+  return typeof msg === "string" && SCHEMA_MISSING_RE.test(msg);
+}
+
+export const ADMIN_SECRETS_MISSING_SQL = `-- Run this in your Supabase SQL Editor:
+CREATE TABLE IF NOT EXISTS public.admin_secrets (
+  key TEXT PRIMARY KEY,
+  value JSONB NOT NULL DEFAULT '{}'::jsonb,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+ALTER TABLE public.admin_secrets ENABLE ROW LEVEL SECURITY;
+-- No policies are defined: only the service role (which bypasses RLS) can read/write.`;
 
 function signingSecret() {
   return getSupabaseServiceRoleKey();
@@ -65,16 +94,25 @@ export async function verifyPin(
 export async function getPinConfig(): Promise<PinConfig | null> {
   try {
     const db = getServiceClient();
-    const { data } = await db
+    const { data, error } = await db
       .from(SECRETS_TABLE)
       .select("value")
       .eq("key", PIN_KEY)
       .single();
+    // Treat a missing `admin_secrets` table as "no PIN configured" so the
+    // dashboard renders the setup gate instead of erroring out. The setup
+    // attempt itself will surface a clear actionable message.
+    if (error && isSchemaMissingError(error)) return null;
+    if (error && !/No rows found|PGRK116|PGRK1160/i.test(error.message || "")) {
+      console.warn("adminPin.getPinConfig unexpected error:", error.message);
+    }
     if (!data?.value) return null;
     const v = data.value as Partial<PinConfig>;
     if (!v.hash || !v.salt) return null;
     return { hash: v.hash, salt: v.salt, updatedAt: v.updatedAt ?? new Date().toISOString() };
-  } catch {
+  } catch (error) {
+    if (isSchemaMissingError(error)) return null;
+    console.warn("adminPin.getPinConfig failed:", error);
     return null;
   }
 }
@@ -91,34 +129,51 @@ export async function setPin(pin: string): Promise<void> {
     { key: PIN_KEY, value, updated_at: new Date().toISOString() },
     { onConflict: "key" }
   );
-  if (error) throw new Error(`Failed to set admin PIN: ${error.message}`);
+  if (error) {
+    if (isSchemaMissingError(error)) {
+      throw new Error(
+        `The admin_secrets table does not exist on this database. ${ADMIN_SECRETS_MISSING_SQL}`
+      );
+    }
+    throw new Error(`Failed to set admin PIN: ${error.message}`);
+  }
 }
 
 async function getAttempts(): Promise<AttemptsState> {
   try {
     const db = getServiceClient();
-    const { data } = await db
+    const { data, error } = await db
       .from(SECRETS_TABLE)
       .select("value")
       .eq("key", ATTEMPTS_KEY)
       .single();
+    // If the admin_secrets table is missing, return a fresh-state default
+    // instead of crashing. Lockout tracking resumes once the table is created.
+    if (error && isSchemaMissingError(error)) {
+      return { count: 0, lockedUntil: null, lastAttempt: null };
+    }
     const v = (data?.value ?? {}) as Partial<AttemptsState>;
     return {
       count: v.count ?? 0,
       lockedUntil: v.lockedUntil ?? null,
       lastAttempt: v.lastAttempt ?? null,
     };
-  } catch {
+  } catch (error) {
+    if (isSchemaMissingError(error)) return { count: 0, lockedUntil: null, lastAttempt: null };
     return { count: 0, lockedUntil: null, lastAttempt: null };
   }
 }
 
 async function saveAttempts(state: AttemptsState): Promise<void> {
   const db = getServiceClient();
-  await db.from(SECRETS_TABLE).upsert(
+  const { error } = await db.from(SECRETS_TABLE).upsert(
     { key: ATTEMPTS_KEY, value: state, updated_at: new Date().toISOString() },
     { onConflict: "key" }
   );
+  if (error && !isSchemaMissingError(error)) {
+    // Non-fatal: lockout tracking is best-effort and must not block PIN ops.
+    console.warn("adminPin.saveAttempts failed:", error.message);
+  }
 }
 
 export type LockStatus = {
