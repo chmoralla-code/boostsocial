@@ -55,39 +55,6 @@ async function callVisionModel(imageBase64: string, mimeType: string, prompt: st
   return data?.choices?.[0]?.message?.content || "";
 }
 
-async function findPastReceiptDescriptions(
-  supabase: SupabaseClient,
-  userEmail: string
-): Promise<string[]> {
-  try {
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-
-    const { data: topups } = await supabase
-      .from("topups")
-      .select("receipt_data, amount, created_at")
-      .eq("email", userEmail)
-      .gte("created_at", thirtyDaysAgo)
-      .order("created_at", { ascending: false })
-      .limit(10);
-
-    if (!topups?.length) return [];
-
-    return topups
-      .map((t) => {
-        try {
-          const rd = typeof t.receipt_data === "string" ? JSON.parse(t.receipt_data) : t.receipt_data;
-          return rd?.receipt_description || null;
-        } catch {
-          return null;
-        }
-      })
-      .filter(Boolean) as string[];
-  } catch (err) {
-    console.warn("Failed to fetch past receipt descriptions:", err);
-    return [];
-  }
-}
-
 export async function verifyReceipt(
   imageBuffer: Buffer,
   mimeType: string,
@@ -127,30 +94,20 @@ Rules:
     const aiGeneratedScore = typeof parsed?.ai_generated_score === "number" ? parsed.ai_generated_score : 0;
     const receiptDescription = parsed?.receipt_description || "";
 
-    // Step 2: Check for duplicate transaction (if we have past data)
-    let isDuplicate = false;
-    let duplicateRef: string | undefined;
-
-    if (supabase && userEmail && receiptDescription) {
-      const pastDescriptions = await findPastReceiptDescriptions(supabase, userEmail);
-
-      if (pastDescriptions.length > 0) {
-        const similarityPrompt = `Compare these two GCash receipt descriptions and answer ONLY with a JSON: {"is_duplicate": true/false, "reason": "..."}
-
-Previous receipt: "${pastDescriptions[0]}"
-Current receipt: "${receiptDescription}"
-
-Rules:
-- is_duplicate: true if they describe the same transaction (same amount, same recipient, same time period)
-- false if they are clearly different transactions
-- Consider slight wording differences but matching amounts + recipient as duplicates`;
-
-        const similarityResult = await callVisionModel(base64, mimeType, similarityPrompt);
-        const similarityParsed = tryParseJSON(similarityResult);
-        isDuplicate = similarityParsed?.is_duplicate === true;
-        duplicateRef = similarityParsed?.reason;
-      }
-    }
+    // NOTE: A previous implementation compared the current receipt's text
+    // description against past `receipt_description` strings using the vision
+    // model and set `isDuplicate` from that comparison. This was unreliable:
+    // the model only sees the current image (not the prior receipt), so it
+    // guessed based on wording similarity alone — producing false-positive
+    // "Duplicate transaction detected" rejections on legitimate resubmissions.
+    //
+    // True duplicate detection is handled authoritatively by the
+    // receipt-hash DB lookup in each API route
+    // (`findActiveDuplicateReceiptRecord`), which runs BEFORE the AI verifier
+    // and respects transaction status. The AI verifier's job here is amount
+    // extraction + AI-generated-image detection only.
+    const isDuplicate = false;
+    const duplicateRef: string | undefined = undefined;
 
     // Build the result
     const result: VerificationResult = {

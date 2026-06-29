@@ -5,7 +5,7 @@ import { syncBackupAdminClients } from "@/utils/supabase/dual-db";
 import { getSupabaseServiceRoleKey, getSupabaseUrl } from "@/utils/env";
 import { getVipPlanById } from "@/utils/vip";
 import { sendVipSubscriptionNotification } from "@/lib/telegram";
-import { buildReceiptFileName, findDuplicateReceipt, hashReceiptFile } from "@/lib/receiptGuard";
+import { buildReceiptFileName, findActiveDuplicateReceiptRecord, hashReceiptFile } from "@/lib/receiptGuard";
 import { compressReceiptImage, bufferToDataUrl } from "@/utils/serverImageCompressor";
 
 const ALLOWED_VIP_TYPES = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp"]);
@@ -28,28 +28,6 @@ type VipWalletRpcRow = {
   subscription_id: string;
   new_balance: number | string;
 };
-
-async function findDuplicateReceiptRecord(adminClient: any, receiptHash: string) {
-  try {
-    const [orders, topups, vipSubscriptions] = await Promise.all([
-      adminClient.from("orders").select("id").eq("receipt_hash", receiptHash).limit(1),
-      adminClient.from("topups").select("id").eq("receipt_hash", receiptHash).limit(1),
-      adminClient.from("vip_subscriptions").select("id").eq("receipt_hash", receiptHash).limit(1),
-    ]);
-
-    const orderRows = orders.data as Array<{ id?: string }> | null;
-    const topupRows = topups.data as Array<{ id?: string }> | null;
-    const vipRows = vipSubscriptions.data as Array<{ id?: string }> | null;
-
-    if (orderRows?.length) return orderRows[0]?.id || "order";
-    if (topupRows?.length) return topupRows[0]?.id || "topup";
-    if (vipRows?.length) return vipRows[0]?.id || "vip";
-  } catch (error) {
-    console.warn("VIP receipt hash duplicate lookup skipped:", error);
-  }
-
-  return null;
-}
 
 export async function POST(req: NextRequest) {
   try {
@@ -200,8 +178,9 @@ export async function POST(req: NextRequest) {
 
     const safePlanSlug = String(selectedPlan.id).replace(/[^a-z0-9_]/gi, "_").toLowerCase();
     const receiptHash = await hashReceiptFile(receiptFile);
-    const duplicateReceipt = await findDuplicateReceipt(adminClient, receiptHash)
-      || await findDuplicateReceiptRecord(adminClient, receiptHash);
+    // Only block reuse when a prior transaction with this hash is still ACTIVE.
+    // Rejected/cancelled/failed subscriptions do not block resubmission.
+    const duplicateReceipt = await findActiveDuplicateReceiptRecord(adminClient, receiptHash);
 
     if (duplicateReceipt) {
       return NextResponse.json({

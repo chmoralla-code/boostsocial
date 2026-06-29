@@ -5,35 +5,13 @@ import { createClient as createServerClient } from "@/utils/supabase/server";
 import { enforceRateLimit } from "@/utils/security/rate-limit";
 import { isAdminEmail } from "@/utils/security/admin";
 import { resolveSmmServiceTitle } from "@/lib/smmServiceResolver";
-import { buildReceiptFileName, findDuplicateReceipt, hashReceiptFile } from "@/lib/receiptGuard";
+import { buildReceiptFileName, findActiveDuplicateReceiptRecord, hashReceiptFile } from "@/lib/receiptGuard";
 import { notifyCustomer } from "@/lib/customerNotifications";
 import { compressReceiptImage, bufferToDataUrl } from "@/utils/serverImageCompressor";
 import { syncBackupAdminClients } from "@/utils/supabase/dual-db";
 
 const MAX_RECEIPT_FILE_BYTES = 8 * 1024 * 1024;
 const ALLOWED_RECEIPT_TYPES = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp"]);
-
-async function findDuplicateReceiptRecord(supabase: any, receiptHash: string, orderId: string) {
-  try {
-    const [orders, topups, vipSubscriptions] = await Promise.all([
-      supabase.from("orders").select("id").eq("receipt_hash", receiptHash).neq("id", orderId).limit(1),
-      supabase.from("topups").select("id").eq("receipt_hash", receiptHash).limit(1),
-      supabase.from("vip_subscriptions").select("id").eq("receipt_hash", receiptHash).limit(1),
-    ]);
-
-    const orderRows = orders.data as Array<{ id?: string }> | null;
-    const topupRows = topups.data as Array<{ id?: string }> | null;
-    const vipRows = vipSubscriptions.data as Array<{ id?: string }> | null;
-
-    if (orderRows?.length) return orderRows[0]?.id || "order";
-    if (topupRows?.length) return topupRows[0]?.id || "topup";
-    if (vipRows?.length) return vipRows[0]?.id || "vip";
-  } catch (error) {
-    console.warn("Receipt hash duplicate lookup skipped:", error);
-  }
-
-  return null;
-}
 
 async function updateOrderReceipt(
   supabase: any,
@@ -138,8 +116,10 @@ export async function POST(req: NextRequest) {
 
     const email = orderData?.customer_email ? orderData.customer_email.trim() : "unknown";
     const receiptHash = await hashReceiptFile(file);
-    const duplicateReceipt = await findDuplicateReceipt(supabase, receiptHash, orderId)
-      || await findDuplicateReceiptRecord(supabase, receiptHash, orderId);
+    // Only block reuse when a prior transaction with this hash is still ACTIVE
+    // (pending/processing/completed/approved). Rejected/cancelled/failed rows do
+    // not block the customer — the payment was never consumed.
+    const duplicateReceipt = await findActiveDuplicateReceiptRecord(supabase, receiptHash, orderId);
 
     if (duplicateReceipt) {
       return NextResponse.json({
