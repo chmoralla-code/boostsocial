@@ -451,50 +451,12 @@ export async function POST(req: NextRequest) {
       if (!cheapest) {
         syncResults[key] = { success: false, error: "No suitable SMM service candidate found" };
 
-        const { data: dbService, error: fetchErr } = await supabase
-          .from("services")
-          .select("description")
-          .eq("id", config.dbId)
-          .maybeSingle();
-
-        if (!fetchErr && dbService) {
-          let descriptionObj: any = {};
-          try {
-            const parsed = parseDescription(dbService.description);
-            if (parsed) {
-              descriptionObj = parsed;
-            } else {
-              descriptionObj = { description: dbService.description };
-            }
-          } catch (e) {
-            descriptionObj = { description: dbService.description };
-          }
-
-          delete descriptionObj.smm_service_id;
-          delete descriptionObj.smm_original_rate;
-          delete descriptionObj.smm_markup_percent;
-          delete descriptionObj.smm_original_name;
-          delete descriptionObj.smm_min;
-          delete descriptionObj.smm_max;
-          delete descriptionObj.smm_average_time;
-
-          await supabase
-            .from("services")
-            .update({
-              description: JSON.stringify(descriptionObj)
-            })
-            .eq("id", config.dbId);
-
-          await syncBackupAdminClients(async (backupClient) => {
-            await backupClient
-              .from("services")
-              .update({
-                description: JSON.stringify(descriptionObj)
-              })
-              .eq("id", config.dbId);
-          }, "sync-smm candidate clear");
-        }
-
+        // PREVIOUS BEHAVIOR: cleared all smm_* fields from this service's
+        // description, wiping the last-good mapping. Now we PRESERVE the
+        // existing mapping so a temporary catalog gap (or a single service
+        // that lost its match) doesn't break ordering for that service.
+        // The DB row is left untouched; admin sees the "no candidate" error
+        // in syncResults and can fix the catalog mapping manually.
         continue;
       }
 
@@ -576,67 +538,18 @@ export async function POST(req: NextRequest) {
   } catch (err: any) {
     console.error("SMM Dynamic sync failed:", err);
 
-    // Make all core SMM services unavailable if the sync process fails
-    try {
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-      const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-      if (supabaseUrl && serviceRoleKey) {
-        const supabase = createClient(supabaseUrl, serviceRoleKey, {
-          auth: { persistSession: false }
-        });
-
-        console.log("Clearing all SMM service IDs from database because sync failed.");
-        for (const [key, config] of Object.entries(CORE_SERVICES)) {
-          const { data: dbService, error: fetchErr } = await supabase
-            .from("services")
-            .select("description")
-            .eq("id", config.dbId)
-            .maybeSingle();
-
-          if (!fetchErr && dbService) {
-            let descriptionObj: any = {};
-            try {
-              const parsed = parseDescription(dbService.description);
-              if (parsed) {
-                descriptionObj = parsed;
-              } else {
-                descriptionObj = { description: dbService.description };
-              }
-            } catch (e) {
-              descriptionObj = { description: dbService.description };
-            }
-
-            delete descriptionObj.smm_service_id;
-            delete descriptionObj.smm_original_rate;
-            delete descriptionObj.smm_markup_percent;
-            delete descriptionObj.smm_original_name;
-            delete descriptionObj.smm_min;
-            delete descriptionObj.smm_max;
-            delete descriptionObj.smm_average_time;
-
-            await supabase
-              .from("services")
-              .update({
-                description: JSON.stringify(descriptionObj)
-              })
-              .eq("id", config.dbId);
-
-            await syncBackupAdminClients(async (backupClient) => {
-              await backupClient
-                .from("services")
-                .update({
-                  description: JSON.stringify(descriptionObj)
-                })
-                .eq("id", config.dbId);
-            }, "sync-smm catch clear");
-          }
-        }
-        console.log("All core SMM services have been successfully marked unavailable in the DB.");
-      }
-    } catch (clearErr) {
-      console.error("Failed to clear SMM services inside failure handler:", clearErr);
-    }
-
+    // PREVIOUS BEHAVIOR (DATA LOSS BUG):
+    //   On any sync failure (RixeySMM API 400/500, network error, bad key),
+    //   this catch block DELETED every core service's smm_service_id,
+    //   smm_original_rate, smm_markup_percent, smm_original_name, smm_min,
+    //   smm_max, and smm_average_time from the database. A single failed
+    //   sync therefore wiped all service→SMM mappings — so the next order
+    //   for those services had no provider mapping and broke.
+    //
+    // NEW BEHAVIOR:
+    //   A failed sync must NEVER destroy existing valid mappings. We just
+    //   surface the error to the admin. The last-known-good mappings stay
+    //   in the DB until a successful sync replaces them.
     return NextResponse.json({ error: err.message || err.toString() }, { status: 500 });
   }
 }
