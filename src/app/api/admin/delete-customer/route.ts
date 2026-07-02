@@ -55,18 +55,30 @@ export async function POST(req: NextRequest) {
     if (user) {
       recordsFound = true;
       
-      // Delete from profiles first (just to be safe in case cascade isn't configured correctly)
-      await supabase.from("profiles").delete().eq("id", user.id);
+      // SOFT-DELETE the profile row (mark deleted_at) instead of hard-deleting it.
+      // Previously we did `profiles.delete().eq("id", user.id)` which destroyed the
+      // denormalized email/balance/referral_code/VIP — and the auth-user delete then
+      // CASCADE-deleted it anyway. Now we preserve the profile row for audit/recovery.
+      try {
+        await supabase
+          .from("profiles")
+          .update({ is_deleted: true, deleted_at: new Date().toISOString() })
+          .eq("id", user.id);
+      } catch (e) {
+        console.warn("Failed to soft-mark customer profile:", e);
+      }
       
-      // Delete from topups (just in case cascade isn't working)
-      await supabase.from("topups").delete().eq("user_id", user.id);
-
-      // Sync table deletions to backup databases
+      // Soft-mark on backup databases too (do NOT delete the profile row).
       await syncBackupAdminClients(async (backupClient) => {
-        const topupDelete = await backupClient.from("topups").delete().eq("user_id", user.id);
-        if (topupDelete.error) return topupDelete;
-        return backupClient.from("profiles").delete().eq("id", user.id);
-      }, "customer table deletion sync");
+        const profileMark = await backupClient
+          .from("profiles")
+          .update({ is_deleted: true, deleted_at: new Date().toISOString() })
+          .eq("id", user.id);
+        if (profileMark.error) return profileMark;
+        // Also anonymize this customer's topups? No — keep topups for audit,
+        // just mark the user gone.
+        return { error: null };
+      }, "customer profile soft-delete sync");
 
       // Hard-delete auth user from primary (shouldSoftDelete: false = permanent removal)
       const { error: deleteError } = await supabase.auth.admin.deleteUser(user.id, false);

@@ -263,35 +263,92 @@ export async function POST(req: NextRequest) {
     }
 
     if (existingUser) {
-      // If the user is soft-deleted or never confirmed their email, purge them so re-registration works
+      // If the user is soft-deleted or never confirmed their email, we previously
+      // purged the auth user + profile + topups so re-registration would work.
+      // That purge CASCADE-deleted the profiles row (via profiles_id_fkey
+      // ON DELETE CASCADE) and silently wiped the customer's email, wallet
+      // balance, referral_code, and VIP status — which then disappeared from
+      // the admin Customers directory.
+      //
+      // New behavior: NEVER destroy a profile that has real money, orders, or
+      // VIP attached. If the stale account is truly empty, allow re-registration.
+      // If it has any value, refuse and tell the user to sign in instead.
       const isSoftDeleted = !!(existingUser as any).deleted_at;
       const isUnconfirmed = !(existingUser as any).email_confirmed_at;
 
       if (isSoftDeleted || isUnconfirmed) {
-        console.log(`Found stale user ${cleanEmail} (softDeleted: ${isSoftDeleted}, unconfirmed: ${isUnconfirmed}). Purging before re-registration.`);
-        
-        // Hard-delete from primary
+        // Check for any existing profile balance, orders, or topups before purging.
+        let existingBalance = 0;
+        let existingOrderCount = 0;
+        let existingTopupCount = 0;
+        try {
+          const { data: existingProfile } = await primaryAdmin
+            .from("profiles")
+            .select("balance")
+            .eq("id", existingUser.id)
+            .maybeSingle();
+          existingBalance = Number(existingProfile?.balance) || 0;
+        } catch (e) {
+          console.warn("Failed to read existing profile balance before purge:", e);
+        }
+        try {
+          const { count } = await primaryAdmin
+            .from("orders")
+            .select("id", { count: "exact", head: true })
+            .eq("customer_email", cleanEmail);
+          existingOrderCount = count ?? 0;
+        } catch (e) {
+          console.warn("Failed to count existing orders before purge:", e);
+        }
+        try {
+          const { count } = await primaryAdmin
+            .from("topups")
+            .select("id", { count: "exact", head: true })
+            .eq("user_id", existingUser.id);
+          existingTopupCount = count ?? 0;
+        } catch (e) {
+          console.warn("Failed to count existing topups before purge:", e);
+        }
+
+        const hasValue = existingBalance > 0 || existingOrderCount > 0 || existingTopupCount > 0;
+
+        if (hasValue) {
+          // This account has real money/history — do NOT purge. Tell the user
+          // to sign in and verify instead, so we never silently destroy data.
+          return NextResponse.json({
+            error: "This email is already linked to an account with wallet balance or order history. Please sign in instead, or contact support to recover access. 🔒"
+          }, { status: 400 });
+        }
+
+        console.log(`Found empty stale user ${cleanEmail} (softDeleted: ${isSoftDeleted}, unconfirmed: ${isUnconfirmed}). Purging auth user only; profile row preserved via soft-delete.`);
+
+        // Soft-mark the profile so it survives the auth-user hard delete
+        // (the migration drops the profiles_id_fkey cascade entirely, so
+        // the profile row is never auto-deleted anymore; we mark it for
+        // auditability). We do NOT delete the profile row.
+        try {
+          await primaryAdmin
+            .from("profiles")
+            .update({ is_deleted: true, deleted_at: new Date().toISOString() })
+            .eq("id", existingUser.id);
+        } catch (e) {
+          console.warn("Failed to soft-mark stale profile:", e);
+        }
+
+        // Hard-delete from primary auth only (profile row is preserved).
         try {
           await primaryAdmin.auth.admin.deleteUser(existingUser.id, false);
         } catch (e) {
-          console.warn("Failed to hard-delete stale user from primary:", e);
+          console.warn("Failed to hard-delete stale auth user from primary:", e);
         }
 
-        // Hard-delete from all backup databases
+        // Hard-delete auth user from all backup databases (profile rows stay).
         for (const backup of getBackupAdminClients()) {
           try {
             await backup.client.auth.admin.deleteUser(existingUser.id, false);
           } catch (e) {
-            console.warn(`Failed to hard-delete stale user from ${backup.displayName}:`, e);
+            console.warn(`Failed to hard-delete stale auth user from ${backup.displayName}:`, e);
           }
-        }
-
-        // Also clean up any leftover profile/topup records
-        try {
-          await primaryAdmin.from("profiles").delete().eq("id", existingUser.id);
-          await primaryAdmin.from("topups").delete().eq("user_id", existingUser.id);
-        } catch (e) {
-          console.warn("Failed to clean up stale user tables:", e);
         }
 
         existingUser = null; // Clear so registration proceeds

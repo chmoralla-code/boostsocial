@@ -22,18 +22,28 @@ export async function POST(req: NextRequest) {
     // Filter out admin account
     const usersToDelete = listData.users.filter(u => u.email && u.email.trim().toLowerCase() !== "admin@boostsocial.com");
 
-    // 2. Delete each user
+    // 2. Delete each user's auth account, but SOFT-mark the profile so the
+    //    email/balance/referral history survives for audit + recovery.
+    //    (Previously we hard-deleted profiles + topups, which CASCADE-wiped
+    //    the profiles row and the denormalized email/balance — unrecoverable.)
     for (const user of usersToDelete) {
-      // Delete profiles, topups
-      await supabase.from("profiles").delete().eq("id", user.id);
-      await supabase.from("topups").delete().eq("user_id", user.id);
+      // Soft-mark the profile row (do NOT delete it)
+      try {
+        await supabase
+          .from("profiles")
+          .update({ is_deleted: true, deleted_at: new Date().toISOString() })
+          .eq("id", user.id);
+      } catch (e) {
+        console.warn(`Failed to soft-mark profile for ${user.email}:`, e);
+      }
 
-      // Sync table deletions to backup databases
+      // Sync soft-mark to backup databases (do NOT delete profile rows)
       await syncBackupAdminClients(async (backupClient) => {
-        const topupDelete = await backupClient.from("topups").delete().eq("user_id", user.id);
-        if (topupDelete.error) return topupDelete;
-        return backupClient.from("profiles").delete().eq("id", user.id);
-      }, "bulk customer table deletion sync");
+        return backupClient
+          .from("profiles")
+          .update({ is_deleted: true, deleted_at: new Date().toISOString() })
+          .eq("id", user.id);
+      }, "bulk customer profile soft-delete sync");
       
       // Hard-delete auth user from primary
       const { error: deleteError } = await supabase.auth.admin.deleteUser(user.id, false);
