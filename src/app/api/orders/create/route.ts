@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { after, NextRequest, NextResponse } from "next/server";
 import { dualWrite, ensureOrdersSchema, hasServiceTitleColumn } from "@/utils/supabase/dual-db";
 import { createClient as createServerClient } from "@/utils/supabase/server";
 import { enforceRateLimit } from "@/utils/security/rate-limit";
@@ -80,20 +80,22 @@ export async function POST(req: NextRequest) {
       auth: { persistSession: false },
     });
 
-    const pricing = await resolveOrderPricing({
-      client: adminClient,
-      serviceId,
-      quantity,
-      targetUrl,
-      requestedSmmServiceId: smmServiceId,
-    });
+    const [pricing, profileResult] = await Promise.all([
+      resolveOrderPricing({
+        client: adminClient,
+        serviceId,
+        quantity,
+        targetUrl,
+        requestedSmmServiceId: smmServiceId,
+      }),
+      adminClient
+        .from("profiles")
+        .select("vip_plan, vip_expires_at")
+        .eq("id", user.id)
+        .single(),
+    ]);
 
-    const { data: profileData } = await adminClient
-      .from("profiles")
-      .select("vip_plan, vip_expires_at")
-      .eq("id", user.id)
-      .single();
-
+    const profileData = profileResult.data;
     const regularAmount = pricing.regularAmount;
     const adjustedSummary = getVipDiscountSummary(profileData || null, regularAmount);
     const finalAmount = adjustedSummary.finalAmount;
@@ -122,55 +124,73 @@ export async function POST(req: NextRequest) {
       vip_discount_amount: adjustedSummary.savingsAmount,
     };
 
-    let { error, databaseUsed } = await dualWrite(async (dbClient) => {
+    const writeOpts = { deferBackupSync: true as const };
+    let writeResult = await dualWrite(async (dbClient) => {
       return dbClient
         .from("orders")
         .insert([vipPayload])
         .select("id")
         .single();
-    });
+    }, writeOpts);
+
+    let { error, databaseUsed, deferredBackupSync } = writeResult;
 
     if (error && looksLikeMissingVipSchema(error)) {
-      const fallback = await dualWrite(async (dbClient) => {
+      writeResult = await dualWrite(async (dbClient) => {
         return dbClient
           .from("orders")
           .insert([basePayload])
           .select("id")
           .single();
-      });
-      error = fallback.error;
-      databaseUsed = fallback.databaseUsed;
+      }, writeOpts);
+      error = writeResult.error;
+      databaseUsed = writeResult.databaseUsed;
+      deferredBackupSync = writeResult.deferredBackupSync;
     }
 
     if (error && looksLikeMissingServiceTitle(error)) {
       const strippedBase = { ...basePayload } as Omit<typeof basePayload, "service_title">;
       delete (strippedBase as Record<string, unknown>).service_title;
-      const strippedVipPayload = { ...strippedBase, original_amount: regularAmount, vip_plan: adjustedSummary.plan ? adjustedSummary.plan.id : null, vip_discount_percent: adjustedSummary.discountPercent, vip_discount_amount: adjustedSummary.savingsAmount };
-      const fallback = await dualWrite(async (dbClient) => {
+      const strippedVipPayload = {
+        ...strippedBase,
+        original_amount: regularAmount,
+        vip_plan: adjustedSummary.plan ? adjustedSummary.plan.id : null,
+        vip_discount_percent: adjustedSummary.discountPercent,
+        vip_discount_amount: adjustedSummary.savingsAmount,
+      };
+      writeResult = await dualWrite(async (dbClient) => {
         return dbClient
           .from("orders")
           .insert([strippedVipPayload])
           .select("id")
           .single();
-      });
-      if (fallback.error && looksLikeMissingVipSchema(fallback.error)) {
-        const fallback2 = await dualWrite(async (dbClient) => {
+      }, writeOpts);
+      if (writeResult.error && looksLikeMissingVipSchema(writeResult.error)) {
+        writeResult = await dualWrite(async (dbClient) => {
           return dbClient
             .from("orders")
             .insert([strippedBase])
             .select("id")
             .single();
-        });
-        error = fallback2.error;
-        databaseUsed = fallback2.databaseUsed;
-      } else {
-        error = fallback.error;
-        databaseUsed = fallback.databaseUsed;
+        }, writeOpts);
       }
+      error = writeResult.error;
+      databaseUsed = writeResult.databaseUsed;
+      deferredBackupSync = writeResult.deferredBackupSync;
     }
 
     if (error) {
       throw error;
+    }
+
+    if (deferredBackupSync) {
+      after(async () => {
+        try {
+          await deferredBackupSync();
+        } catch (syncErr) {
+          console.error("Deferred order create backup sync failed:", syncErr);
+        }
+      });
     }
 
     return NextResponse.json({

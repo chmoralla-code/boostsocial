@@ -443,6 +443,7 @@ class SpyQueryBuilder {
 
 let schemaEnsured = false;
 let supabaseSchemaChecked = false;
+let serviceTitleColumnCached: boolean | null = null;
 
 /**
  * Ensures the `service_title` column exists on the DigitalOcean `orders` table.
@@ -489,8 +490,13 @@ export async function ensureOrdersSchema() {
  * Returns true if the `service_title` column is known to be missing on any
  * configured Supabase database. When true, callers should omit `service_title`
  * from insert payloads to avoid "column does not exist" errors.
+ * Result is cached for the process lifetime after the first probe.
  */
 export async function hasServiceTitleColumn(): Promise<boolean> {
+  if (serviceTitleColumnCached !== null) {
+    return serviceTitleColumnCached;
+  }
+
   await ensureOrdersSchema();
   const backups = getBackupAdminClients();
   for (const backup of backups) {
@@ -500,6 +506,7 @@ export async function hasServiceTitleColumn(): Promise<boolean> {
         .select("service_title")
         .limit(1);
       if (error && /column.*service_title.*does not exist/i.test(error.message)) {
+        serviceTitleColumnCached = false;
         return false;
       }
     } catch {
@@ -507,6 +514,7 @@ export async function hasServiceTitleColumn(): Promise<boolean> {
       // unnecessarily degrading functionality.
     }
   }
+  serviceTitleColumnCached = true;
   return true;
 }
 
@@ -554,45 +562,70 @@ export async function syncBackupAdminClients(
 /**
  * Executes a write operation on primary (DigitalOcean) and every configured backup.
  * If primary fails, the first successful backup keeps the request operational.
+ *
+ * Pass `{ deferBackupSync: true }` to return as soon as the primary write succeeds
+ * and get a `deferredBackupSync` callback to run inside Next.js `after()`.
  */
 export async function dualWrite<T = any>(
-  operation: (client: any) => Promise<{ data: T | null; error: any }>
-): Promise<{ data: T | null; error: any; databaseUsed: DatabaseUsed }> {
+  operation: (client: any) => Promise<{ data: T | null; error: any }>,
+  options?: { deferBackupSync?: boolean }
+): Promise<{
+  data: T | null;
+  error: any;
+  databaseUsed: DatabaseUsed;
+  deferredBackupSync?: () => Promise<void>;
+}> {
   const sqlDo = getDigitalOceanSql();
   const backups = getBackupAdminClients();
 
-  // 1. Write to DigitalOcean and Supabase backups in parallel.
-  // Even if DO hangs, Supabase still completes and the order succeeds.
   const doClient = {
     from: (table: string) => new SpyQueryBuilder(table, null, sqlDo),
   };
 
-  const backupWrites = backups.map(async (backup) => {
-    try {
-      const backupSpy = {
-        from: (table: string) => new SpyQueryBuilder(table, backup.client, null),
-      };
-      const res = await operation(backupSpy);
-      return { label: backup.label, data: res.data, error: res.error };
-    } catch (err: any) {
-      return { label: backup.label, data: null, error: err };
-    }
-  });
+  const runBackupWrites = () =>
+    Promise.all(
+      backups.map(async (backup) => {
+        try {
+          const backupSpy = {
+            from: (table: string) => new SpyQueryBuilder(table, backup.client, null),
+          };
+          const res = await operation(backupSpy);
+          return { label: backup.label, data: res.data, error: res.error };
+        } catch (err: any) {
+          return { label: backup.label, data: null, error: err };
+        }
+      })
+    );
 
-  const doWrite = (async () => {
-    try {
-      const res = await operation(doClient);
-      return { data: res.data, error: res.error };
-    } catch (err: any) {
-      return { data: null, error: err };
-    }
-  })();
+  let doResult: { data: T | null; error: any };
+  try {
+    const res = await operation(doClient);
+    doResult = { data: res.data, error: res.error };
+  } catch (err: any) {
+    doResult = { data: null, error: err };
+  }
 
-  const [doResult, ...backupResults] = await Promise.all([doWrite, ...backupWrites]);
   const primaryResult = doResult.data;
   const primaryError = doResult.error;
 
   if (!primaryError) {
+    if (options?.deferBackupSync && backups.length > 0) {
+      return {
+        data: primaryResult,
+        error: null,
+        databaseUsed: "primary",
+        deferredBackupSync: async () => {
+          const backupResults = await runBackupWrites();
+          for (const result of backupResults) {
+            if (result.error) {
+              console.error(`Deferred dualWrite backup sync failed (${result.label}):`, result.error);
+            }
+          }
+        },
+      };
+    }
+
+    const backupResults = await runBackupWrites();
     const allBackupsSynced = backupResults.every((result) => !result.error);
     return {
       data: primaryResult,
@@ -603,6 +636,7 @@ export async function dualWrite<T = any>(
 
   console.warn("DigitalOcean primary database write failed. Falling back to Supabase backups:", primaryError.message || primaryError);
 
+  const backupResults = await runBackupWrites();
   const successfulBackup = backupResults.find((result) => !result.error);
   if (successfulBackup) {
     return {

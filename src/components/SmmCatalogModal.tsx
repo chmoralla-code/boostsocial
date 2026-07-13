@@ -127,6 +127,10 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [receiptCompressState, setReceiptCompressState] = useState<CompressResult | null>(null);
   const [receiptCompressProgress, setReceiptCompressProgress] = useState(0);
+  const [submitStage, setSubmitStage] = useState("");
+  const [receiptUploadPending, setReceiptUploadPending] = useState(false);
+  const [receiptUploadError, setReceiptUploadError] = useState("");
+  const [pendingReceiptFile, setPendingReceiptFile] = useState<File | null>(null);
 
   useEffect(() => {
     if (checkoutStep === "success") {
@@ -351,6 +355,60 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
     : false;
 
   // Manual GCash submission
+  const uploadReceiptForOrder = async (file: File, createdOrderId: string) => {
+    setReceiptUploadPending(true);
+    setReceiptUploadError("");
+    setSubmitStage("Compressing receipt...");
+    setReceiptCompressState(null);
+    setReceiptCompressProgress(0.1);
+
+    try {
+      const compressedReceiptResult = await compressImageWithStats(file, {
+        onProgress: (p) => {
+          setReceiptCompressProgress(
+            p.stage === "loading" ? 0.2 : p.stage === "resizing" ? 0.45 : p.stage === "encoding" ? 0.7 : 0.95
+          );
+        },
+      });
+      setReceiptCompressState(compressedReceiptResult);
+      setReceiptCompressProgress(1);
+      setSubmitStage("Uploading receipt...");
+
+      const receiptFormData = new FormData();
+      receiptFormData.append("file", compressedReceiptResult.file);
+      receiptFormData.append("orderId", createdOrderId);
+
+      const uploadRes = await fetch("/api/upload-receipt", {
+        method: "POST",
+        body: receiptFormData,
+      });
+
+      if (!uploadRes.ok) {
+        const errData = await uploadRes.json();
+        throw new Error(errData.error || "Failed to upload payment receipt screenshot.");
+      }
+
+      setPendingReceiptFile(null);
+      setSubmitStage("");
+    } catch (uploadReceiptErr: any) {
+      console.error("Receipt upload failed:", uploadReceiptErr);
+      setReceiptUploadError(uploadReceiptErr.message || "Failed to upload payment receipt file.");
+      setSubmitStage("");
+      throw uploadReceiptErr;
+    } finally {
+      setReceiptUploadPending(false);
+    }
+  };
+
+  const handleRetryReceiptUpload = async () => {
+    if (!orderId || !pendingReceiptFile) return;
+    try {
+      await uploadReceiptForOrder(pendingReceiptFile, orderId);
+    } catch {
+      // Error already stored
+    }
+  };
+
   const handleSubmitGcash = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedService) return;
@@ -370,9 +428,12 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
     }
 
     const finalQuantity = Math.max(quantity, selectedService.min);
+    const receiptToUpload = receiptFile;
 
     setIsSubmitting(true);
     setError("");
+    setReceiptUploadError("");
+    setSubmitStage("Creating order...");
 
     try {
       const createRes = await fetch("/api/orders/create", {
@@ -394,48 +455,16 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
       const insertData = { id: createData.orderId || createData.data?.id };
       if (!insertData.id) throw new Error("Order was created without a tracking ID.");
 
-      // Compress and upload receipt
-      try {
-        setReceiptCompressState(null);
-        setReceiptCompressProgress(0.1);
-        const compressedReceiptResult = await compressImageWithStats(receiptFile, {
-          onProgress: (p) => {
-            setReceiptCompressProgress(
-              p.stage === "loading" ? 0.2 : p.stage === "resizing" ? 0.45 : p.stage === "encoding" ? 0.7 : 0.95
-            );
-          },
-        });
-        setReceiptCompressState(compressedReceiptResult);
-        setReceiptCompressProgress(1);
-
-        const receiptFormData = new FormData();
-        receiptFormData.append("file", compressedReceiptResult.file);
-        receiptFormData.append("orderId", insertData.id);
-        
-        const uploadRes = await fetch("/api/upload-receipt", {
-          method: "POST",
-          body: receiptFormData
-        });
-        
-        if (!uploadRes.ok) {
-          const errData = await uploadRes.json();
-          throw new Error(errData.error || "Failed to upload payment receipt screenshot.");
-        }
-      } catch (uploadReceiptErr: any) {
-        console.error("Receipt upload failed:", uploadReceiptErr);
-        throw new Error(uploadReceiptErr.message || "Failed to upload payment receipt file.");
-      }
-
       setOrderId(insertData.id);
       setIsWalletPayment(false);
       setCheckoutStep("success");
-      
+      setPendingReceiptFile(receiptToUpload);
       if (typeof window !== "undefined") {
         localStorage.setItem("last_order_id", insertData.id);
         localStorage.setItem("last_order_email", email.trim());
       }
+      setIsSubmitting(false);
 
-      // Fire Telegram notification (non-blocking)
       fetch("/api/notify-order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -450,10 +479,15 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
         }),
       }).catch(() => {});
 
+      try {
+        await uploadReceiptForOrder(receiptToUpload, insertData.id);
+      } catch {
+        // Tracking ID already shown
+      }
     } catch (err: any) {
       setError(err.message || "Failed to place order.");
-    } finally {
       setIsSubmitting(false);
+      setSubmitStage("");
     }
   };
 
@@ -1097,7 +1131,7 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
                     {isSubmitting ? (
                       <>
                         <Loader2 size={14} className="animate-spin" />
-                        {receiptCompressProgress > 0 && receiptCompressProgress < 1 ? "Compressing..." : "Submitting..."}
+                        {submitStage || (receiptCompressProgress > 0 && receiptCompressProgress < 1 ? "Compressing..." : "Submitting...")}
                       </>
                     ) : (
                       "Place Boost Order"
@@ -1134,6 +1168,32 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
                   {copied ? <Check size={16} className="text-[#1DB954]" /> : <Copy size={16} />}
                 </button>
               </div>
+
+              {(receiptUploadPending || submitStage || receiptUploadError) && !isWalletPayment && (
+                <div className={`text-left rounded-xl border p-3 space-y-2 ${receiptUploadError ? "border-red-500/30 bg-red-500/10" : "border-[#1DB954]/25 bg-[#1DB954]/10"}`}>
+                  {receiptUploadPending || submitStage ? (
+                    <p className="text-[11px] font-bold text-fg flex items-center gap-2">
+                      <Loader2 size={14} className="animate-spin text-[#1DB954]" />
+                      {submitStage || "Finishing receipt upload..."}
+                    </p>
+                  ) : null}
+                  {receiptUploadError ? (
+                    <>
+                      <p className="text-[11px] font-semibold text-red-300">{receiptUploadError}</p>
+                      {pendingReceiptFile ? (
+                        <button
+                          type="button"
+                          onClick={handleRetryReceiptUpload}
+                          disabled={receiptUploadPending}
+                          className="w-full rounded-lg bg-[#1DB954] px-3 py-2 text-[10px] font-black uppercase tracking-wider text-black disabled:opacity-50"
+                        >
+                          Retry receipt upload
+                        </button>
+                      ) : null}
+                    </>
+                  ) : null}
+                </div>
+              )}
 
               {isWalletPayment ? (
                 <div className="bg-[#1DB954]/5 border border-[#1DB954]/20 p-4 rounded-xl text-left space-y-2 text-xs font-semibold text-fg">

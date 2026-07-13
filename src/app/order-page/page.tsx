@@ -84,6 +84,9 @@ export default function OrderPage() {
   const [successOrderId, setSuccessOrderId] = useState("");
   const [copied, setCopied] = useState(false);
   const [showTopUp, setShowTopUp] = useState(false);
+  const [postCreateStatus, setPostCreateStatus] = useState("");
+  const [receiptUploadError, setReceiptUploadError] = useState("");
+  const [pendingReceiptFile, setPendingReceiptFile] = useState<File | null>(null);
 
   const followerUnitPrice = facebookFollowerService?.startingPrice || FALLBACK_FOLLOWER_PRICE;
   const minFollowers = facebookFollowerService?.min || FALLBACK_MIN;
@@ -330,6 +333,18 @@ export default function OrderPage() {
       const order = { id: createData.orderId || createData.data?.id };
       if (!order.id) throw new Error("Order was created without a tracking ID.");
 
+      const receiptToUpload = receiptFile;
+      setSuccessOrderId(order.id);
+      setPendingReceiptFile(receiptToUpload);
+      setReceiptUploadError("");
+      setIsSubmitting(false);
+
+      if (typeof window !== "undefined") {
+        localStorage.setItem("last_order_id", order.id);
+        localStorage.setItem("last_order_email", email.trim());
+      }
+
+      setPostCreateStatus("Uploading page assets...");
       const [profileUrl, coverUrl] = await Promise.all([
         uploadAsset(profilePhoto, order.id, "profile"),
         uploadAsset(coverPhoto, order.id, "cover")
@@ -347,20 +362,23 @@ export default function OrderPage() {
       });
       if (!targetRes.ok) {
         const targetData = await targetRes.json();
-        throw new Error(targetData.error || "Failed to save page order details.");
+        setReceiptUploadError(targetData.error || "Failed to save page order details.");
       }
 
-      if (receiptFile) await uploadReceipt(receiptFile, order.id);
+      if (receiptToUpload) {
+        setPostCreateStatus("Uploading receipt...");
+        try {
+          await uploadReceipt(receiptToUpload, order.id);
+          setPendingReceiptFile(null);
+        } catch (receiptErr: unknown) {
+          setReceiptUploadError(getErrorMessage(receiptErr) || "Failed to upload payment receipt.");
+        }
+      }
 
-      setSuccessOrderId(order.id);
       setProfilePhoto(null);
       setCoverPhoto(null);
       setReceiptFile(null);
-
-      if (typeof window !== "undefined") {
-        localStorage.setItem("last_order_id", order.id);
-        localStorage.setItem("last_order_email", email.trim());
-      }
+      setPostCreateStatus("");
 
       fetch("/api/notify-order", {
         method: "POST",
@@ -379,6 +397,7 @@ export default function OrderPage() {
       setError(getErrorMessage(err) || "Failed to submit custom page order.");
     } finally {
       setIsSubmitting(false);
+      setPostCreateStatus("");
     }
   };
 
@@ -425,6 +444,37 @@ export default function OrderPage() {
                   {copied ? <Check size={16} className="text-[#1DB954]" /> : <Copy size={16} />}
                 </button>
               </div>
+              {(postCreateStatus || receiptUploadError) && (
+                <div className={`mt-4 rounded-2xl border p-3 text-left text-xs font-semibold ${receiptUploadError ? "border-red-500/30 bg-red-500/10 text-red-200" : "border-[#1DB954]/25 bg-[#1DB954]/10 text-slate-200"}`}>
+                  {postCreateStatus ? (
+                    <p className="flex items-center gap-2">
+                      <Loader2 size={14} className="animate-spin text-[#1DB954]" />
+                      {postCreateStatus}
+                    </p>
+                  ) : null}
+                  {receiptUploadError ? <p className="mt-1">{receiptUploadError}</p> : null}
+                  {receiptUploadError && pendingReceiptFile ? (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          setReceiptUploadError("");
+                          setPostCreateStatus("Uploading receipt...");
+                          await uploadReceipt(pendingReceiptFile, successOrderId);
+                          setPendingReceiptFile(null);
+                          setPostCreateStatus("");
+                        } catch (err: unknown) {
+                          setReceiptUploadError(getErrorMessage(err) || "Failed to upload payment receipt.");
+                          setPostCreateStatus("");
+                        }
+                      }}
+                      className="mt-2 w-full rounded-full bg-[#1DB954] px-4 py-2 text-[10px] font-black uppercase tracking-wider text-black"
+                    >
+                      Retry receipt upload
+                    </button>
+                  ) : null}
+                </div>
+              )}
               <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <Link
                   href={`/?track=${successOrderId}`}

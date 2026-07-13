@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { after, NextRequest, NextResponse } from "next/server";
 import { getPrimaryAdminClient, syncBackupAdminClients } from "@/utils/supabase/dual-db";
 import { createClient as createServerClient } from "@/utils/supabase/server";
 import { isAdminEmail } from "@/utils/security/admin";
@@ -77,12 +77,14 @@ export async function POST(req: NextRequest) {
       throw updateError;
     }
 
-    await syncBackupAdminClients(async (backupClient) => {
-      return backupClient
-        .from("orders")
-        .update(update)
-        .eq("id", cleanOrderId);
-    }, "order target details sync");
+    after(async () => {
+      await syncBackupAdminClients(async (backupClient) => {
+        return backupClient
+          .from("orders")
+          .update(update)
+          .eq("id", cleanOrderId);
+      }, "order target details sync");
+    });
 
     if (order.status === "Processing" && !order.external_order_id && order.smm_service_id) {
       autoPlaceRixeyOrder(cleanOrderId, order.service_id, cleanTargetUrl, Number(order.quantity || 0)).catch((err) => {

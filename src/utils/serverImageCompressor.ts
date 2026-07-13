@@ -40,13 +40,25 @@ export async function compressReceiptImage(
   const initialQuality = options?.quality ?? RECEIPT_QUALITY;
 
   const inputBuffer = Buffer.from(await file.arrayBuffer());
-  const contentType = (file as File).type || "";
+  const contentType = ((file as File).type || "").toLowerCase();
 
   if (!contentType.startsWith("image/")) {
     return {
       buffer: inputBuffer,
       mimeType: contentType || "application/octet-stream",
       extension: extensionForContentType(contentType),
+    };
+  }
+
+  // Skip Sharp when the client already sent a compact JPEG under the target size.
+  if (
+    (contentType === "image/jpeg" || contentType === "image/jpg") &&
+    inputBuffer.byteLength <= targetBytes
+  ) {
+    return {
+      buffer: inputBuffer,
+      mimeType: "image/jpeg",
+      extension: "jpg",
     };
   }
 

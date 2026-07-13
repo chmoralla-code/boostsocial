@@ -29,7 +29,12 @@ export type SmmCatalogService = {
 };
 
 let cachedServices: SmmCatalogService[] | null = null;
+let cachedServicesById: Map<string, SmmCatalogService> | null = null;
 let lastFetchTime = 0;
+
+function indexServicesById(services: SmmCatalogService[]) {
+  cachedServicesById = new Map(services.map((service) => [String(service.id), service]));
+}
 
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
@@ -116,7 +121,7 @@ export async function getSmmCatalogServices() {
   if (!apiKey) return getFallbackCatalog(markupMultiplier);
 
   const now = Date.now();
-  if (cachedServices && now - lastFetchTime < CACHE_TTL) {
+  if (cachedServices && cachedServicesById && now - lastFetchTime < CACHE_TTL) {
     return { services: cachedServices, source: "memory_cache" };
   }
 
@@ -135,17 +140,28 @@ export async function getSmmCatalogServices() {
     if (!Array.isArray(services)) throw new Error("Invalid response format from RixeySMM API");
 
     cachedServices = services.map((s: RixeyService) => processRixeyService(s, markupMultiplier)).filter(Boolean) as SmmCatalogService[];
+    indexServicesById(cachedServices);
     lastFetchTime = now;
     return { services: cachedServices, source: "rixeysmm" };
   } catch (error) {
     console.error("Failed fetching SMM services catalog:", error);
     const fallback = await getFallbackCatalog(markupMultiplier);
-    if (fallback.services.length > 0) return fallback;
+    if (fallback.services.length > 0) {
+      indexServicesById(fallback.services);
+      return fallback;
+    }
     throw new Error(`SMM services are currently unavailable. ${getErrorMessage(error)}`);
   }
 }
 
 export async function getSmmCatalogServiceById(serviceId: string | number) {
+  const id = String(serviceId);
+  if (cachedServicesById && Date.now() - lastFetchTime < CACHE_TTL) {
+    const hit = cachedServicesById.get(id);
+    if (hit) return hit;
+  }
+
   const { services } = await getSmmCatalogServices();
-  return services.find((service) => String(service.id) === String(serviceId)) || null;
+  if (!cachedServicesById) indexServicesById(services);
+  return cachedServicesById?.get(id) || null;
 }

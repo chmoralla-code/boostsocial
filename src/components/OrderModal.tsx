@@ -65,6 +65,10 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [receiptCompressState, setReceiptCompressState] = useState<CompressResult | null>(null);
   const [receiptCompressProgress, setReceiptCompressProgress] = useState(0);
+  const [submitStage, setSubmitStage] = useState("");
+  const [receiptUploadPending, setReceiptUploadPending] = useState(false);
+  const [receiptUploadError, setReceiptUploadError] = useState("");
+  const [pendingReceiptFile, setPendingReceiptFile] = useState<File | null>(null);
   const toggleReaction = (name: string) => {
     if (selectedReactions.includes(name)) {
       if (selectedReactions.length > 1) {
@@ -393,6 +397,60 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
 
 
 
+  const uploadReceiptForOrder = async (file: File, createdOrderId: string) => {
+    setReceiptUploadPending(true);
+    setReceiptUploadError("");
+    setSubmitStage("Compressing receipt...");
+    setReceiptCompressState(null);
+    setReceiptCompressProgress(0.1);
+
+    try {
+      const compressedReceiptResult = await compressImageWithStats(file, {
+        onProgress: (p) => {
+          setReceiptCompressProgress(
+            p.stage === "loading" ? 0.2 : p.stage === "resizing" ? 0.45 : p.stage === "encoding" ? 0.7 : 0.95
+          );
+        },
+      });
+      setReceiptCompressState(compressedReceiptResult);
+      setReceiptCompressProgress(1);
+      setSubmitStage("Uploading receipt...");
+
+      const receiptFormData = new FormData();
+      receiptFormData.append("file", compressedReceiptResult.file);
+      receiptFormData.append("orderId", createdOrderId);
+
+      const uploadRes = await fetch("/api/upload-receipt", {
+        method: "POST",
+        body: receiptFormData,
+      });
+
+      if (!uploadRes.ok) {
+        const errData = await uploadRes.json();
+        throw new Error(errData.error || "Failed to upload payment receipt file.");
+      }
+
+      setPendingReceiptFile(null);
+      setSubmitStage("");
+    } catch (uploadReceiptErr: any) {
+      console.error("Receipt upload failed:", uploadReceiptErr);
+      setReceiptUploadError(uploadReceiptErr.message || "Failed to upload payment receipt screenshot.");
+      setSubmitStage("");
+      throw uploadReceiptErr;
+    } finally {
+      setReceiptUploadPending(false);
+    }
+  };
+
+  const handleRetryReceiptUpload = async () => {
+    if (!orderId || !pendingReceiptFile) return;
+    try {
+      await uploadReceiptForOrder(pendingReceiptFile, orderId);
+    } catch {
+      // Error already stored in receiptUploadError
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!serviceId) return;
@@ -408,9 +466,12 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
     }
 
     const finalQuantity = Math.max(quantity, minQty);
+    const receiptToUpload = receiptFile;
 
     setIsSubmitting(true);
     setError("");
+    setReceiptUploadError("");
+    setSubmitStage("Creating order...");
 
     try {
       let tempUrl = url.trim();
@@ -441,77 +502,17 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
       const insertData = { id: createData.orderId || createData.data?.id };
       if (!insertData.id) throw new Error("Order was created without a tracking ID.");
 
-      // Upload Profile/Cover pictures if page service
-      let profileUrl = "N/A";
-      let coverUrl = "N/A";
-
-      if (isPageService) {
-        if (profilePic) {
-          profileUrl = await compressAndUploadAsset(profilePic, insertData.id, "profile");
-        }
-        if (coverPic) {
-          coverUrl = await compressAndUploadAsset(coverPic, insertData.id, "cover");
-        }
-
-        // Compile final target_url
-        const finalUrl = `Page Wants: [Name: ${desiredName.trim() || 'Any'}] [Category: ${pageCategory}] [Region: ${demographics}] [FB Admin: ${fbProfile.trim() || 'Any'}] [Profile Pic: ${profileUrl}] [Cover Pic: ${coverUrl}]${notes.trim() ? ` [Notes: ${notes.trim()}]` : ""}`;
-
-        const targetRes = await fetch("/api/orders/update-target", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            orderId: insertData.id,
-            targetUrl: finalUrl,
-            customerEmail: email.trim()
-          })
-        });
-        if (!targetRes.ok) {
-          const targetData = await targetRes.json();
-          throw new Error(targetData.error || "Failed to save page order details.");
-        }
-      }
-
-      // Compress and upload receipt after final page details are saved so Telegram reports show complete order data.
-      try {
-        setReceiptCompressState(null);
-        setReceiptCompressProgress(0.1);
-        const compressedReceiptResult = await compressImageWithStats(receiptFile, {
-          onProgress: (p) => {
-            setReceiptCompressProgress(
-              p.stage === "loading" ? 0.2 : p.stage === "resizing" ? 0.45 : p.stage === "encoding" ? 0.7 : 0.95
-            );
-          },
-        });
-        setReceiptCompressState(compressedReceiptResult);
-        setReceiptCompressProgress(1);
-
-        const receiptFormData = new FormData();
-        receiptFormData.append("file", compressedReceiptResult.file);
-        receiptFormData.append("orderId", insertData.id);
-
-        const uploadRes = await fetch("/api/upload-receipt", {
-          method: "POST",
-          body: receiptFormData
-        });
-
-        if (!uploadRes.ok) {
-          const errData = await uploadRes.json();
-          throw new Error(errData.error || "Failed to upload payment receipt file.");
-        }
-      } catch (uploadReceiptErr: any) {
-        console.error("Receipt upload failed:", uploadReceiptErr);
-        throw new Error(uploadReceiptErr.message || "Failed to upload payment receipt screenshot.");
-      }
-
+      // Show tracking ID immediately — do not wait for receipt upload.
       setOrderId(insertData.id);
       setIsWalletPayment(false);
       setSuccess(true);
+      setPendingReceiptFile(receiptToUpload);
       if (typeof window !== "undefined") {
         localStorage.setItem("last_order_id", insertData.id);
         localStorage.setItem("last_order_email", email.trim());
       }
+      setIsSubmitting(false);
 
-      // Fire Telegram notification (non-blocking)
       fetch("/api/notify-order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -525,10 +526,41 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
           details: tempUrl,
         }),
       }).catch(() => {});
+
+      // Finish page assets + receipt after tracking ID is visible.
+      if (isPageService) {
+        setSubmitStage("Uploading page assets...");
+        const [uploadedProfile, uploadedCover] = await Promise.all([
+          profilePic ? compressAndUploadAsset(profilePic, insertData.id, "profile") : Promise.resolve("N/A"),
+          coverPic ? compressAndUploadAsset(coverPic, insertData.id, "cover") : Promise.resolve("N/A"),
+        ]);
+
+        const finalUrl = `Page Wants: [Name: ${desiredName.trim() || 'Any'}] [Category: ${pageCategory}] [Region: ${demographics}] [FB Admin: ${fbProfile.trim() || 'Any'}] [Profile Pic: ${uploadedProfile}] [Cover Pic: ${uploadedCover}]${notes.trim() ? ` [Notes: ${notes.trim()}]` : ""}`;
+
+        const targetRes = await fetch("/api/orders/update-target", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            orderId: insertData.id,
+            targetUrl: finalUrl,
+            customerEmail: email.trim()
+          })
+        });
+        if (!targetRes.ok) {
+          const targetData = await targetRes.json();
+          setReceiptUploadError(targetData.error || "Failed to save page order details.");
+        }
+      }
+
+      try {
+        await uploadReceiptForOrder(receiptToUpload, insertData.id);
+      } catch {
+        // Tracking ID already shown; retry UI handles this.
+      }
     } catch (err: any) {
       setError(err.message || "Something went wrong.");
-    } finally {
       setIsSubmitting(false);
+      setSubmitStage("");
     }
   };
 
@@ -585,20 +617,27 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
         throw new Error(data.error || "Wallet checkout failed");
       }
 
-      // Upload Profile/Cover pictures if page service
-      let profileUrl = "N/A";
-      let coverUrl = "N/A";
+      setOrderId(data.orderId);
+      setIsWalletPayment(true);
+      setSuccess(true);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("last_order_id", data.orderId);
+        localStorage.setItem("last_order_email", user.email || "");
+      }
+      setProfile({ ...profile, balance: data.newBalance });
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("balance-update"));
+      }
+      setIsSubmitting(false);
 
       if (isPageService) {
-        if (profilePic) {
-          profileUrl = await compressAndUploadAsset(profilePic, data.orderId, "profile");
-        }
-        if (coverPic) {
-          coverUrl = await compressAndUploadAsset(coverPic, data.orderId, "cover");
-        }
+        setSubmitStage("Uploading page assets...");
+        const [uploadedProfile, uploadedCover] = await Promise.all([
+          profilePic ? compressAndUploadAsset(profilePic, data.orderId, "profile") : Promise.resolve("N/A"),
+          coverPic ? compressAndUploadAsset(coverPic, data.orderId, "cover") : Promise.resolve("N/A"),
+        ]);
 
-        // Compile final target_url
-        const finalUrl = `Page Wants: [Name: ${desiredName.trim() || 'Any'}] [Category: ${pageCategory}] [Region: ${demographics}] [FB Admin: ${fbProfile.trim() || 'Any'}] [Profile Pic: ${profileUrl}] [Cover Pic: ${coverUrl}]${notes.trim() ? ` [Notes: ${notes.trim()}]` : ""}`;
+        const finalUrl = `Page Wants: [Name: ${desiredName.trim() || 'Any'}] [Category: ${pageCategory}] [Region: ${demographics}] [FB Admin: ${fbProfile.trim() || 'Any'}] [Profile Pic: ${uploadedProfile}] [Cover Pic: ${uploadedCover}]${notes.trim() ? ` [Notes: ${notes.trim()}]` : ""}`;
 
         const targetRes = await fetch("/api/orders/update-target", {
           method: "POST",
@@ -611,26 +650,15 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
         });
         if (!targetRes.ok) {
           const targetData = await targetRes.json();
-          throw new Error(targetData.error || "Failed to save page order details.");
+          setReceiptUploadError(targetData.error || "Failed to save page order details.");
         }
-      }
-
-      setOrderId(data.orderId);
-      setIsWalletPayment(true);
-      setSuccess(true);
-      if (typeof window !== "undefined") {
-        localStorage.setItem("last_order_id", data.orderId);
-        localStorage.setItem("last_order_email", user.email || "");
-      }
-      setProfile({ ...profile, balance: data.newBalance });
-      if (typeof window !== "undefined") {
-        window.dispatchEvent(new Event("balance-update"));
+        setSubmitStage("");
       }
       
     } catch (err: any) {
       setError(err.message || "Something went wrong.");
-    } finally {
       setIsSubmitting(false);
+      setSubmitStage("");
     }
   };
 
@@ -684,6 +712,32 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                 <p className="text-base font-bold text-fg">Order Registered!</p>
                 <p className="text-[11px] text-muted mt-0.5">Please copy your Tracking ID for real-time support tracking:</p>
               </div>
+
+              {(receiptUploadPending || submitStage || receiptUploadError) && !isWalletPayment && (
+                <div className={`text-left rounded-xl border p-3 space-y-2 ${receiptUploadError ? "border-red-500/30 bg-red-500/10" : "border-[#1877F2]/25 bg-[#1877F2]/10"}`}>
+                  {receiptUploadPending || submitStage ? (
+                    <p className="text-[11px] font-bold text-fg flex items-center gap-2">
+                      <Loader2 size={14} className="animate-spin text-[#1877F2]" />
+                      {submitStage || "Finishing receipt upload..."}
+                    </p>
+                  ) : null}
+                  {receiptUploadError ? (
+                    <>
+                      <p className="text-[11px] font-semibold text-red-300">{receiptUploadError}</p>
+                      {pendingReceiptFile ? (
+                        <button
+                          type="button"
+                          onClick={handleRetryReceiptUpload}
+                          disabled={receiptUploadPending}
+                          className="w-full rounded-lg bg-[#1877F2] px-3 py-2 text-[10px] font-black uppercase tracking-wider text-white disabled:opacity-50"
+                        >
+                          Retry receipt upload
+                        </button>
+                      ) : null}
+                    </>
+                  ) : null}
+                </div>
+              )}
               
               <div className="space-y-3">
                 {/* Tracking ID (User Friendly) */}
@@ -1706,12 +1760,12 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                     disabled={isSubmitting || !isServiceAvailable}
                     className="w-full bg-[#1877F2]/20 hover:bg-[#1877F2]/30 border border-[#1877F2]/50 disabled:opacity-50 disabled:cursor-not-allowed text-[#1877F2] font-extrabold py-3.5 rounded-full transition-all duration-300 flex justify-center items-center gap-2 tracking-wider uppercase text-xs"
                   >
-                    {isSubmitting ? (
-                      <>
-                        <Loader2 className="animate-spin text-[#1877F2]" size={16} />
-                        {receiptCompressProgress > 0 && receiptCompressProgress < 1 ? "Compressing..." : "Submitting..."}
-                      </>
-                    ) : `Pay with Wallet (₱${formatPrice(payableTotal)})`}
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="animate-spin text-[#1877F2]" size={16} />
+                      {submitStage || (receiptCompressProgress > 0 && receiptCompressProgress < 1 ? "Compressing..." : "Submitting...")}
+                    </>
+                  ) : `Pay with Wallet (₱${formatPrice(payableTotal)})`}
                   </button>
                 )}
                 
@@ -1723,7 +1777,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                   {isSubmitting ? (
                     <>
                       <Loader2 className="animate-spin text-black" size={16} />
-                      {receiptCompressProgress > 0 && receiptCompressProgress < 1 ? "Compressing..." : "Submitting..."}
+                      {submitStage || (receiptCompressProgress > 0 && receiptCompressProgress < 1 ? "Compressing..." : "Submitting...")}
                     </>
                   ) : (hasWalletBalanceForOrder ? 'Pay via GCash Instead' : 'Place Order')}
                 </button>
