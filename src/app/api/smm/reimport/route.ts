@@ -1,10 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { createClient as createServerClient } from "@/utils/supabase/server";
+import { isAdminEmail } from "@/utils/security/admin";
 import { parseDescription } from "@/utils/serviceHelpers";
 import { syncBackupAdminClients } from "@/utils/supabase/dual-db";
 import { getMarkupMultiplier } from "@/lib/markupConfig";
 
 const RIXEYSMM_API_URL = "https://rixeysmm.shop/api/v2";
+
+async function isAdminRequest() {
+  const supabase = await createServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  return isAdminEmail(user?.email);
+}
 
 interface CoreServiceConfig {
   dbId: string;
@@ -87,6 +97,10 @@ function matchType(name: string, cat: string, config: CoreServiceConfig): boolea
 
 export async function POST(req: NextRequest) {
   try {
+    if (!(await isAdminRequest())) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const body = await req.json().catch(() => ({}));
     const providedApiKey = body.apiKey?.replace(/['"\r\n]/g, "").trim();
     const envApiKey = process.env.RIXEYSMM_API_KEY?.replace(/['"\r\n]/g, "").trim();

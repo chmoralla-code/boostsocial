@@ -32,6 +32,8 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+# ...but the placeholder template is safe to commit
+!.env.example
 
 # vercel
 .vercel
@@ -48,3 +50,19 @@ next-env.d.ts
 /qa
 dev-server*.log
 .env*.local
+
+# sensitive data exports (DB dumps / customer data) — never commit
+data-export.json
+*-data-export.json
+*.dump.json
+login_output.txt
+
+# customer receipts / uploads
+/receipts/
+*-receipt.*
+
+# debug/admin app builds — only the public customer APK may be committed
+*-debug.apk
+*-admin*.apk
+public/downloads/*-debug.apk
+public/downloads/*-admin*.apk

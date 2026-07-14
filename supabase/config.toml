@@ -234,7 +234,7 @@ enabled = true
 host = "smtp.resend.com"
 port = 465
 user = "resend"
-pass = "re_hDykSiph_NBT7jK2kZbp4QM7d2a8ciNga"
+pass = "env(RESEND_API_KEY)"
 admin_email = "noreply@pinoyboosting.com"
 sender_name = "CYNETWORK"
 

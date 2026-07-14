@@ -2,8 +2,12 @@ import postgres from 'postgres';
 import { writeFileSync } from 'fs';
 
 // Connect to the backup database (which has the most recent data from dual-writes)
-const BACKUP_URL = 'postgresql://postgres.rywmifyhsyiyncedgajo:Baholobot12345@aws-1-ap-northeast-1.pooler.supabase.com:6543/postgres';
-const PRIMARY_URL = 'postgresql://postgres.bhunvginzhgnwjkprnxc:Baholobot12345@aws-1-ap-southeast-2.pooler.supabase.com:6543/postgres';
+const BACKUP_URL = process.env.BACKUP_DATABASE_URL;
+const PRIMARY_URL = process.env.DATABASE_URL;
+if (!BACKUP_URL || !PRIMARY_URL) {
+  console.error('Missing required env vars: BACKUP_DATABASE_URL and DATABASE_URL');
+  process.exit(1);
+}
 
 async function exportFromDb(url, label) {
   const sql = postgres(url, { ssl: 'require' });

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { findAuthUserByEmail } from "@/utils/auth/find-user";
 
 export async function POST(req: NextRequest) {
   try {
@@ -21,15 +22,13 @@ export async function POST(req: NextRequest) {
       auth: { persistSession: false }
     });
 
-    // Look up the user in auth.users
-    const { data: listData, error: listError } = await supabase.auth.admin.listUsers();
-    if (listError) {
+    // Look up the user in auth.users (paginated — listUsers() alone only sees page 1)
+    let user;
+    try {
+      user = await findAuthUserByEmail(supabase, cleanEmail);
+    } catch {
       return NextResponse.json({ error: "Failed to look up user" }, { status: 500 });
     }
-
-    const user = listData.users.find(
-      (u) => u.email && u.email.trim().toLowerCase() === cleanEmail
-    );
 
     if (!user) {
       // No user found with this email — nothing to check
@@ -43,8 +42,8 @@ export async function POST(req: NextRequest) {
       exists: true,
       userId: user.id
     });
-  } catch (err: any) {
+  } catch (err) {
     console.error("Check confirmation endpoint failed:", err);
-    return NextResponse.json({ error: err.message || err.toString() }, { status: 500 });
+    return NextResponse.json({ error: "Failed to look up user" }, { status: 500 });
   }
 }

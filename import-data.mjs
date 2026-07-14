@@ -2,9 +2,13 @@ import postgres from 'postgres';
 import { createClient } from '@supabase/supabase-js';
 import { readFileSync } from 'fs';
 
-const NEW_DB_URL = 'postgresql://postgres.qayiukxguqxewqmhfoes:Baholobot12345@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres';
-const NEW_SUPABASE_URL = 'https://qayiukxguqxewqmhfoes.supabase.co';
-const NEW_SERVICE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFheWl1a3hndXF4ZXdxbWhmb2VzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MDg4NDc1MiwiZXhwIjoyMDk2NDYwNzUyfQ.JwQRY1rm181U20faJoSliUPjF0uLEeX1DHoZhNqzKEM';
+const NEW_DB_URL = process.env.IMPORT_DATABASE_URL;
+const NEW_SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const NEW_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+if (!NEW_DB_URL || !NEW_SUPABASE_URL || !NEW_SERVICE_KEY) {
+  console.error('Missing required env vars: IMPORT_DATABASE_URL, NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY');
+  process.exit(1);
+}
 
 const sql = postgres(NEW_DB_URL, { ssl: 'require' });
 const supabaseAdmin = createClient(NEW_SUPABASE_URL, NEW_SERVICE_KEY, {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { promises as dnsPromises } from "dns";
 import { dualWrite, getPrimaryAdminClient, getBackupAdminClients } from "@/utils/supabase/dual-db";
+import { findAuthUserByEmail } from "@/utils/auth/find-user";
 // ─────────────────────────────────────────────────────────────
 // 1.  MASSIVE DISPOSABLE / BURNER DOMAIN BLOCKLIST (100+)
 // ─────────────────────────────────────────────────────────────
@@ -244,8 +245,7 @@ export async function POST(req: NextRequest) {
     // 2. Fetch user lists to prevent duplicate registrations across primary & backup
     let existingUser = null;
     try {
-      const { data: primaryUsers } = await primaryAdmin.auth.admin.listUsers();
-      existingUser = primaryUsers?.users.find(u => u.email && u.email.toLowerCase() === cleanEmail.toLowerCase());
+      existingUser = await findAuthUserByEmail(primaryAdmin, cleanEmail);
     } catch (e) {
       console.warn("Failed listing primary users:", e);
     }
@@ -255,8 +255,7 @@ export async function POST(req: NextRequest) {
         break;
       }
       try {
-        const { data: backupUsers } = await backupAdmin.client.auth.admin.listUsers();
-        existingUser = backupUsers?.users.find(u => u.email && u.email.toLowerCase() === cleanEmail.toLowerCase());
+        existingUser = await findAuthUserByEmail(backupAdmin.client, cleanEmail);
       } catch (e) {
         console.warn(`Failed listing ${backupAdmin.displayName} users:`, e);
       }

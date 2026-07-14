@@ -1,9 +1,18 @@
 $envs = @("production")
+# Values are read from the current environment so no secrets are committed.
+# Set these before running, e.g. via a local (git-ignored) .env or your shell.
 $vars = @{
-    "NEXT_PUBLIC_SUPABASE_URL" = "https://qayiukxguqxewqmhfoes.supabase.co"
-    "NEXT_PUBLIC_SUPABASE_ANON_KEY" = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFheWl1a3hndXF4ZXdxbWhmb2VzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4ODQ3NTIsImV4cCI6MjA5NjQ2MDc1Mn0.vhe-KJjnR5Yfab-qRbVJCSPMuTk_gxzkJncqzzkRquo"
-    "SUPABASE_SERVICE_ROLE_KEY" = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFheWl1a3hndXF4ZXdxbWhmb2VzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MDg4NDc1MiwiZXhwIjoyMDk2NDYwNzUyfQ.JwQRY1rm181U20faJoSliUPjF0uLEeX1DHoZhNqzKEM"
-    "DATABASE_URL" = "postgresql://postgres.qayiukxguqxewqmhfoes:Baholobot12345@aws-1-ap-southeast-1.pooler.supabase.com:6543/postgres"
+    "NEXT_PUBLIC_SUPABASE_URL" = $env:NEXT_PUBLIC_SUPABASE_URL
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY" = $env:NEXT_PUBLIC_SUPABASE_ANON_KEY
+    "SUPABASE_SERVICE_ROLE_KEY" = $env:SUPABASE_SERVICE_ROLE_KEY
+    "DATABASE_URL" = $env:DATABASE_URL
+}
+
+foreach ($key in $vars.Keys) {
+    if ([string]::IsNullOrEmpty($vars[$key])) {
+        Write-Error "Missing required environment variable: $key. Set it before running this script."
+        exit 1
+    }
 }
 
 foreach ($key in $vars.Keys) {
