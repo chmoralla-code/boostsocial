@@ -1,7 +1,7 @@
 import { SupabaseClient } from "@supabase/supabase-js";
 import { getFBReactionRetailPrice, getFBReactionsSMMDetails } from "@/utils/fbReactions";
 import { parseDescription } from "@/utils/serviceHelpers";
-import { getSmmCatalogServiceById } from "@/lib/smmCatalog";
+import { getSmmCatalogServiceById, type SmmCatalogService } from "@/lib/smmCatalog";
 
 const CATALOG_SERVICE_ID = "e6f61249-71fe-40df-84f3-96d03d3e8dcf";
 const CUSTOM_PAGE_SMM_ID = "2026";
@@ -88,8 +88,16 @@ async function fetchService(client: SupabaseClient, serviceId: string): Promise<
  */
 async function assertSmmServiceAvailable(
   smmServiceId: string | number,
+  options: { required: false }
+): Promise<SmmCatalogService | null>;
+async function assertSmmServiceAvailable(
+  smmServiceId: string | number,
+  options?: { required?: true }
+): Promise<SmmCatalogService>;
+async function assertSmmServiceAvailable(
+  smmServiceId: string | number,
   options?: { required?: boolean }
-) {
+): Promise<SmmCatalogService | null> {
   const required = options?.required ?? true;
   try {
     const catalogService = await Promise.race([
