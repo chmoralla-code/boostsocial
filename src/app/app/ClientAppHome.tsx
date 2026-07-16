@@ -31,6 +31,7 @@ import {
   MobileAppSettings,
 } from "@/lib/mobileApp";
 import type { ServiceCandidate } from "@/lib/serviceCandidates";
+import { FB_REACTIONS_MAP } from "@/utils/fbReactions";
 
 type AppService = {
   id: string;
@@ -81,6 +82,8 @@ type ReactionVariantConfig = {
   search: string;
   keywords: string[];
   exclude?: string[];
+  /** Preferred RixeySMM service ID when known (Facebook reactions). */
+  smmId?: number;
 };
 
 type ReactionVariant = ReactionVariantConfig & {
@@ -139,13 +142,13 @@ const SERVICE_LOGOS: LogoDefinition[] = [
 
 const PLATFORM_REACTION_VARIANTS: Record<PlatformType, ReactionVariantConfig[]> = {
   facebook: [
-    { label: "Like", search: "facebook post like", keywords: ["post like", "photo like", "like"], exclude: ["page like", "follower", "view", "share"] },
-    { label: "Love / Heart", search: "facebook love reaction", keywords: ["love", "heart"], exclude: ["follower", "view", "share"] },
-    { label: "Care", search: "facebook care reaction", keywords: ["care"], exclude: ["follower", "view", "share"] },
-    { label: "Haha", search: "facebook haha reaction", keywords: ["haha"], exclude: ["follower", "view", "share"] },
-    { label: "Wow", search: "facebook wow reaction", keywords: ["wow"], exclude: ["follower", "view", "share"] },
-    { label: "Sad", search: "facebook sad reaction", keywords: ["sad"], exclude: ["follower", "view", "share"] },
-    { label: "Angry", search: "facebook angry reaction", keywords: ["angry"], exclude: ["follower", "view", "share"] },
+    { label: "Like", search: "facebook post like", keywords: ["post like", "photo like", "post likes", "photo likes", "facebook likes"], exclude: ["page like", "follower", "view", "share", "love", "heart", "care", "haha", "wow", "sad", "angry"], smmId: FB_REACTIONS_MAP.Like.smmId },
+    { label: "Love / Heart", search: "facebook love reaction", keywords: ["love", "heart"], exclude: ["follower", "view", "share", "like +", "likes +"], smmId: FB_REACTIONS_MAP.Love.smmId },
+    { label: "Care", search: "facebook care reaction", keywords: ["care"], exclude: ["follower", "view", "share", "like +", "likes +"], smmId: FB_REACTIONS_MAP.Care.smmId },
+    { label: "Haha", search: "facebook haha reaction", keywords: ["haha"], exclude: ["follower", "view", "share", "like +", "likes +"], smmId: FB_REACTIONS_MAP.Haha.smmId },
+    { label: "Wow", search: "facebook wow reaction", keywords: ["wow"], exclude: ["follower", "view", "share", "like +", "likes +"], smmId: FB_REACTIONS_MAP.Wow.smmId },
+    { label: "Sad", search: "facebook sad reaction", keywords: ["sad"], exclude: ["follower", "view", "share", "like +", "likes +"], smmId: FB_REACTIONS_MAP.Sad.smmId },
+    { label: "Angry", search: "facebook angry reaction", keywords: ["angry"], exclude: ["follower", "view", "share", "like +", "likes +"], smmId: FB_REACTIONS_MAP.Angry.smmId },
   ],
   instagram: [
     { label: "Post Likes", search: "instagram post likes", keywords: ["post like", "photo like", "like"], exclude: ["follower", "view", "comment"] },
@@ -849,7 +852,18 @@ export function ClientAppHome({
 
     const usedReactionIds = new Set<string>();
     const reactions = PLATFORM_REACTION_VARIANTS[platform].map((variant) => {
-      const item = findCheapestMatching(variant.keywords, variant.exclude || [], usedReactionIds);
+      // Prefer hardcoded Rixey IDs for Facebook reactions (Love=3021, etc.)
+      // so keyword collisions with Like/combo packages cannot hide Heart.
+      let item: SmmService | null = null;
+      if (variant.smmId != null) {
+        const byId = smmServices.find((service) => String(service.id) === String(variant.smmId));
+        if (byId && !usedReactionIds.has(String(byId.id))) {
+          item = byId;
+        }
+      }
+      if (!item) {
+        item = findCheapestMatching(variant.keywords, variant.exclude || [], usedReactionIds);
+      }
       if (item) usedReactionIds.add(String(item.id));
       return { ...variant, item };
     });

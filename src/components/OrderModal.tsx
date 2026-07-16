@@ -278,9 +278,11 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
   // rixeysmm.shop. Reaction services resolve their SMM ID dynamically from the
   // selected reaction emojis, so we check the resolved ID too. Services with
   // no SMM mapping (manual fulfillment) are always available.
-  const resolvedSmmIdForAvailability = parsedDetails.smm_service_id
-    ? String(parsedDetails.smm_service_id)
-    : (isReactionService ? String(getFBReactionsSMMDetails(selectedReactions).smmId) : null);
+  // Reaction orders always resolve from selected emojis (Love -> 3021, etc.),
+  // never from the umbrella DB smm_service_id which may be synced to Like only.
+  const resolvedSmmIdForAvailability = isReactionService
+    ? String(getFBReactionsSMMDetails(selectedReactions).smmId)
+    : (parsedDetails.smm_service_id ? String(parsedDetails.smm_service_id) : null);
 
   const isServiceAvailable = (() => {
     if (!resolvedSmmIdForAvailability) return true;
@@ -507,7 +509,9 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
           amount: totalPrice,
           paymentMethod,
           quantity: finalQuantity,
-          smmServiceId: parsedDetails.smm_service_id ? String(parsedDetails.smm_service_id) : (isReactionService ? String(getFBReactionsSMMDetails(selectedReactions).smmId) : null)
+          smmServiceId: isReactionService
+            ? String(getFBReactionsSMMDetails(selectedReactions).smmId)
+            : (parsedDetails.smm_service_id ? String(parsedDetails.smm_service_id) : null)
         })
       });
       const createData = await createRes.json();
@@ -599,9 +603,9 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
         tempUrl = `Reactions: [${selectedReactions.join(", ")}] Link: ${url.trim()}`;
       }
 
-      const resolvedSmmServiceId = parsedDetails.smm_service_id
-        ? String(parsedDetails.smm_service_id)
-        : (isReactionService ? String(getFBReactionsSMMDetails(selectedReactions).smmId) : null);
+      const resolvedSmmServiceId = isReactionService
+        ? String(getFBReactionsSMMDetails(selectedReactions).smmId)
+        : (parsedDetails.smm_service_id ? String(parsedDetails.smm_service_id) : null);
 
       const res = await fetch("/api/checkout-wallet", {
         method: "POST",
