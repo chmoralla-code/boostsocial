@@ -435,11 +435,24 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
     setReceiptUploadError("");
     setSubmitStage("Creating order...");
 
+    const optimisticOrderId = crypto.randomUUID();
+    setOrderId(optimisticOrderId);
+    setIsWalletPayment(false);
+    setCheckoutStep("success");
+    setPendingReceiptFile(receiptToUpload);
+    setIsSubmitting(false);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("last_order_id", optimisticOrderId);
+      localStorage.setItem("last_order_email", email.trim());
+    }
+
     try {
+      setSubmitStage("Saving order...");
       const createRes = await fetch("/api/orders/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          orderId: optimisticOrderId,
           serviceId: CUSTOM_SMM_SERVICE_ID,
           email: email.trim(),
           targetUrl: url.trim(),
@@ -452,18 +465,7 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
       const createData = await createRes.json();
       if (!createRes.ok) throw new Error(createData.error || "Failed to create order.");
 
-      const insertData = { id: createData.orderId || createData.data?.id };
-      if (!insertData.id) throw new Error("Order was created without a tracking ID.");
-
-      setOrderId(insertData.id);
-      setIsWalletPayment(false);
-      setCheckoutStep("success");
-      setPendingReceiptFile(receiptToUpload);
-      if (typeof window !== "undefined") {
-        localStorage.setItem("last_order_id", insertData.id);
-        localStorage.setItem("last_order_email", email.trim());
-      }
-      setIsSubmitting(false);
+      const insertData = { id: createData.orderId || createData.data?.id || optimisticOrderId };
 
       fetch("/api/notify-order", {
         method: "POST",
@@ -485,9 +487,14 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
         // Tracking ID already shown
       }
     } catch (err: any) {
+      setCheckoutStep("form");
+      setOrderId("");
+      setPendingReceiptFile(null);
       setError(err.message || "Failed to place order.");
-      setIsSubmitting(false);
       setSubmitStage("");
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("last_order_id");
+      }
     }
   };
 

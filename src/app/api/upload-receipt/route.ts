@@ -169,34 +169,39 @@ export async function POST(req: NextRequest) {
       }, "order receipt sync");
     });
 
-    if (orderData?.payment_method !== "Wallet") {
-      const serviceTitle = Array.isArray((orderData as any)?.services)
-        ? (orderData as any).services[0]?.title
-        : (orderData as any)?.services?.title;
+    after(async () => {
+      try {
+        if (orderData?.payment_method !== "Wallet") {
+          const serviceTitle = Array.isArray((orderData as any)?.services)
+            ? (orderData as any).services[0]?.title
+            : (orderData as any)?.services?.title;
 
-      const resolvedServiceTitle = await resolveSmmServiceTitle(orderData.smm_service_id, serviceTitle || "SMM Service");
+          const resolvedServiceTitle = await resolveSmmServiceTitle(
+            orderData.smm_service_id,
+            serviceTitle || "SMM Service"
+          );
 
-      sendOrderApprovalNotification({
-        orderId,
-        trackingId: `BS-${orderId.slice(0, 8).toUpperCase()}`,
-        service: resolvedServiceTitle,
-        email,
-        quantity: Number(orderData?.quantity || 0),
-        amount: Number(orderData?.amount || 0),
-        paymentMethod: orderData?.payment_method || "GCash",
-        receiptUrl,
-        details: orderData?.target_url || undefined,
-      }).catch((telegramErr) => {
-        console.error("Telegram order approval notification failed (non-blocking):", telegramErr);
-      });
-    }
+          await sendOrderApprovalNotification({
+            orderId,
+            trackingId: `BS-${orderId.slice(0, 8).toUpperCase()}`,
+            service: resolvedServiceTitle,
+            email,
+            quantity: Number(orderData?.quantity || 0),
+            amount: Number(orderData?.amount || 0),
+            paymentMethod: orderData?.payment_method || "GCash",
+            receiptUrl,
+            details: orderData?.target_url || undefined,
+          });
+        }
 
-    notifyCustomer({
-      client: supabase,
-      email,
-      message: `System update: Receipt uploaded for order BS-${orderId.slice(0, 8).toUpperCase()}. Admin will verify it shortly.`,
-    }).catch((notificationErr) => {
-      console.error("Receipt upload customer notification failed:", notificationErr);
+        await notifyCustomer({
+          client: supabase,
+          email,
+          message: `System update: Receipt uploaded for order BS-${orderId.slice(0, 8).toUpperCase()}. Admin will verify it shortly.`,
+        });
+      } catch (notificationErr) {
+        console.error("Post-receipt notification tasks failed:", notificationErr);
+      }
     });
 
     return NextResponse.json({ success: true, data: uploadData, email, receiptUrl });

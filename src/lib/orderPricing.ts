@@ -82,17 +82,30 @@ async function fetchService(client: SupabaseClient, serviceId: string): Promise<
 }
 
 /**
- * Verifies that an SMM service ID is currently listed on the upstream RixeySMM
- * provider catalog. Throws a clear, user-facing error when the provider has
- * delisted the service so clients are blocked from paying for something that
- * can no longer be fulfilled.
+ * Looks up an SMM service for pricing/availability.
+ * Soft-fails for non-catalog mapped services so a cold/slow provider never
+ * blocks order creation for 1–2 minutes.
  */
-async function assertSmmServiceAvailable(smmServiceId: string | number) {
-  const catalogService = await getSmmCatalogServiceById(smmServiceId);
-  if (!catalogService) {
+async function assertSmmServiceAvailable(
+  smmServiceId: string | number,
+  options?: { required?: boolean }
+) {
+  const required = options?.required ?? true;
+  try {
+    const catalogService = await Promise.race([
+      getSmmCatalogServiceById(smmServiceId),
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), 1500)),
+    ]);
+    if (catalogService) return catalogService;
+  } catch (error) {
+    console.warn("SMM availability check failed:", error);
+  }
+
+  if (required) {
     throw new Error("This service is temporarily unavailable from our provider. Please pick another service from the catalog.");
   }
-  return catalogService;
+
+  return null;
 }
 
 export async function resolveOrderPricing({
@@ -187,8 +200,8 @@ export async function resolveOrderPricing({
   const reactions = /reaction|react/i.test(title) ? parseSelectedReactions(targetUrl) : null;
   if (reactions) {
     const reactionDetails = getFBReactionsSMMDetails(reactions);
-    // Verify the mapped reaction SMM service is still listed by the provider.
-    await assertSmmServiceAvailable(reactionDetails.smmId);
+    // Soft check only — DB/reaction pricing is authoritative for checkout speed.
+    await assertSmmServiceAvailable(reactionDetails.smmId, { required: false });
     return {
       serviceId: service.id,
       serviceTitle: title,
@@ -208,11 +221,10 @@ export async function resolveOrderPricing({
     throw new Error("Selected provider service does not match this product.");
   }
 
-  // For any service mapped to an upstream SMM provider service, verify the
-  // provider still lists it. Manual services (no smm_service_id) skip this
-  // check because they are fulfilled by the admin directly.
+  // Soft check only for mapped SMM services. Pricing comes from our DB so
+  // a slow/cold Rixey catalog must not block order creation.
   if (canonicalSmmId) {
-    await assertSmmServiceAvailable(canonicalSmmId);
+    await assertSmmServiceAvailable(canonicalSmmId, { required: false });
   }
 
   return {

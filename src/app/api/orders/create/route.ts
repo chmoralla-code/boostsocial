@@ -8,6 +8,7 @@ import { getSupabaseServiceRoleKey, getSupabaseUrl } from "@/utils/env";
 import { resolveOrderPricing } from "@/lib/orderPricing";
 
 const MAX_TARGET_LENGTH = 7000;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 const clean = (value: unknown) => (typeof value === "string" ? value.trim() : "");
 const getErrorMessage = (error: unknown) => {
@@ -72,7 +73,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Order details are too long." }, { status: 400 });
     }
 
-    const orderId = crypto.randomUUID();
+    // Accept a client-generated UUID so the UI can show the tracking ID immediately.
+    const requestedOrderId = clean(body.orderId);
+    const orderId = requestedOrderId && UUID_RE.test(requestedOrderId)
+      ? requestedOrderId
+      : crypto.randomUUID();
     const supabaseUrl = getSupabaseUrl();
     const serviceRoleKey = getSupabaseServiceRoleKey();
 

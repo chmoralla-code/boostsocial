@@ -115,6 +115,27 @@ async function getFallbackCatalog(markupMultiplier: number) {
   return { services: await getStoredServicesFallback(markupMultiplier), source: "stored_supabase_catalog" };
 }
 
+async function fetchLiveRixeyCatalog(apiKey: string, markupMultiplier: number) {
+  const res = await fetch(RIXEYSMM_API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ key: apiKey, action: "services" }),
+    // Keep live fetches short so order creation never waits ~8s on a cold provider.
+    signal: AbortSignal.timeout(2500),
+    next: { revalidate: 300 },
+  });
+
+  if (!res.ok) throw new Error(`RixeySMM API returned status ${res.status}`);
+
+  const services = await res.json();
+  if (!Array.isArray(services)) throw new Error("Invalid response format from RixeySMM API");
+
+  cachedServices = services.map((s: RixeyService) => processRixeyService(s, markupMultiplier)).filter(Boolean) as SmmCatalogService[];
+  indexServicesById(cachedServices);
+  lastFetchTime = Date.now();
+  return { services: cachedServices, source: "rixeysmm" as const };
+}
+
 export async function getSmmCatalogServices() {
   const markupMultiplier = await getMarkupMultiplier();
   const apiKey = process.env.RIXEYSMM_API_KEY?.replace(/[\'"\r\n]/g, "").trim();
@@ -125,38 +146,37 @@ export async function getSmmCatalogServices() {
     return { services: cachedServices, source: "memory_cache" };
   }
 
-  try {
-    const res = await fetch(RIXEYSMM_API_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({ key: apiKey, action: "services" }),
-      signal: AbortSignal.timeout(8000),
-      next: { revalidate: 300 },
-    });
-
-    if (!res.ok) throw new Error(`RixeySMM API returned status ${res.status}`);
-
-    const services = await res.json();
-    if (!Array.isArray(services)) throw new Error("Invalid response format from RixeySMM API");
-
-    cachedServices = services.map((s: RixeyService) => processRixeyService(s, markupMultiplier)).filter(Boolean) as SmmCatalogService[];
-    indexServicesById(cachedServices);
-    lastFetchTime = now;
-    return { services: cachedServices, source: "rixeysmm" };
-  } catch (error) {
+  // Prefer stored/stale catalog immediately; refresh live catalog in the background.
+  // This keeps /api/orders/create fast on cold serverless instances.
+  const fallbackPromise = getFallbackCatalog(markupMultiplier);
+  const livePromise = fetchLiveRixeyCatalog(apiKey, markupMultiplier).catch((error) => {
     console.error("Failed fetching SMM services catalog:", error);
-    const fallback = await getFallbackCatalog(markupMultiplier);
-    if (fallback.services.length > 0) {
-      indexServicesById(fallback.services);
-      return fallback;
-    }
-    throw new Error(`SMM services are currently unavailable. ${getErrorMessage(error)}`);
+    return null;
+  });
+
+  const fallback = await fallbackPromise;
+  if (fallback.services.length > 0) {
+    if (!cachedServicesById) indexServicesById(fallback.services);
+    // Warm cache from live provider without blocking the caller.
+    void livePromise.then((live) => {
+      if (live?.services?.length) {
+        cachedServices = live.services;
+        indexServicesById(live.services);
+        lastFetchTime = Date.now();
+      }
+    });
+    return fallback;
   }
+
+  const live = await livePromise;
+  if (live?.services?.length) return live;
+
+  throw new Error("SMM services are currently unavailable.");
 }
 
 export async function getSmmCatalogServiceById(serviceId: string | number) {
   const id = String(serviceId);
-  if (cachedServicesById && Date.now() - lastFetchTime < CACHE_TTL) {
+  if (cachedServicesById) {
     const hit = cachedServicesById.get(id);
     if (hit) return hit;
   }

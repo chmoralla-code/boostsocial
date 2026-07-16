@@ -314,10 +314,24 @@ export default function OrderPage() {
         return;
       }
 
+      const optimisticOrderId = crypto.randomUUID();
+      const receiptToUpload = receiptFile;
+      setSuccessOrderId(optimisticOrderId);
+      setPendingReceiptFile(receiptToUpload);
+      setReceiptUploadError("");
+      setIsSubmitting(false);
+      setPostCreateStatus("Saving order...");
+
+      if (typeof window !== "undefined") {
+        localStorage.setItem("last_order_id", optimisticOrderId);
+        localStorage.setItem("last_order_email", email.trim());
+      }
+
       const createRes = await fetch("/api/orders/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          orderId: optimisticOrderId,
           serviceId: CUSTOM_PAGE_SERVICE_ID,
           email: email.trim(),
           targetUrl: "Compiling custom Facebook page order assets...",
@@ -330,19 +344,7 @@ export default function OrderPage() {
       const createData = await createRes.json();
       if (!createRes.ok) throw new Error(createData.error || "Failed to create page order.");
 
-      const order = { id: createData.orderId || createData.data?.id };
-      if (!order.id) throw new Error("Order was created without a tracking ID.");
-
-      const receiptToUpload = receiptFile;
-      setSuccessOrderId(order.id);
-      setPendingReceiptFile(receiptToUpload);
-      setReceiptUploadError("");
-      setIsSubmitting(false);
-
-      if (typeof window !== "undefined") {
-        localStorage.setItem("last_order_id", order.id);
-        localStorage.setItem("last_order_email", email.trim());
-      }
+      const order = { id: createData.orderId || createData.data?.id || optimisticOrderId };
 
       setPostCreateStatus("Uploading page assets...");
       const [profileUrl, coverUrl] = await Promise.all([
@@ -394,7 +396,12 @@ export default function OrderPage() {
         })
       }).catch(() => {});
     } catch (err: unknown) {
+      setSuccessOrderId("");
+      setPendingReceiptFile(null);
       setError(getErrorMessage(err) || "Failed to submit custom page order.");
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("last_order_id");
+      }
     } finally {
       setIsSubmitting(false);
       setPostCreateStatus("");

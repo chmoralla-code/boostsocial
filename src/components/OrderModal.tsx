@@ -473,6 +473,18 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
     setReceiptUploadError("");
     setSubmitStage("Creating order...");
 
+    // Generate tracking ID client-side so the customer sees it instantly.
+    const optimisticOrderId = crypto.randomUUID();
+    setOrderId(optimisticOrderId);
+    setIsWalletPayment(false);
+    setSuccess(true);
+    setPendingReceiptFile(receiptToUpload);
+    setIsSubmitting(false);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("last_order_id", optimisticOrderId);
+      localStorage.setItem("last_order_email", email.trim());
+    }
+
     try {
       let tempUrl = url.trim();
       if (parsedDetails.custom_fields && parsedDetails.custom_fields.length > 0) {
@@ -483,10 +495,12 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
         tempUrl = `Reactions: [${selectedReactions.join(", ")}] Link: ${url.trim()}`;
       }
 
+      setSubmitStage("Saving order...");
       const createRes = await fetch("/api/orders/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          orderId: optimisticOrderId,
           serviceId,
           email: email.trim(),
           targetUrl: tempUrl,
@@ -499,19 +513,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
       const createData = await createRes.json();
       if (!createRes.ok) throw new Error(createData.error || "Failed to create order.");
 
-      const insertData = { id: createData.orderId || createData.data?.id };
-      if (!insertData.id) throw new Error("Order was created without a tracking ID.");
-
-      // Show tracking ID immediately — do not wait for receipt upload.
-      setOrderId(insertData.id);
-      setIsWalletPayment(false);
-      setSuccess(true);
-      setPendingReceiptFile(receiptToUpload);
-      if (typeof window !== "undefined") {
-        localStorage.setItem("last_order_id", insertData.id);
-        localStorage.setItem("last_order_email", email.trim());
-      }
-      setIsSubmitting(false);
+      const insertData = { id: createData.orderId || createData.data?.id || optimisticOrderId };
 
       fetch("/api/notify-order", {
         method: "POST",
@@ -527,7 +529,6 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
         }),
       }).catch(() => {});
 
-      // Finish page assets + receipt after tracking ID is visible.
       if (isPageService) {
         setSubmitStage("Uploading page assets...");
         const [uploadedProfile, uploadedCover] = await Promise.all([
@@ -558,9 +559,14 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
         // Tracking ID already shown; retry UI handles this.
       }
     } catch (err: any) {
+      setSuccess(false);
+      setOrderId("");
+      setPendingReceiptFile(null);
       setError(err.message || "Something went wrong.");
-      setIsSubmitting(false);
       setSubmitStage("");
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("last_order_id");
+      }
     }
   };
 

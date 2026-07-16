@@ -452,45 +452,47 @@ let serviceTitleColumnCached: boolean | null = null;
  * Idempotent — safe to call on every request.
  */
 export async function ensureOrdersSchema() {
-  if (!schemaEnsured) {
-    const sql = getDigitalOceanSql();
-    if (sql) {
-      try {
-        await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS service_title TEXT`;
-        schemaEnsured = true;
-      } catch (err: any) {
-        console.warn("ensureOrdersSchema: failed to add service_title column on DigitalOcean:", err?.message || err);
-      }
+  if (schemaEnsured) return;
+
+  const sql = getDigitalOceanSql();
+  if (sql) {
+    try {
+      await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS service_title TEXT`;
+      schemaEnsured = true;
+    } catch (err: any) {
+      console.warn("ensureOrdersSchema: failed to add service_title column on DigitalOcean:", err?.message || err);
     }
+  } else {
+    schemaEnsured = true;
   }
 
-  // Also ensure the column exists on all Supabase backup databases.
-  // We can't run ALTER TABLE via the Supabase JS SDK, so we detect the missing
-  // column via a probe SELECT and expose the result via hasServiceTitleColumn().
+  // Probe backups in the background — never block order create on multi-DB SELECTs.
   if (!supabaseSchemaChecked) {
     supabaseSchemaChecked = true;
-    const backups = getBackupAdminClients();
-    for (const backup of backups) {
-      try {
-        const { error } = await backup.client
-          .from("orders")
-          .select("service_title")
-          .limit(1);
-        if (error && /column.*service_title.*does not exist/i.test(error.message)) {
-          console.warn(`ensureOrdersSchema: service_title column missing on ${backup.displayName}. Orders will omit this field.`);
+    void (async () => {
+      const backups = getBackupAdminClients();
+      for (const backup of backups) {
+        try {
+          const { error } = await backup.client
+            .from("orders")
+            .select("service_title")
+            .limit(1);
+          if (error && /column.*service_title.*does not exist/i.test(error.message)) {
+            console.warn(`ensureOrdersSchema: service_title column missing on ${backup.displayName}. Orders will omit this field.`);
+            serviceTitleColumnCached = false;
+          }
+        } catch (err: any) {
+          console.warn(`ensureOrdersSchema: probe failed on ${backup.displayName}:`, err?.message || err);
         }
-      } catch (err: any) {
-        console.warn(`ensureOrdersSchema: probe failed on ${backup.displayName}:`, err?.message || err);
       }
-    }
+    })();
   }
 }
 
 /**
- * Returns true if the `service_title` column is known to be missing on any
- * configured Supabase database. When true, callers should omit `service_title`
- * from insert payloads to avoid "column does not exist" errors.
- * Result is cached for the process lifetime after the first probe.
+ * Returns true if the `service_title` column should be included in inserts.
+ * Defaults to true after a single fast primary probe (or cache hit) so create
+ * never waits on every backup Supabase project.
  */
 export async function hasServiceTitleColumn(): Promise<boolean> {
   if (serviceTitleColumnCached !== null) {
@@ -498,22 +500,29 @@ export async function hasServiceTitleColumn(): Promise<boolean> {
   }
 
   await ensureOrdersSchema();
-  const backups = getBackupAdminClients();
-  for (const backup of backups) {
-    try {
-      const { error } = await backup.client
-        .from("orders")
-        .select("service_title")
-        .limit(1);
-      if (error && /column.*service_title.*does not exist/i.test(error.message)) {
+
+  // Assume present; create route already has missing-column fallbacks.
+  // One quick primary probe only — no sequential backup loop on the hot path.
+  try {
+    const backups = getBackupAdminClients();
+    const primary = backups[0];
+    if (primary) {
+      const probe = await Promise.race([
+        primary.client.from("orders").select("service_title").limit(1),
+        new Promise<{ error: null }>((resolve) => setTimeout(() => resolve({ error: null }), 800)),
+      ]);
+      const errorMessage = probe && "error" in probe && probe.error
+        ? String((probe.error as { message?: string }).message || "")
+        : "";
+      if (/column.*service_title.*does not exist/i.test(errorMessage)) {
         serviceTitleColumnCached = false;
         return false;
       }
-    } catch {
-      // If the probe itself fails, assume the column exists to avoid
-      // unnecessarily degrading functionality.
     }
+  } catch {
+    // Prefer including the column; insert fallbacks strip it if needed.
   }
+
   serviceTitleColumnCached = true;
   return true;
 }

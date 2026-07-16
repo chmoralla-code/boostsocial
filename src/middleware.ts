@@ -38,6 +38,7 @@ export async function middleware(request: NextRequest) {
   };
 
   // 1. Determine if this request is on a path that MUST bypass maintenance mode
+  // Order/checkout APIs bypass the settings DB probe so placement stays fast.
   const isBypassPath =
     isAdminArea ||
     pathname.startsWith('/login') ||
@@ -45,7 +46,12 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/auth') ||
     pathname.startsWith('/api/admin') ||
     pathname.startsWith('/api/auth') ||
-    pathname.startsWith('/api/announcement')
+    pathname.startsWith('/api/announcement') ||
+    pathname.startsWith('/api/orders') ||
+    pathname.startsWith('/api/checkout-wallet') ||
+    pathname.startsWith('/api/upload-receipt') ||
+    pathname.startsWith('/api/upload-page-asset') ||
+    pathname.startsWith('/api/notify-order')
 
   // 2. Perform maintenance lockout if not on a bypass route
   if (!isBypassPath) {

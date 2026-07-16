@@ -85,6 +85,7 @@ async function fetchRixeyServiceMap() {
       key: apiKey,
       action: "services",
     }),
+    signal: AbortSignal.timeout(2500),
     next: { revalidate: 300 },
   });
 
