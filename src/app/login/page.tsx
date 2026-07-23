@@ -439,9 +439,9 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#121212] p-4 relative overflow-hidden">
-      {/* Glow effects */}
-      <div className="absolute top-[-10%] left-[10%] w-[300px] h-[300px] rounded-full spotify-glow-blob -z-10 pointer-events-none opacity-40"></div>
-      <div className="absolute bottom-[-10%] right-[10%] w-[300px] h-[300px] rounded-full spotify-glow-blob -z-10 pointer-events-none opacity-40"></div>
+      {/* Soft static glows — no animated blur (avoids desktop freeze) */}
+      <div className="absolute top-[-10%] left-[10%] w-[300px] h-[300px] rounded-full pointer-events-none -z-10 opacity-40 bg-[radial-gradient(circle,rgba(24,119,242,0.18)_0%,transparent_70%)] blur-3xl"></div>
+      <div className="absolute bottom-[-10%] right-[10%] w-[300px] h-[300px] rounded-full pointer-events-none -z-10 opacity-40 bg-[radial-gradient(circle,rgba(29,185,84,0.14)_0%,transparent_70%)] blur-3xl"></div>
 
       <div className="bg-[#181818] border border-slate-800/80 p-8 rounded-2xl w-full max-w-md shadow-2xl relative transition-all duration-300">
         <Link 
@@ -708,43 +708,28 @@ export default function LoginPage() {
           <button 
             type="submit" 
             disabled={loading || emailVerifying}
-            className={`w-full text-white font-black py-3.5 rounded-full transition-all duration-300 transform flex justify-center items-center gap-2 mt-6 uppercase tracking-wider text-xs shadow-lg cursor-pointer relative overflow-hidden
+            className={`w-full text-white font-black py-3.5 rounded-full flex justify-center items-center gap-2 mt-6 uppercase tracking-wider text-xs shadow-lg cursor-pointer relative overflow-hidden
               ${loading || emailVerifying 
-                ? "bg-[#1877F2]/70 cursor-wait scale-[0.98] shadow-none" 
-                : "bg-[#1877F2] hover:bg-[#4e8df5] hover:scale-[1.02] shadow-blue-500/10 animate-fade-in"}`}
-            style={loading || emailVerifying ? { boxShadow: '0 0 20px rgba(24, 119, 242, 0.2)' } : {}}
+                ? "bg-[#1877F2]/80 cursor-wait shadow-blue-500/20" 
+                : "bg-[#1877F2] hover:bg-[#4e8df5] hover:scale-[1.02] shadow-blue-500/10 transition-transform duration-200"}`}
           >
-            {/* Loading shimmer overlay */}
             {(loading || emailVerifying) && (
-              <div className="absolute inset-0 overflow-hidden rounded-full">
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/15 to-transparent animate-shimmer" 
-                     style={{ backgroundSize: '200% 100%', animation: 'shimmer 2s infinite' }} />
-              </div>
+              <span className="btn-loading-shimmer" aria-hidden="true" />
             )}
 
-            {loading ? (
-              <div className="flex items-center gap-2.5 relative z-10">
-                {/* Pulsing ring */}
-                <span className="relative flex h-4 w-4">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white/40 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-4 w-4 bg-white/80"></span>
+            {loading || emailVerifying ? (
+              <span className="relative z-10 flex items-center gap-2">
+                <Loader2 className="animate-spin" size={16} />
+                <span>
+                  {emailVerifying
+                    ? "Checking email..."
+                    : mode === "signup"
+                      ? "Creating account..."
+                      : mode === "forgot"
+                        ? "Sending reset link..."
+                        : "Signing in..."}
                 </span>
-                <span className="flex gap-0.5">
-                  {"Creating".split("").map((letter, i) => (
-                    <span key={i} className="animate-bounce" style={{ animationDelay: `${i * 0.08}s`, animationDuration: '0.6s' }}>{letter}</span>
-                  ))}
-                </span>
-                {/* Animated dots */}
-                <span className="flex gap-0.5">
-                  {[0,1,2].map((i) => (
-                    <span key={i} className="w-1 h-1 bg-white/60 rounded-full animate-bounce" style={{ animationDelay: `${i * 0.15}s`, animationDuration: '0.6s' }} />
-                  ))}
-                </span>
-              </div>
-            ) : emailVerifying ? (
-              <>
-                <Loader2 className="animate-spin" size={16} /> Checking Mail Domain...
-              </>
+              </span>
             ) : (
               <>
                 {mode === "signup" && "Create Account"}
