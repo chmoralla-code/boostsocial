@@ -61,8 +61,23 @@ export async function findAuthUserByEmail(
       );
       if (filtered) return filtered;
     } catch (err) {
-      console.warn("Auth email filter lookup failed, falling back to pagination:", err);
+      console.warn("Auth email filter lookup failed, falling back to profiles/pagination:", err);
     }
+  }
+
+  // Fast path: profiles.email → auth user id (avoids full auth.users scan).
+  try {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("email", target)
+      .maybeSingle();
+    if (profile?.id) {
+      const { data, error } = await supabase.auth.admin.getUserById(profile.id);
+      if (!error && data?.user) return data.user;
+    }
+  } catch (err) {
+    console.warn("Profile email lookup failed, falling back to pagination:", err);
   }
 
   for (let page = 1; page <= MAX_PAGES; page++) {

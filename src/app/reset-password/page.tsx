@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import { Loader2, KeyRound, Eye, EyeOff, CheckCircle2, AlertCircle, ShieldAlert } from "lucide-react";
@@ -17,18 +17,17 @@ export default function ResetPasswordPage() {
   const [success, setSuccess] = useState(false);
   const [countdown, setCountdown] = useState(3);
   const [isAdmin, setIsAdmin] = useState(false);
-  
-  const router = useRouter();
-  const supabase = createClient();
 
-  // Password strength checklist metrics
+  const router = useRouter();
+  const supabase = useMemo(() => createClient(), []);
+
   const hasMinLength = password.length >= 8;
   const hasUppercase = /[A-Z]/.test(password);
   const hasNumber = /[0-9]/.test(password);
   const hasSpecialChar = /[^A-Za-z0-9]/.test(password);
-  
+
   const metCount = [hasMinLength, hasUppercase, hasNumber, hasSpecialChar].filter(Boolean).length;
-  
+
   const getStrengthLabel = () => {
     if (password.length === 0) return { label: "", color: "bg-slate-800", text: "text-slate-500", width: "w-0" };
     if (metCount <= 1) return { label: "Weak ⚠️", color: "bg-red-500 shadow-red-500/20", text: "text-red-400", width: "w-1/4" };
@@ -40,29 +39,65 @@ export default function ResetPasswordPage() {
   const strength = getStrengthLabel();
 
   useEffect(() => {
-    // 1. Confirm user has an active session from the recovery callback link
-    supabase.auth.getUser().then(({ data }) => {
-      if (data.user) {
-        setIsAuthenticated(true);
-        if (data.user.email?.endsWith("@boostsocial.com")) {
-          setIsAdmin(true);
-        }
-      } else {
-        setIsAuthenticated(false);
-      }
-      setVerifyingSession(false);
-    });
-  }, []);
+    let settled = false;
 
-  // Handle countdown and auto redirect on success
+    const markAuthed = (email?: string | null) => {
+      if (settled) return;
+      settled = true;
+      setIsAuthenticated(true);
+      setIsAdmin(!!email?.endsWith("@boostsocial.com"));
+      setVerifyingSession(false);
+    };
+
+    const markUnauthed = () => {
+      if (settled) return;
+      settled = true;
+      setIsAuthenticated(false);
+      setVerifyingSession(false);
+    };
+
+    // Recovery links may deliver the session via cookies (confirm route),
+    // hash tokens, or a delayed auth state change — wait for any of them.
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session?.user && (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN" || event === "INITIAL_SESSION" || event === "TOKEN_REFRESHED")) {
+        markAuthed(session.user.email);
+      }
+    });
+
+    (async () => {
+      // Give the client a moment to parse hash tokens from Supabase redirects.
+      await new Promise((r) => setTimeout(r, 150));
+
+      const { data: userData } = await supabase.auth.getUser();
+      if (userData.user) {
+        markAuthed(userData.user.email);
+        return;
+      }
+
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (sessionData.session?.user) {
+        markAuthed(sessionData.session.user.email);
+        return;
+      }
+
+      // Final short wait for onAuthStateChange, then give up.
+      setTimeout(() => {
+        if (!settled) markUnauthed();
+      }, 1200);
+    })().catch(() => markUnauthed());
+
+    return () => subscription.unsubscribe();
+  }, [supabase.auth]);
+
   useEffect(() => {
     if (success && countdown > 0) {
-      const timer = setTimeout(() => {
-        setCountdown(countdown - 1);
-      }, 1000);
+      const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
       return () => clearTimeout(timer);
-    } else if (success && countdown === 0) {
-      router.push(isAdmin ? "/admin" : "/");
+    }
+    if (success && countdown === 0) {
+      router.push(isAdmin ? "/admin" : "/login");
     }
   }, [success, countdown, router, isAdmin]);
 
@@ -85,7 +120,7 @@ export default function ResetPasswordPage() {
 
     try {
       const { error: updateError } = await supabase.auth.updateUser({
-        password: password
+        password: password,
       });
 
       if (updateError) {
@@ -95,8 +130,8 @@ export default function ResetPasswordPage() {
         setSuccess(true);
         setLoading(false);
       }
-    } catch (err: any) {
-      setError(err.message || "An unexpected error occurred during password update.");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "An unexpected error occurred during password update.");
       setLoading(false);
     }
   };
@@ -105,7 +140,7 @@ export default function ResetPasswordPage() {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-[#121212] text-white">
         <Loader2 className="animate-spin text-[#1877F2] mb-3" size={40} />
-        <p className="text-slate-400 text-sm font-semibold tracking-wider uppercase animate-pulse">
+        <p className="text-slate-400 text-sm font-semibold tracking-wider uppercase">
           Authorizing Recovery Session...
         </p>
       </div>
@@ -115,24 +150,20 @@ export default function ResetPasswordPage() {
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#121212] p-4 relative overflow-hidden">
-        {/* Glow Backdrops */}
-        <div className="absolute top-[-10%] left-[10%] w-[300px] h-[300px] rounded-full spotify-glow-blob -z-10 opacity-30"></div>
-        <div className="absolute bottom-[-10%] right-[10%] w-[300px] h-[300px] rounded-full spotify-glow-blob -z-10 opacity-30"></div>
-
         <div className="bg-[#181818] border border-slate-800/80 p-8 rounded-2xl w-full max-w-md shadow-2xl text-center">
           <div className="text-red-500 mx-auto w-fit mb-4 p-3 bg-red-500/10 rounded-full border border-red-500/20">
             <ShieldAlert size={40} />
           </div>
           <h2 className="text-xl font-black text-white tracking-tight">Unauthorized Session</h2>
           <p className="text-slate-400 text-xs mt-2.5 leading-relaxed max-w-sm mx-auto">
-            You don't have an active recovery session. If you clicked a password reset link, it may have expired or already been used. Please request a new recovery link!
+            You don&apos;t have an active recovery session. If you clicked a password reset link, it may have expired or already been used. Please request a new recovery link!
           </p>
           <div className="mt-8">
             <Link
-              href="/login"
-              className="inline-block bg-[#1877F2] hover:bg-[#4e8df5] text-black font-black py-3 px-8 rounded-full transition-all duration-300 transform hover:scale-[1.03] uppercase tracking-wider text-xs shadow-lg shadow-blue-500/10"
+              href="/login?mode=forgot"
+              className="inline-block bg-[#1877F2] hover:bg-[#4e8df5] text-white font-black py-3 px-8 rounded-full transition-all duration-300 transform hover:scale-[1.03] uppercase tracking-wider text-xs shadow-lg shadow-blue-500/10"
             >
-              Back to Login
+              Request New Reset Link
             </Link>
           </div>
         </div>
@@ -142,28 +173,24 @@ export default function ResetPasswordPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#121212] p-4 relative overflow-hidden">
-      {/* Radial Backdrops */}
-      <div className="absolute top-[-10%] left-[10%] w-[300px] h-[300px] rounded-full spotify-glow-blob -z-10 pointer-events-none opacity-40"></div>
-      <div className="absolute bottom-[-10%] right-[10%] w-[300px] h-[300px] rounded-full spotify-glow-blob -z-10 pointer-events-none opacity-40"></div>
-
       <div className="bg-[#181818] border border-slate-800/80 p-8 rounded-2xl w-full max-w-md shadow-2xl relative">
         {success ? (
           <div className="flex flex-col items-center text-center py-6">
-            <div className="text-[#1877F2] mb-4 bg-green-500/10 p-3 rounded-full border border-green-500/20 animate-bounce">
+            <div className="text-[#1877F2] mb-4 bg-green-500/10 p-3 rounded-full border border-green-500/20">
               <CheckCircle2 size={48} strokeWidth={2.5} />
             </div>
             <h1 className="text-2xl font-black text-white tracking-tight">Password Reset Complete!</h1>
             <p className="text-slate-400 text-xs mt-2 max-w-xs mx-auto leading-relaxed">
-              Your password has been securely updated. You will be redirected to your dashboard workspace in:
+              Your password has been securely updated. Redirecting to sign in in:
             </p>
             <div className="text-4xl font-black text-[#1877F2] my-6 bg-[#121212] border border-slate-800 w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg">
               {countdown}
             </div>
             <button
-              onClick={() => router.push(isAdmin ? "/admin" : "/")}
-              className="w-full bg-[#1877F2] hover:bg-[#4e8df5] text-black font-black py-3 rounded-full transition-all duration-300 uppercase tracking-wider text-xs shadow-lg cursor-pointer"
+              onClick={() => router.push("/login")}
+              className="w-full bg-[#1877F2] hover:bg-[#4e8df5] text-white font-black py-3 rounded-full transition-all duration-300 uppercase tracking-wider text-xs shadow-lg cursor-pointer"
             >
-              Continue to Workspace Now
+              Continue to Sign In
             </button>
           </div>
         ) : (
@@ -213,18 +240,15 @@ export default function ResetPasswordPage() {
                 />
               </div>
 
-              {/* Password Strength HUD */}
               {password.length > 0 && (
                 <div className="bg-[#121212] border border-slate-800/80 p-3.5 rounded-xl space-y-2.5">
                   <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-wider">
                     <span className="text-slate-400">Password Strength:</span>
                     <span className={strength.text}>{strength.label}</span>
                   </div>
-                  {/* Strength Bar */}
                   <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
                     <div className={`h-full ${strength.color} ${strength.width} transition-all duration-300 rounded-full`}></div>
                   </div>
-                  {/* Checklist */}
                   <div className="grid grid-cols-2 gap-1.5 pt-1 text-[10px] font-semibold">
                     <div className={`flex items-center gap-1.5 ${hasMinLength ? "text-[#1877F2]" : "text-slate-500"}`}>
                       <CheckCircle2 size={10} /> 8+ Characters
@@ -252,7 +276,7 @@ export default function ResetPasswordPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-[#1877F2] hover:bg-[#4e8df5] text-black font-black py-3.5 rounded-full transition-all duration-300 transform hover:scale-[1.02] flex justify-center items-center gap-2 mt-6 uppercase tracking-wider text-xs shadow-lg shadow-blue-500/10 cursor-pointer"
+                className="w-full bg-[#1877F2] hover:bg-[#4e8df5] text-white font-black py-3.5 rounded-full transition-all duration-300 transform hover:scale-[1.02] flex justify-center items-center gap-2 mt-6 uppercase tracking-wider text-xs shadow-lg shadow-blue-500/10 cursor-pointer"
               >
                 {loading ? <Loader2 className="animate-spin" size={16} /> : "Update Password"}
               </button>

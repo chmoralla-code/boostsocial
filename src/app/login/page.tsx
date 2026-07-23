@@ -89,6 +89,9 @@ export default function LoginPage() {
       if (errParam) {
         setError(decodeURIComponent(errParam));
       }
+      if (params.get("mode") === "forgot") {
+        setMode("forgot");
+      }
       if (ref) {
         setReferralCode(ref);
         setMode("signup");

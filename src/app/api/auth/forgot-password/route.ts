@@ -48,11 +48,13 @@ export async function POST(req: NextRequest) {
 
     const user = await findAuthUserByEmail(supabase, cleanEmail);
     if (!user) {
+      // Still return generic success (no user enumeration), but do not pretend a link was built.
+      console.warn(`Forgot-password: no auth user for ${cleanEmail}`);
       return NextResponse.json(GENERIC_SENT);
     }
 
     const origin = getSiteOrigin();
-    const redirectTo = `${origin}/auth/callback?next=/reset-password`;
+    const redirectTo = `${origin}/reset-password`;
 
     const { data, error: linkError } = await supabase.auth.admin.generateLink({
       type: "recovery",
@@ -68,13 +70,17 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const actionLink =
-      data?.properties?.action_link ||
-      (data as { action_link?: string } | null)?.action_link ||
-      null;
+    const hashedToken = data?.properties?.hashed_token;
+    const actionLink = data?.properties?.action_link;
 
-    if (!actionLink) {
-      console.error("generateLink returned no action_link");
+    // Prefer our confirm route with token_hash so the browser gets a real cookie session.
+    // Falling back to Supabase action_link only if hashed_token is missing.
+    const resetLink = hashedToken
+      ? `${origin}/auth/confirm?token_hash=${encodeURIComponent(hashedToken)}&type=recovery&next=${encodeURIComponent("/reset-password")}`
+      : actionLink;
+
+    if (!resetLink) {
+      console.error("generateLink returned neither hashed_token nor action_link");
       return NextResponse.json(
         { error: "Failed to create password reset link. Please try again." },
         { status: 500 }
@@ -88,7 +94,7 @@ export async function POST(req: NextRequest) {
         `We received a request to reset your ${AUTH_EMAIL_BRAND} password.`,
         "",
         "Open this link to choose a new password:",
-        actionLink,
+        resetLink,
         "",
         "This link expires soon. If you didn't request a password reset, you can ignore this email.",
         "",
@@ -96,8 +102,8 @@ export async function POST(req: NextRequest) {
       ].join("\n"),
       html: `
         <p>We received a request to reset your <strong>${AUTH_EMAIL_BRAND}</strong> password.</p>
-        <p><a href="${actionLink}" style="display:inline-block;padding:12px 20px;background:#059669;color:#fff;text-decoration:none;border-radius:8px;font-weight:700">Reset password</a></p>
-        <p style="color:#64748b;font-size:13px">Or copy this link:<br/><a href="${actionLink}">${actionLink}</a></p>
+        <p><a href="${resetLink}" style="display:inline-block;padding:12px 20px;background:#059669;color:#fff;text-decoration:none;border-radius:8px;font-weight:700">Reset password</a></p>
+        <p style="color:#64748b;font-size:13px">Or copy this link:<br/><a href="${resetLink}">${resetLink}</a></p>
         <p style="color:#64748b;font-size:13px">This link expires soon. If you didn't request a password reset, you can ignore this email.</p>
         <p style="color:#64748b">— ${AUTH_EMAIL_BRAND}</p>
       `,
@@ -110,6 +116,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    console.log(`Forgot-password: reset email sent to ${cleanEmail} via ${hashedToken ? "token_hash" : "action_link"}`);
     return NextResponse.json(GENERIC_SENT);
   } catch (err) {
     console.error("Forgot password failed:", err);
