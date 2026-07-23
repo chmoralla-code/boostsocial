@@ -263,16 +263,19 @@ export default function LoginPage() {
       }
 
       try {
-        const { error: resetError } = await supabase.auth.resetPasswordForEmail(loginEmail, {
-          redirectTo: `${window.location.origin}/auth/callback?next=/reset-password`
+        const resetRes = await fetch("/api/auth/forgot-password", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: loginEmail }),
         });
+        const resetData = await resetRes.json();
 
-        if (resetError) {
-          setError(resetError.message);
+        if (!resetRes.ok) {
+          setError(resetData.error || "Failed to send password reset email.");
           setLoading(false);
         } else {
-          setSuccess(`📬 Password recovery email sent! Check your inbox (and spam/junk folder) at ${loginEmail} for the recovery link to create a new password. 🚀`);
-          setResendCountdown(60); // Protect against API rate limits and spamming
+          setSuccess(`📬 Password recovery email sent! Check your inbox (and spam/junk folder) at ${loginEmail} for the reset link. 🚀`);
+          setResendCountdown(60);
           setLoading(false);
         }
       } catch (err: unknown) {

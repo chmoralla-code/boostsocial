@@ -1,5 +1,6 @@
 import { createHash, randomBytes } from "crypto";
 import type { SupabaseClient, User } from "@supabase/supabase-js";
+import { AUTH_EMAIL_BRAND, sendAuthEmail } from "@/utils/auth/email";
 
 export const OTP_EXPIRY_MS = 5 * 60 * 1000; // 5 minutes
 export const OTP_COOLDOWN_MS = 30_000; // 30 seconds
@@ -27,11 +28,6 @@ export async function storeAndSendOtp(
   email: string,
   options?: { skipCooldown?: boolean }
 ): Promise<SendOtpResult> {
-  const resendKey = process.env.RESEND_API_KEY;
-  if (!resendKey) {
-    return { ok: false, error: "config", message: "Server configuration missing" };
-  }
-
   const cleanEmail = email.trim().toLowerCase();
   const meta = user.user_metadata || {};
   const lastSent = meta.otp_sent_at ? Number(meta.otp_sent_at) : 0;
@@ -62,23 +58,14 @@ export async function storeAndSendOtp(
     return { ok: false, error: "store", message: "Failed to send verification code." };
   }
 
-  const sendRes = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${resendKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      from: "CYNETWORK <noreply@pinoyboosting.com>",
-      to: cleanEmail,
-      subject: "Your CYNETWORK verification code",
-      text: `Your verification code is: ${code}\n\nThis code expires in 5 minutes.\n\nIf you didn't request this, please ignore this email.`,
-    }),
+  const emailResult = await sendAuthEmail({
+    to: cleanEmail,
+    subject: `Your ${AUTH_EMAIL_BRAND} verification code`,
+    text: `Your verification code is: ${code}\n\nThis code expires in 5 minutes.\n\nIf you didn't request this, please ignore this email.\n\n— ${AUTH_EMAIL_BRAND}`,
+    html: `<p>Your verification code is:</p><p style="font-size:28px;font-weight:700;letter-spacing:6px">${code}</p><p>This code expires in 5 minutes.</p><p>If you didn't request this, please ignore this email.</p><p style="color:#64748b">— ${AUTH_EMAIL_BRAND}</p>`,
   });
 
-  if (!sendRes.ok) {
-    const body = await sendRes.text().catch(() => "");
-    console.error("Resend send failed:", sendRes.status, body);
+  if (!emailResult.ok) {
     await supabase.auth.admin.updateUserById(user.id, {
       user_metadata: {
         ...meta,
@@ -92,8 +79,11 @@ export async function storeAndSendOtp(
     });
     return {
       ok: false,
-      error: "email",
-      message: "Failed to send verification code. Please try again.",
+      error: emailResult.error,
+      message:
+        emailResult.error === "config"
+          ? emailResult.message
+          : "Failed to send verification code. Please try again.",
     };
   }
 

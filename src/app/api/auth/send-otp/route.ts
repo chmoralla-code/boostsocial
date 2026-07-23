@@ -30,8 +30,14 @@ export async function POST(req: NextRequest) {
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
     const resendKey = process.env.RESEND_API_KEY;
 
-    if (!supabaseUrl || !serviceRoleKey || !resendKey) {
+    if (!supabaseUrl || !serviceRoleKey) {
       return NextResponse.json({ error: "Server configuration missing" }, { status: 500 });
+    }
+    if (!resendKey) {
+      return NextResponse.json(
+        { error: "Email delivery is not configured on the server. Please contact support." },
+        { status: 500 }
+      );
     }
 
     const supabase = createClient(supabaseUrl, serviceRoleKey, {

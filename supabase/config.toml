@@ -236,7 +236,7 @@ port = 465
 user = "resend"
 pass = "env(RESEND_API_KEY)"
 admin_email = "noreply@pinoyboosting.com"
-sender_name = "CYNETWORK"
+sender_name = "PINOYBOOSTING"
 
 # Uncomment to customize email template
 # [auth.email.template.invite]
