@@ -459,7 +459,14 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
           amount: regularTotal,
           paymentMethod: "GCash",
           quantity: finalQuantity,
-          smmServiceId: selectedService.id
+          smmServiceId: selectedService.id,
+          catalogSnapshot: {
+            id: selectedService.id,
+            name: selectedService.name,
+            startingPrice: selectedService.startingPrice,
+            min: selectedService.min,
+            max: selectedService.max,
+          },
         })
       });
       const createData = await createRes.json();
@@ -534,7 +541,14 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
           url: url.trim(),
           quantity: finalQuantity,
           totalPrice: regularTotal,
-          smmServiceId: selectedService.id
+          smmServiceId: selectedService.id,
+          catalogSnapshot: {
+            id: selectedService.id,
+            name: selectedService.name,
+            startingPrice: selectedService.startingPrice,
+            min: selectedService.min,
+            max: selectedService.max,
+          },
         })
       });
 

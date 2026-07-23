@@ -66,7 +66,8 @@ export async function POST(req: NextRequest) {
       email,
       url,
       quantity,
-      smmServiceId
+      smmServiceId,
+      catalogSnapshot,
     } = await req.json();
 
     if (!userId || !serviceId || !email || !url || !quantity) {
@@ -133,6 +134,7 @@ export async function POST(req: NextRequest) {
       quantity: Number(quantity),
       targetUrl: String(url).trim(),
       requestedSmmServiceId: smmServiceId,
+      catalogSnapshot: catalogSnapshot && typeof catalogSnapshot === "object" ? catalogSnapshot : null,
     });
 
     const regularCost = pricing.regularAmount;

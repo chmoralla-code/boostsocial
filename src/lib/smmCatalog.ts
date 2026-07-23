@@ -182,29 +182,45 @@ export async function getSmmCatalogServices() {
 
 /**
  * Resolve one SMM provider service by ID.
- * If the fast fallback/stale cache does not contain the ID (common for catalog
- * services that only exist on RixeySMM), force a live provider fetch so orders
- * don't fail with a false "temporarily unavailable".
+ * Prefers memory cache, then stored Supabase catalog, then live Rixey.
+ * Important: a warm memory cache that simply lacks this ID must not block
+ * fallback to the stored catalog (common when the live API key is missing).
  */
 export async function getSmmCatalogServiceById(serviceId: string | number) {
   const id = String(serviceId);
-  if (cachedServicesById) {
-    const hit = cachedServicesById.get(id);
-    if (hit) return hit;
+  if (cachedServicesById?.has(id)) {
+    return cachedServicesById.get(id) || null;
   }
 
-  const { services } = await getSmmCatalogServices();
-  if (!cachedServicesById) indexServicesById(services);
-  const fromCache = cachedServicesById?.get(id);
-  if (fromCache) return fromCache;
+  const markupMultiplier = await getMarkupMultiplier();
 
-  // Missed in fallback/stale catalog — wait for live Rixey list.
+  // Direct stored-catalog lookup first — reliable when RIXEYSMM_API_KEY is empty.
+  try {
+    const stored = await getStoredServicesFallback(markupMultiplier);
+    const fromStored = stored.find((service) => String(service.id) === id);
+    if (fromStored) {
+      if (!cachedServicesById) cachedServicesById = new Map();
+      cachedServicesById.set(id, fromStored);
+      return fromStored;
+    }
+  } catch (error) {
+    console.warn("Stored catalog lookup failed:", getErrorMessage(error));
+  }
+
+  try {
+    const { services } = await getSmmCatalogServices();
+    if (!cachedServicesById) indexServicesById(services);
+    const fromCatalog = cachedServicesById?.get(id);
+    if (fromCatalog) return fromCatalog;
+  } catch (error) {
+    console.warn("Catalog list lookup failed:", getErrorMessage(error));
+  }
+
   const apiKey = process.env.RIXEYSMM_API_KEY?.replace(/[\'"\r\n]/g, "").trim();
   if (!apiKey) return null;
 
   try {
-    const markupMultiplier = await getMarkupMultiplier();
-    const live = await fetchLiveRixeyCatalog(apiKey, markupMultiplier, { timeoutMs: 6000 });
+    const live = await fetchLiveRixeyCatalog(apiKey, markupMultiplier, { timeoutMs: 8000 });
     return live.services.find((service) => String(service.id) === id) || cachedServicesById?.get(id) || null;
   } catch (error) {
     console.error(`Failed live lookup for SMM service #${id}:`, getErrorMessage(error));

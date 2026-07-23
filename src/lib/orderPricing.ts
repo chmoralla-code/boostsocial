@@ -35,7 +35,56 @@ type ResolveArgs = {
   quantity: number;
   targetUrl?: string;
   requestedSmmServiceId?: string | number | null;
+  /** Client-selected All Services row — used when server catalog lookup fails. */
+  catalogSnapshot?: {
+    id?: string | number | null;
+    name?: string | null;
+    startingPrice?: number | string | null;
+    min?: number | string | null;
+    max?: number | string | null;
+  } | null;
 };
+
+function snapshotToCatalogService(
+  snapshot: NonNullable<ResolveArgs["catalogSnapshot"]>,
+  fallbackId: string
+): SmmCatalogService | null {
+  const id = String(snapshot.id ?? fallbackId).trim();
+  const startingPrice = toNumber(snapshot.startingPrice, 0);
+  if (!id || startingPrice <= 0) return null;
+
+  const ratePer1k = Number((startingPrice * 1000).toFixed(6));
+  return {
+    id,
+    name: String(snapshot.name || `SMM Service #${id}`),
+    category: "Catalog Services",
+    originalRate: ratePer1k,
+    ratePer1k,
+    startingPrice,
+    min: Math.max(toNumber(snapshot.min, 1), 1),
+    max: Math.max(toNumber(snapshot.max, 0), 0),
+    desc: "",
+    source: "client_snapshot",
+  };
+}
+
+async function resolveCatalogService(
+  cleanRequestedSmmId: string,
+  catalogSnapshot?: ResolveArgs["catalogSnapshot"]
+): Promise<SmmCatalogService> {
+  const liveOrStored = await assertSmmServiceAvailable(cleanRequestedSmmId, { required: false });
+  if (liveOrStored) return liveOrStored;
+
+  const fromSnapshot = catalogSnapshot
+    ? snapshotToCatalogService(catalogSnapshot, cleanRequestedSmmId)
+    : null;
+  if (fromSnapshot && fromSnapshot.id === cleanRequestedSmmId) {
+    console.warn(`Using client catalog snapshot for SMM #${cleanRequestedSmmId}`);
+    return fromSnapshot;
+  }
+
+  throw new Error("This service is temporarily unavailable from our provider. Please pick another service from the catalog.");
+}
 
 function toNumber(value: unknown, fallback = 0) {
   const numberValue = Number(value);
@@ -125,6 +174,7 @@ export async function resolveOrderPricing({
   quantity,
   targetUrl = "",
   requestedSmmServiceId,
+  catalogSnapshot,
 }: ResolveArgs): Promise<ResolvedOrderPricing> {
   if (!Number.isFinite(quantity) || quantity <= 0 || !Number.isInteger(quantity)) {
     throw new Error("Invalid order quantity.");
@@ -144,7 +194,7 @@ export async function resolveOrderPricing({
       throw new Error("Please pick a specific service from the catalog before ordering.");
     }
 
-    const catalogService = await assertSmmServiceAvailable(cleanRequestedSmmId);
+    const catalogService = await resolveCatalogService(cleanRequestedSmmId, catalogSnapshot);
 
     const minimumQuantity = Math.max(Number(catalogService.min || 1), 1);
     const finalQuantity = Math.max(quantity, minimumQuantity);
@@ -176,7 +226,7 @@ export async function resolveOrderPricing({
   const isCatalog = service.id === CATALOG_SERVICE_ID || /^all services$/i.test(title.trim());
 
   if (isCatalog && cleanRequestedSmmId) {
-    const catalogService = await assertSmmServiceAvailable(cleanRequestedSmmId);
+    const catalogService = await resolveCatalogService(cleanRequestedSmmId, catalogSnapshot);
 
     const minimumQuantity = Math.max(Number(catalogService.min || 1), 1);
     const finalQuantity = Math.max(quantity, minimumQuantity);

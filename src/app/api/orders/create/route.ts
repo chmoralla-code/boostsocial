@@ -52,6 +52,9 @@ export async function POST(req: NextRequest) {
     const smmServiceId = body.smmServiceId === undefined || body.smmServiceId === null
       ? null
       : clean(body.smmServiceId);
+    const catalogSnapshot = body.catalogSnapshot && typeof body.catalogSnapshot === "object"
+      ? body.catalogSnapshot
+      : null;
 
     if (!serviceId || !email || !targetUrl) {
       return NextResponse.json({ error: "Missing service, email, or target details." }, { status: 400 });
@@ -92,6 +95,7 @@ export async function POST(req: NextRequest) {
         quantity,
         targetUrl,
         requestedSmmServiceId: smmServiceId,
+        catalogSnapshot,
       }),
       adminClient
         .from("profiles")
