@@ -1,14 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { createHash, timingSafeEqual } from "crypto";
+import { timingSafeEqual } from "crypto";
 import { findAuthUserByEmail } from "@/utils/auth/find-user";
 import { enforceRateLimit } from "@/utils/security/rate-limit";
+import { hashOtpCode } from "@/utils/auth/otp";
+import { getBackupAdminClients } from "@/utils/supabase/dual-db";
 
 const MAX_ATTEMPTS = 5;
-
-function hashCode(code: string, salt: string) {
-  return createHash("sha256").update(`${salt}:${code}`).digest("hex");
-}
 
 function constantTimeEqual(a: string, b: string) {
   const bufA = Buffer.from(a);
@@ -94,7 +92,7 @@ export async function POST(req: NextRequest) {
     }
 
     const matches = storedHash && storedSalt
-      ? constantTimeEqual(storedHash, hashCode(cleanCode, storedSalt))
+      ? constantTimeEqual(storedHash, hashOtpCode(cleanCode, storedSalt))
       : legacyPlain
         ? constantTimeEqual(legacyPlain, cleanCode)
         : false;
@@ -128,6 +126,20 @@ export async function POST(req: NextRequest) {
     if (updateError) {
       console.error("Failed to confirm user email:", updateError);
       return NextResponse.json({ error: "Failed to activate account. Please try again." }, { status: 500 });
+    }
+
+    // Best-effort: mark the same email confirmed on backup auth projects.
+    for (const backup of getBackupAdminClients()) {
+      try {
+        const backupUser = await findAuthUserByEmail(backup.client, cleanEmail);
+        if (backupUser && !backupUser.email_confirmed_at) {
+          await backup.client.auth.admin.updateUserById(backupUser.id, {
+            email_confirm: true,
+          });
+        }
+      } catch (e) {
+        console.warn(`Failed confirming email on ${backup.displayName}:`, e);
+      }
     }
 
     return NextResponse.json({

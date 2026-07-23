@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { promises as dnsPromises } from "dns";
 import { dualWrite, getPrimaryAdminClient, getBackupAdminClients } from "@/utils/supabase/dual-db";
 import { findAuthUserByEmail } from "@/utils/auth/find-user";
+import { storeAndSendOtp } from "@/utils/auth/otp";
 // ─────────────────────────────────────────────────────────────
 // 1.  MASSIVE DISPOSABLE / BURNER DOMAIN BLOCKLIST (100+)
 // ─────────────────────────────────────────────────────────────
@@ -470,11 +471,33 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    return NextResponse.json({ 
-      success: true, 
+    // 8. Send verification OTP immediately using the known user id (no listUsers scan).
+    let otpSent = false;
+    let otpError: string | null = null;
+    if (createData.user) {
+      const otpResult = await storeAndSendOtp(primaryAdmin, createData.user, cleanEmail, {
+        skipCooldown: true,
+      });
+      if (otpResult.ok) {
+        otpSent = true;
+      } else {
+        otpError =
+          otpResult.error === "rate_limited"
+            ? `Please wait ${otpResult.remaining}s before requesting a new code.`
+            : otpResult.message;
+        console.error("Signup OTP send failed:", otpError);
+      }
+    }
+
+    return NextResponse.json({
+      success: true,
       user: { id: newUserId, email: cleanEmail },
       otp_required: true,
-      message: "Account created! A verification code has been sent to your email. Please enter it below to activate your account. 🚀" 
+      otp_sent: otpSent,
+      otp_error: otpError,
+      message: otpSent
+        ? "Account created! A verification code has been sent to your email. Please enter it below to activate your account. 🚀"
+        : "Account created! We couldn't send the verification email automatically — tap Resend Code below.",
     });
   } catch (err: any) {
     console.error("Signup endpoint failed:", err);

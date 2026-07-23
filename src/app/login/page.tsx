@@ -206,30 +206,25 @@ export default function LoginPage() {
           setError(resData.error || "Failed to create account.");
           setLoading(false);
         } else {
-          // Switch to OTP verification mode
+          // Switch to OTP verification mode — signup already sends the code server-side.
           setRegisteredEmail(loginEmail);
           setOtpMode(true);
-          setOtpSent(false);
           setOtpVerified(false);
           setOtpCode("");
-          setError("");
-          setSuccess("📬 Verification code sent! Please check your inbox (and spam folder) for the 6-digit code.");
           setLoading(false);
           setPassword("");
           setConfirmPassword("");
-          // Auto-send OTP code
-          try {
-            setOtpSending(true);
-            await fetch("/api/auth/send-otp", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ email: loginEmail })
-            });
-            setOtpSending(false);
+
+          if (resData.otp_sent) {
             setOtpSent(true);
             setOtpCountdown(30);
-          } catch {
-            setOtpSending(false);
+            setError("");
+            setSuccess("📬 Verification code sent! Please check your inbox (and spam folder) for the 6-digit code.");
+          } else {
+            setOtpSent(false);
+            setOtpCountdown(0);
+            setSuccess("");
+            setError(resData.otp_error || "Account created, but we couldn't send the verification email. Tap Resend Code.");
           }
         }
       } catch (err: unknown) {
@@ -299,8 +294,39 @@ export default function LoginPage() {
         setEmailVerifying(false);
 
         if (confirmData.exists && !confirmData.confirmed) {
-          setError("📬 Email not confirmed yet. Please check your inbox for the verification code and enter it to activate your account.");
+          // Drop the user into OTP verification and auto-send a fresh code.
+          setRegisteredEmail(loginEmail);
+          setOtpMode(true);
+          setOtpVerified(false);
+          setOtpCode("");
           setLoading(false);
+          setOtpSending(true);
+          try {
+            const otpRes = await fetch("/api/auth/send-otp", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ email: loginEmail }),
+            });
+            const otpData = await otpRes.json();
+            if (otpRes.ok) {
+              setOtpSent(true);
+              setOtpCountdown(30);
+              setError("");
+              setSuccess("📬 Email not confirmed yet. We sent a new 6-digit code — enter it below.");
+            } else if (otpData.error === "rate_limited") {
+              if (otpData.remaining) setOtpCountdown(otpData.remaining);
+              setSuccess("");
+              setError(otpData.message || "Please wait before requesting a new code.");
+            } else {
+              setSuccess("");
+              setError(otpData.error || "Couldn't send verification code. Tap Resend Code.");
+            }
+          } catch {
+            setSuccess("");
+            setError("Couldn't send verification code. Tap Resend Code.");
+          } finally {
+            setOtpSending(false);
+          }
           return;
         }
       } catch (checkErr) {

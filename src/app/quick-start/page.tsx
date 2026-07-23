@@ -219,25 +219,20 @@ export default function QuickStartPage() {
         return;
       }
 
-      // Switch to OTP verification mode
+      // Switch to OTP verification mode — signup already sends the code server-side.
       setOtpMode(true);
-      setFormMessage({
-        type: "success",
-        text: "📬 Verification code sent! Please check your inbox for the 6-digit code."
-      });
-
-      // Auto-send OTP code
-      try {
-        setOtpSending(true);
-        await fetch("/api/auth/send-otp", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: email.trim() })
-        });
-        setOtpSending(false);
+      if (data.otp_sent) {
         setOtpCountdown(30);
-      } catch {
-        setOtpSending(false);
+        setFormMessage({
+          type: "success",
+          text: "📬 Verification code sent! Please check your inbox for the 6-digit code.",
+        });
+      } else {
+        setOtpCountdown(0);
+        setFormMessage({
+          type: "error",
+          text: data.otp_error || "Account created, but we couldn't send the verification email. Tap Resend Code.",
+        });
       }
     } catch (err) {
       setFormMessage({

@@ -6,12 +6,41 @@ const PER_PAGE = 1000;
 const MAX_PAGES = 200;
 
 /**
- * Find an auth user by email using bounded pagination.
+ * Prefer GoTrue's `filter` query (email substring match) so we don't paginate
+ * the entire auth.users table on every OTP / confirmation lookup.
+ */
+async function findAuthUserByEmailFilter(
+  supabaseUrl: string,
+  serviceRoleKey: string,
+  email: string
+): Promise<User | null> {
+  const url = new URL(`${supabaseUrl.replace(/\/$/, "")}/auth/v1/admin/users`);
+  url.searchParams.set("page", "1");
+  url.searchParams.set("per_page", "50");
+  url.searchParams.set("filter", email);
+
+  const res = await fetch(url.toString(), {
+    headers: {
+      apikey: serviceRoleKey,
+      Authorization: `Bearer ${serviceRoleKey}`,
+    },
+    cache: "no-store",
+  });
+
+  if (!res.ok) return null;
+
+  const data = (await res.json()) as { users?: User[] };
+  const users = data?.users ?? [];
+  const target = email.toLowerCase();
+  return users.find((u) => u.email && u.email.toLowerCase() === target) ?? null;
+}
+
+/**
+ * Find an auth user by email.
  *
- * `supabase.auth.admin.listUsers()` returns only the first page (default ~50
- * users), so a plain call silently fails to find anyone past page 1 once the
- * user base grows. This walks every page until the user is found or the list
- * is exhausted.
+ * Tries GoTrue's admin `filter` param first (O(1)-ish), then falls back to
+ * bounded pagination. `listUsers()` alone only sees page 1 by default, so a
+ * plain call silently fails to find anyone past page 1 once the user base grows.
  */
 export async function findAuthUserByEmail(
   supabase: SupabaseClient,
@@ -19,6 +48,22 @@ export async function findAuthUserByEmail(
 ): Promise<User | null> {
   const target = email.trim().toLowerCase();
   if (!target) return null;
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (supabaseUrl && serviceRoleKey) {
+    try {
+      const filtered = await findAuthUserByEmailFilter(
+        supabaseUrl,
+        serviceRoleKey,
+        target
+      );
+      if (filtered) return filtered;
+    } catch (err) {
+      console.warn("Auth email filter lookup failed, falling back to pagination:", err);
+    }
+  }
 
   for (let page = 1; page <= MAX_PAGES; page++) {
     const { data, error } = await supabase.auth.admin.listUsers({
