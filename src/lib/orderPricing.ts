@@ -148,9 +148,9 @@ async function assertSmmServiceAvailable(
   options?: { required?: boolean }
 ): Promise<SmmCatalogService | null> {
   const required = options?.required ?? true;
-  // Catalog checkouts need enough time for a live Rixey fetch on cold starts.
-  // Soft checks stay short so mapped DB services aren't blocked.
-  const timeoutMs = required ? 7000 : 1500;
+  // Live Rixey catalog commonly takes 8–12s on cold serverless; keep soft
+  // checks short so mapped DB services aren't blocked.
+  const timeoutMs = required ? 16000 : 1500;
   try {
     const catalogService = await Promise.race([
       getSmmCatalogServiceById(smmServiceId),

@@ -6,6 +6,7 @@ import { syncBackupAdminClients } from "@/utils/supabase/dual-db";
 import { creditReferralCommission } from "@/utils/referrals";
 import { resolveSmmServiceTitle } from "@/lib/smmServiceResolver";
 import { notifyOrderStatusCustomer } from "@/lib/customerNotifications";
+import { sendOrderApprovedEmail } from "@/lib/approvalEmails";
 
 type JoinedService = { title?: string | null } | { title?: string | null }[] | null | undefined;
 
@@ -98,6 +99,22 @@ export async function POST(req: NextRequest) {
     }).catch((notificationErr) => {
       console.error("Admin order status customer notification failed:", notificationErr);
     });
+
+    if (newStatus === "Processing" && orderRow.status !== "Processing") {
+      const serviceTitle = getJoinedServiceTitle(orderRow.services) || "SMM Service";
+      resolveSmmServiceTitle(orderRow.smm_service_id, serviceTitle)
+        .then((resolvedServiceTitle) =>
+          sendOrderApprovedEmail({
+            email: orderRow.customer_email,
+            trackingId,
+            serviceTitle: resolvedServiceTitle,
+            amount: Number(orderRow.amount),
+          })
+        )
+        .catch((emailErr) => {
+          console.error("Admin order approval email failed:", emailErr);
+        });
+    }
 
     // 3. Trigger automated RixeySMM placement if:
     // - Order status is updated to 'Processing'

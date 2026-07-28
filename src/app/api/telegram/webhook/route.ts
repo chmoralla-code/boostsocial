@@ -6,6 +6,7 @@ import { enforceRateLimit } from "@/utils/security/rate-limit";
 import { creditReferralCommission } from "@/utils/referrals";
 import { resolveSmmServiceTitle } from "@/lib/smmServiceResolver";
 import { notifyCustomer, notifyOrderStatusCustomer } from "@/lib/customerNotifications";
+import { sendOrderApprovedEmail, sendTopupApprovedEmail } from "@/lib/approvalEmails";
 
 type TelegramConfig = { bot_token: string; chat_id: string };
 type JoinedService = { title?: string | null } | { title?: string | null }[] | null | undefined;
@@ -185,12 +186,20 @@ async function handleTopupAction(callbackData: string, chatId: number, messageId
     }
 
     await answerWithOrderBots(configs, callbackQueryId, `Approved! PHP ${Number(approval.amount).toFixed(2)} credited.`);
+    const customerEmail = approval.email || topup.email;
     notifyCustomer({
       client: supabase,
-      email: approval.email || topup.email,
+      email: customerEmail,
       message: `System update: Your PHP ${Number(approval.amount).toFixed(2)} wallet top-up was approved and credited. New balance: PHP ${newBalance.toFixed(2)}.`,
     }).catch((notificationErr) => {
       console.error("Telegram top-up approval customer notification failed:", notificationErr);
+    });
+    sendTopupApprovedEmail({
+      email: customerEmail,
+      amount: Number(approval.amount),
+      newBalance,
+    }).catch((emailErr) => {
+      console.error("Telegram top-up approval email failed:", emailErr);
     });
     await editCaptionWithOrderBots(
       configs,
@@ -347,6 +356,14 @@ async function handleOrderAction(callbackData: string, chatId: number, messageId
     }
 
     await answerWithOrderBots(configs, callbackQueryId, "Order approved. Status changed to Processing.");
+    sendOrderApprovedEmail({
+      email: order.customer_email,
+      trackingId,
+      serviceTitle: resolvedServiceTitle,
+      amount: Number(order.amount),
+    }).catch((emailErr) => {
+      console.error("Telegram order approval email failed:", emailErr);
+    });
     await editCaptionWithOrderBots(
       configs,
       chatId,

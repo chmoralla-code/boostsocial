@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { syncBackupAdminClients, fallbackRead } from "@/utils/supabase/dual-db";
 import { creditReferralCommission } from "@/utils/referrals";
 import { notifyCustomer } from "@/lib/customerNotifications";
+import { sendTopupApprovedEmail } from "@/lib/approvalEmails";
 
 type TopupApprovalRow = {
   user_id: string;
@@ -114,6 +115,14 @@ export async function POST(req: NextRequest) {
         message: `System update: Your PHP ${finalAmount.toFixed(2)} wallet top-up was approved and credited. New balance: PHP ${newBalance.toFixed(2)}.`,
       }).catch((notificationErr) => {
         console.error("Top-up approval customer notification failed:", notificationErr);
+      });
+
+      sendTopupApprovedEmail({
+        email: approval.email || topup.email,
+        amount: finalAmount,
+        newBalance,
+      }).catch((emailErr) => {
+        console.error("Top-up approval email failed:", emailErr);
       });
 
       return NextResponse.json({ success: true, newBalance });

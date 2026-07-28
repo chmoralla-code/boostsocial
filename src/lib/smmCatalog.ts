@@ -120,13 +120,12 @@ async function fetchLiveRixeyCatalog(
   markupMultiplier: number,
   options?: { timeoutMs?: number }
 ) {
-  const timeoutMs = options?.timeoutMs ?? 2500;
+  // Full catalog is ~900+ services and commonly takes 8–12s from serverless.
+  const timeoutMs = options?.timeoutMs ?? 15000;
   const res = await fetch(RIXEYSMM_API_URL, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({ key: apiKey, action: "services" }),
-    // Keep default live fetches short so order creation stays snappy.
-    // Lookup-by-id paths may pass a longer timeout.
     signal: AbortSignal.timeout(timeoutMs),
     next: { revalidate: 300 },
   });
@@ -152,39 +151,26 @@ export async function getSmmCatalogServices() {
     return { services: cachedServices, source: "memory_cache" };
   }
 
-  // Prefer stored/stale catalog immediately; refresh live catalog in the background.
-  // This keeps /api/orders/create fast on cold serverless instances.
-  const fallbackPromise = getFallbackCatalog(markupMultiplier);
-  const livePromise = fetchLiveRixeyCatalog(apiKey, markupMultiplier).catch((error) => {
+  // Prefer live Rixey when the key is set. Returning the small stored Supabase
+  // snapshot first left delisted IDs (e.g. #118) in the UI and broke orders.
+  try {
+    const live = await fetchLiveRixeyCatalog(apiKey, markupMultiplier);
+    if (live.services.length > 0) return live;
+  } catch (error) {
     console.error("Failed fetching SMM services catalog:", error);
-    return null;
-  });
-
-  const fallback = await fallbackPromise;
-  if (fallback.services.length > 0) {
-    if (!cachedServicesById) indexServicesById(fallback.services);
-    // Warm cache from live provider without blocking the caller.
-    void livePromise.then((live) => {
-      if (live?.services?.length) {
-        cachedServices = live.services;
-        indexServicesById(live.services);
-        lastFetchTime = Date.now();
-      }
-    });
-    return fallback;
   }
 
-  const live = await livePromise;
-  if (live?.services?.length) return live;
+  const fallback = await getFallbackCatalog(markupMultiplier);
+  if (fallback.services.length > 0) return fallback;
 
   throw new Error("SMM services are currently unavailable.");
 }
 
 /**
  * Resolve one SMM provider service by ID.
- * Prefers memory cache, then stored Supabase catalog, then live Rixey.
- * Important: a warm memory cache that simply lacks this ID must not block
- * fallback to the stored catalog (common when the live API key is missing).
+ * Prefers memory cache, then live Rixey (when keyed), then stored Supabase.
+ * Stored-only IDs must not win over a successful live catalog that lacks them
+ * (provider delists services; our DB snapshot can stay stale).
  */
 export async function getSmmCatalogServiceById(serviceId: string | number) {
   const id = String(serviceId);
@@ -193,8 +179,22 @@ export async function getSmmCatalogServiceById(serviceId: string | number) {
   }
 
   const markupMultiplier = await getMarkupMultiplier();
+  const apiKey = process.env.RIXEYSMM_API_KEY?.replace(/[\'"\r\n]/g, "").trim();
 
-  // Direct stored-catalog lookup first — reliable when RIXEYSMM_API_KEY is empty.
+  if (apiKey) {
+    try {
+      const live = await fetchLiveRixeyCatalog(apiKey, markupMultiplier);
+      if (cachedServicesById?.has(id)) {
+        return cachedServicesById.get(id) || null;
+      }
+      // Live catalog loaded successfully but this ID is gone — do not fall back
+      // to a stale stored row for the same provider service id.
+      if (live.services.length > 0) return null;
+    } catch (error) {
+      console.error(`Failed live lookup for SMM service #${id}:`, getErrorMessage(error));
+    }
+  }
+
   try {
     const stored = await getStoredServicesFallback(markupMultiplier);
     const fromStored = stored.find((service) => String(service.id) === id);
@@ -207,23 +207,5 @@ export async function getSmmCatalogServiceById(serviceId: string | number) {
     console.warn("Stored catalog lookup failed:", getErrorMessage(error));
   }
 
-  try {
-    const { services } = await getSmmCatalogServices();
-    if (!cachedServicesById) indexServicesById(services);
-    const fromCatalog = cachedServicesById?.get(id);
-    if (fromCatalog) return fromCatalog;
-  } catch (error) {
-    console.warn("Catalog list lookup failed:", getErrorMessage(error));
-  }
-
-  const apiKey = process.env.RIXEYSMM_API_KEY?.replace(/[\'"\r\n]/g, "").trim();
-  if (!apiKey) return null;
-
-  try {
-    const live = await fetchLiveRixeyCatalog(apiKey, markupMultiplier, { timeoutMs: 8000 });
-    return live.services.find((service) => String(service.id) === id) || cachedServicesById?.get(id) || null;
-  } catch (error) {
-    console.error(`Failed live lookup for SMM service #${id}:`, getErrorMessage(error));
-    return null;
-  }
+  return null;
 }
