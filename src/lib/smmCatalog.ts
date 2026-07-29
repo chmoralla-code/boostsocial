@@ -74,7 +74,8 @@ async function getStoredServicesFallback(markupMultiplier: number) {
   const { data, error } = await supabase
     .from("services")
     .select("id, title, description, starting_price, created_at")
-    .order("created_at", { ascending: true });
+    .order("created_at", { ascending: true })
+    .abortSignal(AbortSignal.timeout(8000));
 
   if (error) throw error;
 

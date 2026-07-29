@@ -743,6 +743,11 @@ export async function autoVerifyAndApproveOrder(params: {
       auto_approved: false,
       reason: `AI-generated receipt detected (score: ${result.aiGeneratedScore}%)`,
     });
+    await supabase
+      .from("orders")
+      .update({ status: "Rejected" })
+      .eq("id", orderId)
+      .eq("status", "Pending");
     return { ...result, autoApproved: false, rejectedAsFake: true };
   }
 
@@ -754,6 +759,11 @@ export async function autoVerifyAndApproveOrder(params: {
       duplicate_reason: result.duplicateRef,
       reason: `Duplicate Ref No.: ${result.duplicateRef || "Same GCash reference used again"}`,
     });
+    await supabase
+      .from("orders")
+      .update({ status: "Rejected" })
+      .eq("id", orderId)
+      .eq("status", "Pending");
     return { ...result, autoApproved: false, rejectedAsDuplicate: true };
   }
 

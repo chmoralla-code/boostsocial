@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback, type ReactNode } from "react";
-import { X, Send, Loader2, Image } from "lucide-react";
+import { useState, useRef, useEffect, useCallback, useMemo, type ReactNode } from "react";
+import NextImage from "next/image";
+import { X, Send, Loader2, Image as ImageIcon, ShoppingCart, Ban, CheckCircle2 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { parseDescription } from "@/utils/serviceHelpers";
 import { compressImageWithStats, formatBytes, type CompressResult } from "@/utils/imageCompressor";
@@ -11,7 +12,46 @@ import type { CustomerMessageRow } from "@/utils/realtimeChat";
 interface Message {
   role: 'user' | 'assistant' | 'system';
   content: string;
+  offers?: ChatOffer[];
 }
+
+interface ChatOffer {
+  id: string;
+  actionKey: string;
+  platform: string;
+  serviceId: string;
+  smmServiceId: string;
+  name: string;
+  category: string;
+  quantity: number;
+  min: number;
+  max: number;
+  pricePerThousand: number;
+  regularTotal: number;
+  total: number;
+  vipDiscountPercent: number;
+  catalogSnapshot: {
+    id: string;
+    name: string;
+    startingPrice: number;
+    min: number;
+    max: number;
+  };
+}
+
+type OfferActionStatus =
+  | "idle"
+  | "awaiting_target"
+  | "processing"
+  | "awaiting_receipt"
+  | "purchased"
+  | "cancelled";
+
+type PendingReceiptOrder = {
+  orderId: string;
+  trackingId: string;
+  amount: number;
+};
 
 interface DbService {
   id: string;
@@ -29,6 +69,30 @@ interface ChatDbMessage {
 
 function getErrorMessage(err: unknown) {
   return err instanceof Error ? err.message : String(err);
+}
+
+function isCheapestOfferRequest(text: string) {
+  const normalized = text.toLowerCase();
+  return (
+    /\b(cheap|cheapest|lowest|budget|affordable|barato|mura)\b/.test(normalized) ||
+    /\ball\s+(social\s+media|social|offers|services)\b/.test(normalized)
+  );
+}
+
+function isValidTargetUrl(value: string) {
+  try {
+    const url = new URL(value);
+    return (url.protocol === "https:" || url.protocol === "http:") && Boolean(url.hostname);
+  } catch {
+    return false;
+  }
+}
+
+function formatPhp(value: number) {
+  return `₱${Number(value || 0).toLocaleString("en-PH", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
 }
 
 const parseMorallaName = (text: string, isUser: boolean) => {
@@ -129,10 +193,13 @@ export function Chathead() {
   const [uploading, setUploading] = useState(false);
   const [unreadAdminCount, setUnreadAdminCount] = useState(0);
   const [adminNotice, setAdminNotice] = useState("");
+  const [pendingCheckoutOffer, setPendingCheckoutOffer] = useState<ChatOffer | null>(null);
+  const [pendingReceiptOrder, setPendingReceiptOrder] = useState<PendingReceiptOrder | null>(null);
+  const [offerActionStatus, setOfferActionStatus] = useState<Record<string, OfferActionStatus>>({});
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
   const [dbServices, setDbServices] = useState<DbService[]>([]);
 
   // Real-time Support Chat Session
@@ -226,7 +293,7 @@ export function Chathead() {
       .then(({ data }) => {
         if (data) setDbServices(data as DbService[]);
       });
-  }, []);
+  }, [supabase]);
 
   // 1. Initial Email Session Resolution
   useEffect(() => {
@@ -242,7 +309,7 @@ export function Chathead() {
         }
       }
     });
-  }, []);
+  }, [supabase]);
 
   // 2. Load chat history once on email connect, then backstop Realtime with a
   //    slow 30s poll that catches any row the realtime channel missed and keeps
@@ -353,7 +420,7 @@ export function Chathead() {
       return "";
     };
 
-    let resolvedId = await resolveToFullUuid(input);
+    let resolvedId = pendingReceiptOrder?.orderId || await resolveToFullUuid(input);
 
     if (!resolvedId && typeof window !== "undefined") {
       const storedId = localStorage.getItem("last_order_id") || "";
@@ -423,9 +490,16 @@ export function Chathead() {
         error?: string;
         receiptAnalysis?: {
           model?: string;
+          decision?: "approved" | "rejected_fake" | "rejected_duplicate" | "manual_review";
           verified?: boolean;
+          autoApproved?: boolean;
           extractedAmount?: number | null;
           amountMatches?: boolean | null;
+          receiverName?: string | null;
+          receiverMatched?: boolean;
+          referenceNumber?: string | null;
+          referenceUnique?: boolean;
+          reason?: string;
           requiresManualReview?: boolean;
         };
       };
@@ -437,18 +511,23 @@ export function Chathead() {
         ? ` (${formatBytes(result.originalSize)} → ${formatBytes(result.compressedSize)})`
         : "";
       const analysis = uploadData.receiptAnalysis;
-      const aiReviewNote =
-        analysis?.verified && analysis.extractedAmount !== null && analysis.extractedAmount !== undefined
-          ? analysis.amountMatches === true
-            ? `\n\n🤖 **Kimi AI pre-check:** Read **₱${analysis.extractedAmount.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}**, matching this order. Admin will still perform the final verification.`
-            : `\n\n⚠️ **Kimi AI pre-check:** Read **₱${analysis.extractedAmount.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}**, but it did not clearly match the expected amount. Admin will review it manually.`
-          : "\n\n🔎 **Kimi AI pre-check:** The amount could not be confirmed automatically, so admin will review the image manually.";
+      const receiptAmount = analysis?.extractedAmount !== null && analysis?.extractedAmount !== undefined
+        ? formatPhp(analysis.extractedAmount)
+        : "unreadable amount";
+      const aiReviewNote = analysis?.decision === "approved"
+        ? `\n\n✅ **Kimi approved the proof:** ${receiptAmount}, receiver **${analysis.receiverName || "Henry S."}**, and a unique GCash Ref No. all matched. Your order is now processing.`
+        : analysis?.decision === "rejected_fake"
+          ? `\n\n❌ **Kimi rejected the proof:** strong signs of an AI-generated or altered receipt were detected. ${analysis.reason || ""}`.trim()
+          : analysis?.decision === "rejected_duplicate"
+            ? `\n\n❌ **Kimi rejected the proof:** that GCash Ref No. was already used on another active transaction.`
+            : `\n\n🔎 **Kimi sent this for manual review:** ${analysis?.reason || "The receiver, reference number, or amount could not be fully confirmed."}`;
       // Add success response from AI
       pushLocalMessage({
         role: 'assistant',
-        content: `🎉 **Receipt screenshot successfully received!**\n\nIt has been automatically linked to **Tracking ID: ${displayId}** and is now visible on the Admin Dashboard.${aiReviewNote}\n\nOur operations team will verify the payment and begin your full package delivery shortly! Thank you for your payment! 🙏${savedLabel ? `\n\n📦 Image optimized${savedLabel}.`
+        content: `🎉 **Receipt screenshot successfully received!**\n\nIt has been automatically linked to **Tracking ID: ${displayId}**.${aiReviewNote}${analysis?.decision === "manual_review" ? "\n\nAdmin has been notified and can approve or reject it from the existing review flow." : ""}${savedLabel ? `\n\n📦 Image optimized${savedLabel}.`
  : ""}`
       });
+      setPendingReceiptOrder(null);
 
     } catch (err: unknown) {
       console.error(err);
@@ -487,6 +566,152 @@ export function Chathead() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  const updateOfferStatus = (offer: ChatOffer, status: OfferActionStatus) => {
+    setOfferActionStatus((current) => ({ ...current, [offer.actionKey]: status }));
+  };
+
+  const handleCancelOffer = (offer: ChatOffer) => {
+    updateOfferStatus(offer, "cancelled");
+    if (pendingCheckoutOffer?.actionKey === offer.actionKey) {
+      setPendingCheckoutOffer(null);
+    }
+    pushLocalMessage({
+      role: "assistant",
+      content: `No problem — I cancelled **${offer.name}**. Your wallet was not charged.`,
+    });
+  };
+
+  const handleBuyOffer = async (offer: ChatOffer) => {
+    if (isLoading || uploading || pendingCheckoutOffer) return;
+    updateOfferStatus(offer, "processing");
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user?.id || !user.email) {
+      updateOfferStatus(offer, "idle");
+      pushLocalMessage({
+        role: "assistant",
+        content: "🔐 **Please sign in first.** Direct wallet purchases and GCash receipt uploads must be linked to your PinoyBoosting account. After signing in, return here and tap Buy again.",
+      });
+      return;
+    }
+
+    setPendingCheckoutOffer(offer);
+    setPendingReceiptOrder(null);
+    updateOfferStatus(offer, "awaiting_target");
+    pushLocalMessage({
+      role: "assistant",
+      content: `Send the public profile, page, post, or video link for **${offer.name}**. I’ll re-check the live price, then pay from your wallet automatically.`,
+    });
+  };
+
+  const completeOfferCheckout = async (offer: ChatOffer, targetUrl: string) => {
+    updateOfferStatus(offer, "processing");
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user?.id || !user.email) {
+      updateOfferStatus(offer, "idle");
+      setPendingCheckoutOffer(null);
+      throw new Error("Please sign in before buying from the chatbot.");
+    }
+
+    const checkoutPayload = {
+      userId: user.id,
+      serviceId: offer.serviceId,
+      email: user.email,
+      url: targetUrl,
+      quantity: offer.quantity,
+      smmServiceId: offer.smmServiceId,
+      catalogSnapshot: offer.catalogSnapshot,
+    };
+
+    const walletRes = await fetch("/api/checkout-wallet", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(checkoutPayload),
+    });
+    const walletData = await walletRes.json() as {
+      error?: string;
+      code?: string;
+      orderId?: string;
+      newBalance?: number;
+      amount?: number;
+      quantity?: number;
+      serviceTitle?: string;
+      balance?: number;
+      requiredAmount?: number;
+      shortfall?: number;
+    };
+
+    if (walletRes.ok && walletData.orderId) {
+      const trackingId = `BS-${walletData.orderId.slice(0, 8).toUpperCase()}`;
+      updateOfferStatus(offer, "purchased");
+      setPendingCheckoutOffer(null);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("last_order_id", walletData.orderId);
+        localStorage.setItem("last_order_email", user.email);
+        window.dispatchEvent(new CustomEvent("pinoyboosting-wallet-updated", {
+          detail: { balance: walletData.newBalance },
+        }));
+      }
+      pushLocalMessage({
+        role: "assistant",
+        content: `✅ **Purchase complete!**\n\n* **Tracking ID:** ${trackingId}\n* **Service:** ${walletData.serviceTitle || offer.name}\n* **Quantity:** ${Number(walletData.quantity || offer.quantity).toLocaleString()}\n* **Paid from wallet:** ${formatPhp(Number(walletData.amount ?? offer.total))}\n* **New wallet balance:** ${formatPhp(Number(walletData.newBalance || 0))}\n\nYour order is processing now.`,
+      });
+      return;
+    }
+
+    if (walletRes.status !== 402 && walletData.code !== "INSUFFICIENT_BALANCE") {
+      updateOfferStatus(offer, "awaiting_target");
+      throw new Error(walletData.error || "Wallet checkout failed.");
+    }
+
+    const orderId = crypto.randomUUID();
+    const createRes = await fetch("/api/orders/create", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        orderId,
+        serviceId: offer.serviceId,
+        email: user.email,
+        targetUrl,
+        paymentMethod: "GCash",
+        quantity: offer.quantity,
+        smmServiceId: offer.smmServiceId,
+        catalogSnapshot: offer.catalogSnapshot,
+      }),
+    });
+    const createData = await createRes.json() as {
+      error?: string;
+      orderId?: string;
+      amount?: number;
+      quantity?: number;
+      serviceTitle?: string;
+    };
+    if (!createRes.ok || !createData.orderId) {
+      updateOfferStatus(offer, "awaiting_target");
+      throw new Error(createData.error || "Could not create the GCash order.");
+    }
+
+    const trackingId = `BS-${createData.orderId.slice(0, 8).toUpperCase()}`;
+    const amount = Number(createData.amount ?? walletData.requiredAmount ?? offer.total);
+    setPendingCheckoutOffer(null);
+    setPendingReceiptOrder({ orderId: createData.orderId, trackingId, amount });
+    updateOfferStatus(offer, "awaiting_receipt");
+    if (typeof window !== "undefined") {
+      localStorage.setItem("last_order_id", createData.orderId);
+      localStorage.setItem("last_order_email", user.email);
+    }
+    pushLocalMessage({
+      role: "assistant",
+      content: `💳 **Your wallet balance is not enough, so it was not charged.**\n\nI created **${trackingId}** for GCash payment.\n\n* **Pay exactly:** ${formatPhp(amount)}\n* **GCash:** 09505339963\n* **Receiver:** Henry S.\n\nAfter paying, tap the image button below and upload the GCash proof. Kimi will check the receiver, unique Ref No., amount, and visible signs of a fake or altered receipt.`,
+    });
+  };
+
   const sendMessage = async (userMsg: string) => {
     setIsLoading(true);
 
@@ -504,6 +729,65 @@ export function Chathead() {
     }
 
     try {
+      if (pendingCheckoutOffer) {
+        if (/^(cancel|cancel order|never mind|nevermind)$/i.test(userMsg.trim())) {
+          handleCancelOffer(pendingCheckoutOffer);
+          setIsLoading(false);
+          return;
+        }
+
+        if (!isValidTargetUrl(userMsg)) {
+          pushLocalMessage({
+            role: "assistant",
+            content: "Please send a complete public link beginning with **https://** so I can attach the order to the correct target. You can also type **cancel**.",
+          });
+          setIsLoading(false);
+          return;
+        }
+
+        try {
+          await completeOfferCheckout(pendingCheckoutOffer, userMsg);
+        } catch (checkoutError) {
+          pushLocalMessage({
+            role: "assistant",
+            content: `❌ **Checkout could not finish:** ${getErrorMessage(checkoutError)}`,
+          });
+        }
+        setIsLoading(false);
+        return;
+      }
+
+      if (isCheapestOfferRequest(userMsg)) {
+        try {
+          const offerRes = await fetch("/api/chat/offers", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ query: userMsg }),
+          });
+          const offerData = await offerRes.json() as {
+            error?: string;
+            message?: string;
+            offers?: Array<Omit<ChatOffer, "actionKey">>;
+          };
+
+          if (offerRes.ok && offerData.offers?.length) {
+            const offers = offerData.offers.map((offer) => ({
+              ...offer,
+              actionKey: crypto.randomUUID(),
+            }));
+            pushLocalMessage({
+              role: "assistant",
+              content: offerData.message || "Here are the cheapest live offers I found.",
+              offers,
+            });
+            setIsLoading(false);
+            return;
+          }
+        } catch (offerError) {
+          console.error("Cheapest offer lookup failed:", offerError);
+        }
+      }
+
       // 1. Check for Order ID or Tracking ID in the user's message
       const uuidRegex = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
       const trackRegex = /BS-([0-9a-f]{8})/i;
@@ -585,7 +869,7 @@ export function Chathead() {
                 if (parsed.min_qty) minQtyStr = ` (Min order: ${parsed.min_qty})`;
                 if (parsed.free_trial_amount) freeTrialStr = ` (Free Trial: ${parsed.free_trial_amount} units available!)`;
               }
-            } catch (e) {}
+            } catch {}
             
             const isSingleSrv = 
               srv.title.toLowerCase().includes("page") || 
@@ -754,9 +1038,11 @@ Tone rules:
               </span>
             )}
             <div className="w-full h-full rounded-full overflow-hidden bg-[#181818] flex items-center justify-center">
-              <img 
+              <NextImage
                 src="/chathead-face.png" 
                 alt="Support Face" 
+                width={60}
+                height={60}
                 className="w-full h-full object-cover select-none pointer-events-none group-hover:scale-105 transition-transform duration-300"
               />
             </div>
@@ -771,7 +1057,7 @@ Tone rules:
           <div className="bg-elevated border-b border-border p-4 text-fg flex items-center justify-between">
             <div>
               <h3 className="font-bold text-sm tracking-tight text-fg">CY<span className="text-[#1DB954]">NETWORK</span> Support</h3>
-              <p className="text-[10px] text-[#1877F2] font-semibold mt-0.5 tracking-wider uppercase">Powered by Free Open AI</p>
+              <p className="text-[10px] text-[#1877F2] font-semibold mt-0.5 tracking-wider uppercase">DeepSeek V4 Flash · Kimi Receipt Vision</p>
             </div>
             <button onClick={() => setIsOpen(false)} className="text-muted hover:text-fg transition-colors">
               <X size={18} />
@@ -845,13 +1131,81 @@ Tone rules:
             {messages.map((msg, i) => (
               <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                 <div 
-                  className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm shadow-sm ${
+                  className={`${msg.offers?.length ? "max-w-[94%]" : "max-w-[85%]"} rounded-2xl px-4 py-2.5 text-sm shadow-sm ${
                     msg.role === 'user' 
                       ? 'bg-[#1877F2] text-fg font-semibold rounded-br-none' 
                       : 'bg-card border border-border/60 text-fg rounded-bl-none'
                   }`}
                 >
                   {renderMessageContent(msg.content, msg.role === 'user')}
+                  {msg.offers?.length ? (
+                    <div className="mt-3 space-y-2.5">
+                      {msg.offers.map((offer) => {
+                        const status = offerActionStatus[offer.actionKey] || "idle";
+                        const busy = status === "processing";
+                        const terminal = status === "purchased" || status === "cancelled";
+                        return (
+                          <div
+                            key={offer.actionKey}
+                            className="rounded-xl border border-[#1877F2]/25 bg-elevated/80 p-3 shadow-inner"
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="rounded-full bg-[#1877F2]/12 px-2 py-1 text-[9px] font-black uppercase tracking-wider text-[#4e8df5]">
+                                {offer.platform} · SMM #{offer.smmServiceId}
+                              </span>
+                              <span className="text-[9px] font-bold uppercase tracking-wider text-muted">
+                                {status === "awaiting_target" ? "Waiting for link" :
+                                  status === "awaiting_receipt" ? "Waiting for GCash proof" :
+                                  status === "purchased" ? "Purchased" :
+                                  status === "cancelled" ? "Cancelled" :
+                                  busy ? "Checking out" : "Live offer"}
+                              </span>
+                            </div>
+                            <p className="mt-2 line-clamp-2 text-xs font-black leading-snug text-fg">
+                              {offer.name}
+                            </p>
+                            <div className="mt-2 grid grid-cols-2 gap-2 text-[10px]">
+                              <div className="rounded-lg border border-border/60 bg-card px-2 py-1.5">
+                                <span className="block text-muted">Minimum package</span>
+                                <strong className="text-fg">{offer.quantity.toLocaleString()}</strong>
+                              </div>
+                              <div className="rounded-lg border border-[#1DB954]/20 bg-[#1DB954]/5 px-2 py-1.5">
+                                <span className="block text-muted">
+                                  {offer.vipDiscountPercent > 0 ? `VIP -${offer.vipDiscountPercent}%` : "Total"}
+                                </span>
+                                <strong className="text-[#1DB954]">{formatPhp(offer.total)}</strong>
+                              </div>
+                            </div>
+                            <p className="mt-2 text-[9px] leading-relaxed text-muted">
+                              {formatPhp(offer.pricePerThousand)} per 1,000 · max {offer.max.toLocaleString()} · re-priced before payment
+                            </p>
+                            <div className="mt-3 grid grid-cols-2 gap-2">
+                              <button
+                                type="button"
+                                onClick={() => handleBuyOffer(offer)}
+                                disabled={status !== "idle" || isLoading || uploading || Boolean(pendingCheckoutOffer)}
+                                className="flex items-center justify-center gap-1.5 rounded-lg bg-[#1DB954] px-3 py-2 text-[10px] font-black uppercase tracking-wider text-black transition hover:bg-[#1ed760] disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                {busy ? <Loader2 size={12} className="animate-spin" /> :
+                                  status === "purchased" ? <CheckCircle2 size={12} /> :
+                                  <ShoppingCart size={12} />}
+                                {status === "purchased" ? "Bought" : "Buy"}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleCancelOffer(offer)}
+                                disabled={busy || terminal || status === "awaiting_receipt" || isLoading || uploading}
+                                className="flex items-center justify-center gap-1.5 rounded-lg border border-red-400/25 bg-red-500/5 px-3 py-2 text-[10px] font-black uppercase tracking-wider text-red-300 transition hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                <Ban size={12} />
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : null}
                 </div>
               </div>
             ))}
@@ -900,19 +1254,51 @@ Tone rules:
           <div className="px-3 py-2 bg-elevated border-t border-border/50 flex gap-2 overflow-x-auto select-none no-scrollbar">
             <button
               type="button"
-              onClick={() => handleQuickAction("track my order")}
-              disabled={isLoading || uploading}
+              onClick={() => handleQuickAction("show me cheapest facebook followers")}
+              disabled={isLoading || uploading || Boolean(pendingCheckoutOffer)}
               className="text-[11px] font-semibold bg-card hover:bg-elevated border border-border text-fg hover:text-fg px-3 py-1.5 rounded-full transition-all duration-200 cursor-pointer flex items-center gap-1 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
             >
-              🔍 Track My Order
+              Facebook Followers
             </button>
             <button
               type="button"
-              onClick={() => handleQuickAction("order status")}
-              disabled={isLoading || uploading}
+              onClick={() => handleQuickAction("show me cheapest instagram followers")}
+              disabled={isLoading || uploading || Boolean(pendingCheckoutOffer)}
               className="text-[11px] font-semibold bg-card hover:bg-elevated border border-border text-fg hover:text-fg px-3 py-1.5 rounded-full transition-all duration-200 cursor-pointer flex items-center gap-1 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
             >
-              ⚡ Order Status
+              Instagram Followers
+            </button>
+            <button
+              type="button"
+              onClick={() => handleQuickAction("show me cheapest tiktok followers")}
+              disabled={isLoading || uploading || Boolean(pendingCheckoutOffer)}
+              className="text-[11px] font-semibold bg-card hover:bg-elevated border border-border text-fg hover:text-fg px-3 py-1.5 rounded-full transition-all duration-200 cursor-pointer flex items-center gap-1 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
+            >
+              TikTok Followers
+            </button>
+            <button
+              type="button"
+              onClick={() => handleQuickAction("show me cheapest youtube subscribers")}
+              disabled={isLoading || uploading || Boolean(pendingCheckoutOffer)}
+              className="text-[11px] font-semibold bg-card hover:bg-elevated border border-border text-fg hover:text-fg px-3 py-1.5 rounded-full transition-all duration-200 cursor-pointer flex items-center gap-1 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
+            >
+              YouTube Subscribers
+            </button>
+            <button
+              type="button"
+              onClick={() => handleQuickAction("show me all social media offers")}
+              disabled={isLoading || uploading || Boolean(pendingCheckoutOffer)}
+              className="text-[11px] font-semibold bg-[#1DB954]/10 hover:bg-[#1DB954]/15 border border-[#1DB954]/25 text-[#1DB954] px-3 py-1.5 rounded-full transition-all duration-200 cursor-pointer flex items-center gap-1 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
+            >
+              All Social Offers
+            </button>
+            <button
+              type="button"
+              onClick={() => handleQuickAction("track my order")}
+              disabled={isLoading || uploading || Boolean(pendingCheckoutOffer)}
+              className="text-[11px] font-semibold bg-card hover:bg-elevated border border-border text-fg hover:text-fg px-3 py-1.5 rounded-full transition-all duration-200 cursor-pointer flex items-center gap-1 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
+            >
+              🔍 Track Order
             </button>
           </div>
 
@@ -928,13 +1314,13 @@ Tone rules:
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={isLoading || uploading}
-              className="bg-card hover:bg-elevated border border-slate-700/80 text-muted hover:text-fg p-2.5 rounded-xl transition-colors flex items-center justify-center flex-shrink-0"
-              title="Attach GCash Screenshot"
+              className={`${pendingReceiptOrder ? "border-[#1DB954]/50 bg-[#1DB954]/10 text-[#1DB954]" : "border-slate-700/80 bg-card text-muted"} hover:bg-elevated border hover:text-fg p-2.5 rounded-xl transition-colors flex items-center justify-center flex-shrink-0`}
+              title={pendingReceiptOrder ? `Upload GCash proof for ${pendingReceiptOrder.trackingId}` : "Attach GCash Screenshot"}
             >
               {uploading ? (
                 <Loader2 size={16} className="animate-spin text-[#1877F2]" />
               ) : (
-                <Image size={16} />
+                <ImageIcon size={16} />
               )}
             </button>
             <input
@@ -942,7 +1328,15 @@ Tone rules:
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onPaste={handlePaste}
-              placeholder={uploading ? (compressState ? "Compressing receipt..." : "Uploading receipt...") : "Type message or paste screenshot..."}
+              placeholder={
+                uploading
+                  ? (compressState ? "Compressing receipt..." : "Uploading receipt...")
+                  : pendingCheckoutOffer
+                    ? "Paste the public target link or type cancel..."
+                    : pendingReceiptOrder
+                      ? `Upload proof for ${pendingReceiptOrder.trackingId} (${formatPhp(pendingReceiptOrder.amount)})...`
+                      : "Type message or paste screenshot..."
+              }
               className="flex-1 px-4 py-2 bg-card border border-slate-700/80 text-fg rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1877F2] text-sm font-medium placeholder-muted"
               disabled={isLoading || uploading}
             />

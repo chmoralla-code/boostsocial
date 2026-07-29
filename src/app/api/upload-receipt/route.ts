@@ -1,5 +1,5 @@
 import { after, NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { sendOrderApprovalNotification } from "@/lib/telegram";
 import { createClient as createServerClient } from "@/utils/supabase/server";
 import { enforceRateLimit } from "@/utils/security/rate-limit";
@@ -18,7 +18,7 @@ const MAX_RECEIPT_FILE_BYTES = 8 * 1024 * 1024;
 const ALLOWED_RECEIPT_TYPES = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp"]);
 
 async function updateOrderReceipt(
-  supabase: any,
+  supabase: SupabaseClient,
   orderId: string,
   receiptUrl: string,
   receiptHash: string
@@ -223,6 +223,11 @@ export async function POST(req: NextRequest) {
         !rejectedAsFake &&
         !rejectedAsDuplicate,
     };
+    const decidedOrderStatus = autoApproval?.autoApproved
+      ? "Processing"
+      : rejectedAsFake || rejectedAsDuplicate
+        ? "Rejected"
+        : null;
 
     after(async () => {
       await syncBackupAdminClients(async (backupClient) => {
@@ -231,7 +236,7 @@ export async function POST(req: NextRequest) {
           .update({
             receipt_url: receiptUrl,
             receipt_hash: receiptHash,
-            ...(autoApproval?.autoApproved ? { status: "Processing" } : {}),
+            ...(decidedOrderStatus ? { status: decidedOrderStatus } : {}),
           })
           .eq("id", orderId);
       }, "order receipt sync");
@@ -240,9 +245,12 @@ export async function POST(req: NextRequest) {
     after(async () => {
       try {
         const trackingId = `BS-${orderId.slice(0, 8).toUpperCase()}`;
-        const serviceTitle = Array.isArray((orderData as any)?.services)
-          ? (orderData as any).services[0]?.title
-          : (orderData as any)?.services?.title;
+        const orderServices = (orderData as {
+          services?: { title?: string } | Array<{ title?: string }>;
+        }).services;
+        const serviceTitle = Array.isArray(orderServices)
+          ? orderServices[0]?.title
+          : orderServices?.title;
         const resolvedServiceTitle = await resolveSmmServiceTitle(
           orderData.smm_service_id,
           serviceTitle || "SMM Service"
@@ -303,6 +311,12 @@ export async function POST(req: NextRequest) {
               console.error("Auto-placement after AI order approval failed:", err);
             });
           }
+        } else if (rejectedAsFake || rejectedAsDuplicate) {
+          await notifyCustomer({
+            client: supabase,
+            email,
+            message: `System update: GCash proof for order ${trackingId} was rejected. ${autoApproval?.reason || "The receipt did not pass the verification rules."}`,
+          });
         } else {
           await notifyCustomer({
             client: supabase,
@@ -324,8 +338,13 @@ export async function POST(req: NextRequest) {
       aiReason: autoApproval?.reason ?? null,
       receiptAnalysis,
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("Upload endpoint failed:", err);
-    return NextResponse.json({ error: err?.message || (typeof err === "object" ? JSON.stringify(err) : String(err)) }, { status: 500 });
+    const message = err instanceof Error
+      ? err.message
+      : typeof err === "object"
+        ? JSON.stringify(err)
+        : String(err);
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
