@@ -1,8 +1,108 @@
 import { SupabaseClient } from "@supabase/supabase-js";
+import {
+  NEURALWATT_VISION_MODEL,
+  requestNeuralwattChat,
+  type NeuralwattTool,
+} from "@/lib/neuralwatt";
 
-const OPENCODE_ZEN_API_KEY = process.env.OPENCODE_ZEN_API_KEY || process.env.OPENROUTER_API_KEY || process.env.GEMINI_API_KEY;
-const OPENCODE_ZEN_BASE = "https://opencode.ai/zen/v1";
-const VISION_MODEL = "mimo-v2.5-free";
+const RECEIPT_ANALYSIS_TOOL_NAME = "analyze_payment_receipt";
+const RECEIPT_ANALYSIS_FIELDS = [
+  "is_payment_receipt",
+  "amount",
+  "currency",
+  "reference_number",
+  "sender",
+  "recipient",
+  "date",
+  "is_ai_generated",
+  "ai_generated_score",
+  "tampering_score",
+  "confidence",
+  "reason",
+  "receipt_description",
+] as const;
+const RECEIPT_ANALYSIS_TOOL: NeuralwattTool = {
+  type: "function",
+  function: {
+    name: RECEIPT_ANALYSIS_TOOL_NAME,
+    description:
+      "Return a structured visual analysis of an uploaded GCash proof-of-payment image.",
+    parameters: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        is_payment_receipt: {
+          type: "boolean",
+          description:
+            "True only when the image visibly appears to be a genuine GCash payment or transfer confirmation.",
+        },
+        amount: {
+          type: ["number", "null"],
+          description:
+            "The final amount actually paid in Philippine pesos, or null when it is not clearly readable.",
+        },
+        currency: {
+          type: ["string", "null"],
+          enum: ["PHP", null],
+          description: "PHP when the visible receipt uses Philippine pesos; otherwise null.",
+        },
+        reference_number: {
+          type: ["string", "null"],
+          description: "The visible transaction/reference number, or null when unreadable.",
+        },
+        sender: {
+          type: ["string", "null"],
+          description: "The visible sender/account name, or null when absent or unreadable.",
+        },
+        recipient: {
+          type: ["string", "null"],
+          description: "The visible recipient/account name, or null when absent or unreadable.",
+        },
+        date: {
+          type: ["string", "null"],
+          description: "The visible transaction date and time exactly as shown, or null.",
+        },
+        is_ai_generated: {
+          type: "boolean",
+          description:
+            "True only when there are strong, visible generative-image artifacts; uncertainty must be false.",
+        },
+        ai_generated_score: {
+          type: "number",
+          minimum: 0,
+          maximum: 100,
+          description:
+            "Visible-evidence score from 0 (no generative artifacts) to 100 (strong generative artifacts).",
+        },
+        tampering_score: {
+          type: "number",
+          minimum: 0,
+          maximum: 100,
+          description:
+            "Visible-evidence score from 0 (no obvious edits) to 100 (strong signs of altered text or amounts).",
+        },
+        confidence: {
+          type: "number",
+          minimum: 0,
+          maximum: 1,
+          description:
+            "Confidence that the amount and transaction details were read correctly, from 0 to 1.",
+        },
+        reason: {
+          type: ["string", "null"],
+          description:
+            "A concise reason when the receipt or amount cannot be verified; otherwise null.",
+        },
+        receipt_description: {
+          type: "string",
+          description:
+            "A short factual summary of the visible receipt without inventing hidden details.",
+        },
+      },
+      required: RECEIPT_ANALYSIS_FIELDS,
+    },
+  },
+};
 
 /** Canonical GCash payee shown on site (masked on receipts as HE•••Y S.). */
 export const APPROVED_GCASH_RECEIVER_LABEL = "HE•••Y S.";
@@ -10,11 +110,15 @@ export const APPROVED_GCASH_RECEIVER_LABEL = "HE•••Y S.";
 export interface VerificationResult {
   success: boolean;
   extractedAmount: number | null;
+  currency?: "PHP" | null;
   confidence: number;
   rawText: string;
   reason?: string;
   isAIGenerated?: boolean;
   aiGeneratedScore?: number;
+  tamperingScore?: number;
+  isPaymentReceipt?: boolean;
+  providerModel?: string;
   isDuplicate?: boolean;
   duplicateRef?: string;
   referenceNumber?: string | null;
@@ -36,43 +140,73 @@ function isInactiveStatus(status: unknown) {
   return INACTIVE_STATUSES.has(String(status ?? "").trim().toLowerCase());
 }
 
-async function callVisionModel(imageBase64: string, mimeType: string, prompt: string): Promise<string> {
-  if (!OPENCODE_ZEN_API_KEY) {
-    throw new Error("No API key configured for receipt verification");
-  }
-
-  const res = await fetch(`${OPENCODE_ZEN_BASE}/chat/completions`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${OPENCODE_ZEN_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: VISION_MODEL,
-      messages: [
-        {
-          role: "user",
-          content: [
-            { type: "text", text: prompt },
-            {
-              type: "image_url",
-              image_url: { url: `data:${mimeType};base64,${imageBase64}` },
+async function callVisionModel(
+  imageBase64: string,
+  mimeType: string,
+  prompt: string
+): Promise<{ rawText: string; model: string }> {
+  const completion = await requestNeuralwattChat({
+    model: NEURALWATT_VISION_MODEL,
+    messages: [
+      {
+        role: "system",
+        content: [
+          "You are a payment-receipt visual extraction system.",
+          "Use only details that are visibly present in the image.",
+          "Never infer a transaction, amount, reference, sender, recipient, or authenticity signal that cannot be seen.",
+          "A normal digital screenshot is not evidence that an image was AI-generated or tampered with.",
+          "Return one JSON object and no surrounding prose.",
+          `It must contain exactly these keys: ${RECEIPT_ANALYSIS_FIELDS.join(", ")}.`,
+          "All keys are required. Use null for missing receipt text fields and amount.",
+        ].join(" "),
+      },
+      {
+        role: "user",
+        content: [
+          { type: "text", text: prompt },
+          {
+            type: "image_url",
+            image_url: {
+              url: `data:${mimeType};base64,${imageBase64}`,
+              detail: "high",
             },
-          ],
-        },
-      ],
-      max_tokens: 512,
-      temperature: 0.1,
-    }),
+          },
+        ],
+      },
+    ],
+    responseFormat: {
+      type: "json_schema",
+      json_schema: {
+        name: RECEIPT_ANALYSIS_TOOL_NAME,
+        strict: true,
+        schema: RECEIPT_ANALYSIS_TOOL.function.parameters,
+      },
+    },
+    maxTokens: 2_048,
+    temperature: 0.1,
+    timeoutMs: 45_000,
+    disableThinking: true,
   });
 
-  if (!res.ok) {
-    const errText = await res.text().catch(() => "unknown");
-    throw new Error(`Vision API error ${res.status}: ${errText}`);
+  const toolCall = completion.message.tool_calls?.find(
+    (call) => call.function?.name === RECEIPT_ANALYSIS_TOOL_NAME
+  );
+  const rawText =
+    toolCall?.function?.arguments ||
+    (completion.message.function_call?.name === RECEIPT_ANALYSIS_TOOL_NAME
+      ? completion.message.function_call.arguments
+      : "") ||
+    completion.message.content?.trim() ||
+    "";
+
+  if (!rawText) {
+    throw new Error("Kimi receipt analysis returned no structured result");
   }
 
-  const data = await res.json();
-  return data?.choices?.[0]?.message?.content || "";
+  return {
+    rawText,
+    model: completion.model || NEURALWATT_VISION_MODEL,
+  };
 }
 
 /**
@@ -98,22 +232,137 @@ export function isApprovedGCashReceiver(name: unknown): boolean {
   return letters === "HEYS" || letters === "HENRYS";
 }
 
-function tryParseJSON(text: string): Record<string, any> | null {
+type ParsedReceiptAnalysis = {
+  isPaymentReceipt: boolean;
+  amount: number | null;
+  currency: "PHP" | null;
+  referenceNumber: string | null;
+  recipient: string | null;
+  isAIGenerated: boolean;
+  aiGeneratedScore: number;
+  tamperingScore: number;
+  confidence: number;
+  reason: string | null;
+  receiptDescription: string;
+};
+
+function finiteNumber(value: unknown) {
+  const number =
+    typeof value === "number"
+      ? value
+      : typeof value === "string" && value.trim()
+        ? Number(value)
+        : Number.NaN;
+  return Number.isFinite(number) ? number : null;
+}
+
+function boundedNumber(value: unknown, min: number, max: number) {
+  const number = finiteNumber(value);
+  if (number === null || number < min || number > max) return null;
+  return number;
+}
+
+function nullableString(value: unknown) {
+  if (value === null || value === undefined) return null;
+  if (typeof value !== "string") return null;
+  const clean = value.trim();
+  return clean || null;
+}
+
+function isNullableString(value: unknown) {
+  return value === null || typeof value === "string";
+}
+
+function parseReceiptAnalysis(text: string): ParsedReceiptAnalysis | null {
+  const parsed = tryParseJSON(text);
+  if (!parsed) return null;
+
+  const requiredFields = [
+    "is_payment_receipt",
+    "amount",
+    "currency",
+    "reference_number",
+    "sender",
+    "recipient",
+    "date",
+    "is_ai_generated",
+    "ai_generated_score",
+    "tampering_score",
+    "confidence",
+    "reason",
+    "receipt_description",
+  ];
+  if (!requiredFields.every((field) => Object.hasOwn(parsed, field))) {
+    return null;
+  }
+
+  const amount =
+    parsed.amount === null
+      ? null
+      : finiteNumber(parsed.amount);
+  const aiGeneratedScore = boundedNumber(parsed.ai_generated_score, 0, 100);
+  const tamperingScore = boundedNumber(parsed.tampering_score, 0, 100);
+  const confidence = boundedNumber(parsed.confidence, 0, 1);
+  const receiptDescription = nullableString(parsed.receipt_description);
+
+  if (
+    typeof parsed.is_payment_receipt !== "boolean" ||
+    typeof parsed.is_ai_generated !== "boolean" ||
+    (amount !== null && amount <= 0) ||
+    (parsed.currency !== null && parsed.currency !== "PHP") ||
+    !isNullableString(parsed.reference_number) ||
+    !isNullableString(parsed.sender) ||
+    !isNullableString(parsed.recipient) ||
+    !isNullableString(parsed.date) ||
+    !isNullableString(parsed.reason) ||
+    aiGeneratedScore === null ||
+    tamperingScore === null ||
+    confidence === null ||
+    !receiptDescription
+  ) {
+    return null;
+  }
+
+  return {
+    isPaymentReceipt: parsed.is_payment_receipt,
+    amount,
+    currency: parsed.currency === "PHP" ? "PHP" : null,
+    referenceNumber: nullableString(parsed.reference_number),
+    recipient: nullableString(parsed.recipient),
+    isAIGenerated: parsed.is_ai_generated,
+    aiGeneratedScore,
+    tamperingScore,
+    confidence,
+    reason: nullableString(parsed.reason),
+    receiptDescription,
+  };
+}
+
+function tryParseJSON(text: string): Record<string, unknown> | null {
   try {
-    return JSON.parse(text);
+    const value = JSON.parse(text);
+    return value && typeof value === "object" && !Array.isArray(value)
+      ? value as Record<string, unknown>
+      : null;
   } catch {}
 
   const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
   if (jsonMatch) {
     try {
-      return JSON.parse(jsonMatch[1].trim());
+      const value = JSON.parse(jsonMatch[1].trim());
+      if (value && typeof value === "object" && !Array.isArray(value)) {
+        return value as Record<string, unknown>;
+      }
     } catch {}
   }
 
   const braceMatch = text.match(/\{[\s\S]*\}/);
   if (braceMatch) {
     try {
-      return JSON.parse(braceMatch[0]);
+      const value = JSON.parse(braceMatch[0]);
+      if (value && typeof value === "object" && !Array.isArray(value)) {
+        return value as Record<string, unknown>;
+      }
     } catch {}
   }
 
@@ -266,41 +515,23 @@ export async function verifyReceipt(
 ): Promise<VerificationResult> {
   try {
     const base64 = imageBuffer.toString("base64");
-
-    const primaryPrompt = `You are a GCash receipt verification AI. Analyze this receipt image and return a JSON object with these exact fields:
-{
-  "amount": <number or null if not found>,
-  "currency": "<PHP or null>",
-  "reference_number": "<string or null — GCash Ref No. digits, keep spaces if shown>",
-  "receiver": "<string or null — RECEIVER / To name exactly as shown, e.g. HE•••Y S. or Henry S.>",
-  "sender": "<string or null>",
-  "date": "<string or null>",
-  "is_ai_generated": <true/false>,
-  "ai_generated_score": <number 0-100>,
-  "reason": "<explanation, or null if amount found>",
-  "receipt_description": "<brief 10-word summary of what this receipt shows>"
-}
-
-Rules:
-- Extract total amount paid — look for Amount / Total Amount Sent with PHP, ₱, or P
-- Extract the RECEIVER name (payee), NOT the sender — GCash often masks it like HE•••Y S.
-- Extract Ref No. / Reference Number completely
-- If amount found, reason should be null
-- For is_ai_generated: look for obvious AI artifacts, weird text, unrealistic fonts, pixel inconsistencies
-- ai_generated_score: 0 = definitely real photo, 100 = definitely AI generated
-- receipt_description: short summary like "GCash payment ₱6 to HE•••Y S."`;
+    const primaryPrompt = [
+      "Inspect this uploaded GCash proof-of-payment image.",
+      "Read the final amount paid, PHP currency, complete Ref No., sender, recipient/payee, and date.",
+      `The recipient must be copied exactly as visible so the server can compare it with ${APPROVED_GCASH_RECEIVER_LABEL} or Henry S.`,
+      "Use null for unreadable or missing details.",
+      "Only flag AI generation or tampering when strong visible evidence exists; screenshots and compression alone are not suspicious.",
+    ].join(" ");
 
     const primaryResult = await callVisionModel(base64, mimeType, primaryPrompt);
-    const parsed = tryParseJSON(primaryResult);
+    const parsed = parseReceiptAnalysis(primaryResult.rawText);
+    if (!parsed) {
+      throw new Error("Kimi receipt analysis did not match the required schema");
+    }
 
-    const extractedAmount = parsed?.amount != null && parsed?.amount !== ""
-      ? parseFloat(String(parsed.amount))
-      : null;
-    const isAIGenerated = parsed?.is_ai_generated === true;
-    const aiGeneratedScore = typeof parsed?.ai_generated_score === "number" ? parsed.ai_generated_score : 0;
-    const receiptDescription = parsed?.receipt_description || "";
-    const receiverName = parsed?.receiver ? String(parsed.receiver).trim() : null;
-    const referenceNumber = normalizeGcashReference(parsed?.reference_number);
+    const extractedAmount = parsed.amount;
+    const receiverName = parsed.recipient;
+    const referenceNumber = normalizeGcashReference(parsed.referenceNumber);
     const receiverMatched = isApprovedGCashReceiver(receiverName);
 
     let isDuplicate = false;
@@ -319,13 +550,21 @@ Rules:
     }
 
     return {
-      success: extractedAmount !== null && Number.isFinite(extractedAmount),
-      extractedAmount: Number.isFinite(extractedAmount as number) ? (extractedAmount as number) : null,
-      confidence: isAIGenerated ? Math.max(0.3, 1 - aiGeneratedScore / 100) : 0.85,
-      rawText: (receiptDescription || primaryResult).substring(0, 500),
-      reason: parsed?.reason || undefined,
-      isAIGenerated,
-      aiGeneratedScore,
+      success:
+        parsed.isPaymentReceipt &&
+        parsed.currency === "PHP" &&
+        extractedAmount !== null &&
+        Number.isFinite(extractedAmount),
+      extractedAmount,
+      currency: parsed.currency,
+      confidence: parsed.confidence,
+      rawText: parsed.receiptDescription.substring(0, 500),
+      reason: parsed.reason || undefined,
+      isAIGenerated: parsed.isAIGenerated,
+      aiGeneratedScore: parsed.aiGeneratedScore,
+      tamperingScore: parsed.tamperingScore,
+      isPaymentReceipt: parsed.isPaymentReceipt,
+      providerModel: primaryResult.model,
       isDuplicate,
       duplicateRef,
       referenceNumber,
@@ -343,6 +582,9 @@ Rules:
       reason: error instanceof Error ? error.message : "Vision API error",
       isAIGenerated: false,
       aiGeneratedScore: 0,
+      tamperingScore: 0,
+      isPaymentReceipt: false,
+      providerModel: NEURALWATT_VISION_MODEL,
       receiverMatched: false,
       referenceUnique: false,
     };
@@ -360,7 +602,7 @@ export async function autoVerifyAndApproveTopup(params: {
   requestedAmount: number;
   imageBuffer: Buffer;
   mimeType: string;
-  userEmail: string;
+  userEmail?: string;
 }) {
   const { supabase, topupId, requestedAmount, imageBuffer, mimeType } = params;
 
@@ -372,6 +614,10 @@ export async function autoVerifyAndApproveTopup(params: {
     confidence: result.confidence,
     is_ai_generated: result.isAIGenerated,
     ai_generated_score: result.aiGeneratedScore,
+    tampering_score: result.tamperingScore,
+    is_payment_receipt: result.isPaymentReceipt,
+    currency: result.currency,
+    provider_model: result.providerModel,
     receiver_name: result.receiverName || null,
     receiver_matched: Boolean(result.receiverMatched),
     reference_number: result.referenceNumber || null,
@@ -402,6 +648,12 @@ export async function autoVerifyAndApproveTopup(params: {
   }
 
   const match =
+    result.success &&
+    result.isPaymentReceipt === true &&
+    result.currency === "PHP" &&
+    result.confidence >= 0.7 &&
+    !result.isAIGenerated &&
+    (result.tamperingScore ?? 0) < 70 &&
     amountMatches(result.extractedAmount, requestedAmount) &&
     Boolean(result.receiverMatched) &&
     Boolean(result.referenceNumber) &&
@@ -474,6 +726,10 @@ export async function autoVerifyAndApproveOrder(params: {
     confidence: result.confidence,
     is_ai_generated: result.isAIGenerated,
     ai_generated_score: result.aiGeneratedScore,
+    tampering_score: result.tamperingScore,
+    is_payment_receipt: result.isPaymentReceipt,
+    currency: result.currency,
+    provider_model: result.providerModel,
     receiver_name: result.receiverName || null,
     receiver_matched: Boolean(result.receiverMatched),
     reference_number: result.referenceNumber || null,
@@ -502,6 +758,12 @@ export async function autoVerifyAndApproveOrder(params: {
   }
 
   const match =
+    result.success &&
+    result.isPaymentReceipt === true &&
+    result.currency === "PHP" &&
+    result.confidence >= 0.7 &&
+    !result.isAIGenerated &&
+    (result.tamperingScore ?? 0) < 70 &&
     amountMatches(result.extractedAmount, requestedAmount) &&
     Boolean(result.receiverMatched) &&
     Boolean(result.referenceNumber) &&

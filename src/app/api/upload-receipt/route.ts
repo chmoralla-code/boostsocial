@@ -187,6 +187,43 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    const extractedAmount = autoApproval?.extractedAmount ?? null;
+    const amountMatches =
+      extractedAmount === null || orderAmount <= 0
+        ? null
+        : Math.abs(extractedAmount - orderAmount) <=
+          Math.max(orderAmount * 0.05, 0.5);
+    const rejectedAsFake = Boolean(
+      autoApproval && "rejectedAsFake" in autoApproval && autoApproval.rejectedAsFake
+    );
+    const rejectedAsDuplicate = Boolean(
+      autoApproval && "rejectedAsDuplicate" in autoApproval && autoApproval.rejectedAsDuplicate
+    );
+    const receiptAnalysis = {
+      model: autoApproval?.providerModel || null,
+      decision: autoApproval?.autoApproved
+        ? "approved"
+        : rejectedAsFake
+          ? "rejected_fake"
+          : rejectedAsDuplicate
+            ? "rejected_duplicate"
+            : "manual_review",
+      verified: Boolean(autoApproval?.success),
+      autoApproved: Boolean(autoApproval?.autoApproved),
+      extractedAmount,
+      confidence: autoApproval?.confidence ?? 0,
+      amountMatches,
+      receiverName: autoApproval?.receiverName || null,
+      receiverMatched: Boolean(autoApproval?.receiverMatched),
+      referenceNumber: autoApproval?.referenceNumber || null,
+      referenceUnique: Boolean(autoApproval?.referenceUnique),
+      isAIGenerated: Boolean(autoApproval?.isAIGenerated),
+      reason: autoApproval?.reason || "Kimi could not complete the receipt check.",
+      requiresManualReview: !autoApproval?.autoApproved &&
+        !rejectedAsFake &&
+        !rejectedAsDuplicate,
+    };
+
     after(async () => {
       await syncBackupAdminClients(async (backupClient) => {
         return backupClient
@@ -285,6 +322,7 @@ export async function POST(req: NextRequest) {
       receiptUrl,
       autoApproved: autoApproval?.autoApproved ?? false,
       aiReason: autoApproval?.reason ?? null,
+      receiptAnalysis,
     });
   } catch (err: any) {
     console.error("Upload endpoint failed:", err);

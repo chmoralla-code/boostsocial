@@ -133,7 +133,6 @@ export async function POST(req: NextRequest) {
         requestedAmount: priceNum,
         imageBuffer: compressed.buffer,
         mimeType: compressed.mimeType,
-        userEmail: email.trim(),
       });
 
       if (autoApproval.autoApproved) {
