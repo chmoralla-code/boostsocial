@@ -419,18 +419,34 @@ export function Chathead() {
         body: formData
       });
 
+      const uploadData = await res.json() as {
+        error?: string;
+        receiptAnalysis?: {
+          model?: string;
+          verified?: boolean;
+          extractedAmount?: number | null;
+          amountMatches?: boolean | null;
+          requiresManualReview?: boolean;
+        };
+      };
       if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.error || "Server upload failed");
+        throw new Error(uploadData.error || "Server upload failed");
       }
 
       const savedLabel = result.savedBytes > 0
         ? ` (${formatBytes(result.originalSize)} → ${formatBytes(result.compressedSize)})`
         : "";
+      const analysis = uploadData.receiptAnalysis;
+      const aiReviewNote =
+        analysis?.verified && analysis.extractedAmount !== null && analysis.extractedAmount !== undefined
+          ? analysis.amountMatches === true
+            ? `\n\n🤖 **Kimi AI pre-check:** Read **₱${analysis.extractedAmount.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}**, matching this order. Admin will still perform the final verification.`
+            : `\n\n⚠️ **Kimi AI pre-check:** Read **₱${analysis.extractedAmount.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}**, but it did not clearly match the expected amount. Admin will review it manually.`
+          : "\n\n🔎 **Kimi AI pre-check:** The amount could not be confirmed automatically, so admin will review the image manually.";
       // Add success response from AI
       pushLocalMessage({
         role: 'assistant',
-        content: `🎉 **Receipt screenshot successfully received!**\n\nIt has been automatically linked to **Tracking ID: ${displayId}** and is now visible on the Admin Dashboard.\n\nOur operations team will verify the payment and begin your full package delivery shortly! Thank you for your payment! 🙏${savedLabel ? `\n\n📦 Image optimized${savedLabel}.`
+        content: `🎉 **Receipt screenshot successfully received!**\n\nIt has been automatically linked to **Tracking ID: ${displayId}** and is now visible on the Admin Dashboard.${aiReviewNote}\n\nOur operations team will verify the payment and begin your full package delivery shortly! Thank you for your payment! 🙏${savedLabel ? `\n\n📦 Image optimized${savedLabel}.`
  : ""}`
       });
 

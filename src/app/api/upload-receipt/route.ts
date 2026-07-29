@@ -9,6 +9,7 @@ import { buildReceiptFileName, findActiveDuplicateReceiptRecord, hashReceiptFile
 import { notifyCustomer } from "@/lib/customerNotifications";
 import { compressReceiptImage, bufferToDataUrl } from "@/utils/serverImageCompressor";
 import { syncBackupAdminClients } from "@/utils/supabase/dual-db";
+import { verifyReceipt } from "@/lib/receiptVerifier";
 
 const MAX_RECEIPT_FILE_BYTES = 8 * 1024 * 1024;
 const ALLOWED_RECEIPT_TYPES = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp"]);
@@ -131,6 +132,12 @@ export async function POST(req: NextRequest) {
     // of whether the client compressed. Hash stays on the original bytes so
     // duplicate detection remains consistent across uploads.
     const compressed = await compressReceiptImage(file);
+    // Start Kimi's visual pre-check while the receipt is being stored. Its
+    // result is advisory only; admin review remains authoritative for orders.
+    const verificationPromise = verifyReceipt(
+      compressed.buffer,
+      compressed.mimeType
+    );
 
     // 2. Name the file [orderId]_[email].[ext] to instantly identify who is paying in the storage bucket
     const fileName = buildReceiptFileName(orderId, receiptHash, email, compressed.extension);
@@ -160,6 +167,26 @@ export async function POST(req: NextRequest) {
     }
 
     await updateOrderReceipt(supabase, orderId, receiptUrl, receiptHash);
+    const verification = await verificationPromise;
+    const expectedAmount = Number(orderData?.amount || 0);
+    const amountMatches =
+      verification.extractedAmount === null || expectedAmount <= 0
+        ? null
+        : Math.abs(verification.extractedAmount - expectedAmount) <=
+          Math.max(expectedAmount * 0.05, 0.01);
+    const receiptAnalysis = {
+      model: verification.providerModel,
+      verified: verification.success,
+      extractedAmount: verification.extractedAmount,
+      confidence: verification.confidence,
+      amountMatches,
+      requiresManualReview:
+        !verification.success ||
+        amountMatches !== true ||
+        verification.isAIGenerated === true ||
+        (verification.tamperingScore ?? 0) >= 70,
+    };
+
     after(async () => {
       await syncBackupAdminClients(async (backupClient) => {
         return backupClient
@@ -204,7 +231,13 @@ export async function POST(req: NextRequest) {
       }
     });
 
-    return NextResponse.json({ success: true, data: uploadData, email, receiptUrl });
+    return NextResponse.json({
+      success: true,
+      data: uploadData,
+      email,
+      receiptUrl,
+      receiptAnalysis,
+    });
   } catch (err: any) {
     console.error("Upload endpoint failed:", err);
     return NextResponse.json({ error: err?.message || (typeof err === "object" ? JSON.stringify(err) : String(err)) }, { status: 500 });

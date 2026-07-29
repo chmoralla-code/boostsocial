@@ -4,6 +4,11 @@ import { fallbackRead } from "@/utils/supabase/dual-db";
 import { readServiceCandidatesFromAnyDatabase } from "@/lib/serviceCandidatesServer";
 import { readMobileAppSettingsFromAnyDatabase } from "@/lib/mobileAppServer";
 import { resolveSmmServiceTitle } from "@/lib/smmServiceResolver";
+import {
+  hasNeuralwattApiKey,
+  NEURALWATT_CHAT_MODEL,
+  requestNeuralwattChat,
+} from "@/lib/neuralwatt";
 
 type ChatMessage = {
   role: "user" | "assistant" | "system";
@@ -270,6 +275,24 @@ function textPromptFromMessages(messages: ChatMessage[]) {
   ].join("\n\n");
 }
 
+async function askNeuralwatt(messages: ChatMessage[]): Promise<string> {
+  if (!hasNeuralwattApiKey()) return "";
+
+  try {
+    const completion = await requestNeuralwattChat({
+      model: NEURALWATT_CHAT_MODEL,
+      messages,
+      maxTokens: 500,
+      temperature: 0.7,
+      timeoutMs: 25_000,
+    });
+    return completion.message.content?.trim() || "";
+  } catch (error) {
+    console.warn("NeuralWatt app chat request failed:", error);
+    return "";
+  }
+}
+
 async function askOpenCodeGo(messages: ChatMessage[]): Promise<string> {
   const apiKey = process.env.OPENCODE_API_KEY;
   if (!apiKey) return "";
@@ -340,6 +363,9 @@ async function askPollinationsText(messages: ChatMessage[]): Promise<string> {
 }
 
 async function askAI(messages: ChatMessage[]): Promise<string> {
+  const neuralwatt = await askNeuralwatt(messages);
+  if (neuralwatt) return neuralwatt;
+
   const openCodeGo = await askOpenCodeGo(messages);
   if (openCodeGo) return openCodeGo;
 
