@@ -6,9 +6,13 @@ import { enforceRateLimit } from "@/utils/security/rate-limit";
 import { isAdminEmail } from "@/utils/security/admin";
 import { resolveSmmServiceTitle } from "@/lib/smmServiceResolver";
 import { buildReceiptFileName, findActiveDuplicateReceiptRecord, hashReceiptFile } from "@/lib/receiptGuard";
-import { notifyCustomer } from "@/lib/customerNotifications";
+import { notifyCustomer, notifyOrderStatusCustomer } from "@/lib/customerNotifications";
 import { compressReceiptImage, bufferToDataUrl } from "@/utils/serverImageCompressor";
 import { syncBackupAdminClients } from "@/utils/supabase/dual-db";
+import { autoVerifyAndApproveOrder } from "@/lib/receiptVerifier";
+import { autoPlaceRixeyOrder } from "@/lib/rixeysmm";
+import { creditReferralCommission } from "@/utils/referrals";
+import { sendOrderApprovedEmail } from "@/lib/approvalEmails";
 
 const MAX_RECEIPT_FILE_BYTES = 8 * 1024 * 1024;
 const ALLOWED_RECEIPT_TYPES = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp"]);
@@ -91,12 +95,15 @@ export async function POST(req: NextRequest) {
       .from("orders")
       .select(`
         id,
+        status,
         customer_email,
         payment_method,
         amount,
         quantity,
         target_url,
+        service_id,
         smm_service_id,
+        external_order_id,
         services (
           title
         )
@@ -160,51 +167,125 @@ export async function POST(req: NextRequest) {
     }
 
     await updateOrderReceipt(supabase, orderId, receiptUrl, receiptHash);
+
+    let autoApproval: Awaited<ReturnType<typeof autoVerifyAndApproveOrder>> | null = null;
+    const isGcashOrder = String(orderData?.payment_method || "").toLowerCase() !== "wallet";
+    const orderAmount = Number(orderData?.amount || 0);
+
+    if (isGcashOrder && String(orderData.status || "") === "Pending" && orderAmount > 0) {
+      try {
+        autoApproval = await autoVerifyAndApproveOrder({
+          supabase,
+          orderId,
+          requestedAmount: orderAmount,
+          imageBuffer: compressed.buffer,
+          mimeType: compressed.mimeType,
+          userEmail: email,
+        });
+      } catch (ocrErr) {
+        console.error("AI order receipt verification failed (graceful fallback):", ocrErr);
+      }
+    }
+
     after(async () => {
       await syncBackupAdminClients(async (backupClient) => {
         return backupClient
           .from("orders")
-          .update({ receipt_url: receiptUrl, receipt_hash: receiptHash })
+          .update({
+            receipt_url: receiptUrl,
+            receipt_hash: receiptHash,
+            ...(autoApproval?.autoApproved ? { status: "Processing" } : {}),
+          })
           .eq("id", orderId);
       }, "order receipt sync");
     });
 
     after(async () => {
       try {
-        if (orderData?.payment_method !== "Wallet") {
-          const serviceTitle = Array.isArray((orderData as any)?.services)
-            ? (orderData as any).services[0]?.title
-            : (orderData as any)?.services?.title;
+        const trackingId = `BS-${orderId.slice(0, 8).toUpperCase()}`;
+        const serviceTitle = Array.isArray((orderData as any)?.services)
+          ? (orderData as any).services[0]?.title
+          : (orderData as any)?.services?.title;
+        const resolvedServiceTitle = await resolveSmmServiceTitle(
+          orderData.smm_service_id,
+          serviceTitle || "SMM Service"
+        );
 
-          const resolvedServiceTitle = await resolveSmmServiceTitle(
-            orderData.smm_service_id,
-            serviceTitle || "SMM Service"
-          );
-
+        if (isGcashOrder) {
           await sendOrderApprovalNotification({
             orderId,
-            trackingId: `BS-${orderId.slice(0, 8).toUpperCase()}`,
+            trackingId,
             service: resolvedServiceTitle,
             email,
             quantity: Number(orderData?.quantity || 0),
-            amount: Number(orderData?.amount || 0),
+            amount: orderAmount,
             paymentMethod: orderData?.payment_method || "GCash",
             receiptUrl,
             details: orderData?.target_url || undefined,
+            autoApproved: Boolean(autoApproval?.autoApproved),
+            aiReason: autoApproval?.reason || undefined,
+            receiverName: autoApproval?.receiverName || undefined,
+            referenceNumber: autoApproval?.referenceNumber || undefined,
           });
         }
 
-        await notifyCustomer({
-          client: supabase,
-          email,
-          message: `System update: Receipt uploaded for order BS-${orderId.slice(0, 8).toUpperCase()}. Admin will verify it shortly.`,
-        });
+        if (autoApproval?.autoApproved) {
+          notifyOrderStatusCustomer({
+            client: supabase,
+            email,
+            trackingId,
+            status: "Processing",
+          }).catch((err) => console.error("Auto-approved order status notify failed:", err));
+
+          sendOrderApprovedEmail({
+            email,
+            trackingId,
+            serviceTitle: resolvedServiceTitle,
+            amount: orderAmount,
+          }).catch((err) => console.error("Auto-approved order email failed:", err));
+
+          try {
+            await creditReferralCommission({
+              primaryClient: supabase,
+              customerEmail: email,
+              source: "order",
+              amount: orderAmount,
+              referenceId: orderId,
+            });
+          } catch (commissionError) {
+            console.error("Auto-approved order referral commission failed:", commissionError);
+          }
+
+          if (!orderData.external_order_id) {
+            autoPlaceRixeyOrder(
+              orderId,
+              orderData.service_id,
+              orderData.target_url,
+              Number(orderData.quantity || 0)
+            ).catch((err) => {
+              console.error("Auto-placement after AI order approval failed:", err);
+            });
+          }
+        } else {
+          await notifyCustomer({
+            client: supabase,
+            email,
+            message: `System update: Receipt uploaded for order ${trackingId}. Admin will verify it shortly.`,
+          });
+        }
       } catch (notificationErr) {
         console.error("Post-receipt notification tasks failed:", notificationErr);
       }
     });
 
-    return NextResponse.json({ success: true, data: uploadData, email, receiptUrl });
+    return NextResponse.json({
+      success: true,
+      data: uploadData,
+      email,
+      receiptUrl,
+      autoApproved: autoApproval?.autoApproved ?? false,
+      aiReason: autoApproval?.reason ?? null,
+    });
   } catch (err: any) {
     console.error("Upload endpoint failed:", err);
     return NextResponse.json({ error: err?.message || (typeof err === "object" ? JSON.stringify(err) : String(err)) }, { status: 500 });

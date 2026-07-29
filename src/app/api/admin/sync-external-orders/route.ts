@@ -4,6 +4,7 @@ import { sendOrderCompleteNotification } from "@/lib/telegram";
 import { syncBackupAdminClients } from "@/utils/supabase/dual-db";
 import { resolveSmmServiceTitle } from "@/lib/smmServiceResolver";
 import { notifyOrderStatusCustomer } from "@/lib/customerNotifications";
+import { sendOrderCompletedEmail } from "@/lib/approvalEmails";
 
 const RIXEYSMM_API_URL = "https://rixeysmm.shop/api/v2";
 
@@ -175,7 +176,7 @@ export async function POST() {
                 });
               }
 
-              // Fire order complete Telegram notification!
+              // Fire order complete Telegram + email notifications!
               if (dbStatusUpdate === "Completed") {
                 const trackingId = `BS-${order.id.slice(0, 8).toUpperCase()}`;
                 const serviceTitle = getJoinedServiceTitle(order.services) || "SMM Service";
@@ -190,6 +191,15 @@ export async function POST() {
                   details: order.target_url || "",
                 }).catch((err) => {
                   console.error(`Async sendOrderCompleteNotification failed for order ${order.id} in sync:`, err);
+                });
+                sendOrderCompletedEmail({
+                  email: order.customer_email,
+                  trackingId,
+                  serviceTitle: resolvedServiceTitle,
+                  amount: Number(order.amount),
+                  quantity: Number(order.quantity || 0),
+                }).catch((emailErr) => {
+                  console.error(`Order completed email failed for order ${order.id} in sync:`, emailErr);
                 });
               }
             }
