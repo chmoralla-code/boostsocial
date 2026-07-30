@@ -1,20 +1,24 @@
 import { after, NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { sendOrderApprovalNotification } from "@/lib/telegram";
 import { createClient as createServerClient } from "@/utils/supabase/server";
 import { enforceRateLimit } from "@/utils/security/rate-limit";
 import { isAdminEmail } from "@/utils/security/admin";
 import { resolveSmmServiceTitle } from "@/lib/smmServiceResolver";
 import { buildReceiptFileName, findActiveDuplicateReceiptRecord, hashReceiptFile } from "@/lib/receiptGuard";
-import { notifyCustomer } from "@/lib/customerNotifications";
+import { notifyCustomer, notifyOrderStatusCustomer } from "@/lib/customerNotifications";
 import { compressReceiptImage, bufferToDataUrl } from "@/utils/serverImageCompressor";
 import { syncBackupAdminClients } from "@/utils/supabase/dual-db";
+import { autoVerifyAndApproveOrder } from "@/lib/receiptVerifier";
+import { autoPlaceRixeyOrder } from "@/lib/rixeysmm";
+import { creditReferralCommission } from "@/utils/referrals";
+import { sendOrderApprovedEmail } from "@/lib/approvalEmails";
 
 const MAX_RECEIPT_FILE_BYTES = 8 * 1024 * 1024;
 const ALLOWED_RECEIPT_TYPES = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp"]);
 
 async function updateOrderReceipt(
-  supabase: any,
+  supabase: SupabaseClient,
   orderId: string,
   receiptUrl: string,
   receiptHash: string
@@ -91,12 +95,15 @@ export async function POST(req: NextRequest) {
       .from("orders")
       .select(`
         id,
+        status,
         customer_email,
         payment_method,
         amount,
         quantity,
         target_url,
+        service_id,
         smm_service_id,
+        external_order_id,
         services (
           title
         )
@@ -160,53 +167,184 @@ export async function POST(req: NextRequest) {
     }
 
     await updateOrderReceipt(supabase, orderId, receiptUrl, receiptHash);
+
+    let autoApproval: Awaited<ReturnType<typeof autoVerifyAndApproveOrder>> | null = null;
+    const isGcashOrder = String(orderData?.payment_method || "").toLowerCase() !== "wallet";
+    const orderAmount = Number(orderData?.amount || 0);
+
+    if (isGcashOrder && String(orderData.status || "") === "Pending" && orderAmount > 0) {
+      try {
+        autoApproval = await autoVerifyAndApproveOrder({
+          supabase,
+          orderId,
+          requestedAmount: orderAmount,
+          imageBuffer: compressed.buffer,
+          mimeType: compressed.mimeType,
+          userEmail: email,
+        });
+      } catch (ocrErr) {
+        console.error("AI order receipt verification failed (graceful fallback):", ocrErr);
+      }
+    }
+
+    const extractedAmount = autoApproval?.extractedAmount ?? null;
+    const amountMatches =
+      extractedAmount === null || orderAmount <= 0
+        ? null
+        : Math.abs(extractedAmount - orderAmount) <=
+          Math.max(orderAmount * 0.05, 0.5);
+    const rejectedAsFake = Boolean(
+      autoApproval && "rejectedAsFake" in autoApproval && autoApproval.rejectedAsFake
+    );
+    const rejectedAsDuplicate = Boolean(
+      autoApproval && "rejectedAsDuplicate" in autoApproval && autoApproval.rejectedAsDuplicate
+    );
+    const receiptAnalysis = {
+      model: autoApproval?.providerModel || null,
+      decision: autoApproval?.autoApproved
+        ? "approved"
+        : rejectedAsFake
+          ? "rejected_fake"
+          : rejectedAsDuplicate
+            ? "rejected_duplicate"
+            : "manual_review",
+      verified: Boolean(autoApproval?.success),
+      autoApproved: Boolean(autoApproval?.autoApproved),
+      extractedAmount,
+      confidence: autoApproval?.confidence ?? 0,
+      amountMatches,
+      receiverName: autoApproval?.receiverName || null,
+      receiverMatched: Boolean(autoApproval?.receiverMatched),
+      referenceNumber: autoApproval?.referenceNumber || null,
+      referenceUnique: Boolean(autoApproval?.referenceUnique),
+      isAIGenerated: Boolean(autoApproval?.isAIGenerated),
+      reason: autoApproval?.reason || "Kimi could not complete the receipt check.",
+      requiresManualReview: !autoApproval?.autoApproved &&
+        !rejectedAsFake &&
+        !rejectedAsDuplicate,
+    };
+    const decidedOrderStatus = autoApproval?.autoApproved
+      ? "Processing"
+      : rejectedAsFake || rejectedAsDuplicate
+        ? "Rejected"
+        : null;
+
     after(async () => {
       await syncBackupAdminClients(async (backupClient) => {
         return backupClient
           .from("orders")
-          .update({ receipt_url: receiptUrl, receipt_hash: receiptHash })
+          .update({
+            receipt_url: receiptUrl,
+            receipt_hash: receiptHash,
+            ...(decidedOrderStatus ? { status: decidedOrderStatus } : {}),
+          })
           .eq("id", orderId);
       }, "order receipt sync");
     });
 
     after(async () => {
       try {
-        if (orderData?.payment_method !== "Wallet") {
-          const serviceTitle = Array.isArray((orderData as any)?.services)
-            ? (orderData as any).services[0]?.title
-            : (orderData as any)?.services?.title;
+        const trackingId = `BS-${orderId.slice(0, 8).toUpperCase()}`;
+        const orderServices = (orderData as {
+          services?: { title?: string } | Array<{ title?: string }>;
+        }).services;
+        const serviceTitle = Array.isArray(orderServices)
+          ? orderServices[0]?.title
+          : orderServices?.title;
+        const resolvedServiceTitle = await resolveSmmServiceTitle(
+          orderData.smm_service_id,
+          serviceTitle || "SMM Service"
+        );
 
-          const resolvedServiceTitle = await resolveSmmServiceTitle(
-            orderData.smm_service_id,
-            serviceTitle || "SMM Service"
-          );
-
+        if (isGcashOrder) {
           await sendOrderApprovalNotification({
             orderId,
-            trackingId: `BS-${orderId.slice(0, 8).toUpperCase()}`,
+            trackingId,
             service: resolvedServiceTitle,
             email,
             quantity: Number(orderData?.quantity || 0),
-            amount: Number(orderData?.amount || 0),
+            amount: orderAmount,
             paymentMethod: orderData?.payment_method || "GCash",
             receiptUrl,
             details: orderData?.target_url || undefined,
+            autoApproved: Boolean(autoApproval?.autoApproved),
+            aiReason: autoApproval?.reason || undefined,
+            receiverName: autoApproval?.receiverName || undefined,
+            referenceNumber: autoApproval?.referenceNumber || undefined,
           });
         }
 
-        await notifyCustomer({
-          client: supabase,
-          email,
-          message: `System update: Receipt uploaded for order BS-${orderId.slice(0, 8).toUpperCase()}. Admin will verify it shortly.`,
-        });
+        if (autoApproval?.autoApproved) {
+          notifyOrderStatusCustomer({
+            client: supabase,
+            email,
+            trackingId,
+            status: "Processing",
+          }).catch((err) => console.error("Auto-approved order status notify failed:", err));
+
+          sendOrderApprovedEmail({
+            email,
+            trackingId,
+            serviceTitle: resolvedServiceTitle,
+            amount: orderAmount,
+          }).catch((err) => console.error("Auto-approved order email failed:", err));
+
+          try {
+            await creditReferralCommission({
+              primaryClient: supabase,
+              customerEmail: email,
+              source: "order",
+              amount: orderAmount,
+              referenceId: orderId,
+            });
+          } catch (commissionError) {
+            console.error("Auto-approved order referral commission failed:", commissionError);
+          }
+
+          if (!orderData.external_order_id) {
+            autoPlaceRixeyOrder(
+              orderId,
+              orderData.service_id,
+              orderData.target_url,
+              Number(orderData.quantity || 0)
+            ).catch((err) => {
+              console.error("Auto-placement after AI order approval failed:", err);
+            });
+          }
+        } else if (rejectedAsFake || rejectedAsDuplicate) {
+          await notifyCustomer({
+            client: supabase,
+            email,
+            message: `System update: GCash proof for order ${trackingId} was rejected. ${autoApproval?.reason || "The receipt did not pass the verification rules."}`,
+          });
+        } else {
+          await notifyCustomer({
+            client: supabase,
+            email,
+            message: `System update: Receipt uploaded for order ${trackingId}. Admin will verify it shortly.`,
+          });
+        }
       } catch (notificationErr) {
         console.error("Post-receipt notification tasks failed:", notificationErr);
       }
     });
 
-    return NextResponse.json({ success: true, data: uploadData, email, receiptUrl });
-  } catch (err: any) {
+    return NextResponse.json({
+      success: true,
+      data: uploadData,
+      email,
+      receiptUrl,
+      autoApproved: autoApproval?.autoApproved ?? false,
+      aiReason: autoApproval?.reason ?? null,
+      receiptAnalysis,
+    });
+  } catch (err: unknown) {
     console.error("Upload endpoint failed:", err);
-    return NextResponse.json({ error: err?.message || (typeof err === "object" ? JSON.stringify(err) : String(err)) }, { status: 500 });
+    const message = err instanceof Error
+      ? err.message
+      : typeof err === "object"
+        ? JSON.stringify(err)
+        : String(err);
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

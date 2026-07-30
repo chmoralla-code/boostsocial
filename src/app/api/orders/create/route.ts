@@ -206,6 +206,10 @@ export async function POST(req: NextRequest) {
       success: true,
       orderId,
       data: { id: orderId },
+      amount: finalAmount,
+      regularAmount,
+      quantity: pricing.quantity,
+      serviceTitle: pricing.serviceTitle,
       databaseUsed,
     });
   } catch (err: unknown) {

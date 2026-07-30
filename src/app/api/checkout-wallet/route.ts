@@ -140,6 +140,17 @@ export async function POST(req: NextRequest) {
     const regularCost = pricing.regularAmount;
     const discountSummary = getVipDiscountSummary(profile || null, regularCost);
     const cost = discountSummary.finalAmount;
+    const currentBalance = Number(profile.balance || 0);
+    if (!Number.isFinite(currentBalance) || currentBalance < cost) {
+      return NextResponse.json({
+        error: "Insufficient wallet balance.",
+        code: "INSUFFICIENT_BALANCE",
+        balance: Number.isFinite(currentBalance) ? currentBalance : 0,
+        requiredAmount: cost,
+        shortfall: Number(Math.max(cost - (Number.isFinite(currentBalance) ? currentBalance : 0), 0).toFixed(2)),
+      }, { status: 402 });
+    }
+
     const { error: vipColumnsError } = await supabase
       .from("orders")
       .select("original_amount, vip_plan, vip_discount_percent, vip_discount_amount")
@@ -179,7 +190,14 @@ export async function POST(req: NextRequest) {
           error: "Database schema needs updating. Please run: ALTER TABLE orders ADD COLUMN IF NOT EXISTS service_title TEXT; in your Supabase SQL Editor, then try again.",
         }, { status: 500 });
       }
-      const status = /insufficient|pending order|only pending|profile|not found/i.test(message) ? 400 : 500;
+      if (/insufficient/i.test(message)) {
+        return NextResponse.json({
+          error: "Insufficient wallet balance.",
+          code: "INSUFFICIENT_BALANCE",
+          requiredAmount: cost,
+        }, { status: 402 });
+      }
+      const status = /pending order|only pending|profile|not found/i.test(message) ? 400 : 500;
       return NextResponse.json({ error: message }, { status });
     }
 
@@ -248,7 +266,14 @@ export async function POST(req: NextRequest) {
       }
     });
 
-    return NextResponse.json({ success: true, orderId: order.id, newBalance });
+    return NextResponse.json({
+      success: true,
+      orderId: order.id,
+      newBalance,
+      amount: cost,
+      quantity: pricing.quantity,
+      serviceTitle: pricing.serviceTitle,
+    });
   } catch (err: unknown) {
     console.error("Wallet checkout endpoint failed:", err);
     return NextResponse.json({ error: getErrorMessage(err) }, { status: 500 });

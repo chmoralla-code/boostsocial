@@ -9,6 +9,7 @@ import { findActiveDuplicateReceiptRecord, hashReceiptFile } from "@/lib/receipt
 import { autoVerifyAndApproveTopup } from "@/lib/receiptVerifier";
 import { creditReferralCommission } from "@/utils/referrals";
 import { compressReceiptImage, bufferToDataUrl } from "@/utils/serverImageCompressor";
+import { sendTopupApprovedEmail } from "@/lib/approvalEmails";
 
 const MAX_RECEIPT_FILE_BYTES = 8 * 1024 * 1024;
 const ALLOWED_RECEIPT_TYPES = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp"]);
@@ -132,7 +133,6 @@ export async function POST(req: NextRequest) {
         requestedAmount: priceNum,
         imageBuffer: compressed.buffer,
         mimeType: compressed.mimeType,
-        userEmail: email.trim(),
       });
 
       if (autoApproval.autoApproved) {
@@ -180,9 +180,22 @@ export async function POST(req: NextRequest) {
           email: email.trim(),
           amount: priceNum,
           receiptUrl: dataUrl,
+          autoApproved: Boolean(autoApproval?.autoApproved),
+          aiReason: autoApproval?.reason || undefined,
+          receiverName: autoApproval?.receiverName || undefined,
+          referenceNumber: autoApproval?.referenceNumber || undefined,
         });
       } catch (telegramErr) {
         console.error("Telegram top-up notification failed (after response):", telegramErr);
+      }
+
+      if (autoApproval?.autoApproved) {
+        sendTopupApprovedEmail({
+          email: email.trim(),
+          amount: priceNum,
+        }).catch((emailErr) => {
+          console.error("Auto-approved top-up email failed:", emailErr);
+        });
       }
 
       notifyCustomer({

@@ -47,6 +47,7 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/api/admin') ||
     pathname.startsWith('/api/auth') ||
     pathname.startsWith('/api/announcement') ||
+    pathname.startsWith('/api/chat') ||
     pathname.startsWith('/api/orders') ||
     pathname.startsWith('/api/checkout-wallet') ||
     pathname.startsWith('/api/upload-receipt') ||

@@ -122,3 +122,73 @@ export async function sendTopupApprovedEmail(input: TopupApprovalEmailInput) {
 
   return sendAuthEmail({ to, subject, text, html });
 }
+
+type OrderCompletedEmailInput = {
+  email?: string | null;
+  trackingId: string;
+  serviceTitle?: string | null;
+  amount?: number | null;
+  quantity?: number | null;
+};
+
+/**
+ * Email the customer when an order is marked Completed — thank them and invite another order.
+ */
+export async function sendOrderCompletedEmail(input: OrderCompletedEmailInput) {
+  const to = input.email?.trim().toLowerCase();
+  if (!to) return { ok: false as const, error: "email" as const, message: "Missing customer email" };
+
+  const site = getSiteOrigin();
+  const trackingId = input.trackingId || "your order";
+  const service = (input.serviceTitle || "your service").trim();
+  const amountText =
+    typeof input.amount === "number" && Number.isFinite(input.amount)
+      ? `PHP ${input.amount.toFixed(2)}`
+      : null;
+  const quantityText =
+    typeof input.quantity === "number" && Number.isFinite(input.quantity) && input.quantity > 0
+      ? input.quantity.toLocaleString()
+      : null;
+
+  const subject = `${AUTH_EMAIL_BRAND}: Your order is complete — enjoy the services!`;
+  const text = [
+    `Hi there,`,
+    ``,
+    `Great news — your order is complete. Enjoy the services!`,
+    ``,
+    `Order ${trackingId} (${service}) has been delivered.`,
+    quantityText ? `Quantity: ${quantityText}` : null,
+    amountText ? `Amount: ${amountText}` : null,
+    ``,
+    `Please check your target link. If anything looks off, reply via support from:`,
+    `${site}/app/orders`,
+    ``,
+    `Ready for another boost? Keep the momentum going with more likes, followers, views, or PisoWiFi packages:`,
+    `${site}/app`,
+    ``,
+    `Thank you for choosing ${AUTH_EMAIL_BRAND}. See you on your next order!`,
+    ``,
+    `— ${AUTH_EMAIL_BRAND} Team`,
+  ]
+    .filter((line) => line !== null)
+    .join("\n");
+
+  const html = `
+    <div style="font-family:Arial,sans-serif;line-height:1.6;color:#111;max-width:560px;margin:0 auto">
+      <h2 style="margin:0 0 12px;color:#0f766e">${escapeHtml(AUTH_EMAIL_BRAND)}</h2>
+      <p style="font-size:18px;margin:0 0 16px"><strong>Your order is complete — enjoy the services!</strong></p>
+      <p>Order <strong>${escapeHtml(trackingId)}</strong> (${escapeHtml(service)}) has been delivered.${quantityText ? ` Quantity: <strong>${escapeHtml(quantityText)}</strong>.` : ""}${amountText ? ` Amount: <strong>${escapeHtml(amountText)}</strong>.` : ""}</p>
+      <p>Please check your target link. If anything looks off, open Track Order and chat with support.</p>
+      <p style="margin:24px 0">
+        <a href="${escapeHtml(site)}/app/orders" style="display:inline-block;background:#0f766e;color:#fff;text-decoration:none;padding:12px 18px;border-radius:8px;font-weight:600">View my order</a>
+      </p>
+      <p>Ready for another boost? Keep the momentum going with more likes, followers, views, or PisoWiFi packages.</p>
+      <p style="margin:24px 0">
+        <a href="${escapeHtml(site)}/app" style="display:inline-block;background:#111;color:#fff;text-decoration:none;padding:12px 18px;border-radius:8px;font-weight:600">Order again</a>
+      </p>
+      <p style="color:#555;font-size:13px">Thank you for choosing ${escapeHtml(AUTH_EMAIL_BRAND)}. See you on your next order!</p>
+    </div>
+  `;
+
+  return sendAuthEmail({ to, subject, text, html });
+}

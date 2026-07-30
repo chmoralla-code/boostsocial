@@ -1,4 +1,9 @@
 import { NextResponse } from 'next/server';
+import {
+  hasNeuralwattApiKey,
+  NEURALWATT_CHAT_MODEL,
+  requestNeuralwattChat,
+} from "@/lib/neuralwatt";
 
 type ChatMessage = {
   role: "user" | "assistant" | "system";
@@ -103,7 +108,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Invalid messages format' }, { status: 400 });
     }
 
-    // Attempt OpenCode Go AI (mimo-v2.5 - free, fast, reliable)
+    // NeuralWatt DeepSeek is the primary website chathead model.
     let content = "";
     let lastError: unknown = null;
     const latestMessage = latestUserMessage(cleanMessages);
@@ -113,8 +118,28 @@ export async function POST(req: Request) {
     ];
 
     try {
+      if (hasNeuralwattApiKey()) {
+        const completion = await requestNeuralwattChat({
+          model: NEURALWATT_CHAT_MODEL,
+          messages: apiMessages,
+          maxTokens: 500,
+          temperature: 0.55,
+          timeoutMs: 25_000,
+        });
+        const responseText = completion.message.content?.trim();
+        if (responseText) {
+          content = responseText;
+        }
+      }
+    } catch (err: unknown) {
+      console.error("NeuralWatt chat request failed:", err);
+      lastError = err;
+    }
+
+    // Keep the previous provider as a graceful fallback during outages.
+    try {
       const apiKey = process.env.OPENCODE_API_KEY;
-      if (apiKey) {
+      if (!content && apiKey) {
         const res = await fetch("https://opencode.ai/zen/go/v1/chat/completions", {
           method: "POST",
           headers: {

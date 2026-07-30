@@ -6,7 +6,7 @@ import { syncBackupAdminClients } from "@/utils/supabase/dual-db";
 import { creditReferralCommission } from "@/utils/referrals";
 import { resolveSmmServiceTitle } from "@/lib/smmServiceResolver";
 import { notifyOrderStatusCustomer } from "@/lib/customerNotifications";
-import { sendOrderApprovedEmail } from "@/lib/approvalEmails";
+import { sendOrderApprovedEmail, sendOrderCompletedEmail } from "@/lib/approvalEmails";
 
 type JoinedService = { title?: string | null } | { title?: string | null }[] | null | undefined;
 
@@ -138,9 +138,9 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // 4. Fire Telegram completion notification if:
+    // 4. Fire Telegram + email completion notifications if:
     // - Order status is updated to 'Completed'
-    if (newStatus === "Completed") {
+    if (newStatus === "Completed" && orderRow.status !== "Completed") {
       const serviceTitle = getJoinedServiceTitle(orderRow.services) || "SMM Service";
       const resolvedServiceTitle = await resolveSmmServiceTitle(orderRow.smm_service_id, serviceTitle);
       sendOrderCompleteNotification({
@@ -153,6 +153,15 @@ export async function POST(req: NextRequest) {
         details: orderRow.target_url,
       }).catch((err) => {
         console.error("Async sendOrderCompleteNotification failed from admin update:", err);
+      });
+      sendOrderCompletedEmail({
+        email: orderRow.customer_email,
+        trackingId,
+        serviceTitle: resolvedServiceTitle,
+        amount: Number(orderRow.amount),
+        quantity: orderRow.quantity,
+      }).catch((emailErr) => {
+        console.error("Admin order completed email failed:", emailErr);
       });
     }
 

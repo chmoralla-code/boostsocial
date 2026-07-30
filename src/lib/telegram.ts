@@ -99,6 +99,10 @@ export async function sendOrderApprovalNotification(order: {
   paymentMethod: string;
   receiptUrl: string;
   details?: string;
+  autoApproved?: boolean;
+  aiReason?: string;
+  receiverName?: string;
+  referenceNumber?: string;
 }) {
   try {
     const config = await getAnyTelegramConfig();
@@ -107,26 +111,38 @@ export async function sendOrderApprovalNotification(order: {
     const phTime = new Date().toLocaleString("en-PH", { timeZone: "Asia/Manila" });
 
     const targetUrl = toTelegramUrl(order.details);
-    const inlineKeyboard = [
-      [
-        { text: "Approve -> Processing", callback_data: `order_approve_${order.orderId}` },
-        { text: "Reject / Cancel", callback_data: `order_reject_${order.orderId}` }
-      ],
-      ...(targetUrl ? [[{ text: "Open Target Link", url: targetUrl }]] : []),
-      [{ text: "Open Admin Orders", url: ADMIN_ORDERS_URL }]
-    ];
+    const autoApproved = Boolean(order.autoApproved);
+    const inlineKeyboard = autoApproved
+      ? [
+          ...(targetUrl ? [[{ text: "Open Target Link", url: targetUrl }]] : []),
+          [{ text: "Open Admin Orders", url: ADMIN_ORDERS_URL }],
+        ]
+      : [
+          [
+            { text: "Approve -> Processing", callback_data: `order_approve_${order.orderId}` },
+            { text: "Reject / Cancel", callback_data: `order_reject_${order.orderId}` },
+          ],
+          ...(targetUrl ? [[{ text: "Open Target Link", url: targetUrl }]] : []),
+          [{ text: "Open Admin Orders", url: ADMIN_ORDERS_URL }],
+        ];
 
     const caption = truncateTelegramCaption(
-      `New GCash order needs approval\n\n` +
+      (autoApproved
+        ? `✅ Order AUTO-APPROVED by AI receipt check\n\n`
+        : `New GCash order needs approval\n\n`) +
       `Tracking ID: ${order.trackingId}\n` +
       `Service: ${order.service}\n` +
       `Customer: ${order.email}\n` +
       `Quantity: ${order.quantity}\n` +
       `Amount: PHP ${order.amount.toFixed(2)}\n` +
       `Payment: ${order.paymentMethod}\n` +
+      (order.receiverName ? `Receiver: ${order.receiverName}\n` : "") +
+      (order.referenceNumber ? `Ref No: ${order.referenceNumber}\n` : "") +
       (order.details ? `Details: ${order.details.slice(0, 250)}\n` : "") +
-      `Time: ${phTime} PHT\n\n` +
-      `Receipt proof is attached. Approve only when the GCash payment amount matches this order.`
+      `Time: ${phTime} PHT\n` +
+      (autoApproved
+        ? `\n${order.aiReason || "Receiver HE•••Y S. + unique Ref No. + amount matched."}\nStatus: Processing`
+        : `\nReceipt proof is attached. Approve only when the GCash payment amount matches this order.`)
     );
 
     if (order.receiptUrl.startsWith("data:")) {
@@ -230,19 +246,41 @@ export async function sendTopupNotification(topup: {
   email: string;
   amount: number;
   receiptUrl: string;
+  autoApproved?: boolean;
+  aiReason?: string;
+  receiverName?: string;
+  referenceNumber?: string;
 }) {
   try {
     const config = await getTopupTelegramConfig() || await getAnyTelegramConfig();
     if (!config?.bot_token || !config?.chat_id) return;
 
     const phTime = new Date().toLocaleString("en-PH", { timeZone: "Asia/Manila" });
+    const autoApproved = Boolean(topup.autoApproved);
 
     const caption =
-      `💰 New Wallet Top-Up Request!\n\n` +
+      (autoApproved
+        ? `✅ Wallet Top-Up AUTO-APPROVED by AI\n\n`
+        : `💰 New Wallet Top-Up Request!\n\n`) +
       `👤 Customer: ${topup.email}\n` +
       `💵 Amount: ₱${topup.amount.toFixed(2)}\n` +
-      `🕐 Time: ${phTime} PHT\n\n` +
-      `⬇️ Tap a button below to approve or reject.`;
+      (topup.receiverName ? `📛 Receiver: ${topup.receiverName}\n` : "") +
+      (topup.referenceNumber ? `🔢 Ref No: ${topup.referenceNumber}\n` : "") +
+      `🕐 Time: ${phTime} PHT\n` +
+      (autoApproved
+        ? `\n${topup.aiReason || "Receiver HE•••Y S. + unique Ref No. + amount matched."}`
+        : `\n⬇️ Tap a button below to approve or reject.`);
+
+    const replyMarkup = autoApproved
+      ? { inline_keyboard: [] as Array<Array<{ text: string; callback_data?: string }>> }
+      : {
+          inline_keyboard: [
+            [
+              { text: "✅ Approve Top-Up", callback_data: `topup_approve_${topup.topupId}` },
+              { text: "❌ Reject", callback_data: `topup_reject_${topup.topupId}` },
+            ],
+          ],
+        };
 
     // Handle data URL by uploading the file directly (bypasses Supabase Storage restriction)
     const isDataUrl = topup.receiptUrl.startsWith("data:");
@@ -253,14 +291,7 @@ export async function sendTopupNotification(topup: {
         formData.append("chat_id", config.chat_id);
         formData.append("photo", result.blob, "receipt.png");
         formData.append("caption", caption);
-        formData.append("reply_markup", JSON.stringify({
-          inline_keyboard: [
-            [
-              { text: "✅ Approve Top-Up", callback_data: `topup_approve_${topup.topupId}` },
-              { text: "❌ Reject", callback_data: `topup_reject_${topup.topupId}` }
-            ]
-          ]
-        }));
+        formData.append("reply_markup", JSON.stringify(replyMarkup));
 
         const res = await fetch(`https://api.telegram.org/bot${config.bot_token}/sendPhoto`, {
           method: "POST",
@@ -283,14 +314,7 @@ export async function sendTopupNotification(topup: {
         chat_id: config.chat_id,
         photo: topup.receiptUrl,
         caption: caption,
-        reply_markup: {
-          inline_keyboard: [
-            [
-              { text: "✅ Approve Top-Up", callback_data: `topup_approve_${topup.topupId}` },
-              { text: "❌ Reject", callback_data: `topup_reject_${topup.topupId}` }
-            ]
-          ]
-        }
+        reply_markup: replyMarkup,
       }),
     });
 
