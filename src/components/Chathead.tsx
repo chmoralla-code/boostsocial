@@ -15,7 +15,18 @@ interface Message {
   content: string;
   createdAt?: string | number;
   offers?: ChatOffer[];
+  offerCatalog?: OfferCatalogPage;
 }
+
+type OfferCatalogPage = {
+  mode: "all" | "recommendation";
+  query: string;
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  hasMore: boolean;
+  nextPage: number | null;
+};
 
 interface ChatOffer {
   id: string;
@@ -74,11 +85,15 @@ function getErrorMessage(err: unknown) {
   return err instanceof Error ? err.message : String(err);
 }
 
-function isCheapestOfferRequest(text: string) {
+function isOfferCatalogRequest(text: string) {
   const normalized = text.toLowerCase();
+  const explicitlyAsksForAll =
+    /\b(all|every)\b/.test(normalized) &&
+    /\b(smm|social(?:\s+media)?|offers?|services?|platforms?)\b/.test(normalized);
+
   return (
     /\b(cheap|cheapest|lowest|budget|affordable|barato|mura)\b/.test(normalized) ||
-    /\ball\s+(social\s+media|social|offers|services)\b/.test(normalized)
+    explicitlyAsksForAll
   );
 }
 
@@ -138,6 +153,13 @@ function estimateOfferTotals(offer: ChatOffer, quantity: number) {
     total: Number((regularTotal * discountMultiplier).toFixed(2)),
   };
 }
+
+type ChatOffersApiResponse = {
+  error?: string;
+  message?: string;
+  offers?: Array<Omit<ChatOffer, "actionKey">>;
+  catalog?: OfferCatalogPage;
+};
 
 const parseMorallaName = (text: string, isUser: boolean) => {
   const parts = [];
@@ -241,6 +263,7 @@ export function Chathead() {
   const [pendingReceiptOrder, setPendingReceiptOrder] = useState<PendingReceiptOrder | null>(null);
   const [offerActionStatus, setOfferActionStatus] = useState<Record<string, OfferActionStatus>>({});
   const [offerQuantityInputs, setOfferQuantityInputs] = useState<Record<string, string>>({});
+  const [loadingOfferPages, setLoadingOfferPages] = useState<Record<string, boolean>>({});
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -282,6 +305,76 @@ export function Chathead() {
     if (localEchoRef.current.length > 20) localEchoRef.current = localEchoRef.current.slice(-20);
     setMessages((prev) => [...prev, stamped]);
   }, []);
+
+  const appendOfferPage = useCallback((offerData: ChatOffersApiResponse, fallbackQuery: string) => {
+    if (!offerData.offers?.length) return false;
+
+    const offers = offerData.offers.map((offer) => ({
+      ...offer,
+      actionKey: crypto.randomUUID(),
+    }));
+    setOfferQuantityInputs((current) => ({
+      ...current,
+      ...Object.fromEntries(offers.map((offer) => [offer.actionKey, String(offer.quantity)])),
+    }));
+    pushLocalMessage({
+      id: `catalog-${crypto.randomUUID()}`,
+      role: "assistant",
+      content: offerData.message || "Here are the matching live SMM services.",
+      offers,
+      offerCatalog: offerData.catalog
+        ? {
+            ...offerData.catalog,
+            query: offerData.catalog.query || fallbackQuery,
+          }
+        : undefined,
+    });
+    return true;
+  }, [pushLocalMessage]);
+
+  const handleLoadMoreOffers = useCallback(async (messageId: string, catalog: OfferCatalogPage) => {
+    if (!catalog.hasMore || !catalog.nextPage || loadingOfferPages[messageId]) return;
+
+    setLoadingOfferPages((current) => ({ ...current, [messageId]: true }));
+    try {
+      const response = await fetch("/api/chat/offers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: catalog.query, page: catalog.nextPage }),
+      });
+      const data = await response.json() as ChatOffersApiResponse;
+      if (!response.ok) {
+        throw new Error(data.error || "Could not load more SMM services.");
+      }
+
+      setMessages((current) => current.map((message) =>
+        message.id === messageId && message.offerCatalog
+          ? {
+              ...message,
+              offerCatalog: undefined,
+            }
+          : message
+      ));
+
+      if (!appendOfferPage(data, catalog.query)) {
+        pushLocalMessage({
+          role: "assistant",
+          content: `All **${catalog.totalCount.toLocaleString()}** matching SMM services have been shown.`,
+        });
+      }
+    } catch (error) {
+      pushLocalMessage({
+        role: "assistant",
+        content: `I couldn’t load the next SMM service page: ${getErrorMessage(error)} Please tap **Show more** to retry.`,
+      });
+    } finally {
+      setLoadingOfferPages((current) => {
+        const next = { ...current };
+        delete next[messageId];
+        return next;
+      });
+    }
+  }, [appendOfferPage, loadingOfferPages, pushLocalMessage]);
 
   const applyRemoteInsert = useCallback(
     (row: CustomerMessageRow, options?: { fromHistory?: boolean }) => {
@@ -858,38 +951,28 @@ export function Chathead() {
         return;
       }
 
-      if (isCheapestOfferRequest(userMsg)) {
+      if (isOfferCatalogRequest(userMsg)) {
         try {
           const offerRes = await fetch("/api/chat/offers", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ query: userMsg }),
+            body: JSON.stringify({ query: userMsg, page: 1 }),
           });
-          const offerData = await offerRes.json() as {
-            error?: string;
-            message?: string;
-            offers?: Array<Omit<ChatOffer, "actionKey">>;
-          };
+          const offerData = await offerRes.json() as ChatOffersApiResponse;
 
-          if (offerRes.ok && offerData.offers?.length) {
-            const offers = offerData.offers.map((offer) => ({
-              ...offer,
-              actionKey: crypto.randomUUID(),
-            }));
-            setOfferQuantityInputs((current) => ({
-              ...current,
-              ...Object.fromEntries(offers.map((offer) => [offer.actionKey, String(offer.quantity)])),
-            }));
-            pushLocalMessage({
-              role: "assistant",
-              content: offerData.message || "Here are the cheapest live offers I found.",
-              offers,
-            });
+          if (offerRes.ok && appendOfferPage(offerData, userMsg)) {
             setIsLoading(false);
             return;
           }
+          throw new Error(offerData.error || offerData.message || "No matching SMM services are available.");
         } catch (offerError) {
-          console.error("Cheapest offer lookup failed:", offerError);
+          console.error("SMM offer catalog lookup failed:", offerError);
+          pushLocalMessage({
+            role: "assistant",
+            content: `I couldn’t load the live SMM catalog right now: ${getErrorMessage(offerError)} Please try again in a moment.`,
+          });
+          setIsLoading(false);
+          return;
         }
       }
 
@@ -1360,6 +1443,38 @@ Tone rules:
                           </div>
                         );
                       })}
+                      {msg.offerCatalog?.mode === "all" && msg.id ? (
+                        <div className="rounded-xl border border-[#1DB954]/20 bg-[#1DB954]/5 p-2.5 text-center">
+                          {msg.offerCatalog.hasMore && msg.offerCatalog.nextPage ? (
+                            <button
+                              type="button"
+                              onClick={() => void handleLoadMoreOffers(msg.id!, msg.offerCatalog!)}
+                              disabled={
+                                Boolean(loadingOfferPages[msg.id]) ||
+                                isLoading ||
+                                uploading ||
+                                Boolean(pendingCheckoutOffer)
+                              }
+                              className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#1DB954] px-3 py-2 text-[10px] font-black uppercase tracking-wider text-black transition hover:bg-[#1ed760] disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              {loadingOfferPages[msg.id] ? <Loader2 size={12} className="animate-spin" /> : null}
+                              {loadingOfferPages[msg.id]
+                                ? "Loading services"
+                                : `Show ${Math.min(msg.offerCatalog.pageSize, msg.offerCatalog.totalCount - msg.offerCatalog.page * msg.offerCatalog.pageSize)} more`}
+                            </button>
+                          ) : (
+                            <p className="text-[9px] font-black uppercase tracking-wider text-[#1DB954]">
+                              All {msg.offerCatalog.totalCount.toLocaleString()} matching services shown
+                            </p>
+                          )}
+                          <p className="mt-1.5 text-[9px] text-muted">
+                            {Math.min(
+                              msg.offerCatalog.page * msg.offerCatalog.pageSize,
+                              msg.offerCatalog.totalCount
+                            ).toLocaleString()} of {msg.offerCatalog.totalCount.toLocaleString()} services
+                          </p>
+                        </div>
+                      ) : null}
                     </div>
                   ) : null}
                 </div>
@@ -1443,11 +1558,11 @@ Tone rules:
             </button>
             <button
               type="button"
-              onClick={() => handleQuickAction("show me all social media offers")}
+              onClick={() => handleQuickAction("show me all smm services")}
               disabled={isLoading || uploading || Boolean(pendingCheckoutOffer)}
               className="text-[11px] font-semibold bg-[#1DB954]/10 hover:bg-[#1DB954]/15 border border-[#1DB954]/25 text-[#1DB954] px-3 py-1.5 rounded-full transition-all duration-200 cursor-pointer flex items-center gap-1 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
             >
-              All Social Offers
+              All SMM Services
             </button>
             <button
               type="button"

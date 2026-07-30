@@ -1,12 +1,21 @@
 import type { SmmCatalogService } from "@/lib/smmCatalog";
 
 export const CHAT_CATALOG_SERVICE_ID = "e6f61249-71fe-40df-84f3-96d03d3e8dcf";
-export const CHAT_OFFER_LIMIT = 6;
 
 const BLOCKED_SERVICE_IDS = new Set(["118"]);
 const CHEAPEST_ALIASES = ["cheap", "cheapest", "lowest", "budget", "affordable", "barato", "mura"];
-const ALL_OFFER_ALIASES = [
+const ALL_CATALOG_ALIASES = [
+  "all smm",
+  "all smm orders",
+  "all smm offers",
+  "all smm services",
+  "every smm order",
+  "every smm offer",
+  "every smm service",
   "all social media",
+  "all social media orders",
+  "all social media offers",
+  "all social media services",
   "all social",
   "all offers",
   "all services",
@@ -44,7 +53,7 @@ export type ChatOfferCandidate = {
 
 export type DetectedChatOfferQuery = {
   isOfferQuery: boolean;
-  showAllPlatforms: boolean;
+  showAllCatalog: boolean;
   platform: ChatOfferPlatform | null;
   intent: ChatOfferIntent | null;
 };
@@ -89,6 +98,12 @@ function matchesIntent(service: SmmCatalogService, intent: ChatOfferIntent) {
   return includesAny(serviceText(service), INTENT_ALIASES[intent]);
 }
 
+function detectServicePlatform(service: SmmCatalogService): ChatOfferPlatform | "all" {
+  const platform = (Object.keys(PLATFORM_ALIASES) as ChatOfferPlatform[])
+    .find((candidate) => matchesPlatform(service, candidate));
+  return platform || "all";
+}
+
 function estimatedMinimumTotal(service: SmmCatalogService) {
   return Number(Math.max(Number(service.startingPrice) * Math.max(Number(service.min), 1), 5).toFixed(2));
 }
@@ -118,17 +133,48 @@ function cheapestCandidate(
 
 export function detectChatOfferQuery(query: string): DetectedChatOfferQuery {
   const text = normalize(query);
-  const showAllPlatforms = includesAny(text, ALL_OFFER_ALIASES);
+  const showAllCatalog = includesAny(text, ALL_CATALOG_ALIASES);
   const platformEntry = Object.entries(PLATFORM_ALIASES).find(([, aliases]) => includesAny(text, aliases));
   const intentEntry = Object.entries(INTENT_ALIASES).find(([, aliases]) => includesAny(text, aliases));
   const hasCheapestIntent = includesAny(text, CHEAPEST_ALIASES);
 
   return {
-    isOfferQuery: showAllPlatforms || hasCheapestIntent,
-    showAllPlatforms,
+    isOfferQuery: showAllCatalog || hasCheapestIntent,
+    showAllCatalog,
     platform: (platformEntry?.[0] as ChatOfferPlatform | undefined) || null,
     intent: (intentEntry?.[0] as ChatOfferIntent | undefined) || null,
   };
+}
+
+export function selectAllChatOfferCandidates(
+  services: SmmCatalogService[],
+  query: string
+): ChatOfferCandidate[] {
+  const detected = detectChatOfferQuery(query);
+  if (!detected.showAllCatalog) return [];
+
+  const platformOrder = new Map(
+    (Object.keys(PLATFORM_ALIASES) as ChatOfferPlatform[])
+      .map((platform, index) => [platform, index])
+  );
+
+  return services
+    .filter(validCatalogService)
+    .filter((service) => !detected.platform || matchesPlatform(service, detected.platform))
+    .filter((service) => !detected.intent || matchesIntent(service, detected.intent))
+    .map((service) => ({
+      platform: detectServicePlatform(service),
+      service,
+      estimatedMinimumTotal: estimatedMinimumTotal(service),
+    } satisfies ChatOfferCandidate))
+    .sort((a, b) =>
+      (platformOrder.get(a.platform as ChatOfferPlatform) ?? Number.MAX_SAFE_INTEGER) -
+        (platformOrder.get(b.platform as ChatOfferPlatform) ?? Number.MAX_SAFE_INTEGER) ||
+      a.service.category.localeCompare(b.service.category) ||
+      a.estimatedMinimumTotal - b.estimatedMinimumTotal ||
+      a.service.name.localeCompare(b.service.name) ||
+      Number(a.service.id) - Number(b.service.id)
+    );
 }
 
 export function selectChatOfferCandidates(
@@ -138,14 +184,6 @@ export function selectChatOfferCandidates(
   const detected = detectChatOfferQuery(query);
   if (!detected.isOfferQuery) return [];
 
-  if (!detected.showAllPlatforms) {
-    const candidate = cheapestCandidate(services, detected.platform, detected.intent);
-    return candidate ? [candidate] : [];
-  }
-
-  return (Object.keys(PLATFORM_ALIASES) as ChatOfferPlatform[])
-    .map((platform) => cheapestCandidate(services, platform, detected.intent))
-    .filter((candidate): candidate is ChatOfferCandidate => Boolean(candidate))
-    .slice(0, CHAT_OFFER_LIMIT);
+  const candidate = cheapestCandidate(services, detected.platform, detected.intent);
+  return candidate ? [candidate] : [];
 }
-
