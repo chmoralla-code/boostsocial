@@ -98,6 +98,47 @@ function formatPhp(value: number) {
   })}`;
 }
 
+const MINIMUM_ORDER_TOTAL = 5;
+
+function getOfferMinimumQuantity(offer: ChatOffer) {
+  return Math.max(Math.ceil(Number(offer.min) || 1), 1);
+}
+
+function getOfferMaximumQuantity(offer: ChatOffer) {
+  const maximum = Math.floor(Number(offer.max) || 0);
+  return maximum > 0 ? Math.max(maximum, getOfferMinimumQuantity(offer)) : null;
+}
+
+function parseOfferQuantity(offer: ChatOffer, value: string) {
+  if (!/^\d+$/.test(value.trim())) return null;
+
+  const quantity = Number(value);
+  const minimum = getOfferMinimumQuantity(offer);
+  const maximum = getOfferMaximumQuantity(offer);
+
+  if (!Number.isSafeInteger(quantity) || quantity < minimum || (maximum !== null && quantity > maximum)) {
+    return null;
+  }
+
+  return quantity;
+}
+
+function estimateOfferTotals(offer: ChatOffer, quantity: number) {
+  const snapshotUnitPrice = Number(offer.catalogSnapshot.startingPrice);
+  const unitPrice = Number.isFinite(snapshotUnitPrice) && snapshotUnitPrice > 0
+    ? snapshotUnitPrice
+    : Number(offer.pricePerThousand) / 1000;
+  const regularTotal = Number(Math.max(quantity * unitPrice, MINIMUM_ORDER_TOTAL).toFixed(2));
+  const discountMultiplier = offer.regularTotal > 0 && offer.total > 0
+    ? Math.min(Math.max(offer.total / offer.regularTotal, 0), 1)
+    : Math.min(Math.max(1 - offer.vipDiscountPercent / 100, 0), 1);
+
+  return {
+    regularTotal,
+    total: Number((regularTotal * discountMultiplier).toFixed(2)),
+  };
+}
+
 const parseMorallaName = (text: string, isUser: boolean) => {
   const parts = [];
   const regex = /Cyrhiel Moralla/gi;
@@ -199,6 +240,7 @@ export function Chathead() {
   const [pendingCheckoutOffer, setPendingCheckoutOffer] = useState<ChatOffer | null>(null);
   const [pendingReceiptOrder, setPendingReceiptOrder] = useState<PendingReceiptOrder | null>(null);
   const [offerActionStatus, setOfferActionStatus] = useState<Record<string, OfferActionStatus>>({});
+  const [offerQuantityInputs, setOfferQuantityInputs] = useState<Record<string, string>>({});
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -617,6 +659,18 @@ export function Chathead() {
     setOfferActionStatus((current) => ({ ...current, [offer.actionKey]: status }));
   };
 
+  const getSelectedOffer = (offer: ChatOffer) => {
+    const rawQuantity = offerQuantityInputs[offer.actionKey] ?? String(offer.quantity);
+    const quantity = parseOfferQuantity(offer, rawQuantity);
+    if (quantity === null) return null;
+
+    return {
+      ...offer,
+      quantity,
+      ...estimateOfferTotals(offer, quantity),
+    };
+  };
+
   const handleCancelOffer = (offer: ChatOffer) => {
     updateOfferStatus(offer, "cancelled");
     if (pendingCheckoutOffer?.actionKey === offer.actionKey) {
@@ -650,7 +704,7 @@ export function Chathead() {
     updateOfferStatus(offer, "awaiting_target");
     pushLocalMessage({
       role: "assistant",
-      content: `Send the public profile, page, post, or video link for **${offer.name}**. I’ll re-check the live price, then pay from your wallet automatically.`,
+      content: `Send the public profile, page, post, or video link for **${offer.name}**.\n\n* **Quantity:** ${offer.quantity.toLocaleString()}\n* **Estimated total:** ${formatPhp(offer.total)}\n\nI’ll re-check the live price, then pay from your wallet automatically.`,
     });
   };
 
@@ -821,6 +875,10 @@ export function Chathead() {
             const offers = offerData.offers.map((offer) => ({
               ...offer,
               actionKey: crypto.randomUUID(),
+            }));
+            setOfferQuantityInputs((current) => ({
+              ...current,
+              ...Object.fromEntries(offers.map((offer) => [offer.actionKey, String(offer.quantity)])),
             }));
             pushLocalMessage({
               role: "assistant",
@@ -1202,6 +1260,11 @@ Tone rules:
                         const status = offerActionStatus[offer.actionKey] || "idle";
                         const busy = status === "processing";
                         const terminal = status === "purchased" || status === "cancelled";
+                        const quantityInput = offerQuantityInputs[offer.actionKey] ?? String(offer.quantity);
+                        const selectedOffer = getSelectedOffer(offer);
+                        const minimumQuantity = getOfferMinimumQuantity(offer);
+                        const maximumQuantity = getOfferMaximumQuantity(offer);
+                        const quantityLocked = status !== "idle" || isLoading || uploading || Boolean(pendingCheckoutOffer);
                         return (
                           <div
                             key={offer.actionKey}
@@ -1223,25 +1286,60 @@ Tone rules:
                               {offer.name}
                             </p>
                             <div className="mt-2 grid grid-cols-2 gap-2 text-[10px]">
-                              <div className="rounded-lg border border-border/60 bg-card px-2 py-1.5">
-                                <span className="block text-muted">Minimum package</span>
-                                <strong className="text-fg">{offer.quantity.toLocaleString()}</strong>
-                              </div>
+                              <label
+                                className={`rounded-lg border bg-card px-2 py-1.5 transition ${
+                                  selectedOffer ? "border-border/60 focus-within:border-[#1877F2]/70" : "border-red-400/50"
+                                }`}
+                              >
+                                <span className="block text-muted">Quantity</span>
+                                <input
+                                  type="number"
+                                  inputMode="numeric"
+                                  min={minimumQuantity}
+                                  max={maximumQuantity ?? undefined}
+                                  step={1}
+                                  value={quantityInput}
+                                  onChange={(event) => {
+                                    setOfferQuantityInputs((current) => ({
+                                      ...current,
+                                      [offer.actionKey]: event.target.value,
+                                    }));
+                                  }}
+                                  disabled={quantityLocked}
+                                  aria-label={`Quantity for ${offer.name}`}
+                                  aria-invalid={!selectedOffer}
+                                  className="mt-0.5 w-full bg-transparent text-xs font-black text-fg outline-none disabled:cursor-not-allowed disabled:opacity-70"
+                                />
+                                <span className="mt-0.5 block text-[8px] text-muted">
+                                  Min {minimumQuantity.toLocaleString()}
+                                  {maximumQuantity !== null ? ` · Max ${maximumQuantity.toLocaleString()}` : ""}
+                                </span>
+                              </label>
                               <div className="rounded-lg border border-[#1DB954]/20 bg-[#1DB954]/5 px-2 py-1.5">
                                 <span className="block text-muted">
-                                  {offer.vipDiscountPercent > 0 ? `VIP -${offer.vipDiscountPercent}%` : "Total"}
+                                  {offer.vipDiscountPercent > 0 ? `Est. VIP -${offer.vipDiscountPercent}%` : "Estimated total"}
                                 </span>
-                                <strong className="text-[#1DB954]">{formatPhp(offer.total)}</strong>
+                                <strong className={selectedOffer ? "text-[#1DB954]" : "text-red-300"}>
+                                  {selectedOffer ? formatPhp(selectedOffer.total) : "Check quantity"}
+                                </strong>
                               </div>
                             </div>
+                            {!selectedOffer ? (
+                              <p className="mt-1.5 text-[9px] font-semibold text-red-300" role="alert">
+                                Enter a whole number from {minimumQuantity.toLocaleString()}
+                                {maximumQuantity !== null ? ` to ${maximumQuantity.toLocaleString()}` : " or higher"}.
+                              </p>
+                            ) : null}
                             <p className="mt-2 text-[9px] leading-relaxed text-muted">
-                              {formatPhp(offer.pricePerThousand)} per 1,000 · max {offer.max.toLocaleString()} · re-priced before payment
+                              {formatPhp(offer.pricePerThousand)} per 1,000 · final price re-checked before payment
                             </p>
                             <div className="mt-3 grid grid-cols-2 gap-2">
                               <button
                                 type="button"
-                                onClick={() => handleBuyOffer(offer)}
-                                disabled={status !== "idle" || isLoading || uploading || Boolean(pendingCheckoutOffer)}
+                                onClick={() => {
+                                  if (selectedOffer) void handleBuyOffer(selectedOffer);
+                                }}
+                                disabled={!selectedOffer || status !== "idle" || isLoading || uploading || Boolean(pendingCheckoutOffer)}
                                 className="flex items-center justify-center gap-1.5 rounded-lg bg-[#1DB954] px-3 py-2 text-[10px] font-black uppercase tracking-wider text-black transition hover:bg-[#1ed760] disabled:cursor-not-allowed disabled:opacity-50"
                               >
                                 {busy ? <Loader2 size={12} className="animate-spin" /> :
