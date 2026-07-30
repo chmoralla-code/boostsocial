@@ -10,8 +10,10 @@ import { useCustomerMessagesRealtime } from "@/hooks/useCustomerMessagesRealtime
 import type { CustomerMessageRow } from "@/utils/realtimeChat";
 
 interface Message {
+  id?: string;
   role: 'user' | 'assistant' | 'system';
   content: string;
+  createdAt?: string | number;
   offers?: ChatOffer[];
 }
 
@@ -65,6 +67,7 @@ interface ChatDbMessage {
   sender: "customer" | "admin" | "system";
   message: string;
   is_read?: boolean;
+  created_at?: string;
 }
 
 function getErrorMessage(err: unknown) {
@@ -168,14 +171,14 @@ const renderMessageContent = (content: string, isUser: boolean) => {
     if (isListItem) {
       return (
         <div key={lineIdx} className="flex items-start gap-1.5 my-1 pl-1">
-          <span className={`mt-1 flex-shrink-0 text-[10px] ${isUser ? 'text-black/60' : 'text-[#1877F2]'}`}>●</span>
-          <span className={`${isUser ? 'text-black' : 'text-slate-200'} leading-relaxed text-sm`}>{parts}</span>
+          <span className={`mt-1 flex-shrink-0 text-[10px] ${isUser ? 'text-white/70' : 'text-[#1877F2]'}`}>●</span>
+          <span className={`${isUser ? 'text-white' : 'text-slate-200'} leading-relaxed text-sm`}>{parts}</span>
         </div>
       );
     }
 
     return (
-      <p key={lineIdx} className={`leading-relaxed text-sm ${trimmed === '' ? 'h-2' : 'my-1'}`}>
+      <p key={lineIdx} className={`leading-relaxed text-sm ${isUser ? 'text-white' : ''} ${trimmed === '' ? 'h-2' : 'my-1'}`}>
         {parts}
       </p>
     );
@@ -229,9 +232,13 @@ export function Chathead() {
   useEffect(() => { customerEmailRef.current = customerEmail; }, [customerEmail]);
 
   const pushLocalMessage = useCallback((msg: Message) => {
-    localEchoRef.current.push({ content: msg.content, role: msg.role, ts: Date.now() });
+    const stamped: Message = {
+      ...msg,
+      createdAt: msg.createdAt ?? Date.now(),
+    };
+    localEchoRef.current.push({ content: stamped.content, role: stamped.role, ts: Date.now() });
     if (localEchoRef.current.length > 20) localEchoRef.current = localEchoRef.current.slice(-20);
-    setMessages((prev) => [...prev, msg]);
+    setMessages((prev) => [...prev, stamped]);
   }, []);
 
   const applyRemoteInsert = useCallback(
@@ -247,11 +254,35 @@ export function Chathead() {
         );
         if (echo) {
           seenIdsRef.current.add(row.id);
+          // Stamp the matching local bubble with the DB id so later history
+          // merges stay stable and do not duplicate or reorder it.
+          setMessages((prev) => {
+            const idx = [...prev].reverse().findIndex(
+              (m) => !m.id && m.role === role && m.content === row.message
+            );
+            if (idx < 0) return prev;
+            const realIdx = prev.length - 1 - idx;
+            const next = [...prev];
+            next[realIdx] = {
+              ...next[realIdx],
+              id: row.id,
+              createdAt: row.created_at || next[realIdx].createdAt,
+            };
+            return next;
+          });
           return;
         }
       }
       seenIdsRef.current.add(row.id);
-      setMessages((prev) => [...prev, { role, content: row.message }]);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: row.id,
+          role,
+          content: row.message,
+          createdAt: row.created_at || Date.now(),
+        },
+      ]);
 
       if (row.sender === "customer") return;
       if (isOpenRef.current) {
@@ -347,13 +378,29 @@ export function Chathead() {
         if (!hasLoadedHistoryRef.current) {
           hasLoadedHistoryRef.current = true;
           seenIdsRef.current = new Set(dbMsgs.map((m) => m.id));
-          if (dbMsgs.length > 0) {
-            const mapped: Message[] = dbMsgs.map((m) => ({
-              role: m.sender === "customer" ? "user" : "assistant",
-              content: m.message,
-            }));
-            setMessages(mapped);
-          }
+          const mapped: Message[] = dbMsgs.map((m) => ({
+            id: m.id,
+            role: m.sender === "customer" ? "user" : "assistant",
+            content: m.message,
+            createdAt: m.created_at,
+          }));
+          setMessages((prev) => {
+            // Keep in-flight local bubbles (not yet in DB) after history so
+            // chronological order stays: older DB rows, then newest local sends.
+            const localOnly = prev.filter((local) => {
+              if (local.offers?.length) {
+                return !mapped.some((m) => m.content === local.content);
+              }
+              if (local.id) {
+                return !mapped.some((m) => m.id === local.id);
+              }
+              return !mapped.some((m) => m.role === local.role && m.content === local.content);
+            });
+            if (mapped.length === 0) {
+              return localOnly.length > 0 ? localOnly : prev;
+            }
+            return [...mapped, ...localOnly];
+          });
         } else {
           // Backstop catch-up for rows Realtime missed.
           for (const m of dbMsgs) {
@@ -1126,18 +1173,29 @@ Tone rules:
             </div>
           )}
 
-          {/* Messages */}
+          {/* Messages — user bubbles hug the right; AI/support hugs the left */}
           <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-elevated">
-            {messages.map((msg, i) => (
-              <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div 
-                  className={`${msg.offers?.length ? "max-w-[94%]" : "max-w-[85%]"} rounded-2xl px-4 py-2.5 text-sm shadow-sm ${
-                    msg.role === 'user' 
-                      ? 'bg-[#1877F2] text-fg font-semibold rounded-br-none' 
-                      : 'bg-card border border-border/60 text-fg rounded-bl-none'
+            {messages.map((msg, i) => {
+              const isUser = msg.role === "user";
+              const maxWidth = msg.offers?.length ? "max-w-[92%]" : isUser ? "max-w-[75%]" : "max-w-[82%]";
+              return (
+              <div
+                key={msg.id || `local-${msg.role}-${msg.createdAt ?? i}-${i}`}
+                className={`flex w-full ${isUser ? "justify-end" : "justify-start"}`}
+              >
+                <div
+                  className={`${maxWidth} ${isUser ? "ml-auto" : "mr-auto"} rounded-2xl px-4 py-2.5 text-sm shadow-sm break-words ${
+                    isUser
+                      ? "bg-[#1877F2] text-white font-semibold rounded-br-none"
+                      : "bg-card border border-border/60 text-fg rounded-bl-none"
                   }`}
                 >
-                  {renderMessageContent(msg.content, msg.role === 'user')}
+                  <span className={`mb-1 block text-[9px] font-black uppercase tracking-widest ${
+                    isUser ? "text-white/70 text-right" : "text-muted"
+                  }`}>
+                    {isUser ? "You" : "Support"}
+                  </span>
+                  {renderMessageContent(msg.content, isUser)}
                   {msg.offers?.length ? (
                     <div className="mt-3 space-y-2.5">
                       {msg.offers.map((offer) => {
@@ -1208,10 +1266,11 @@ Tone rules:
                   ) : null}
                 </div>
               </div>
-            ))}
+              );
+            })}
             {isLoading && (
-              <div className="flex justify-start">
-                <div className="bg-card border border-border/60 text-fg rounded-2xl rounded-bl-none px-4 py-2 text-sm flex items-center gap-2">
+              <div className="flex w-full justify-start">
+                <div className="mr-auto bg-card border border-border/60 text-fg rounded-2xl rounded-bl-none px-4 py-2 text-sm flex items-center gap-2">
                   <Loader2 size={16} className="animate-spin text-[#1877F2]" /> Thinking...
                 </div>
               </div>

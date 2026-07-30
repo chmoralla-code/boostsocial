@@ -418,22 +418,30 @@ function AppAiAssistant({
         </div>
 
         <div className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
-          {messages.map((message, index) => (
-            <div key={`${message.role}-${index}`} className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}>
-              <div className={`max-w-[82%] rounded-3xl px-4 py-3 text-sm font-medium ${
-                message.role === "user"
+          {messages.map((message, index) => {
+            const isUser = message.role === "user";
+            return (
+            <div key={`${message.role}-${index}-${message.content.slice(0, 24)}`} className={`flex w-full ${isUser ? "justify-end" : "justify-start"}`}>
+              <div className={`${isUser ? "ml-auto max-w-[75%]" : "mr-auto max-w-[82%]"} rounded-3xl px-4 py-3 text-sm font-medium break-words ${
+                isUser
                   ? "bg-emerald-600 text-white"
                   : isDark
                     ? "bg-zinc-900 text-zinc-200"
                     : "bg-zinc-100 text-zinc-700"
               }`}>
+                <span className={`mb-1 block text-[9px] font-black uppercase tracking-widest ${
+                  isUser ? "text-white/70 text-right" : isDark ? "text-zinc-500" : "text-zinc-400"
+                }`}>
+                  {isUser ? "You" : "Support"}
+                </span>
                 {messageParagraphs(message.content)}
               </div>
             </div>
-          ))}
+            );
+          })}
           {loading && (
-            <div className="flex justify-start">
-              <div className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-bold ${
+            <div className="flex w-full justify-start">
+              <div className={`mr-auto inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-bold ${
                 isDark ? "bg-zinc-900 text-zinc-300" : "bg-zinc-100 text-zinc-600"
               }`}>
                 <Loader2 size={14} className="animate-spin" />
