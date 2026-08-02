@@ -54,6 +54,8 @@ function AnnouncementModal({ onClose }: { onClose: () => void }) {
         <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
           <Link
             href={APK_DOWNLOAD_PATH}
+            download
+            prefetch={false}
             onClick={onClose}
             className="inline-flex min-h-11 items-center justify-center rounded-full bg-[#1DB954] px-5 py-3 text-xs font-black uppercase tracking-wider text-black transition hover:bg-[#1ed760]"
           >
@@ -152,14 +154,18 @@ export default function QuickStartPage() {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    try {
-      const dismissed = window.localStorage.getItem(
-        `${ANNOUNCEMENT_DISMISS_KEY}:${ANNOUNCEMENT_VERSION}`
-      );
-      setAnnouncement(dismissed === "true" ? "dismissed" : "open");
-    } catch {
-      setAnnouncement("open");
-    }
+    const frame = window.requestAnimationFrame(() => {
+      try {
+        const dismissed = window.localStorage.getItem(
+          `${ANNOUNCEMENT_DISMISS_KEY}:${ANNOUNCEMENT_VERSION}`
+        );
+        setAnnouncement(dismissed === "true" ? "dismissed" : "open");
+      } catch {
+        setAnnouncement("open");
+      }
+    });
+
+    return () => window.cancelAnimationFrame(frame);
   }, []);
 
   const dismissAnnouncement = () => {

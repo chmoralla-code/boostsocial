@@ -66,3 +66,9 @@ login_output.txt
 *-admin*.apk
 public/downloads/*-debug.apk
 public/downloads/*-admin*.apk
+
+# Android release signing material must remain local and private.
+*.jks
+*.keystore
+android/keystore.properties
+android/app/keystore.properties

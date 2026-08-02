@@ -622,14 +622,14 @@ export function Chathead() {
     }
 
     if (!resolvedId) {
-      alert("⚠️ Tracking ID not found!\n\nPlease enter your Tracking ID (e.g. BS-D5D1D849) in the text input box first before uploading/pasting your GCash screenshot so we can match it to your order.");
+      alert("⚠️ Tracking ID not found!\n\nPlease enter your Tracking ID (e.g. BS-D5D1D849) in the text input box first before uploading/pasting your payment proof so we can match it to your order.");
       if (fileInputRef.current) fileInputRef.current.value = "";
       return;
     }
 
     setUploading(true);
     const displayId = `BS-${resolvedId.slice(0, 8).toUpperCase()}`;
-    pushLocalMessage({ role: 'user', content: `[Attached GCash Receipt Screenshot for Order ${displayId}]` });
+    pushLocalMessage({ role: 'user', content: `[Attached Payment Proof for Order ${displayId}]` });
 
     try {
       // Client-side compression saves upload bandwidth and gives the user a
@@ -678,6 +678,9 @@ export function Chathead() {
           extractedAmount?: number | null;
           amountMatches?: boolean | null;
           receiverName?: string | null;
+          receiverAccount?: string | null;
+          receiverInstitution?: string | null;
+          paymentRail?: string | null;
           receiverMatched?: boolean;
           referenceNumber?: string | null;
           referenceUnique?: boolean;
@@ -697,12 +700,12 @@ export function Chathead() {
         ? formatPhp(analysis.extractedAmount)
         : "unreadable amount";
       const aiReviewNote = analysis?.decision === "approved"
-        ? `\n\n✅ **Kimi approved the proof:** ${receiptAmount}, receiver **${analysis.receiverName || "Henry S."}**, and a unique GCash Ref No. all matched. Your order is now processing.`
+        ? `\n\n✅ **Kimi approved the proof:** ${receiptAmount}, destination **${analysis.receiverName || "Henry S."}**, and a unique payment reference all matched. Your order is now processing.`
         : analysis?.decision === "rejected_fake"
           ? `\n\n❌ **Kimi rejected the proof:** strong signs of an AI-generated or altered receipt were detected. ${analysis.reason || ""}`.trim()
           : analysis?.decision === "rejected_duplicate"
-            ? `\n\n❌ **Kimi rejected the proof:** that GCash Ref No. was already used on another active transaction.`
-            : `\n\n🔎 **Kimi sent this for manual review:** ${analysis?.reason || "The receiver, reference number, or amount could not be fully confirmed."}`;
+            ? `\n\n❌ **Kimi rejected the proof:** that payment reference was already used on another active transaction.`
+            : `\n\n🔎 **Kimi sent this for manual review:** ${analysis?.reason || "The payment destination, reference number, or amount could not be fully confirmed."}`;
       // Add success response from AI
       pushLocalMessage({
         role: 'assistant',
@@ -787,7 +790,7 @@ export function Chathead() {
       updateOfferStatus(offer, "idle");
       pushLocalMessage({
         role: "assistant",
-        content: "🔐 **Please sign in first.** Direct wallet purchases and GCash receipt uploads must be linked to your PinoyBoosting account. After signing in, return here and tap Buy again.",
+        content: "🔐 **Please sign in first.** Direct wallet purchases and payment-proof uploads must be linked to your PinoyBoosting account. After signing in, return here and tap Buy again.",
       });
       return;
     }
@@ -902,7 +905,7 @@ export function Chathead() {
     }
     pushLocalMessage({
       role: "assistant",
-      content: `💳 **Your wallet balance is not enough, so it was not charged.**\n\nI created **${trackingId}** for GCash payment.\n\n* **Pay exactly:** ${formatPhp(amount)}\n* **GCash:** 09505339963\n* **Receiver:** Henry S.\n\nAfter paying, tap the image button below and upload the GCash proof. Kimi will check the receiver, unique Ref No., amount, and visible signs of a fake or altered receipt.`,
+      content: `💳 **Your wallet balance is not enough, so it was not charged.**\n\nI created **${trackingId}** for payment.\n\n* **Pay exactly:** ${formatPhp(amount)}\n* **GCash destination:** 09505339963\n* **Receiver:** Henry S.\n\nYou may pay directly in GCash or send an InstaPay/bank transfer to this GCash destination. Then tap the image button below and upload the payment proof. Kimi will check the destination, unique reference, amount, and visible signs of a fake or altered receipt.`,
     });
   };
 
@@ -1359,7 +1362,7 @@ Tone rules:
                               </span>
                               <span className="text-[9px] font-bold uppercase tracking-wider text-muted">
                                 {status === "awaiting_target" ? "Waiting for link" :
-                                  status === "awaiting_receipt" ? "Waiting for GCash proof" :
+                                  status === "awaiting_receipt" ? "Waiting for payment proof" :
                                   status === "purchased" ? "Purchased" :
                                   status === "cancelled" ? "Cancelled" :
                                   busy ? "Checking out" : "Live offer"}
@@ -1587,7 +1590,7 @@ Tone rules:
               onClick={() => fileInputRef.current?.click()}
               disabled={isLoading || uploading}
               className={`${pendingReceiptOrder ? "border-[#1DB954]/50 bg-[#1DB954]/10 text-[#1DB954]" : "border-slate-700/80 bg-card text-muted"} hover:bg-elevated border hover:text-fg p-2.5 rounded-xl transition-colors flex items-center justify-center flex-shrink-0`}
-              title={pendingReceiptOrder ? `Upload GCash proof for ${pendingReceiptOrder.trackingId}` : "Attach GCash Screenshot"}
+              title={pendingReceiptOrder ? `Upload payment proof for ${pendingReceiptOrder.trackingId}` : "Attach payment screenshot"}
             >
               {uploading ? (
                 <Loader2 size={16} className="animate-spin text-[#1877F2]" />

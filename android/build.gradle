@@ -26,6 +26,31 @@ allprojects {
     configurations.configureEach {
         resolutionStrategy.force "androidx.core:core-splashscreen:1.2.0"
     }
+
+    // Capacitor 8 compiles Android sources at Java 21. Keep Gradle's daemon
+    // independent from the shell's JAVA_HOME by selecting the detected JDK 21
+    // compiler for every Android Java compilation task.
+    tasks.withType(org.gradle.api.tasks.compile.JavaCompile).configureEach {
+        def toolchains = project.extensions.findByType(org.gradle.jvm.toolchain.JavaToolchainService)
+        if (toolchains == null) {
+            throw new GradleException("Java toolchain service is unavailable for ${project.path}")
+        }
+
+        javaCompiler = toolchains.compilerFor {
+            languageVersion = org.gradle.jvm.toolchain.JavaLanguageVersion.of(21)
+        }
+    }
+
+    tasks.withType(org.gradle.api.tasks.testing.Test).configureEach {
+        def toolchains = project.extensions.findByType(org.gradle.jvm.toolchain.JavaToolchainService)
+        if (toolchains == null) {
+            throw new GradleException("Java toolchain service is unavailable for ${project.path}")
+        }
+
+        javaLauncher = toolchains.launcherFor {
+            languageVersion = org.gradle.jvm.toolchain.JavaLanguageVersion.of(21)
+        }
+    }
 }
 
 subprojects {
