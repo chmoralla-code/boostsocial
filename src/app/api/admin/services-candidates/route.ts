@@ -106,13 +106,13 @@ const DEFAULT_CANDIDATES: CandidateRecord[] = [
     caption: "Make your own website & APK easily with just a prompt",
     description: "Describe what you want in plain words and Hormachuelos AI builds a full website or Android APK for you — no code, no setup, just a prompt.",
     rate_prefix: "Availability",
-    rate_text: "Coming Soon",
+    rate_text: "Available now",
     theme_color: "#8B5CF6",
     btn_bg: "bg-[#8B5CF6] hover:bg-[#a78bfa] text-white",
     glow_color: "rgba(139, 92, 246, 0.45)",
     video_url: "/hormachuelos-promo.mp4",
-    coming_soon: true,
-    page_href: "/hormachuelos-ai"
+    coming_soon: false,
+    page_href: "https://hormachuelos.vercel.app/#/"
   },
   {
     id: "other",
