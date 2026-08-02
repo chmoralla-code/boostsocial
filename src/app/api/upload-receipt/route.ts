@@ -130,7 +130,7 @@ export async function POST(req: NextRequest) {
 
     if (duplicateReceipt) {
       return NextResponse.json({
-        error: "This receipt image was already used on another order or top-up. Please upload the correct GCash proof for this transaction.",
+        error: "This receipt image was already used on another order or top-up. Please upload the correct payment proof for this transaction.",
       }, { status: 409 });
     }
 
@@ -169,10 +169,10 @@ export async function POST(req: NextRequest) {
     await updateOrderReceipt(supabase, orderId, receiptUrl, receiptHash);
 
     let autoApproval: Awaited<ReturnType<typeof autoVerifyAndApproveOrder>> | null = null;
-    const isGcashOrder = String(orderData?.payment_method || "").toLowerCase() !== "wallet";
+    const isReceiptPaidOrder = String(orderData?.payment_method || "").toLowerCase() !== "wallet";
     const orderAmount = Number(orderData?.amount || 0);
 
-    if (isGcashOrder && String(orderData.status || "") === "Pending" && orderAmount > 0) {
+    if (isReceiptPaidOrder && String(orderData.status || "") === "Pending" && orderAmount > 0) {
       try {
         autoApproval = await autoVerifyAndApproveOrder({
           supabase,
@@ -214,6 +214,9 @@ export async function POST(req: NextRequest) {
       confidence: autoApproval?.confidence ?? 0,
       amountMatches,
       receiverName: autoApproval?.receiverName || null,
+      receiverAccount: autoApproval?.receiverAccount || null,
+      receiverInstitution: autoApproval?.receiverInstitution || null,
+      paymentRail: autoApproval?.paymentRail || null,
       receiverMatched: Boolean(autoApproval?.receiverMatched),
       referenceNumber: autoApproval?.referenceNumber || null,
       referenceUnique: Boolean(autoApproval?.referenceUnique),
@@ -256,7 +259,7 @@ export async function POST(req: NextRequest) {
           serviceTitle || "SMM Service"
         );
 
-        if (isGcashOrder) {
+        if (isReceiptPaidOrder) {
           await sendOrderApprovalNotification({
             orderId,
             trackingId,
@@ -315,7 +318,7 @@ export async function POST(req: NextRequest) {
           await notifyCustomer({
             client: supabase,
             email,
-            message: `System update: GCash proof for order ${trackingId} was rejected. ${autoApproval?.reason || "The receipt did not pass the verification rules."}`,
+            message: `System update: Payment proof for order ${trackingId} was rejected. ${autoApproval?.reason || "The receipt did not pass the verification rules."}`,
           });
         } else {
           await notifyCustomer({

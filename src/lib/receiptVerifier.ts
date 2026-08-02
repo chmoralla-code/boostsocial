@@ -4,6 +4,19 @@ import {
   requestNeuralwattChat,
   type NeuralwattTool,
 } from "@/lib/neuralwatt";
+import {
+  expectedPaymentDestinationLabel,
+  isApprovedPaymentDestination,
+  normalizeGcashReference,
+  normalizePaymentReference,
+} from "@/lib/paymentReceiptRules";
+
+export {
+  APPROVED_GCASH_RECEIVER_LABEL,
+  isApprovedGCashReceiver,
+  normalizeGcashReference,
+  normalizePaymentReference,
+} from "@/lib/paymentReceiptRules";
 
 const RECEIPT_ANALYSIS_TOOL_NAME = "analyze_payment_receipt";
 const RECEIPT_ANALYSIS_FIELDS = [
@@ -13,6 +26,9 @@ const RECEIPT_ANALYSIS_FIELDS = [
   "reference_number",
   "sender",
   "recipient",
+  "recipient_account",
+  "recipient_institution",
+  "payment_rail",
   "date",
   "is_ai_generated",
   "ai_generated_score",
@@ -26,7 +42,7 @@ const RECEIPT_ANALYSIS_TOOL: NeuralwattTool = {
   function: {
     name: RECEIPT_ANALYSIS_TOOL_NAME,
     description:
-      "Return a structured visual analysis of an uploaded GCash proof-of-payment image.",
+      "Return a structured visual analysis of an uploaded Philippine payment proof, including GCash, InstaPay, PESONet, and bank-transfer confirmations.",
     parameters: {
       type: "object",
       additionalProperties: false,
@@ -34,7 +50,7 @@ const RECEIPT_ANALYSIS_TOOL: NeuralwattTool = {
         is_payment_receipt: {
           type: "boolean",
           description:
-            "True only when the image visibly appears to be a genuine GCash payment or transfer confirmation.",
+            "True only when the image visibly appears to be a genuine completed payment or transfer confirmation. A GCash receipt, InstaPay transfer to GCash, PESONet transfer, or bank-transfer confirmation can qualify when the completion details are visible.",
         },
         amount: {
           type: ["number", "null"],
@@ -56,7 +72,20 @@ const RECEIPT_ANALYSIS_TOOL: NeuralwattTool = {
         },
         recipient: {
           type: ["string", "null"],
-          description: "The visible recipient/account name, or null when absent or unreadable.",
+          description: "The visible destination account-holder/payee name only, copied exactly as shown, or null when absent or unreadable.",
+        },
+        recipient_account: {
+          type: ["string", "null"],
+          description: "The visible destination phone number or bank account number, preserving any visible masking, or null when absent or unreadable.",
+        },
+        recipient_institution: {
+          type: ["string", "null"],
+          description: "The visible destination institution or wallet, such as GCash or G-Xchange, Inc (GCash), or null when absent or unreadable.",
+        },
+        payment_rail: {
+          type: ["string", "null"],
+          enum: ["gcash", "instapay", "pesonet", "bank_transfer", "other", "unknown", null],
+          description: "The payment rail visibly identified by the receipt: gcash, instapay, pesonet, bank_transfer, other, or unknown when it cannot be determined.",
         },
         date: {
           type: ["string", "null"],
@@ -104,9 +133,6 @@ const RECEIPT_ANALYSIS_TOOL: NeuralwattTool = {
   },
 };
 
-/** Canonical GCash payee shown on site (masked on receipts as HE•••Y S.). */
-export const APPROVED_GCASH_RECEIVER_LABEL = "HE•••Y S.";
-
 export interface VerificationResult {
   success: boolean;
   extractedAmount: number | null;
@@ -123,9 +149,23 @@ export interface VerificationResult {
   duplicateRef?: string;
   referenceNumber?: string | null;
   receiverName?: string | null;
+  receiverAccount?: string | null;
+  receiverInstitution?: string | null;
+  paymentRail?: PaymentRail | null;
   receiverMatched?: boolean;
   referenceUnique?: boolean;
 }
+
+const PAYMENT_RAILS = [
+  "gcash",
+  "instapay",
+  "pesonet",
+  "bank_transfer",
+  "other",
+  "unknown",
+] as const;
+
+type PaymentRail = (typeof PAYMENT_RAILS)[number];
 
 const INACTIVE_STATUSES = new Set([
   "rejected",
@@ -209,35 +249,15 @@ async function callVisionModel(
   };
 }
 
-/**
- * Normalize GCash Ref No to digits only (e.g. "4043 390 526380" -> "4043390526380").
- */
-export function normalizeGcashReference(value: unknown): string | null {
-  const digits = String(value ?? "").replace(/\D/g, "");
-  if (digits.length < 8) return null;
-  return digits;
-}
-
-/**
- * Accept masked HE•••Y S. / HE...Y S. and unmasked Henry S.
- */
-export function isApprovedGCashReceiver(name: unknown): boolean {
-  const raw = String(name ?? "").trim().toUpperCase();
-  if (!raw) return false;
-
-  if (/^HE[•·*.…\-_]+Y\s*S\.?$/.test(raw)) return true;
-  if (/^HENRY\s*S\.?$/.test(raw)) return true;
-
-  const letters = raw.replace(/[^A-Z]/g, "");
-  return letters === "HEYS" || letters === "HENRYS";
-}
-
 type ParsedReceiptAnalysis = {
   isPaymentReceipt: boolean;
   amount: number | null;
   currency: "PHP" | null;
   referenceNumber: string | null;
   recipient: string | null;
+  recipientAccount: string | null;
+  recipientInstitution: string | null;
+  paymentRail: PaymentRail | null;
   isAIGenerated: boolean;
   aiGeneratedScore: number;
   tamperingScore: number;
@@ -277,22 +297,7 @@ function parseReceiptAnalysis(text: string): ParsedReceiptAnalysis | null {
   const parsed = tryParseJSON(text);
   if (!parsed) return null;
 
-  const requiredFields = [
-    "is_payment_receipt",
-    "amount",
-    "currency",
-    "reference_number",
-    "sender",
-    "recipient",
-    "date",
-    "is_ai_generated",
-    "ai_generated_score",
-    "tampering_score",
-    "confidence",
-    "reason",
-    "receipt_description",
-  ];
-  if (!requiredFields.every((field) => Object.hasOwn(parsed, field))) {
+  if (!RECEIPT_ANALYSIS_FIELDS.every((field) => Object.hasOwn(parsed, field))) {
     return null;
   }
 
@@ -304,6 +309,7 @@ function parseReceiptAnalysis(text: string): ParsedReceiptAnalysis | null {
   const tamperingScore = boundedNumber(parsed.tampering_score, 0, 100);
   const confidence = boundedNumber(parsed.confidence, 0, 1);
   const receiptDescription = nullableString(parsed.receipt_description);
+  const paymentRail = nullableString(parsed.payment_rail);
 
   if (
     typeof parsed.is_payment_receipt !== "boolean" ||
@@ -313,8 +319,11 @@ function parseReceiptAnalysis(text: string): ParsedReceiptAnalysis | null {
     !isNullableString(parsed.reference_number) ||
     !isNullableString(parsed.sender) ||
     !isNullableString(parsed.recipient) ||
+    !isNullableString(parsed.recipient_account) ||
+    !isNullableString(parsed.recipient_institution) ||
     !isNullableString(parsed.date) ||
     !isNullableString(parsed.reason) ||
+    (paymentRail !== null && !PAYMENT_RAILS.includes(paymentRail as PaymentRail)) ||
     aiGeneratedScore === null ||
     tamperingScore === null ||
     confidence === null ||
@@ -329,6 +338,9 @@ function parseReceiptAnalysis(text: string): ParsedReceiptAnalysis | null {
     currency: parsed.currency === "PHP" ? "PHP" : null,
     referenceNumber: nullableString(parsed.reference_number),
     recipient: nullableString(parsed.recipient),
+    recipientAccount: nullableString(parsed.recipient_account),
+    recipientInstitution: nullableString(parsed.recipient_institution),
+    paymentRail: paymentRail as PaymentRail | null,
     isAIGenerated: parsed.is_ai_generated,
     aiGeneratedScore,
     tamperingScore,
@@ -374,37 +386,69 @@ function extractReferenceFromReceiptData(receiptData: unknown): string | null {
   try {
     const parsed = typeof receiptData === "string" ? JSON.parse(receiptData) : receiptData;
     return (
-      normalizeGcashReference(parsed?.reference_number) ||
-      normalizeGcashReference(parsed?.gcash_reference) ||
-      normalizeGcashReference(parsed?.referenceNumber)
+      normalizePaymentReference(parsed?.reference_number) ||
+      normalizePaymentReference(parsed?.gcash_reference) ||
+      normalizePaymentReference(parsed?.referenceNumber)
     );
   } catch {
-    return normalizeGcashReference(receiptData);
+    return normalizePaymentReference(receiptData);
   }
 }
 
+function paymentReferencesMatch(left: unknown, right: unknown) {
+  const leftCanonical = normalizePaymentReference(left);
+  const rightCanonical = normalizePaymentReference(right);
+  if (leftCanonical && rightCanonical && leftCanonical === rightCanonical) return true;
+
+  // Older records stored GCash references as digits only. Compare that legacy
+  // representation too, so a reused InstaPay reference cannot bypass history.
+  const leftLegacy = normalizeGcashReference(left);
+  const rightLegacy = normalizeGcashReference(right);
+  return Boolean(leftLegacy && rightLegacy && leftLegacy === rightLegacy);
+}
+
 /**
- * True when this GCash Ref No was already used on an active top-up or order.
+ * True when this payment reference was already used on an active top-up or order.
+ * The database column keeps its historical gcash_reference name for backwards
+ * compatibility, but it now stores bank and InstaPay references as well.
  */
 export async function findActiveDuplicateGcashReference(
   supabase: SupabaseClient,
   referenceNumber: string,
   exclude?: { topupId?: string; orderId?: string }
 ): Promise<string | null> {
-  const normalized = normalizeGcashReference(referenceNumber);
+  const normalized = normalizePaymentReference(referenceNumber);
   if (!normalized) return null;
+
+  const legacyNormalized = normalizeGcashReference(referenceNumber);
+  const lookupValues = Array.from(
+    new Set(
+      [normalized, legacyNormalized].filter(
+        (value): value is string => Boolean(value)
+      )
+    )
+  );
+  const duplicateLookup = lookupValues
+    .flatMap((value) => [
+      `gcash_reference.eq.${value}`,
+      `receipt_data.ilike.%${value}%`,
+    ])
+    .join(",");
+  const receiptDataLookup = lookupValues
+    .map((value) => `receipt_data.ilike.%${value}%`)
+    .join(",");
 
   try {
     const [topupsRes, ordersRes] = await Promise.all([
       supabase
         .from("topups")
         .select("id, status, receipt_data, gcash_reference")
-        .or(`gcash_reference.eq.${normalized},receipt_data.ilike.%${normalized}%`)
+        .or(duplicateLookup)
         .limit(25),
       supabase
         .from("orders")
         .select("id, status, receipt_data, gcash_reference")
-        .or(`gcash_reference.eq.${normalized},receipt_data.ilike.%${normalized}%`)
+        .or(duplicateLookup)
         .limit(25),
     ]);
 
@@ -422,7 +466,7 @@ export async function findActiveDuplicateGcashReference(
       const fallback = await supabase
         .from("topups")
         .select("id, status, receipt_data")
-        .ilike("receipt_data", `%${normalized}%`)
+        .or(receiptDataLookup)
         .limit(25);
       topupRows = (fallback.data as RefRow[] | null) || [];
     }
@@ -430,9 +474,8 @@ export async function findActiveDuplicateGcashReference(
     for (const row of topupRows) {
       if (exclude?.topupId && row.id === exclude.topupId) continue;
       if (isInactiveStatus(row.status)) continue;
-      const rowRef =
-        normalizeGcashReference(row.gcash_reference) || extractReferenceFromReceiptData(row.receipt_data);
-      if (rowRef === normalized) return row.id || "topup";
+      const rowRef = row.gcash_reference || extractReferenceFromReceiptData(row.receipt_data);
+      if (paymentReferencesMatch(rowRef, normalized)) return row.id || "topup";
     }
 
     let orderRows: RefRow[] = (ordersRes.data as RefRow[] | null) || [];
@@ -440,7 +483,7 @@ export async function findActiveDuplicateGcashReference(
       const fallback = await supabase
         .from("orders")
         .select("id, status, receipt_data")
-        .ilike("receipt_data", `%${normalized}%`)
+        .or(receiptDataLookup)
         .limit(25);
       orderRows = (fallback.data as RefRow[] | null) || [];
     }
@@ -450,12 +493,11 @@ export async function findActiveDuplicateGcashReference(
       if (isInactiveStatus(row.status)) continue;
       const status = String(row.status ?? "").toLowerCase();
       if (status === "rejected" || status === "cancelled" || status === "canceled") continue;
-      const rowRef =
-        normalizeGcashReference(row.gcash_reference) || extractReferenceFromReceiptData(row.receipt_data);
-      if (rowRef === normalized) return row.id || "order";
+      const rowRef = row.gcash_reference || extractReferenceFromReceiptData(row.receipt_data);
+      if (paymentReferencesMatch(rowRef, normalized)) return row.id || "order";
     }
   } catch (error) {
-    console.warn("GCash reference duplicate lookup skipped:", error);
+    console.warn("Payment reference duplicate lookup skipped:", error);
   }
 
   return null;
@@ -468,7 +510,7 @@ async function persistGcashReference(
   referenceNumber: string | null,
   receiptPayload: Record<string, unknown>
 ) {
-  const normalized = normalizeGcashReference(referenceNumber);
+  const normalized = normalizePaymentReference(referenceNumber);
   const withRef = {
     ...receiptPayload,
     reference_number: normalized,
@@ -516,9 +558,10 @@ export async function verifyReceipt(
   try {
     const base64 = imageBuffer.toString("base64");
     const primaryPrompt = [
-      "Inspect this uploaded GCash proof-of-payment image.",
-      "Read the final amount paid, PHP currency, complete Ref No., sender, recipient/payee, and date.",
-      `The recipient must be copied exactly as visible so the server can compare it with ${APPROVED_GCASH_RECEIVER_LABEL} or Henry S.`,
+      "Inspect this uploaded Philippine payment proof image. It may be a direct GCash receipt, an InstaPay transfer, a PESONet transfer, or a bank-transfer confirmation.",
+      "Read the final amount paid, PHP currency, complete transaction/reference number (including visible letters or prefixes), sender, destination recipient/payee, destination account or phone number, destination institution, payment rail, and date.",
+      `Copy the destination evidence exactly as visible so the server can compare it with ${expectedPaymentDestinationLabel()}.`,
+      "For example, if the image visibly says InstaPay, To Henry, a destination ending 9963, and G-Xchange, Inc (GCash), return payment_rail=instapay, recipient=Henry, recipient_account with the visible masked number, and recipient_institution=G-Xchange, Inc (GCash). Do not use this example unless those details are visibly present.",
       "Use null for unreadable or missing details.",
       "Only flag AI generation or tampering when strong visible evidence exists; screenshots and compression alone are not suspicious.",
     ].join(" ");
@@ -531,8 +574,14 @@ export async function verifyReceipt(
 
     const extractedAmount = parsed.amount;
     const receiverName = parsed.recipient;
-    const referenceNumber = normalizeGcashReference(parsed.referenceNumber);
-    const receiverMatched = isApprovedGCashReceiver(receiverName);
+    const receiverAccount = parsed.recipientAccount;
+    const receiverInstitution = parsed.recipientInstitution;
+    const referenceNumber = normalizePaymentReference(parsed.referenceNumber);
+    const receiverMatched = isApprovedPaymentDestination({
+      recipient: receiverName,
+      recipientAccount: receiverAccount,
+      recipientInstitution: receiverInstitution,
+    });
 
     let isDuplicate = false;
     let duplicateRef: string | undefined;
@@ -543,7 +592,7 @@ export async function verifyReceipt(
       if (duplicateId) {
         isDuplicate = true;
         referenceUnique = false;
-        duplicateRef = `GCash Ref No. already used on ${duplicateId}`;
+        duplicateRef = `Payment reference already used on ${duplicateId}`;
       }
     } else if (!referenceNumber) {
       referenceUnique = false;
@@ -569,6 +618,9 @@ export async function verifyReceipt(
       duplicateRef,
       referenceNumber,
       receiverName,
+      receiverAccount,
+      receiverInstitution,
+      paymentRail: parsed.paymentRail,
       receiverMatched,
       referenceUnique,
     };
@@ -618,7 +670,10 @@ export async function autoVerifyAndApproveTopup(params: {
     is_payment_receipt: result.isPaymentReceipt,
     currency: result.currency,
     provider_model: result.providerModel,
+    payment_rail: result.paymentRail || null,
     receiver_name: result.receiverName || null,
+    receiver_account: result.receiverAccount || null,
+    receiver_institution: result.receiverInstitution || null,
     receiver_matched: Boolean(result.receiverMatched),
     reference_number: result.referenceNumber || null,
     reference_unique: Boolean(result.referenceUnique),
@@ -641,7 +696,7 @@ export async function autoVerifyAndApproveTopup(params: {
       auto_approved: false,
       is_duplicate: true,
       duplicate_reason: result.duplicateRef,
-      reason: `Duplicate Ref No.: ${result.duplicateRef || "Same GCash reference used again"}`,
+      reason: `Duplicate payment reference: ${result.duplicateRef || "Same reference used again"}`,
     });
     await supabase.from("topups").update({ status: "rejected" }).eq("id", topupId);
     return { ...result, autoApproved: false, rejectedAsDuplicate: true };
@@ -662,11 +717,11 @@ export async function autoVerifyAndApproveTopup(params: {
 
   let reason = result.reason || null;
   if (!result.receiverMatched) {
-    reason = `Receiver name mismatch: saw "${result.receiverName || "unknown"}", expected ${APPROVED_GCASH_RECEIVER_LABEL} / Henry S.`;
+    reason = `Payment destination mismatch: saw "${result.receiverName || "unknown"}", expected ${expectedPaymentDestinationLabel()}.`;
   } else if (!result.referenceNumber) {
-    reason = "GCash Ref No. not found on receipt";
+    reason = "Payment reference number not found on receipt";
   } else if (!result.referenceUnique) {
-    reason = result.duplicateRef || "GCash Ref No. is not unique";
+    reason = result.duplicateRef || "Payment reference is not unique";
   } else if (!amountMatches(result.extractedAmount, requestedAmount)) {
     reason = `Amount mismatch: extracted ₱${result.extractedAmount} vs requested ₱${requestedAmount}`;
   }
@@ -693,7 +748,7 @@ export async function autoVerifyAndApproveTopup(params: {
       return {
         ...result,
         autoApproved: true,
-        reason: `AI verified — receiver ${APPROVED_GCASH_RECEIVER_LABEL}, unique Ref No., amount matches`,
+        reason: "AI verified — payment destination, unique reference, and amount match",
       };
     } catch (err) {
       console.error("Auto-approval failed:", err);
@@ -730,7 +785,10 @@ export async function autoVerifyAndApproveOrder(params: {
     is_payment_receipt: result.isPaymentReceipt,
     currency: result.currency,
     provider_model: result.providerModel,
+    payment_rail: result.paymentRail || null,
     receiver_name: result.receiverName || null,
+    receiver_account: result.receiverAccount || null,
+    receiver_institution: result.receiverInstitution || null,
     receiver_matched: Boolean(result.receiverMatched),
     reference_number: result.referenceNumber || null,
     reference_unique: Boolean(result.referenceUnique),
@@ -757,7 +815,7 @@ export async function autoVerifyAndApproveOrder(params: {
       auto_approved: false,
       is_duplicate: true,
       duplicate_reason: result.duplicateRef,
-      reason: `Duplicate Ref No.: ${result.duplicateRef || "Same GCash reference used again"}`,
+      reason: `Duplicate payment reference: ${result.duplicateRef || "Same reference used again"}`,
     });
     await supabase
       .from("orders")
@@ -781,11 +839,11 @@ export async function autoVerifyAndApproveOrder(params: {
 
   let reason = result.reason || null;
   if (!result.receiverMatched) {
-    reason = `Receiver name mismatch: saw "${result.receiverName || "unknown"}", expected ${APPROVED_GCASH_RECEIVER_LABEL} / Henry S.`;
+    reason = `Payment destination mismatch: saw "${result.receiverName || "unknown"}", expected ${expectedPaymentDestinationLabel()}.`;
   } else if (!result.referenceNumber) {
-    reason = "GCash Ref No. not found on receipt";
+    reason = "Payment reference number not found on receipt";
   } else if (!result.referenceUnique) {
-    reason = result.duplicateRef || "GCash Ref No. is not unique";
+    reason = result.duplicateRef || "Payment reference is not unique";
   } else if (!amountMatches(result.extractedAmount, requestedAmount)) {
     reason = `Amount mismatch: extracted ₱${result.extractedAmount} vs requested ₱${requestedAmount}`;
   }
@@ -824,6 +882,6 @@ export async function autoVerifyAndApproveOrder(params: {
   return {
     ...result,
     autoApproved: true,
-    reason: `AI verified — receiver ${APPROVED_GCASH_RECEIVER_LABEL}, unique Ref No., amount matches`,
+    reason: "AI verified — payment destination, unique reference, and amount match",
   };
 }

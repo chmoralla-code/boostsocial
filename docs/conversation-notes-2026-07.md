@@ -127,14 +127,17 @@ Subject/body thank the client and invite another order (“Order again”).
 
 ---
 
-## 8. AI auto-approve GCash proofs (Telegram top-up & order)
+## 8. AI auto-approve payment proofs (Telegram top-up & order)
 
 ### Request
 Auto-approve when the receipt AI detects:
 
 1. GCash **receiver** is **`HE•••Y S.`** / `HE...Y S.` (or unmasked **Henry S.**)
-2. **Ref No.** is present and **unique** (not reused on another active top-up/order)
-3. (Also enforced) **Amount** matches request within tolerance; reject obvious AI-generated fakes
+2. Or, for an InstaPay / bank-transfer proof sent to the same GCash account, the visible destination shows **Henry**, **G-Xchange / GCash**, and an account/phone ending **`9963`**
+3. **Payment reference** is present and **unique** (not reused on another active top-up/order). Alpha prefixes from bank rails are preserved.
+4. (Also enforced) **Amount** matches request within tolerance; reject obvious AI-generated fakes
+
+This accepts the payment rail used in an InstaPay/bank-to-GCash confirmation without accepting arbitrary bank screenshots. Direct GCash receipts continue to use the original masked/unmasked receiver-name rule.
 
 ### Implementation
 | Piece | Path |
@@ -202,6 +205,6 @@ src/app/api/admin/sync-external-orders/route.ts
 - [x] Live Rixey catalog (~925 services) when key set
 - [x] Approval emails on order/top-up approve
 - [x] Completion emails on order Completed
-- [x] AI auto-approve for matching GCash receiver + unique Ref No.
+- [x] AI auto-approve for matching GCash destination + unique payment reference (including InstaPay/bank transfers to that GCash account)
 - [ ] Optionally re-sync admin service mappings that still point at delisted IDs (e.g. #118)
 - [ ] Keep Resend / Rixey keys rotated if exposed in chat history
