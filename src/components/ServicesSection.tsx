@@ -12,6 +12,7 @@ import { createClient } from "@/utils/supabase/client";
 import { getVipDiscountPercent, isVipActive } from "@/utils/vip";
 import { FB_REACTIONS_MAP } from "@/utils/fbReactions";
 
+const HORMACHUELOS_AI_URL = "https://hormachuelos.vercel.app/#/";
 
 interface Service {
   id: string;
@@ -144,13 +145,13 @@ const HORMACHUELOS_CANDIDATE: ServiceCandidate = {
   caption: "Make your own website & APK easily with just a prompt",
   description: "Describe what you want in plain words and Hormachuelos AI builds a full website or Android APK for you — no code, no setup, just a prompt.",
   rate_prefix: "Availability",
-  rate_text: "Coming Soon",
+  rate_text: "Available now",
   theme_color: "#8B5CF6",
   btn_bg: "bg-[#8B5CF6] hover:bg-[#a78bfa] text-white",
   glow_color: "rgba(139, 92, 246, 0.45)",
   video_url: "/hormachuelos-promo.mp4",
-  coming_soon: true,
-  page_href: "/hormachuelos-ai"
+  coming_soon: false,
+  page_href: HORMACHUELOS_AI_URL
 };
 
 const PLATFORM_SERVICE_CHIPS: Record<PlatformType, string[]> = {
@@ -742,9 +743,22 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
   };
 
   const configuredCandidates = servicesCandidates && Array.isArray(servicesCandidates) && servicesCandidates.length > 0
-    ? servicesCandidates
-    : DEFAULT_CANDIDATES;
-  const activeCandidates = mergeCandidatesWithDefaults(configuredCandidates);
+    ? servicesCandidates.map((candidate) => ({ ...candidate }))
+    : DEFAULT_CANDIDATES.map((candidate) => ({ ...candidate }));
+  const activeCandidates = mergeCandidatesWithDefaults(configuredCandidates).map((card) =>
+    // Stored settings may have been created before Hormachuelos AI launched.
+    // Keep its public card aligned with the live destination until the saved
+    // configuration is next edited in the admin panel.
+    card.id === HORMACHUELOS_CANDIDATE.id
+      ? {
+          ...card,
+          rate_prefix: HORMACHUELOS_CANDIDATE.rate_prefix,
+          rate_text: HORMACHUELOS_CANDIDATE.rate_text,
+          coming_soon: false,
+          page_href: HORMACHUELOS_AI_URL
+        }
+      : card
+  );
 
   const getCandidateRateAmount = (rateText: string) => {
     const match = String(rateText || "").match(/₱\s*([\d,]+(?:\.\d+)?)/);
@@ -822,10 +836,15 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
             // Determine button click action
             const isPlatform = card.id === "facebook" || card.id === "instagram" || card.id === "tiktok" || card.id === "youtube";
             const isAvailable = !isPlatform || platformAvailability[card.id] !== false;
-            const isComingSoon = card.coming_soon === true;
+            const isHormachuelosAi = card.id === HORMACHUELOS_CANDIDATE.id;
+            const isComingSoon = card.coming_soon === true && !isHormachuelosAi;
             const comingSoonHref = card.page_href || "/hormachuelos-ai";
             let clickAction = () => {};
-            if (isComingSoon) {
+            if (isHormachuelosAi) {
+              clickAction = () => {
+                window.location.assign(HORMACHUELOS_AI_URL);
+              };
+            } else if (isComingSoon) {
               clickAction = () => {
                 window.location.href = comingSoonHref;
               };
@@ -1070,7 +1089,7 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
                   onMouseEnter={(e) => { if (isAvailable || !isPlatform || isComingSoon) e.currentTarget.style.filter = "brightness(1.1)"; }}
                   onMouseLeave={(e) => { e.currentTarget.style.filter = "none"; }}
                 >
-                  {isComingSoon ? "NOTIFY ME" : card.id === "order-page" ? "ORDER PAGE" : card.id === "pisowifi-package" ? "VIEW PACKAGES" : !isAvailable && isPlatform ? "UNAVAILABLE" : "VIEW"}
+                  {isHormachuelosAi ? "VISIT HORMACHUELOS AI" : isComingSoon ? "NOTIFY ME" : card.id === "order-page" ? "ORDER PAGE" : card.id === "pisowifi-package" ? "VIEW PACKAGES" : !isAvailable && isPlatform ? "UNAVAILABLE" : "VIEW"}
                 </button>
               </div>
             );
