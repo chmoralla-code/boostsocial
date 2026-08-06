@@ -14,7 +14,7 @@
     },
     {
       "path": "/api/cron/retry-queued-orders",
-      "schedule": "*/30 * * * *"
+      "schedule": "30 2 * * *"
     }
   ]
 }
