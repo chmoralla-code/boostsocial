@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { enforceRateLimit } from "@/utils/security/rate-limit";
 import { getSupabaseServiceRoleKey, getSupabaseUrl } from "@/utils/env";
 import { validatePromoCode, applyPromoToPrice } from "@/lib/promo";
+import { ensureFeatureSchema } from "@/utils/supabase/dual-db";
 
 function getErrorMessage(err: unknown) {
   return err instanceof Error ? err.message : String(err);
@@ -16,6 +17,9 @@ export async function POST(req: NextRequest) {
       windowMs: 60_000,
     });
     if (rateLimitResponse) return rateLimitResponse;
+
+    // Ensure feature tables exist (idempotent; creates on DO + probes backups).
+    await ensureFeatureSchema();
 
     const body = await req.json();
     const code = body.code;

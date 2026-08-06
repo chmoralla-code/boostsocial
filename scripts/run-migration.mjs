@@ -16,7 +16,6 @@
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { dirname, join, resolve } from "node:path";
-import { createClient } from "@supabase/supabase-js";
 import postgres from "postgres";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -63,21 +62,18 @@ async function runOnSupabase(label, url, key, sql) {
     return;
   }
   try {
-    const client = createClient(url, key, { auth: { persistSession: false } });
-    // Supabase REST has no raw-SQL endpoint; run statements through rpc("exec_sql")
-    // is not available either. Instead we use the `postgres` driver against the
-    // project's connection string when available, else warn.
-    // Fallback: try the Supabase connection via the pooler using the URL's
-    // postgres credentials if DATABASE_URL is set for that label.
-    const dbUrl = process.env[`${label}_DATABASE_URL`];
-    if (dbUrl) {
-      const sqlClient = postgres(dbUrl, { ssl: "require", max: 1 });
-      await sqlClient.unsafe(sql);
-      await sqlClient.end();
-      console.log(`  ${label}: applied via DATABASE_URL`);
+    // The primary Supabase project's Postgres pooler URL (DATABASE_URL).
+    const dbUrl = label === "PRIMARY_SUPABASE"
+      ? process.env.DATABASE_URL
+      : process.env[`${label}_DATABASE_URL`];
+    if (!dbUrl) {
+      console.warn(`  ${label}: no ${label === "PRIMARY_SUPABASE" ? "DATABASE_URL" : `${label}_DATABASE_URL`} — skipping (apply via Supabase SQL editor or set the env var)`);
       return;
     }
-    console.warn(`  ${label}: no ${label}_DATABASE_URL — skipping (apply via Supabase SQL editor or set the env var)`);
+    const sqlClient = postgres(dbUrl, { ssl: "require", max: 1 });
+    await sqlClient.unsafe(sql);
+    await sqlClient.end();
+    console.log(`  ${label}: applied via Postgres pooler`);
   } catch (err) {
     console.error(`  ${label}: FAILED`, err?.message || err);
     process.exitCode = 1;

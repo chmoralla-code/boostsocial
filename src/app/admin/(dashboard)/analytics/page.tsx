@@ -1,4 +1,4 @@
-import { fallbackRead } from "@/utils/supabase/dual-db";
+import { fallbackRead, ensureFeatureSchema } from "@/utils/supabase/dual-db";
 import { enrichOrdersWithResolvedServiceTitles } from "@/lib/smmServiceResolver";
 import { AnalyticsCharts } from "./AnalyticsCharts";
 
@@ -17,6 +17,9 @@ type OrderRow = {
 };
 
 export default async function AdminAnalyticsPage() {
+  // Ensure feature tables exist on DO primary (idempotent).
+  await ensureFeatureSchema();
+
   const [ordersRes, topupsRes] = await Promise.all([
     fallbackRead(async (db) => {
       return db

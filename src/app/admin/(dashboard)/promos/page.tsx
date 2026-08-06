@@ -1,4 +1,4 @@
-import { fallbackRead } from "@/utils/supabase/dual-db";
+import { fallbackRead, ensureFeatureSchema } from "@/utils/supabase/dual-db";
 import { PromoCodesPanel } from "./PromoCodesPanel";
 
 type PromoRow = {
@@ -18,6 +18,9 @@ type PromoRow = {
 export const dynamic = "force-dynamic";
 
 export default async function AdminPromosPage() {
+  // Ensure promo_codes exists on DO primary + backups (idempotent).
+  await ensureFeatureSchema();
+
   const { data } = await fallbackRead(async (db) => {
     return db
       .from("promo_codes")
