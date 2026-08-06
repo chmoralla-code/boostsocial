@@ -5,6 +5,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  BarChart3,
   ChevronRight,
   Crown,
   ExternalLink,
@@ -15,6 +16,7 @@ import {
   Settings,
   ShoppingCart,
   Smartphone,
+  Tag,
   Users,
   Wallet,
   X,
@@ -60,6 +62,22 @@ const navGroups: { title: string; description: string; items: AdminNavItem[] }[]
         description: "Approve GCash wallet deposits",
         icon: Wallet,
         tone: "green",
+      },
+      {
+        href: "/admin/analytics",
+        label: "Analytics",
+        shortLabel: "Analytics",
+        description: "Revenue, profit, and customer trends",
+        icon: BarChart3,
+        tone: "blue",
+      },
+      {
+        href: "/admin/promos",
+        label: "Promo Codes",
+        shortLabel: "Promos",
+        description: "Discount codes and usage tracking",
+        icon: Tag,
+        tone: "purple",
       },
     ],
   },
