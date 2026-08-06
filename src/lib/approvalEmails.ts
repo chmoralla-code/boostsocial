@@ -192,3 +192,217 @@ export async function sendOrderCompletedEmail(input: OrderCompletedEmailInput) {
 
   return sendAuthEmail({ to, subject, text, html });
 }
+
+type OrderPlacedEmailInput = {
+  email?: string | null;
+  trackingId: string;
+  serviceTitle?: string | null;
+  amount?: number | null;
+  quantity?: number | null;
+  paymentMethod?: string | null;
+};
+
+/**
+ * Order confirmation / receipt email, sent immediately after a customer places
+ * an order (wallet or GCash pending). Includes the tracking ID and, for GCash,
+ * the payment steps.
+ */
+export async function sendOrderPlacedEmail(input: OrderPlacedEmailInput) {
+  const to = input.email?.trim().toLowerCase();
+  if (!to) return { ok: false as const, error: "email" as const, message: "Missing customer email" };
+
+  const site = getSiteOrigin();
+  const trackingId = input.trackingId || "your order";
+  const service = (input.serviceTitle || "your service").trim();
+  const amountText =
+    typeof input.amount === "number" && Number.isFinite(input.amount)
+      ? `PHP ${input.amount.toFixed(2)}`
+      : null;
+  const quantityText =
+    typeof input.quantity === "number" && Number.isFinite(input.quantity) && input.quantity > 0
+      ? input.quantity.toLocaleString()
+      : null;
+  const isGcash = String(input.paymentMethod || "").toLowerCase() === "gcash";
+
+  const subject = `${AUTH_EMAIL_BRAND}: Order received — ${trackingId}`;
+  const text = [
+    `Hi there,`,
+    ``,
+    `We've received your order ${trackingId} (${service}).`,
+    quantityText ? `Quantity: ${quantityText}` : null,
+    amountText ? `Amount: ${amountText}` : null,
+    ``,
+    isGcash
+      ? [
+          `To complete payment, send the total to our GCash:`,
+          `09505339963 • Henry S.`,
+          `Then upload your receipt on the tracking page:`,
+          `${site}/app/orders`,
+        ].join("\n")
+      : `Your wallet payment was applied — your order is now processing.`,
+    ``,
+    `Track your order anytime: ${site}/app/orders`,
+    ``,
+    `— ${AUTH_EMAIL_BRAND} Team`,
+  ]
+    .filter((line) => line !== null)
+    .flat()
+    .join("\n");
+
+  const html = `
+    <div style="font-family:Arial,sans-serif;line-height:1.6;color:#111;max-width:560px;margin:0 auto">
+      <h2 style="margin:0 0 12px;color:#0f766e">${escapeHtml(AUTH_EMAIL_BRAND)}</h2>
+      <p style="font-size:18px;margin:0 0 16px"><strong>Order received — ${escapeHtml(trackingId)}</strong></p>
+      <p>Service: <strong>${escapeHtml(service)}</strong>${quantityText ? ` · Quantity: <strong>${escapeHtml(quantityText)}</strong>` : ""}${amountText ? ` · Amount: <strong>${escapeHtml(amountText)}</strong>` : ""}</p>
+      ${
+        isGcash
+          ? `<p style="margin:20px 0;padding:14px;border-radius:10px;background:#f4f4f5;border:1px solid #e4e4e7">
+               <strong>Complete your payment</strong><br/>
+               GCash: <strong>09505339963</strong> • Henry S.<br/>
+               <span style="font-size:13px;color:#555">Then upload your receipt on the tracking page — your order starts once payment is verified.</span>
+             </p>`
+          : `<p style="margin:20px 0;padding:14px;border-radius:10px;background:#ecfdf5;border:1px solid #a7f3d0">Wallet payment applied — your order is now processing.</p>`
+      }
+      <p style="margin:24px 0">
+        <a href="${escapeHtml(site)}/app/orders" style="display:inline-block;background:#0f766e;color:#fff;text-decoration:none;padding:12px 18px;border-radius:8px;font-weight:600">Track my order</a>
+      </p>
+      <p style="color:#555;font-size:13px">— ${escapeHtml(AUTH_EMAIL_BRAND)} Team</p>
+    </div>
+  `;
+
+  return sendAuthEmail({ to, subject, text, html });
+}
+
+type TopupPlacedEmailInput = {
+  email?: string | null;
+  amount: number;
+};
+
+/**
+ * Top-up receipt confirmation — "we got your receipt, it's being verified."
+ */
+export async function sendTopupPlacedEmail(input: TopupPlacedEmailInput) {
+  const to = input.email?.trim().toLowerCase();
+  if (!to) return { ok: false as const, error: "email" as const, message: "Missing customer email" };
+
+  const site = getSiteOrigin();
+  const amountText = `PHP ${Number(input.amount || 0).toFixed(2)}`;
+
+  const subject = `${AUTH_EMAIL_BRAND}: Top-up receipt received`;
+  const text = [
+    `Hi there,`,
+    ``,
+    `We've received your wallet top-up receipt for ${amountText}.`,
+    ``,
+    `Our team (or our AI verifier) will check it shortly — you'll get an email the moment your balance is credited.`,
+    ``,
+    `View your wallet: ${site}/app/profile`,
+    ``,
+    `— ${AUTH_EMAIL_BRAND} Team`,
+  ].join("\n");
+
+  const html = `
+    <div style="font-family:Arial,sans-serif;line-height:1.6;color:#111;max-width:560px;margin:0 auto">
+      <h2 style="margin:0 0 12px;color:#0f766e">${escapeHtml(AUTH_EMAIL_BRAND)}</h2>
+      <p style="font-size:18px;margin:0 0 16px"><strong>Top-up receipt received</strong></p>
+      <p>We've received your wallet top-up receipt for <strong>${escapeHtml(amountText)}</strong>.</p>
+      <p>It's being verified now — you'll get an email the moment your balance is credited.</p>
+      <p style="margin:24px 0">
+        <a href="${escapeHtml(site)}/app/profile" style="display:inline-block;background:#0f766e;color:#fff;text-decoration:none;padding:12px 18px;border-radius:8px;font-weight:600">View my wallet</a>
+      </p>
+      <p style="color:#555;font-size:13px">— ${escapeHtml(AUTH_EMAIL_BRAND)} Team</p>
+    </div>
+  `;
+
+  return sendAuthEmail({ to, subject, text, html });
+}
+
+type LowBalanceEmailInput = {
+  email?: string | null;
+  balance: number;
+};
+
+/**
+ * Low-wallet-balance reminder with a one-tap top-up link.
+ */
+export async function sendLowBalanceEmail(input: LowBalanceEmailInput) {
+  const to = input.email?.trim().toLowerCase();
+  if (!to) return { ok: false as const, error: "email" as const, message: "Missing customer email" };
+
+  const site = getSiteOrigin();
+  const balanceText = `PHP ${Number(input.balance || 0).toFixed(2)}`;
+
+  const subject = `${AUTH_EMAIL_BRAND}: Your wallet balance is running low`;
+  const text = [
+    `Hi there,`,
+    ``,
+    `Your PinoyBoosting wallet balance is ${balanceText}.`,
+    ``,
+    `Top up now so you never miss a boost:`,
+    `${site}/app/profile`,
+    ``,
+    `— ${AUTH_EMAIL_BRAND} Team`,
+  ].join("\n");
+
+  const html = `
+    <div style="font-family:Arial,sans-serif;line-height:1.6;color:#111;max-width:560px;margin:0 auto">
+      <h2 style="margin:0 0 12px;color:#0f766e">${escapeHtml(AUTH_EMAIL_BRAND)}</h2>
+      <p style="font-size:18px;margin:0 0 16px"><strong>Your wallet balance is running low</strong></p>
+      <p>Your current balance is <strong>${escapeHtml(balanceText)}</strong>.</p>
+      <p>Top up now so you never miss a boost — payments via GCash are usually credited in minutes.</p>
+      <p style="margin:24px 0">
+        <a href="${escapeHtml(site)}/app/profile" style="display:inline-block;background:#0f766e;color:#fff;text-decoration:none;padding:12px 18px;border-radius:8px;font-weight:600">Top up my wallet</a>
+      </p>
+      <p style="color:#555;font-size:13px">— ${escapeHtml(AUTH_EMAIL_BRAND)} Team</p>
+    </div>
+  `;
+
+  return sendAuthEmail({ to, subject, text, html });
+}
+
+type CheckInEmailInput = {
+  email?: string | null;
+  reward: number;
+  balance: number;
+};
+
+/**
+ * Daily check-in reward confirmation email.
+ */
+export async function sendCheckInEmail(input: CheckInEmailInput) {
+  const to = input.email?.trim().toLowerCase();
+  if (!to) return { ok: false as const, error: "email" as const, message: "Missing customer email" };
+
+  const site = getSiteOrigin();
+  const rewardText = `PHP ${Number(input.reward || 0).toFixed(2)}`;
+  const balanceText = `PHP ${Number(input.balance || 0).toFixed(2)}`;
+
+  const subject = `${AUTH_EMAIL_BRAND}: Daily check-in bonus claimed 🎉`;
+  const text = [
+    `Hi there,`,
+    ``,
+    `You claimed today's check-in bonus of ${rewardText}!`,
+    `Your new wallet balance is ${balanceText}.`,
+    ``,
+    `Come back tomorrow for another bonus:`,
+    `${site}/app`,
+    ``,
+    `— ${AUTH_EMAIL_BRAND} Team`,
+  ].join("\n");
+
+  const html = `
+    <div style="font-family:Arial,sans-serif;line-height:1.6;color:#111;max-width:560px;margin:0 auto">
+      <h2 style="margin:0 0 12px;color:#0f766e">${escapeHtml(AUTH_EMAIL_BRAND)}</h2>
+      <p style="font-size:18px;margin:0 0 16px"><strong>Daily check-in bonus claimed 🎉</strong></p>
+      <p>You claimed today's check-in bonus of <strong>${escapeHtml(rewardText)}</strong>!</p>
+      <p>Your new wallet balance is <strong>${escapeHtml(balanceText)}</strong>.</p>
+      <p>Come back tomorrow for another bonus.</p>
+      <p style="margin:24px 0">
+        <a href="${escapeHtml(site)}/app" style="display:inline-block;background:#0f766e;color:#fff;text-decoration:none;padding:12px 18px;border-radius:8px;font-weight:600">Browse services</a>
+      </p>
+      <p style="color:#555;font-size:13px">— ${escapeHtml(AUTH_EMAIL_BRAND)} Team</p>
+    </div>
+  `;
+
+  return sendAuthEmail({ to, subject, text, html });
+}

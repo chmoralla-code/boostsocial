@@ -9,6 +9,7 @@ import {
   ArrowLeft,
   Bell,
   BellRing,
+  CalendarCheck,
   CheckCircle,
   ClipboardList,
   Copy,
@@ -82,6 +83,9 @@ export default function AppProfilePage() {
   const [topUpSuccess, setTopUpSuccess] = useState("");
   const [copied, setCopied] = useState(false);
   const [copiedGcash, setCopiedGcash] = useState(false);
+  const [checkinStatus, setCheckinStatus] = useState<"idle" | "checking" | "claiming" | "claimed" | "error">("idle");
+  const [checkinReward, setCheckinReward] = useState(0);
+  const [checkinMessage, setCheckinMessage] = useState("");
   const [pushStatus, setPushStatus] = useState<PushStatus>("checking");
   const [pushMessage, setPushMessage] = useState("Checking phone notification support...");
 
@@ -102,6 +106,22 @@ export default function AppProfilePage() {
     setProfile(data ? (data as AppProfile) : null);
     setLoading(false);
     setRefreshing(false);
+
+    // Check today's check-in status (claimable vs already claimed).
+    const today = new Date().toISOString().slice(0, 10);
+    const { data: checkin } = await supabase
+      .from("daily_checkins")
+      .select("id, reward")
+      .eq("user_id", currentUser.id)
+      .eq("checkin_date", today)
+      .maybeSingle();
+
+    if (checkin) {
+      setCheckinStatus("claimed");
+      setCheckinReward(Number(checkin.reward ?? 0));
+    } else {
+      setCheckinStatus("idle");
+    }
   }, [supabase]);
 
   useEffect(() => {
@@ -215,6 +235,32 @@ export default function AppProfilePage() {
     await navigator.clipboard.writeText(GCASH_NUMBER);
     setCopiedGcash(true);
     window.setTimeout(() => setCopiedGcash(false), 1600);
+  };
+
+  const claimDailyCheckin = async () => {
+    if (checkinStatus === "claiming" || checkinStatus === "claimed") return;
+    setCheckinStatus("claiming");
+    setCheckinMessage("");
+    try {
+      const res = await fetch("/api/checkin", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) {
+        if (data.code === "ALREADY_CHECKED_IN") {
+          setCheckinStatus("claimed");
+          setCheckinMessage("");
+        } else {
+          throw new Error(data.error || "Check-in failed");
+        }
+        return;
+      }
+      setCheckinReward(Number(data.reward ?? 0));
+      setCheckinStatus("claimed");
+      setCheckinMessage(`+PHP ${Number(data.reward ?? 0).toFixed(2)} added to your wallet!`);
+      await loadProfile(user);
+    } catch (e) {
+      setCheckinStatus("error");
+      setCheckinMessage(e instanceof Error ? e.message : "Check-in failed. Try again.");
+    }
   };
 
   const submitTopUp = async (event: FormEvent<HTMLFormElement>) => {
@@ -411,6 +457,40 @@ export default function AppProfilePage() {
             <button type="button" onClick={openTopUp} className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 text-sm font-black text-white shadow-lg shadow-emerald-600/20 hover:bg-emerald-500 active:scale-[0.98] transition-all">
               <Wallet size={17} />
               Top up wallet
+            </button>
+          </article>
+
+          <article className="rounded-3xl border border-zinc-200 bg-white p-4 shadow-sm">
+            <div className="flex items-center gap-3">
+              <span className={`flex h-11 w-11 items-center justify-center rounded-2xl ${checkinStatus === "claimed" ? "bg-emerald-50 text-emerald-700" : "bg-emerald-600 text-white"}`}>
+                <CalendarCheck size={20} />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-black">Daily check-in</p>
+                <p className="mt-1 text-xs font-semibold leading-5 text-zinc-500">
+                  {checkinStatus === "claimed"
+                    ? `Claimed — +PHP ${checkinReward.toFixed(2)} today. Come back tomorrow!`
+                    : checkinStatus === "claiming"
+                      ? "Claiming your bonus..."
+                      : "Check in daily for a free wallet bonus."}
+                </p>
+              </div>
+              {checkinMessage && (
+                <p className="text-[11px] font-bold text-emerald-700">{checkinMessage}</p>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={claimDailyCheckin}
+              disabled={checkinStatus === "claimed" || checkinStatus === "claiming"}
+              className={`mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-2xl text-sm font-black transition-all ${
+                checkinStatus === "claimed"
+                  ? "bg-emerald-50 text-emerald-700"
+                  : "bg-emerald-600 text-white shadow-lg shadow-emerald-600/20 hover:bg-emerald-500 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+              }`}
+            >
+              {checkinStatus === "claiming" && <Loader2 size={16} className="animate-spin" />}
+              {checkinStatus === "claimed" ? "Checked in today" : checkinStatus === "claiming" ? "Claiming..." : "Claim daily bonus"}
             </button>
           </article>
 
