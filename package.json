@@ -7,6 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "backfill:topups": "node scripts/backfill-topups.mjs",
     "backfill:topups:dry": "node scripts/backfill-topups.mjs --dry-run",
     "android:add": "capacitor add android",
@@ -48,6 +50,7 @@
     "eslint-config-next": "16.2.6",
     "postgres": "^3.4.9",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^3.2.7"
   }
 }
