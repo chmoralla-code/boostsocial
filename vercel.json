@@ -7,6 +7,14 @@
     {
       "path": "/api/cron/cleanup-orders",
       "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/cron/check-balances",
+      "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/cron/retry-queued-orders",
+      "schedule": "30 2 * * *"
     }
   ]
 }

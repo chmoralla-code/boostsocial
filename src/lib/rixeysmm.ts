@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { parseDescription } from "@/utils/serviceHelpers";
 import { syncBackupAdminClients } from "@/utils/supabase/dual-db";
+import { recordOrderEvent } from "@/lib/orderEvents";
 
 const RIXEYSMM_API_URL = "https://rixeysmm.shop/api/v2";
 const PROVIDER_FUNDING_QUEUE_STATUS =
@@ -64,6 +65,81 @@ async function markOrderQueuedForProviderFunding(
     .update(update)
     .eq("id", orderId);
   await syncOrderUpdateToBackups(orderId, update);
+  await recordOrderEvent({
+    client: supabase,
+    orderId,
+    eventType: "provider_queued",
+    detail: "Queued: waiting for provider balance / funding",
+  }).catch((eventErr) => {
+    console.warn("[RixeySMM] provider_queued event failed:", eventErr);
+  });
+}
+
+/** Touch the retry-guard timestamp after any placement attempt (queued/failed/placed). */
+async function markPlacementAttempt(supabase: ReturnType<typeof getSupabase>, orderId: string) {
+  const attempt = { last_attempt_at: new Date().toISOString() };
+  await supabase.from("orders").update(attempt).eq("id", orderId);
+  await syncOrderUpdateToBackups(orderId, attempt);
+}
+
+/**
+ * Re-queues a completed order's refill on RixeySMM using the stored original
+ * smm_service_id / target_url / quantity. Updates the refill_orders row on
+ * success/failure. Returns the Rixey external order id when placed.
+ */
+export async function reQueueRefill(refillId: string) {
+  const supabase = getSupabase();
+
+  const { data: refill } = await supabase
+    .from("refill_orders")
+    .select("id, original_order_id, service_id, smm_service_id, target_url, quantity, status")
+    .eq("id", refillId)
+    .maybeSingle();
+
+  if (!refill) return null;
+  if (!refill.smm_service_id) {
+    await supabase.from("refill_orders").update({ status: "failed" }).eq("id", refillId);
+    return null;
+  }
+
+  const { data: order } = await supabase
+    .from("orders")
+    .select("service_id")
+    .eq("id", refill.original_order_id)
+    .maybeSingle();
+
+  const serviceId = order?.service_id || refill.service_id || "";
+  await autoPlaceRixeyOrder(
+    String(refill.original_order_id || ""),
+    String(serviceId || ""),
+    String(refill.target_url || ""),
+    Number(refill.quantity || 0)
+  );
+
+  // autoPlaceRixeyOrder wrote the result to the ORIGINAL order. Copy the outcome
+  // into the refill record so admins can see what happened.
+  const { data: updatedOrder } = await supabase
+    .from("orders")
+    .select("external_order_id, external_status")
+    .eq("id", refill.original_order_id)
+    .maybeSingle();
+
+  if (updatedOrder?.external_order_id) {
+    await supabase
+      .from("refill_orders")
+      .update({ status: "placed", smm_order_id: String(updatedOrder.external_order_id) })
+      .eq("id", refillId);
+    return String(updatedOrder.external_order_id);
+  }
+
+  const status = String(updatedOrder?.external_status || "").toLowerCase();
+  if (status.includes("queued")) {
+    await supabase.from("refill_orders").update({ status: "pending" }).eq("id", refillId);
+    return null;
+  }
+
+  await supabase.from("refill_orders").update({ status: "failed" }).eq("id", refillId);
+  return null;
 }
 
 /**
@@ -230,6 +306,15 @@ export async function autoPlaceRixeyOrder(
         external_status: "Pending",
         smm_service_id: smmServiceId,
       });
+      await markPlacementAttempt(supabase, orderId);
+      await recordOrderEvent({
+        client: supabase,
+        orderId,
+        eventType: "provider_submitted",
+        detail: `Sent to provider as order #${externalId}`,
+      }).catch((eventErr) => {
+        console.warn("[RixeySMM] provider_submitted event failed:", eventErr);
+      });
       console.log(`[RixeySMM] Order successfully placed! External ID: ${externalId}`);
     } else if (data.error) {
       // Panel returned a specific error (e.g. low balance, bad link)
@@ -237,6 +322,7 @@ export async function autoPlaceRixeyOrder(
       if (isProviderFundingError(providerError)) {
         const queueStatus = `Queued: RixeySMM provider balance/funds unavailable (${providerError}). Order is registered and waiting for provider top-up or manual fulfillment.`;
         await markOrderQueuedForProviderFunding(supabase, orderId, smmServiceId, queueStatus);
+        await markPlacementAttempt(supabase, orderId);
         console.warn(`[RixeySMM] Order ${orderId} queued after panel funding error: ${providerError}`);
         return;
       }
@@ -249,6 +335,15 @@ export async function autoPlaceRixeyOrder(
         })
         .eq("id", orderId);
       await syncOrderUpdateToBackups(orderId, { external_status: panelError });
+      await markPlacementAttempt(supabase, orderId);
+      await recordOrderEvent({
+        client: supabase,
+        orderId,
+        eventType: "provider_queued",
+        detail: `Provider rejected: ${providerError}`,
+      }).catch((eventErr) => {
+        console.warn("[RixeySMM] failed event failed:", eventErr);
+      });
       console.error(`[RixeySMM] SMM Panel returned error: ${providerError}`);
     } else {
       // Unknown response format
@@ -260,6 +355,7 @@ export async function autoPlaceRixeyOrder(
         })
         .eq("id", orderId);
       await syncOrderUpdateToBackups(orderId, { external_status: unknownError });
+      await markPlacementAttempt(supabase, orderId);
       console.error(`[RixeySMM] Unknown SMM response:`, data);
     }
   } catch (err: unknown) {
@@ -272,5 +368,6 @@ export async function autoPlaceRixeyOrder(
       })
       .eq("id", orderId);
     await syncOrderUpdateToBackups(orderId, { external_status: externalStatus });
+    await markPlacementAttempt(supabase, orderId);
   }
 }

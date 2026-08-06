@@ -9,7 +9,7 @@ import { findActiveDuplicateReceiptRecord, hashReceiptFile } from "@/lib/receipt
 import { autoVerifyAndApproveTopup } from "@/lib/receiptVerifier";
 import { creditReferralCommission } from "@/utils/referrals";
 import { compressReceiptImage, bufferToDataUrl } from "@/utils/serverImageCompressor";
-import { sendTopupApprovedEmail } from "@/lib/approvalEmails";
+import { sendTopupApprovedEmail, sendTopupPlacedEmail } from "@/lib/approvalEmails";
 
 const MAX_RECEIPT_FILE_BYTES = 8 * 1024 * 1024;
 const ALLOWED_RECEIPT_TYPES = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp"]);
@@ -195,6 +195,14 @@ export async function POST(req: NextRequest) {
           amount: priceNum,
         }).catch((emailErr) => {
           console.error("Auto-approved top-up email failed:", emailErr);
+        });
+      } else {
+        // "Receipt received" confirmation for pending top-ups.
+        sendTopupPlacedEmail({
+          email: email.trim(),
+          amount: priceNum,
+        }).catch((emailErr) => {
+          console.error("Top-up receipt email failed:", emailErr);
         });
       }
 

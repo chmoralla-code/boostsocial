@@ -69,6 +69,9 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
   const [receiptUploadPending, setReceiptUploadPending] = useState(false);
   const [receiptUploadError, setReceiptUploadError] = useState("");
   const [pendingReceiptFile, setPendingReceiptFile] = useState<File | null>(null);
+  const [bulkMode, setBulkMode] = useState(false);
+  const [bulkUrls, setBulkUrls] = useState("");
+  const [bulkResult, setBulkResult] = useState<Array<{ orderId: string; trackingId: string }>>([]);
   const toggleReaction = (name: string) => {
     if (selectedReactions.includes(name)) {
       if (selectedReactions.length > 1) {
@@ -672,6 +675,64 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
     }
   };
 
+  const handleBulkSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!serviceId || !user) return;
+
+    const urls = bulkUrls.split("\n").map((line) => line.trim()).filter(Boolean);
+    if (urls.length === 0) {
+      setError("Add at least one target link.");
+      return;
+    }
+    if (urls.length > 50) {
+      setError("Maximum 50 links per bulk order.");
+      return;
+    }
+
+    const finalQuantity = Math.max(quantity, minQty);
+    const isReaction = isReactionService;
+    const resolvedSmmServiceId = isReaction
+      ? String(getFBReactionsSMMDetails(selectedReactions).smmId)
+      : (parsedDetails.smm_service_id ? String(parsedDetails.smm_service_id) : null);
+
+    setIsSubmitting(true);
+    setError("");
+    setBulkResult([]);
+
+    try {
+      const res = await fetch("/api/orders/bulk-create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          serviceId,
+          email: user.email,
+          urls,
+          quantity: finalQuantity,
+          smmServiceId: resolvedSmmServiceId,
+          paymentMethod: isWalletPayment ? "wallet" : "gcash",
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Bulk order failed");
+      }
+
+      setBulkResult((data.orders || []).map((o: { orderId: string; trackingId: string }) => ({
+        orderId: o.orderId,
+        trackingId: o.trackingId,
+      })));
+      setSuccess(true);
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("balance-update"));
+      }
+      setIsSubmitting(false);
+    } catch (err: any) {
+      setError(err.message || "Bulk order failed.");
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#090909]/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
       <div className="bg-card border border-border rounded-2xl w-full max-w-md shadow-2xl overflow-hidden relative transform transition-all animate-in zoom-in-95 duration-200">
@@ -773,6 +834,27 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                   <span className="text-[9px] font-bold uppercase tracking-widest text-muted block mb-0.5">Technical Order ID</span>
                   <span className="font-mono text-[10px] text-muted select-all break-all block">{orderId}</span>
                 </div>
+
+                {/* Bulk order tracking IDs */}
+                {bulkResult.length > 0 && (
+                  <div className="space-y-1 text-left bg-elevated border border-border p-2.5 rounded-xl max-h-44 overflow-y-auto">
+                    <span className="text-[9px] font-bold uppercase tracking-widest text-[#1877F2] block mb-1">Bulk Tracking IDs ({bulkResult.length})</span>
+                    <div className="space-y-1">
+                      {bulkResult.map((item) => (
+                        <div key={item.orderId} className="flex items-center justify-between gap-2">
+                          <span className="font-mono text-[10px] text-fg font-black">{item.trackingId}</span>
+                          <button
+                            type="button"
+                            onClick={() => navigator.clipboard.writeText(item.trackingId)}
+                            className="text-[9px] font-black uppercase tracking-wider text-[#1877F2] hover:text-white transition-colors"
+                          >
+                            Copy
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* 🎁 Trial & Payment Instructions (Or Wallet Success verification) */}
@@ -1013,7 +1095,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
               </button>
             </div>
           ) : (
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={bulkMode && !isWalletPayment ? handleBulkSubmit : handleSubmit} className="space-y-4">
               {!isServiceAvailable && (
                 <div className="bg-red-500/10 border border-red-500/30 text-red-400 p-3.5 rounded-xl flex items-start gap-2.5 text-xs font-bold uppercase tracking-wide">
                   <AlertTriangle size={16} className="shrink-0 mt-0.5" />
@@ -1253,6 +1335,34 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                 </div>
               ) : !isPageService ? (
                 <div className="space-y-4">
+                  {/* Bulk mode toggle */}
+                  <div className="flex items-center justify-between rounded-xl border border-border bg-elevated p-3">
+                    <div>
+                      <p className="text-xs font-black text-fg">Bulk order mode</p>
+                      <p className="text-[10px] text-muted font-semibold mt-0.5">Place the same boost on up to 50 links at once</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setBulkMode((prev) => !prev)}
+                      className={`rounded-lg px-3 py-1.5 text-[10px] font-black uppercase tracking-wider transition ${bulkMode ? "bg-[#1877F2] text-white" : "bg-card border border-border text-muted hover:text-fg"}`}
+                    >
+                      {bulkMode ? "On" : "Off"}
+                    </button>
+                  </div>
+
+                  {bulkMode ? (
+                    <div>
+                      <label className="block text-xs font-bold text-muted uppercase tracking-widest mb-1.5">Target links (one per line)</label>
+                      <textarea
+                        value={bulkUrls}
+                        onChange={(e) => setBulkUrls(e.target.value)}
+                        rows={5}
+                        placeholder={"https://facebook.com/page1\nhttps://facebook.com/page2\n..."}
+                        className="w-full px-4 py-3 rounded-xl bg-card border border-border focus:outline-none focus:ring-2 focus:ring-[#1877F2] text-fg transition-all text-sm font-medium"
+                      />
+                      <p className="mt-1 text-[10px] font-semibold text-muted">{bulkUrls.split("\n").filter((l) => l.trim()).length} / 50 links</p>
+                    </div>
+                  ) : (
                   <div>
                     <label className="block text-xs font-bold text-muted uppercase tracking-widest mb-1.5">{inputLabel}</label>
                     <input 
@@ -1273,6 +1383,7 @@ export function OrderModal({ isOpen, onClose, serviceId, serviceTitle, serviceBa
                       </div>
                     )}
                   </div>
+                  )}
 
                   {isReactionService && (
                     <div className="space-y-3 bg-elevated border border-border p-4 rounded-xl animate-in slide-in-from-bottom-2">

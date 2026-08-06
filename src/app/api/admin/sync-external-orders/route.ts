@@ -5,6 +5,7 @@ import { syncBackupAdminClients } from "@/utils/supabase/dual-db";
 import { resolveSmmServiceTitle } from "@/lib/smmServiceResolver";
 import { notifyOrderStatusCustomer } from "@/lib/customerNotifications";
 import { sendOrderCompletedEmail } from "@/lib/approvalEmails";
+import { recordOrderEvent } from "@/lib/orderEvents";
 
 const RIXEYSMM_API_URL = "https://rixeysmm.shop/api/v2";
 
@@ -162,6 +163,23 @@ export async function POST() {
                 oldStatus: order.status,
                 newStatus: dbStatusUpdate,
                 externalStatus: externalStatusUpdate,
+              });
+
+              // Timeline event for the provider status change.
+              recordOrderEvent({
+                client: supabase,
+                orderId: order.id,
+                eventType:
+                  dbStatusUpdate === "Completed"
+                    ? "provider_completed"
+                    : dbStatusUpdate === "Cancelled"
+                      ? "cancelled"
+                      : "processing",
+                fromStatus: order.status,
+                toStatus: dbStatusUpdate,
+                detail: `Provider status: ${externalStatusUpdate}`,
+              }).catch((eventErr) => {
+                console.error(`Provider sync event failed for order ${order.id}:`, eventErr);
               });
 
               if (dbStatusUpdate !== order.status) {

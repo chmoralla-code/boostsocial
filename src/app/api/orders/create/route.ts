@@ -6,6 +6,9 @@ import { getVipDiscountSummary } from "@/utils/vip";
 import { createClient } from "@supabase/supabase-js";
 import { getSupabaseServiceRoleKey, getSupabaseUrl } from "@/utils/env";
 import { resolveOrderPricing } from "@/lib/orderPricing";
+import { validatePromoCode, applyPromoToPrice, recordPromoRedemption } from "@/lib/promo";
+import { recordOrderEvent } from "@/lib/orderEvents";
+import { sendOrderPlacedEmail } from "@/lib/approvalEmails";
 
 const MAX_TARGET_LENGTH = 7000;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -55,6 +58,9 @@ export async function POST(req: NextRequest) {
     const catalogSnapshot = body.catalogSnapshot && typeof body.catalogSnapshot === "object"
       ? body.catalogSnapshot
       : null;
+    const promoCode = body.promoCode === undefined || body.promoCode === null
+      ? null
+      : clean(body.promoCode);
 
     if (!serviceId || !email || !targetUrl) {
       return NextResponse.json({ error: "Missing service, email, or target details." }, { status: 400 });
@@ -107,7 +113,26 @@ export async function POST(req: NextRequest) {
     const profileData = profileResult.data;
     const regularAmount = pricing.regularAmount;
     const adjustedSummary = getVipDiscountSummary(profileData || null, regularAmount);
-    const finalAmount = adjustedSummary.finalAmount;
+    const vipFinal = adjustedSummary.finalAmount;
+
+    // Apply promo code on top of the VIP-discounted amount.
+    let promoDiscount = 0;
+    let validatedPromo = null;
+    if (promoCode) {
+      const promoResult = await validatePromoCode(adminClient, promoCode, {
+        amount: vipFinal,
+        serviceId,
+        category: pricing.serviceTitle,
+      });
+      if (promoResult.error || !promoResult.promo) {
+        return NextResponse.json({ error: promoResult.error || "Invalid promo code" }, { status: 400 });
+      }
+      validatedPromo = promoResult.promo;
+      const applied = applyPromoToPrice(vipFinal, promoResult.promo);
+      promoDiscount = applied.discountAmount;
+    }
+
+    const finalAmount = Number((vipFinal - promoDiscount).toFixed(2));
 
     await ensureOrdersSchema();
     const serviceTitleAvailable = await hasServiceTitleColumn();
@@ -123,6 +148,7 @@ export async function POST(req: NextRequest) {
       payment_method: paymentMethod,
       quantity: pricing.quantity,
       smm_service_id: pricing.smmServiceId,
+      ...(validatedPromo ? { promo_code: validatedPromo.code, promo_discount_amount: promoDiscount } : {}),
     };
 
     const vipPayload = {
@@ -201,6 +227,54 @@ export async function POST(req: NextRequest) {
         }
       });
     }
+
+    // Fire-and-forget side effects: order timeline event, promo redemption, email receipt.
+    after(async () => {
+      const tasks: Promise<unknown>[] = [
+        recordOrderEvent({
+          client: adminClient,
+          orderId,
+          eventType: "created",
+          toStatus: "Pending",
+          detail: "Order registered",
+        }).catch((eventErr) => {
+          console.error("Order event create failed:", eventErr);
+        }),
+      ];
+
+      if (validatedPromo) {
+        tasks.push(
+          recordPromoRedemption(adminClient, {
+            code: validatedPromo.code,
+            orderId,
+            customerEmail: email,
+            discountAmount: promoDiscount,
+          }).catch((promoErr) => {
+            console.error("Promo redemption failed:", promoErr);
+          })
+        );
+      }
+
+      tasks.push(
+        sendOrderPlacedEmail({
+          email,
+          trackingId: `BS-${orderId.slice(0, 8).toUpperCase()}`,
+          serviceTitle: pricing.serviceTitle,
+          amount: finalAmount,
+          quantity: pricing.quantity,
+          paymentMethod,
+        }).catch((emailErr) => {
+          console.error("Order placed email failed:", emailErr);
+        })
+      );
+
+      const results = await Promise.allSettled(tasks);
+      for (const result of results) {
+        if (result.status === "rejected") {
+          console.error("Order create after-response task failed:", result.reason);
+        }
+      }
+    });
 
     return NextResponse.json({
       success: true,

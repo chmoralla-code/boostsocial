@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ClipboardList, Copy, Home, LogIn, RefreshCw, Search, UserPlus, Wallet, X } from "lucide-react";
+import { ArrowLeft, ClipboardList, Copy, Home, Loader2, LogIn, RefreshCw, RotateCcw, Search, UserPlus, Wallet, X } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/utils/supabase/client";
 import { formatSmmServiceName } from "@/utils/serviceHelpers";
@@ -44,6 +44,29 @@ type SmmCatalogService = {
   name: string;
   category?: string;
   desc?: string;
+};
+
+type OrderEventRow = {
+  id: string;
+  event_type: string;
+  from_status?: string | null;
+  to_status?: string | null;
+  detail?: string | null;
+  created_at?: string | null;
+};
+
+const ORDER_EVENT_LABELS: Record<string, string> = {
+  created: "Order registered",
+  payment_pending: "Waiting for payment",
+  payment_received: "Payment received",
+  processing: "Processing started",
+  provider_queued: "Queued for provider",
+  provider_submitted: "Sent to provider",
+  provider_completed: "Provider delivered",
+  completed: "Order completed",
+  cancelled: "Order cancelled",
+  rejected: "Order rejected",
+  refill_requested: "Refill requested",
 };
 
 function trackingId(id: string) {
@@ -107,6 +130,10 @@ export default function AppOrdersPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<TransactionEntry | null>(null);
+  const [orderEvents, setOrderEvents] = useState<OrderEventRow[]>([]);
+  const [eventsLoading, setEventsLoading] = useState(false);
+  const [refillState, setRefillState] = useState<"idle" | "submitting" | "done" | "error">("idle");
+  const [refillMessage, setRefillMessage] = useState("");
   const [copiedTracking, setCopiedTracking] = useState(false);
   const [smmServiceNames, setSmmServiceNames] = useState<Record<string, string>>({});
   const [activeTab, setActiveTab] = useState<"all" | "orders" | "topups">("all");
@@ -260,6 +287,55 @@ export default function AppOrdersPage() {
     window.setTimeout(() => setCopiedTracking(false), 1600);
   };
 
+  const openDetails = async (entry: TransactionEntry) => {
+    setCopiedTracking(false);
+    setRefillState("idle");
+    setRefillMessage("");
+    setSelectedTransaction(entry);
+
+    // Load the order timeline (order events) for order entries.
+    if (entry.kind === "order") {
+      setEventsLoading(true);
+      setOrderEvents([]);
+      try {
+        const { data } = await supabase
+          .from("order_events")
+          .select("id,event_type,from_status,to_status,detail,created_at")
+          .eq("order_id", entry.id)
+          .order("created_at", { ascending: false })
+          .limit(30);
+        setOrderEvents(Array.isArray(data) ? (data as unknown as OrderEventRow[]) : []);
+      } catch {
+        setOrderEvents([]);
+      } finally {
+        setEventsLoading(false);
+      }
+    } else {
+      setOrderEvents([]);
+    }
+  };
+
+  const requestRefill = async () => {
+    if (!selectedTransaction?.order || refillState === "submitting") return;
+    setRefillState("submitting");
+    setRefillMessage("");
+    try {
+      const res = await fetch("/api/orders/refill", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId: selectedTransaction.order.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Refill failed");
+      setRefillState("done");
+      setRefillMessage(`Refill placed — new tracking ID ${data.trackingId || ""}`);
+      await loadData(user);
+    } catch (e) {
+      setRefillState("error");
+      setRefillMessage(e instanceof Error ? e.message : "Refill failed. Try again.");
+    }
+  };
+
   const orderCount = orders.length;
   const topupCount = topups.length;
 
@@ -405,10 +481,7 @@ export default function AppOrdersPage() {
                   </div>
                   <button
                     type="button"
-                    onClick={() => {
-                      setCopiedTracking(false);
-                      setSelectedTransaction(entry);
-                    }}
+                    onClick={() => { void openDetails(entry); }}
                     className="mt-3 flex h-11 w-full items-center justify-center rounded-2xl bg-zinc-950 text-sm font-black text-white"
                   >
                     View details
@@ -526,12 +599,57 @@ export default function AppOrdersPage() {
                     </p>
                   </div>
 
-                  <div className="rounded-3xl border border-emerald-100 bg-emerald-50 p-4">
-                    <p className="text-sm font-black text-emerald-900">Managed in the app</p>
-                    <p className="mt-1 text-xs font-semibold leading-5 text-emerald-800">
-                      This order uses the same admin order queue and Telegram sales alerts, but customers stay inside the app view.
-                    </p>
+                  <div className="rounded-3xl border border-zinc-200 bg-white p-4">
+                    <p className="text-[10px] font-black uppercase tracking-wider text-zinc-400">Order Timeline</p>
+                    {eventsLoading ? (
+                      <p className="mt-3 text-xs font-semibold text-zinc-500">Loading timeline...</p>
+                    ) : orderEvents.length === 0 ? (
+                      <p className="mt-3 text-xs font-semibold leading-5 text-zinc-500">
+                        No timeline events yet. Current status: {selectedTransaction.status || "Pending"}.
+                      </p>
+                    ) : (
+                      <div className="mt-3 space-y-0">
+                        {[...orderEvents].reverse().map((event, index) => (
+                          <div key={event.id} className="relative flex gap-3 pb-4 last:pb-0">
+                            {index < orderEvents.length - 1 && (
+                              <span className="absolute left-[7px] top-5 h-[calc(100%-1.25rem)] w-0.5 bg-zinc-200" />
+                            )}
+                            <span className={`mt-1 h-4 w-4 shrink-0 rounded-full border-2 ${index === 0 ? "border-emerald-500 bg-emerald-500" : "border-zinc-300 bg-white"}`} />
+                            <div className="min-w-0">
+                              <p className="text-xs font-black text-zinc-900">
+                                {ORDER_EVENT_LABELS[event.event_type] || event.event_type}
+                              </p>
+                              {event.detail && (
+                                <p className="mt-0.5 text-[11px] font-semibold leading-4 text-zinc-500">{event.detail}</p>
+                              )}
+                              <p className="mt-0.5 text-[10px] font-bold text-zinc-400">{fullDate(event.created_at)}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
+
+                  {selectedTransaction.status === "Completed" && (
+                    <div className="rounded-3xl border border-zinc-200 bg-white p-4">
+                      <p className="text-[10px] font-black uppercase tracking-wider text-zinc-400">Need more of this boost?</p>
+                      <p className="mt-1 text-xs font-semibold leading-5 text-zinc-500">
+                        Refill re-orders the same service, target link, and quantity — billed to your wallet at today&apos;s price.
+                      </p>
+                      {refillMessage && (
+                        <p className={`mt-2 text-xs font-bold ${refillState === "error" ? "text-red-600" : "text-emerald-700"}`}>{refillMessage}</p>
+                      )}
+                      <button
+                        type="button"
+                        onClick={requestRefill}
+                        disabled={refillState === "submitting" || refillState === "done"}
+                        className="mt-3 flex h-11 w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 text-sm font-black text-white shadow-lg shadow-emerald-600/20 hover:bg-emerald-500 active:scale-[0.98] transition-all disabled:opacity-60 disabled:shadow-none"
+                      >
+                        {refillState === "submitting" ? <Loader2 size={16} className="animate-spin" /> : <RotateCcw size={16} />}
+                        {refillState === "submitting" ? "Placing refill..." : refillState === "done" ? "Refill placed" : "Refill this order"}
+                      </button>
+                    </div>
+                  )}
                 </>
               )}
 

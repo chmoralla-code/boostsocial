@@ -9,6 +9,9 @@ import { creditReferralCommission } from "@/utils/referrals";
 import { getSupabaseServiceRoleKey, getSupabaseUrl } from "@/utils/env";
 import { getVipDiscountSummary } from "@/utils/vip";
 import { resolveOrderPricing } from "@/lib/orderPricing";
+import { validatePromoCode, applyPromoToPrice, recordPromoRedemption } from "@/lib/promo";
+import { recordOrderEvent } from "@/lib/orderEvents";
+import { sendOrderPlacedEmail } from "@/lib/approvalEmails";
 
 type WalletProfile = {
   balance?: number | string | null;
@@ -68,6 +71,7 @@ export async function POST(req: NextRequest) {
       quantity,
       smmServiceId,
       catalogSnapshot,
+      promoCode,
     } = await req.json();
 
     if (!userId || !serviceId || !email || !url || !quantity) {
@@ -139,7 +143,26 @@ export async function POST(req: NextRequest) {
 
     const regularCost = pricing.regularAmount;
     const discountSummary = getVipDiscountSummary(profile || null, regularCost);
-    const cost = discountSummary.finalAmount;
+    const vipFinal = discountSummary.finalAmount;
+
+    // Apply promo code on top of the VIP-discounted amount.
+    let promoDiscount = 0;
+    let validatedPromo = null;
+    if (promoCode) {
+      const promoResult = await validatePromoCode(supabase, promoCode, {
+        amount: vipFinal,
+        serviceId,
+        category: pricing.serviceTitle,
+      });
+      if (promoResult.error || !promoResult.promo) {
+        return NextResponse.json({ error: promoResult.error || "Invalid promo code" }, { status: 400 });
+      }
+      validatedPromo = promoResult.promo;
+      const applied = applyPromoToPrice(vipFinal, promoResult.promo);
+      promoDiscount = applied.discountAmount;
+    }
+
+    const cost = Number((vipFinal - promoDiscount).toFixed(2));
     const currentBalance = Number(profile.balance || 0);
     if (!Number.isFinite(currentBalance) || currentBalance < cost) {
       return NextResponse.json({
@@ -163,6 +186,10 @@ export async function POST(req: NextRequest) {
           vip_discount_percent: discountSummary.discountPercent,
           vip_discount_amount: discountSummary.savingsAmount,
         };
+    const promoFields =
+      validatedPromo
+        ? { promo_code: validatedPromo.code, promo_discount_amount: promoDiscount }
+        : {};
 
     await ensureOrdersSchema();
     const serviceTitleAvailable = await hasServiceTitleColumn();
@@ -213,7 +240,7 @@ export async function POST(req: NextRequest) {
 
     after(async () => {
       const shouldAutoPlace = !/compiling/i.test(String(url));
-      const tasks = [
+      const tasks: Promise<unknown>[] = [
         syncBackupAdminClients(async (backupClient) => {
           const profileUpdate = await backupClient
             .from("profiles")
@@ -236,6 +263,7 @@ export async function POST(req: NextRequest) {
               quantity: pricing.quantity,
               smm_service_id: pricing.smmServiceId,
               ...orderVipFields,
+              ...promoFields,
             });
         }, "wallet checkout sync"),
         creditReferralCommission({
@@ -255,6 +283,46 @@ export async function POST(req: NextRequest) {
           amount: cost,
           paymentMethod: "Wallet",
           details: String(url).trim(),
+        }),
+        recordOrderEvent({
+          client: supabase,
+          orderId: order.id,
+          eventType: "created",
+          toStatus: "Processing",
+          detail: "Order paid with wallet",
+        }).catch((eventErr) => {
+          console.error("Order event create (wallet) failed:", eventErr);
+        }),
+        recordOrderEvent({
+          client: supabase,
+          orderId: order.id,
+          eventType: "payment_received",
+          toStatus: "Processing",
+          detail: "Payment received via wallet",
+        }).catch((eventErr) => {
+          console.error("Order event payment (wallet) failed:", eventErr);
+        }),
+        ...(validatedPromo
+          ? [
+              recordPromoRedemption(supabase, {
+                code: validatedPromo.code,
+                orderId: order.id,
+                customerEmail: String(email).trim(),
+                discountAmount: promoDiscount,
+              }).catch((promoErr) => {
+                console.error("Promo redemption failed:", promoErr);
+              }),
+            ]
+          : []),
+        sendOrderPlacedEmail({
+          email: String(email).trim(),
+          trackingId: `BS-${order.id.slice(0, 8).toUpperCase()}`,
+          serviceTitle: pricing.serviceTitle,
+          amount: cost,
+          quantity: pricing.quantity,
+          paymentMethod: "Wallet",
+        }).catch((emailErr) => {
+          console.error("Order placed email (wallet) failed:", emailErr);
         }),
       ];
 
