@@ -7,6 +7,7 @@ import { creditReferralCommission } from "@/utils/referrals";
 import { resolveSmmServiceTitle } from "@/lib/smmServiceResolver";
 import { notifyOrderStatusCustomer } from "@/lib/customerNotifications";
 import { sendOrderApprovedEmail, sendOrderCompletedEmail } from "@/lib/approvalEmails";
+import { recordOrderEvent } from "@/lib/orderEvents";
 
 type JoinedService = { title?: string | null } | { title?: string | null }[] | null | undefined;
 
@@ -29,6 +30,16 @@ function getJoinedServiceTitle(services: JoinedService) {
 
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
+}
+
+function mapStatusToEventType(status: string) {
+  const normalized = status.toLowerCase();
+  if (normalized.includes("process")) return "processing" as const;
+  if (normalized.includes("complete")) return "completed" as const;
+  if (normalized.includes("cancel")) return "cancelled" as const;
+  if (normalized.includes("reject")) return "rejected" as const;
+  if (normalized.includes("pending")) return "payment_pending" as const;
+  return "processing" as const;
 }
 
 export async function POST(req: NextRequest) {
@@ -98,6 +109,18 @@ export async function POST(req: NextRequest) {
       status: newStatus,
     }).catch((notificationErr) => {
       console.error("Admin order status customer notification failed:", notificationErr);
+    });
+
+    // Timeline event for the status change.
+    recordOrderEvent({
+      client: supabase,
+      orderId,
+      eventType: mapStatusToEventType(newStatus),
+      fromStatus: orderRow.status,
+      toStatus: newStatus,
+      detail: `Status updated by admin`,
+    }).catch((eventErr) => {
+      console.error("Admin order status event failed:", eventErr);
     });
 
     if (newStatus === "Processing" && orderRow.status !== "Processing") {

@@ -13,6 +13,7 @@ import { autoVerifyAndApproveOrder } from "@/lib/receiptVerifier";
 import { autoPlaceRixeyOrder } from "@/lib/rixeysmm";
 import { creditReferralCommission } from "@/utils/referrals";
 import { sendOrderApprovedEmail } from "@/lib/approvalEmails";
+import { recordOrderEvent } from "@/lib/orderEvents";
 
 const MAX_RECEIPT_FILE_BYTES = 8 * 1024 * 1024;
 const ALLOWED_RECEIPT_TYPES = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp"]);
@@ -244,6 +245,42 @@ export async function POST(req: NextRequest) {
           .eq("id", orderId);
       }, "order receipt sync");
     });
+
+    // Timeline events for the receipt upload outcome.
+    if (decidedOrderStatus === "Processing") {
+      recordOrderEvent({
+        client: supabase,
+        orderId,
+        eventType: "payment_received",
+        fromStatus: "Pending",
+        toStatus: "Processing",
+        detail: "Payment receipt verified",
+      }).catch((eventErr) => {
+        console.error("Receipt payment event failed:", eventErr);
+      });
+    } else if (decidedOrderStatus === "Rejected") {
+      recordOrderEvent({
+        client: supabase,
+        orderId,
+        eventType: "rejected",
+        fromStatus: "Pending",
+        toStatus: "Rejected",
+        detail: "Payment receipt rejected",
+      }).catch((eventErr) => {
+        console.error("Receipt reject event failed:", eventErr);
+      });
+    } else {
+      recordOrderEvent({
+        client: supabase,
+        orderId,
+        eventType: "payment_pending",
+        fromStatus: "Pending",
+        toStatus: "Pending",
+        detail: "Payment receipt uploaded — awaiting verification",
+      }).catch((eventErr) => {
+        console.error("Receipt pending event failed:", eventErr);
+      });
+    }
 
     after(async () => {
       try {

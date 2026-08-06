@@ -7,6 +7,7 @@ import { creditReferralCommission } from "@/utils/referrals";
 import { resolveSmmServiceTitle } from "@/lib/smmServiceResolver";
 import { notifyCustomer, notifyOrderStatusCustomer } from "@/lib/customerNotifications";
 import { sendOrderApprovedEmail, sendTopupApprovedEmail } from "@/lib/approvalEmails";
+import { recordOrderEvent } from "@/lib/orderEvents";
 
 type TelegramConfig = { bot_token: string; chat_id: string };
 type JoinedService = { title?: string | null } | { title?: string | null }[] | null | undefined;
@@ -334,6 +335,17 @@ async function handleOrderAction(callbackData: string, chatId: number, messageId
     status: newStatus,
   }).catch((notificationErr) => {
     console.error("Telegram order status customer notification failed:", notificationErr);
+  });
+
+  recordOrderEvent({
+    client: supabase,
+    orderId,
+    eventType: isApprove ? "processing" : "rejected",
+    fromStatus: "Pending",
+    toStatus: newStatus,
+    detail: isApprove ? "Approved via Telegram" : "Rejected via Telegram",
+  }).catch((eventErr) => {
+    console.error("Telegram order status event failed:", eventErr);
   });
 
   if (isApprove) {
