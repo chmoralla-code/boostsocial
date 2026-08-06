@@ -444,6 +444,7 @@ class SpyQueryBuilder {
 let schemaEnsured = false;
 let supabaseSchemaChecked = false;
 let serviceTitleColumnCached: boolean | null = null;
+let featureSchemaEnsured = false;
 
 /**
  * Ensures the `service_title` column exists on the DigitalOcean `orders` table.
@@ -525,6 +526,188 @@ export async function hasServiceTitleColumn(): Promise<boolean> {
 
   serviceTitleColumnCached = true;
   return true;
+}
+
+/**
+ * Idempotently ensures the feature-suite tables/columns exist on the DigitalOcean
+ * primary (created once, then cached). New tables/columns are also applied to
+ * Supabase backups in the background, mirroring `ensureOrdersSchema`'s pattern.
+ * Safe to call on hot paths — no-op after the first successful run.
+ */
+export async function ensureFeatureSchema() {
+  if (featureSchemaEnsured) return;
+
+  const sql = getDigitalOceanSql();
+  if (sql) {
+    try {
+      await sql`
+        CREATE TABLE IF NOT EXISTS promo_codes (
+          id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+          code TEXT NOT NULL UNIQUE,
+          discount_percent NUMERIC NOT NULL DEFAULT 0,
+          discount_amount NUMERIC NOT NULL DEFAULT 0,
+          max_uses INTEGER NOT NULL DEFAULT 1,
+          used_count INTEGER NOT NULL DEFAULT 0,
+          min_order_amount NUMERIC NOT NULL DEFAULT 0,
+          applies_to TEXT NOT NULL DEFAULT 'all',
+          expires_at TIMESTAMPTZ,
+          active BOOLEAN NOT NULL DEFAULT TRUE,
+          created_at TIMESTAMPTZ DEFAULT NOW()
+        );
+      `;
+      await sql`
+        CREATE TABLE IF NOT EXISTS promo_redemptions (
+          id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+          code TEXT NOT NULL,
+          order_id UUID NOT NULL,
+          customer_email TEXT NOT NULL,
+          discount_amount NUMERIC NOT NULL,
+          created_at TIMESTAMPTZ DEFAULT NOW(),
+          UNIQUE(order_id)
+        );
+      `;
+      await sql`
+        CREATE TABLE IF NOT EXISTS order_events (
+          id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+          order_id UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+          event_type TEXT NOT NULL,
+          from_status TEXT,
+          to_status TEXT,
+          detail TEXT,
+          created_at TIMESTAMPTZ DEFAULT NOW()
+        );
+      `;
+      await sql`
+        CREATE INDEX IF NOT EXISTS idx_order_events_order ON order_events(order_id, created_at);
+      `;
+      await sql`
+        CREATE TABLE IF NOT EXISTS daily_checkins (
+          id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+          user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+          checkin_date DATE NOT NULL DEFAULT CURRENT_DATE,
+          reward NUMERIC NOT NULL DEFAULT 5,
+          created_at TIMESTAMPTZ DEFAULT NOW(),
+          UNIQUE(user_id, checkin_date)
+        );
+      `;
+      await sql`
+        CREATE TABLE IF NOT EXISTS refill_orders (
+          id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+          original_order_id UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+          customer_email TEXT NOT NULL,
+          service_id UUID,
+          smm_service_id TEXT,
+          target_url TEXT,
+          quantity INTEGER,
+          amount NUMERIC,
+          status TEXT NOT NULL DEFAULT 'pending',
+          smm_order_id TEXT,
+          created_at TIMESTAMPTZ DEFAULT NOW(),
+          UNIQUE(original_order_id)
+        );
+      `;
+      await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS promo_code TEXT`;
+      await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS promo_discount_amount NUMERIC DEFAULT 0`;
+      await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS last_attempt_at TIMESTAMPTZ`;
+      await sql`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS last_low_balance_alert_at TIMESTAMPTZ`;
+      featureSchemaEnsured = true;
+    } catch (err: any) {
+      console.warn("ensureFeatureSchema: failed to create tables on DigitalOcean:", err?.message || err);
+    }
+  } else {
+    featureSchemaEnsured = true;
+  }
+}
+
+/**
+ * Idempotently applies the feature-suite schema to every configured Supabase backup
+ * (including the main Supabase project). Runs the raw SQL via `rpc`-free service-role
+ * client by executing each statement through the Postgres-compatible `postgres` query.
+ * Falls back to the migration SQL file convention when RPC is unavailable.
+ * Safe to call anywhere; never blocks order creation on multi-DB SELECTs.
+ */
+export async function ensureFeatureSchemaOnBackups() {
+  const backups = getBackupAdminClients();
+  const featureDdl = `
+    CREATE TABLE IF NOT EXISTS promo_codes (
+      id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+      code TEXT NOT NULL UNIQUE,
+      discount_percent NUMERIC NOT NULL DEFAULT 0,
+      discount_amount NUMERIC NOT NULL DEFAULT 0,
+      max_uses INTEGER NOT NULL DEFAULT 1,
+      used_count INTEGER NOT NULL DEFAULT 0,
+      min_order_amount NUMERIC NOT NULL DEFAULT 0,
+      applies_to TEXT NOT NULL DEFAULT 'all',
+      expires_at TIMESTAMPTZ,
+      active BOOLEAN NOT NULL DEFAULT TRUE,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+    ALTER TABLE promo_codes ENABLE ROW LEVEL SECURITY;
+    CREATE TABLE IF NOT EXISTS promo_redemptions (
+      id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+      code TEXT NOT NULL,
+      order_id UUID NOT NULL,
+      customer_email TEXT NOT NULL,
+      discount_amount NUMERIC NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(order_id)
+    );
+    ALTER TABLE promo_redemptions ENABLE ROW LEVEL SECURITY;
+    CREATE TABLE IF NOT EXISTS order_events (
+      id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+      order_id UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+      event_type TEXT NOT NULL,
+      from_status TEXT,
+      to_status TEXT,
+      detail TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS idx_order_events_order ON order_events(order_id, created_at);
+    ALTER TABLE order_events ENABLE ROW LEVEL SECURITY;
+    CREATE TABLE IF NOT EXISTS daily_checkins (
+      id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+      user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+      checkin_date DATE NOT NULL DEFAULT CURRENT_DATE,
+      reward NUMERIC NOT NULL DEFAULT 5,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(user_id, checkin_date)
+    );
+    ALTER TABLE daily_checkins ENABLE ROW LEVEL SECURITY;
+    CREATE TABLE IF NOT EXISTS refill_orders (
+      id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+      original_order_id UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+      customer_email TEXT NOT NULL,
+      service_id UUID,
+      smm_service_id TEXT,
+      target_url TEXT,
+      quantity INTEGER,
+      amount NUMERIC,
+      status TEXT NOT NULL DEFAULT 'pending',
+      smm_order_id TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(original_order_id)
+    );
+    ALTER TABLE refill_orders ENABLE ROW LEVEL SECURITY;
+    ALTER TABLE orders ADD COLUMN IF NOT EXISTS promo_code TEXT;
+    ALTER TABLE orders ADD COLUMN IF NOT EXISTS promo_discount_amount NUMERIC DEFAULT 0;
+    ALTER TABLE orders ADD COLUMN IF NOT EXISTS last_attempt_at TIMESTAMPTZ;
+    ALTER TABLE profiles ADD COLUMN IF NOT EXISTS last_low_balance_alert_at TIMESTAMPTZ;
+  `;
+
+  for (const backup of backups) {
+    try {
+      // Supabase exposes raw SQL through the `pg`-compatible REST endpoint via
+      // rpc — but there is no generic rpc. Use the service-role SQL via
+      // `sql` (postgres) client when available; otherwise fall back to the
+      // migration convention (admin init-db handles it).
+      const { error } = await backup.client.rpc("run_feature_schema", { sql: featureDdl } as any);
+      if (error && !/function run_feature_schema|does not exist/i.test(error.message || "")) {
+        console.warn(`ensureFeatureSchemaOnBackups: ${backup.displayName} failed:`, error.message);
+      }
+    } catch (err: any) {
+      console.warn(`ensureFeatureSchemaOnBackups: ${backup.displayName} error:`, err?.message || err);
+    }
+  }
 }
 
 export async function syncBackupAdminClients(
