@@ -100,8 +100,12 @@ a, button, input, textarea, select, label, [data-theme-transition] {
   .spotify-shimmer-text,
   .fb-shimmer-text,
   .robot-scanlines,
-  .robot-cursor {
+  .robot-cursor,
+  .robot-text,
+  .robot-text::before,
+  .robot-text::after {
     animation: none !important;
+    opacity: 1 !important;
   }
 }
 
@@ -463,6 +467,118 @@ html { scroll-behavior: smooth; }
   50% { transform: translate(1px, -1px); text-shadow: 1px 0 rgba(255,255,255,0.4), -1px 0 rgba(255,255,255,0.5); }
   75% { transform: translate(-1px, 0); text-shadow: -1px 0 rgba(255,255,255,0.6), 1px 0 rgba(255,255,255,0.3); }
   100% { transform: translate(0, 0); text-shadow: 0 0 rgba(255,255,255,0); }
+}
+
+/* ─────────────────────────────────────────────────────────────
+   ROBOTIC INTERACTIVE HEADLINE
+   Continuous machine-like scan reveal + glitch slices + HUD
+   sweep. Hovering intensifies the glitch and powers the text up.
+   ───────────────────────────────────────────────────────────── */
+.robot-text {
+  position: relative;
+  display: inline-block;
+  animation: robotScanReveal 1.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Split the headline into clipped layers that shift like
+   corrupted HUD text */
+.robot-text::before,
+.robot-text::after {
+  content: attr(data-text);
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  opacity: 0;
+  -webkit-text-fill-color: currentColor;
+}
+
+.robot-text::before {
+  color: #ffffff;
+  clip-path: inset(0 0 62% 0);
+  animation: robotSliceA 3.2s steps(2, end) infinite;
+  z-index: 1;
+}
+
+.robot-text::after {
+  color: #8a8a8a;
+  clip-path: inset(58% 0 0 0);
+  animation: robotSliceB 2.7s steps(2, end) infinite;
+  z-index: 1;
+}
+
+@keyframes robotScanReveal {
+  0% {
+    opacity: 0;
+    clip-path: inset(0 0 100% 0);
+    filter: blur(8px);
+  }
+  60% {
+    opacity: 1;
+    filter: blur(2px);
+  }
+  100% {
+    opacity: 1;
+    clip-path: inset(0 0 0 0);
+    filter: blur(0);
+  }
+}
+
+@keyframes robotSliceA {
+  0%, 100% { transform: translate(0, 0); opacity: 0; }
+  4%  { transform: translate(-2px, -1px); opacity: 0.85; }
+  6%  { transform: translate(2px, 1px); opacity: 0; }
+  46% { transform: translate(0, 0); opacity: 0; }
+  50% { transform: translate(-1px, 0); opacity: 0.9; }
+  52% { transform: translate(1px, 0); opacity: 0; }
+}
+
+@keyframes robotSliceB {
+  0%, 100% { transform: translate(0, 0); opacity: 0; }
+  30% { transform: translate(1px, 1px); opacity: 0; }
+  33% { transform: translate(-2px, 0); opacity: 0.85; }
+  36% { transform: translate(0, 0); opacity: 0; }
+  80% { transform: translate(0, 0); opacity: 0; }
+  84% { transform: translate(2px, -1px); opacity: 0.9; }
+  87% { transform: translate(0, 0); opacity: 0; }
+}
+
+/* Hover: full glitch burst + HUD power-up */
+.robot-text:hover {
+  animation: robotHoverGlitch 0.5s steps(2, start) infinite;
+}
+.robot-text:hover::before,
+.robot-text:hover::after {
+  animation-duration: 0.28s;
+  opacity: 0.9;
+}
+
+@keyframes robotHoverGlitch {
+  0% { transform: translate(0, 0); text-shadow: 2px 0 rgba(255,255,255,0.7), -2px 0 rgba(255,255,255,0.35); }
+  20% { transform: translate(-2px, 1px); text-shadow: -2px 0 rgba(255,255,255,0.55), 2px 0 rgba(255,255,255,0.4); }
+  40% { transform: translate(2px, -1px); text-shadow: 2px 0 rgba(255,255,255,0.45), -2px 0 rgba(255,255,255,0.6); }
+  60% { transform: translate(-1px, -1px); text-shadow: -1px 0 rgba(255,255,255,0.7), 1px 0 rgba(255,255,255,0.3); }
+  80% { transform: translate(1px, 1px); text-shadow: 1px 0 rgba(255,255,255,0.5), -1px 0 rgba(255,255,255,0.6); }
+  100% { transform: translate(0, 0); text-shadow: 0 0 rgba(255,255,255,0); }
+}
+
+/* Light-mode adjustments for robotic text */
+[data-theme="light"] .robot-text::before {
+  color: #000000;
+}
+[data-theme="light"] .robot-text::after {
+  color: #6b7280;
+}
+[data-theme="light"] .robot-text:hover {
+  animation: robotHoverGlitchLight 0.5s steps(2, start) infinite;
+}
+@keyframes robotHoverGlitchLight {
+  0% { transform: translate(0, 0); text-shadow: 2px 0 rgba(0,0,0,0.5), -2px 0 rgba(0,0,0,0.25); }
+  20% { transform: translate(-2px, 1px); text-shadow: -2px 0 rgba(0,0,0,0.4), 2px 0 rgba(0,0,0,0.3); }
+  40% { transform: translate(2px, -1px); text-shadow: 2px 0 rgba(0,0,0,0.35), -2px 0 rgba(0,0,0,0.4); }
+  60% { transform: translate(-1px, -1px); text-shadow: -1px 0 rgba(0,0,0,0.5), 1px 0 rgba(0,0,0,0.25); }
+  80% { transform: translate(1px, 1px); text-shadow: 1px 0 rgba(0,0,0,0.4), -1px 0 rgba(0,0,0,0.45); }
+  100% { transform: translate(0, 0); text-shadow: 0 0 rgba(0,0,0,0); }
 }
 
 /* Monochrome button glow */

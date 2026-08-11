@@ -73,8 +73,8 @@ export default async function Home() {
           </div>
 
           <h1 className="text-[2rem] sm:text-5xl md:text-6xl lg:text-7xl font-black leading-[1.02] sm:leading-[1.05] mb-5 sm:mb-6 tracking-normal uppercase animate-fade-in-up-2 text-fg">
-            <span className="robot-glitch">Boost Your Social Media</span> <br className="hidden md:inline" />
-            <span className="fb-shimmer-text">Anywhere, Anytime</span>
+            <span className="robot-text" data-text="Boost Your Social Media">Boost Your Social Media</span> <br className="hidden md:inline" />
+            <span className="robot-text fb-shimmer-text" data-text="Anywhere, Anytime">Anywhere, Anytime</span>
           </h1>
           
 
