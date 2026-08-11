@@ -1,4 +1,4 @@
-import { createClient } from "@/utils/supabase/server";
+import { fallbackRead } from "@/utils/supabase/dual-db";
 import { CustomersList } from "./CustomersList";
 
 interface AggregatedCustomer {
@@ -19,25 +19,36 @@ interface AggregatedCustomer {
   };
 }
 
-export default async function CustomersPage() {
-  const supabase = await createClient();
+type ProfileRow = { id: string; email: string | null; balance: number | string | null };
+type OrderRow = { customer_email: string | null; amount: number | string | null; status: string | null; created_at: string };
+type ChatMessageRow = { customer_email: string | null; sender: string | null; is_read: boolean | null; created_at: string | null };
 
-  // Fetch all orders with transactional details
-  const { data: orders } = await supabase
-    .from("orders")
-    .select("customer_email, amount, status, created_at")
-    .order("created_at", { ascending: false });
+export default async function CustomersPage() {
+  // Fetch all orders with transactional details.
+  // fallbackRead reads the DigitalOcean primary first (where orders are written),
+  // then falls back to the Supabase backups — matching the orders/topups pages so
+  // balances, emails, and order history aren't missing on this dashboard.
+  const { data: orders } = await fallbackRead(async (db) => {
+    return db
+      .from("orders")
+      .select("customer_email, amount, status, created_at")
+      .order("created_at", { ascending: false });
+  });
 
   // Fetch all registered user profiles
-  const { data: profiles } = await supabase
-    .from("profiles")
-    .select("id, email, balance");
+  const { data: profiles } = await fallbackRead(async (db) => {
+    return db
+      .from("profiles")
+      .select("id, email, balance");
+  });
 
   // Fetch live-support contacts too so chat-only customers still appear in admin.
-  const { data: chatMessages, error: chatMessagesError } = await supabase
-    .from("customer_messages")
-    .select("customer_email, sender, is_read, created_at")
-    .order("created_at", { ascending: false });
+  const { data: chatMessages, error: chatMessagesError } = await fallbackRead(async (db) => {
+    return db
+      .from("customer_messages")
+      .select("customer_email, sender, is_read, created_at")
+      .order("created_at", { ascending: false });
+  });
 
   if (chatMessagesError) {
     console.error("Failed to load customer chat directory:", chatMessagesError);
@@ -48,7 +59,7 @@ export default async function CustomersPage() {
 
   // 1. Populate registered profiles first
   if (profiles) {
-    profiles.forEach((p) => {
+    (profiles as ProfileRow[]).forEach((p) => {
       if (!p.email) return;
       const email = p.email.trim();
       const emailLower = email.toLowerCase();
@@ -70,7 +81,7 @@ export default async function CustomersPage() {
 
   // 2. Map orders to aggregate customer spent and orders
   if (orders) {
-    orders.forEach((order) => {
+    (orders as OrderRow[]).forEach((order) => {
       if (!order.customer_email) return;
       const email = order.customer_email.trim();
       const emailLower = email.toLowerCase();
@@ -111,7 +122,7 @@ export default async function CustomersPage() {
 
   // 3. Merge live-support message activity and unread customer replies.
   if (chatMessages) {
-    chatMessages.forEach((message) => {
+    (chatMessages as ChatMessageRow[]).forEach((message) => {
       if (!message.customer_email) return;
 
       const email = message.customer_email.trim();
