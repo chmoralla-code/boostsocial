@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
+import { Space_Grotesk, JetBrains_Mono } from "next/font/google";
 import { FloatingSiteWidgets } from "@/components/FloatingSiteWidgets";
 import { ClientAppUpdateButton } from "@/components/ClientAppUpdateButton";
 import { ClientAppNavigationControls } from "@/components/ClientAppNavigationControls";
@@ -7,7 +7,8 @@ import { OnboardingRedirect } from "@/components/OnboardingRedirect";
 import { PWARegister } from "@/components/PWARegister";
 import "./globals.css";
 
-const inter = Inter({ subsets: ["latin"] });
+const spaceGrotesk = Space_Grotesk({ subsets: ["latin"] });
+const jetbrainsMono = JetBrains_Mono({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://pinoyboosting.com"),
@@ -140,7 +141,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className={`${inter.className} min-h-screen bg-bg text-fg flex flex-col antialiased`}>
+      <body className={`${spaceGrotesk.className} min-h-screen bg-bg text-fg flex flex-col antialiased`}>
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
@@ -151,6 +152,7 @@ export default function RootLayout({
         <FloatingSiteWidgets />
         <ClientAppUpdateButton />
         <ClientAppNavigationControls />
+        <div className="robot-scanlines" aria-hidden="true" />
       </body>
     </html>
   );

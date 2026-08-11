@@ -102,14 +102,14 @@ export function Header() {
       <header className="w-full border-b border-border/40 relative z-50 overflow-hidden">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-6 md:gap-4 md:px-6 md:py-6">
         <Link href="/" className="flex min-w-0 shrink-0 items-center gap-2 group">
-          <div className="shrink-0 text-primary drop-shadow-[0_0_10px_rgba(29,185,84,0.3)] group-hover:scale-110 transition-transform duration-300">
+          <div className="shrink-0 text-primary drop-shadow-[0_0_10px_rgba(255,255,255,0.3)] group-hover:scale-110 transition-transform duration-300">
             <Rocket size={24} strokeWidth={2.5} />
           </div>
           <span className="text-xl sm:text-2xl font-black tracking-normal text-fg flex items-center whitespace-nowrap">
             {"CYNETWORK".split("").map((letter, idx) => (
               <span
                 key={idx}
-                className="inline-block transition-all duration-300 transform hover:scale-135 hover:text-primary hover:rotate-6 hover:-translate-y-1 cursor-default select-none drop-shadow-[0_0_8px_transparent] hover:drop-shadow-[0_0_12px_rgba(29,185,84,0.6)] font-black"
+                className="inline-block transition-all duration-300 transform hover:scale-135 hover:text-primary hover:rotate-6 hover:-translate-y-1 cursor-default select-none drop-shadow-[0_0_8px_transparent] hover:drop-shadow-[0_0_12px_rgba(255,255,255,0.6)] font-black"
                 style={{
                   transitionDelay: `${idx * 15}ms`
                 }}
@@ -131,7 +131,7 @@ export function Header() {
 
         <nav className="hidden min-w-0 flex-1 md:flex md:flex-wrap md:items-center md:justify-center md:gap-x-3 md:gap-y-1 lg:gap-x-5 font-bold text-muted text-sm">
           <Link href="/quick-start" className="text-primary hover:text-primary-dark font-extrabold uppercase text-xs tracking-wider flex items-center gap-1 transition-colors animate-pulse whitespace-nowrap">🚀 Quick Start</Link>
-          <Link href="/order-page" className="text-[#1877F2] hover:text-[#4e8df5] font-extrabold uppercase text-xs tracking-wider transition-colors whitespace-nowrap">Order Page</Link>
+          <Link href="/order-page" className="text-primary hover:text-primary-dark font-extrabold uppercase text-xs tracking-wider transition-colors whitespace-nowrap">Order Page</Link>
           <Link href="/affiliate" className="hover:text-fg transition-colors whitespace-nowrap">Affiliate</Link>
           <Link href="/vip" className="hover:text-primary transition-colors flex items-center gap-1.5 uppercase tracking-wider text-xs font-extrabold whitespace-nowrap">
             <Crown size={14} />
@@ -152,21 +152,21 @@ export function Header() {
                   )}
                   <button
                     onClick={() => setShowTopUpModal(true)}
-                    className="flex h-9 min-w-0 items-center justify-center gap-1 rounded-full border border-[#1877F2]/30 bg-[#1877F2]/10 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wider text-[#1877F2] transition-all hover:bg-[#1877F2]/20 cursor-pointer"
+                    className="flex h-9 min-w-0 items-center justify-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wider text-primary transition-all hover:bg-primary/20 cursor-pointer"
                   >
                     <Wallet size={12} /> 
                     ₱{profile?.balance ? Number(profile.balance).toFixed(0) : "0"}
                   </button>
                   <button 
                     onClick={() => setShowReferralsModal(true)}
-                    className="flex h-9 w-9 items-center justify-center rounded-full border border-border/80 bg-card text-[#1877F2] transition-all hover:bg-elevated cursor-pointer"
+                    className="flex h-9 w-9 items-center justify-center rounded-full border border-border/80 bg-card text-primary transition-all hover:bg-elevated cursor-pointer"
                     title="Invite & Earn"
                   >
                     <Gift size={13} /> 
                   </button>
                   <button 
                     onClick={() => setShowOrdersModal(true)}
-                    className="flex h-9 w-9 items-center justify-center rounded-full border border-border/80 bg-card text-[#1877F2] transition-all hover:bg-elevated cursor-pointer"
+                    className="flex h-9 w-9 items-center justify-center rounded-full border border-border/80 bg-card text-primary transition-all hover:bg-elevated cursor-pointer"
                     title="My Orders"
                   >
                     <ClipboardList size={12} /> 
@@ -185,7 +185,7 @@ export function Header() {
                   <ThemeToggle />
                   <Link
                     href="/login"
-                    className="bg-[#1877F2] hover:bg-[#4e8df5] text-fg font-extrabold py-2 px-4 rounded-full transition-all duration-300 transform hover:scale-[1.03] shadow-md shadow-blue-500/10 text-xs uppercase tracking-wider"
+                    className="bg-white hover:bg-[#d4d4d8] text-black font-extrabold py-2 px-4 rounded-full transition-all duration-300 transform hover:scale-[1.03] shadow-md shadow-white/10 text-xs uppercase tracking-wider"
                   >
                     Sign In
                   </Link>
@@ -204,7 +204,7 @@ export function Header() {
                       setShowMobileMenu(false);
                       setShowTopUpModal(true);
                     }}
-                    className="col-span-2 flex h-11 items-center justify-center gap-2 rounded-xl border border-[#1877F2]/30 bg-[#1877F2]/10 text-xs font-black uppercase tracking-wider text-[#1877F2] transition-all hover:bg-[#1877F2]/20"
+                    className="col-span-2 flex h-11 items-center justify-center gap-2 rounded-xl border border-primary/30 bg-primary/10 text-xs font-black uppercase tracking-wider text-primary transition-all hover:bg-primary/20"
                   >
                     <Wallet size={15} />
                     Top Up: ₱{profile?.balance ? Number(profile.balance).toFixed(0) : "0"}
@@ -214,7 +214,7 @@ export function Header() {
                       setShowMobileMenu(false);
                       setShowReferralsModal(true);
                     }}
-                    className="flex h-11 items-center justify-center gap-2 rounded-xl border border-border/80 bg-elevated text-xs font-black uppercase tracking-wider text-[#1877F2] transition-all hover:bg-card"
+                    className="flex h-11 items-center justify-center gap-2 rounded-xl border border-border/80 bg-elevated text-xs font-black uppercase tracking-wider text-primary transition-all hover:bg-card"
                   >
                     <Gift size={15} />
                     Invite
@@ -224,7 +224,7 @@ export function Header() {
                       setShowMobileMenu(false);
                       setShowOrdersModal(true);
                     }}
-                    className="flex h-11 items-center justify-center gap-2 rounded-xl border border-border/80 bg-elevated text-xs font-black uppercase tracking-wider text-[#1877F2] transition-all hover:bg-card"
+                    className="flex h-11 items-center justify-center gap-2 rounded-xl border border-border/80 bg-elevated text-xs font-black uppercase tracking-wider text-primary transition-all hover:bg-card"
                   >
                     <ClipboardList size={15} />
                     Orders
@@ -246,7 +246,7 @@ export function Header() {
                   <Link
                     href="/login"
                     onClick={() => setShowMobileMenu(false)}
-                    className="flex h-11 flex-1 items-center justify-center rounded-xl bg-[#1877F2] px-4 text-xs font-black uppercase tracking-wider text-white shadow-md shadow-blue-500/10 transition-all hover:bg-[#4e8df5]"
+                    className="flex h-11 flex-1 items-center justify-center rounded-xl bg-white px-4 text-xs font-black uppercase tracking-wider text-black shadow-md shadow-white/10 transition-all hover:bg-[#d4d4d8]"
                   >
                     Sign In
                   </Link>
@@ -265,7 +265,7 @@ export function Header() {
               <Link 
                 href="/order-page" 
                 onClick={() => setShowMobileMenu(false)}
-                className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-[#1877F2] hover:bg-[#1877F2]/10 transition-colors"
+                className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-primary hover:bg-primary/10 transition-colors"
               >
                 📦 Order Page
               </Link>
@@ -315,7 +315,7 @@ export function Header() {
             
             <div className="p-6 border-b border-border/60">
               <h2 className="text-xl font-black text-fg tracking-tight flex items-center gap-2">
-                📋 Your <span className="text-[#1877F2]">Order History</span>
+                📋 Your <span className="text-primary">Order History</span>
               </h2>
               <p className="text-muted text-xs mt-1">Real-time status tracking for your accounts</p>
             </div>
@@ -323,7 +323,7 @@ export function Header() {
             <div className="p-6 overflow-y-auto flex-grow space-y-4">
               {loadingOrders ? (
                 <div className="flex flex-col items-center justify-center py-12 gap-2">
-                  <Loader2 className="animate-spin text-[#1877F2]" size={28} />
+                  <Loader2 className="animate-spin text-primary" size={28} />
                   <span className="text-xs text-muted font-bold uppercase tracking-wider">Retrieving history...</span>
                 </div>
               ) : orders.length === 0 ? (
@@ -341,7 +341,7 @@ export function Header() {
                       <div key={order.id} className="bg-elevated border border-border/80 p-4 rounded-xl flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                         <div className="space-y-1.5 text-left">
                           <div className="flex items-center gap-2">
-                            <span className="font-mono text-xs font-black text-[#1877F2] tracking-widest">{displayId}</span>
+                            <span className="font-mono text-xs font-black text-primary tracking-widest">{displayId}</span>
                             <span className="text-[10px] text-muted font-bold uppercase">
                               {format(new Date(order.created_at), 'MMM d, yyyy')}
                             </span>
@@ -351,7 +351,7 @@ export function Header() {
                             <span className="text-muted font-normal">•</span>
                             <span className="text-fg">{order.quantity.toLocaleString()} units</span>
                             <span className="text-muted font-normal">•</span>
-                            <span className="text-[#1877F2]">₱{Number(order.amount).toFixed(2)}</span>
+                            <span className="text-primary">₱{Number(order.amount).toFixed(2)}</span>
                           </div>
                           <div className="text-[10px] text-muted truncate max-w-xs sm:max-w-md font-mono select-all">
                             🔗 {order.target_url}
@@ -360,10 +360,10 @@ export function Header() {
 
                         <div className="flex items-center sm:justify-end">
                           <span className={`text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full ${
-                            order.status === 'Pending' ? 'bg-[#ff9800]/10 text-[#ff9800] border border-[#ff9800]/20' :
-                            order.status === 'Processing' ? 'bg-[#2196f3]/10 text-[#2196f3] border border-[#2196f3]/20' :
-                            order.status === 'Completed' ? 'bg-[#1877F2]/10 text-[#1877F2] border border-[#1877F2]/20' :
-                            'bg-red-500/10 text-red-500 border border-red-500/20'
+                            order.status === 'Pending' ? 'bg-white/10 text-white border border-white/30' :
+                            order.status === 'Processing' ? 'bg-white/5 text-[#d4d4d8] border border-white/20' :
+                            order.status === 'Completed' ? 'bg-white text-black border border-white' :
+                            'bg-white/10 text-white border border-white/30'
                           }`}>
                             {order.status}
                           </span>

@@ -64,16 +64,16 @@ export default async function Home() {
 
         <div className="max-w-5xl w-full mx-auto px-4 sm:px-6 md:px-8 z-10 flex flex-col items-center text-center pt-5 sm:pt-8 pb-8 sm:pb-10">
           {/* Animated Tech Badge */}
-          <div className="inline-flex items-center gap-2 px-4 sm:px-5 py-2 rounded-full bg-white/[0.03] border border-white/[0.08] text-[10px] sm:text-xs font-black tracking-widest text-primary mb-5 sm:mb-6 uppercase shadow-xl shadow-emerald-500/5 backdrop-blur-md animate-fade-in-up-1 text-center light-mode:bg-slate-100/50 light-mode:border-slate-200/50">
+          <div className="robot-hud inline-flex items-center gap-2 px-4 sm:px-5 py-2 rounded-full bg-white/[0.03] border border-white/[0.08] text-[10px] sm:text-xs font-black tracking-widest text-primary mb-5 sm:mb-6 uppercase shadow-xl backdrop-blur-md animate-fade-in-up-1 text-center light-mode:bg-slate-100/50 light-mode:border-slate-200/50">
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary-dark opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
             </span>
-            📱 Official Mobile App
+            <span className="mono-label">📱 Official Mobile App</span>
           </div>
 
           <h1 className="text-[2rem] sm:text-5xl md:text-6xl lg:text-7xl font-black leading-[1.02] sm:leading-[1.05] mb-5 sm:mb-6 tracking-normal uppercase animate-fade-in-up-2 text-fg">
-            Boost Your Social Media <br className="hidden md:inline" />
+            <span className="robot-glitch">Boost Your Social Media</span> <br className="hidden md:inline" />
             <span className="fb-shimmer-text">Anywhere, Anytime</span>
           </h1>
           
@@ -83,15 +83,15 @@ export default async function Home() {
             <a 
               href="/downloads/pinoyboosting.apk" 
               download
-              className="group relative inline-flex items-center justify-center gap-3 px-8 sm:px-14 py-5 sm:py-7 rounded-2xl bg-gradient-to-r from-[#1DB954] to-[#1ed760] text-black font-black text-base sm:text-xl uppercase tracking-wider shadow-2xl shadow-emerald-500/30 hover:shadow-emerald-500/50 transform hover:scale-105 transition-all duration-300 overflow-hidden"
+              className="robot-btn group relative inline-flex items-center justify-center gap-3 px-8 sm:px-14 py-5 sm:py-7 rounded-2xl bg-gradient-to-r from-white to-[#d4d4d8] text-black font-black text-base sm:text-xl uppercase tracking-wider shadow-2xl hover:shadow-white/40 transform hover:scale-105 transition-all duration-300 overflow-hidden"
             >
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-1000"></div>
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/60 to-transparent translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-1000"></div>
               <Download size={26} className="relative z-10" />
               <span className="relative z-10">Download APK Free</span>
             </a>
             <a 
               href="#services" 
-              className="group relative inline-flex items-center justify-center gap-2 px-8 sm:px-10 py-5 sm:py-7 rounded-2xl border-2 border-white/20 bg-white/[0.03] text-white font-black text-base sm:text-xl uppercase tracking-wider shadow-xl hover:border-primary/50 hover:bg-white/[0.06] transform hover:scale-105 transition-all duration-300 backdrop-blur-sm"
+              className="robot-btn group relative inline-flex items-center justify-center gap-2 px-8 sm:px-10 py-5 sm:py-7 rounded-2xl border-2 border-white/20 bg-white/[0.03] text-white font-black text-base sm:text-xl uppercase tracking-wider shadow-xl hover:border-primary/50 hover:bg-white/[0.06] transform hover:scale-105 transition-all duration-300 backdrop-blur-sm"
             >
               <Layers size={24} className="relative z-10 text-primary" />
               <span className="relative z-10">Browse Services</span>
@@ -100,28 +100,28 @@ export default async function Home() {
 
           {/* Persuasive caption */}
           <p className="text-[11px] sm:text-xs text-muted mb-8 sm:mb-10 max-w-md font-semibold leading-relaxed animate-fade-in-up-3">
-            ⭐ <span className="text-fg">8,200+ Filipinos</span> already downloaded this month. <br className="hidden sm:inline" />
+            <span className="mono-label text-fg">▸ 8,200+ Filipinos</span> already downloaded this month. <br className="hidden sm:inline" />
             Works on Android 7.0+ • No ads • No tracking • ~12 MB
           </p>
 
           {/* Trust Indicators */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-5 w-full max-w-3xl animate-fade-in-up-3">
-            <div className="flex items-center gap-3 p-3.5 rounded-2xl bg-white/[0.02] border border-white/[0.04] backdrop-blur-sm light-mode:bg-slate-100/50 light-mode:border-slate-200/50">
+            <div className="robot-hud flex items-center gap-3 p-3.5 rounded-2xl bg-white/[0.02] border border-white/[0.04] backdrop-blur-sm light-mode:bg-slate-100/50 light-mode:border-slate-200/50">
               <Shield size={22} className="text-primary shrink-0" />
               <div className="text-left">
                 <div className="text-[11px] font-black text-fg uppercase tracking-wider">100% Safe</div>
                 <div className="text-[10px] text-muted">No password needed</div>
               </div>
             </div>
-            <div className="flex items-center gap-3 p-3.5 rounded-2xl bg-white/[0.02] border border-white/[0.04] backdrop-blur-sm light-mode:bg-slate-100/50 light-mode:border-slate-200/50">
-              <Zap size={22} className="text-[#1877F2] shrink-0" />
+            <div className="robot-hud flex items-center gap-3 p-3.5 rounded-2xl bg-white/[0.02] border border-white/[0.04] backdrop-blur-sm light-mode:bg-slate-100/50 light-mode:border-slate-200/50">
+              <Zap size={22} className="text-primary shrink-0" />
               <div className="text-left">
                 <div className="text-[11px] font-black text-fg uppercase tracking-wider">Instant Start</div>
                 <div className="text-[10px] text-muted">5-15 min delivery</div>
               </div>
             </div>
-            <div className="flex items-center gap-3 p-3.5 rounded-2xl bg-white/[0.02] border border-white/[0.04] backdrop-blur-sm light-mode:bg-slate-100/50 light-mode:border-slate-200/50">
-              <Star size={22} className="text-[#1ed760] shrink-0" />
+            <div className="robot-hud flex items-center gap-3 p-3.5 rounded-2xl bg-white/[0.02] border border-white/[0.04] backdrop-blur-sm light-mode:bg-slate-100/50 light-mode:border-slate-200/50">
+              <Star size={22} className="text-primary shrink-0" />
               <div className="text-left">
                 <div className="text-[11px] font-black text-fg uppercase tracking-wider">99.8% Happy</div>
                 <div className="text-[10px] text-muted">8.9M+ boosts delivered</div>
@@ -134,14 +134,14 @@ export default async function Home() {
 
         {/* 📬 Contact & Support */}
         <section id="contact" className="w-full max-w-3xl mx-auto px-4 sm:px-6 md:px-8 py-12 sm:py-16 border-t border-border/40 relative z-10">
-          <div className="rounded-[2rem] bg-gradient-to-br from-white/[0.04] to-white/[0.01] border border-white/[0.08] p-6 sm:p-8 backdrop-blur-xl shadow-2xl relative text-center light-mode:bg-slate-50/50 light-mode:border-slate-200/50">
-            <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/5 rounded-full blur-2xl pointer-events-none"></div>
+          <div className="robot-hud rounded-[2rem] bg-gradient-to-br from-white/[0.04] to-white/[0.01] border border-white/[0.08] p-6 sm:p-8 backdrop-blur-xl shadow-2xl relative text-center light-mode:bg-slate-50/50 light-mode:border-slate-200/50">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-white/5 rounded-full blur-2xl pointer-events-none"></div>
             
             <h3 className="text-lg sm:text-xl font-black text-fg uppercase mb-2 tracking-tight">📬 Need Help?</h3>
             <p className="text-muted text-xs mb-5">Email our support team — we reply within hours.</p>
             <a 
               href="mailto:support@cynetwork.ph" 
-              className="inline-block bg-[#1877F2] hover:bg-[#4e8df5] text-white font-extrabold py-3 px-8 rounded-full transition-all duration-300 uppercase text-xs tracking-wider"
+              className="robot-btn inline-block bg-white hover:bg-[#d4d4d8] text-black font-extrabold py-3 px-8 rounded-full transition-all duration-300 uppercase text-xs tracking-wider"
             >
               support@cynetwork.ph
             </a>
