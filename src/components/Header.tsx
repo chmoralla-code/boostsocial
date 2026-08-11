@@ -130,11 +130,10 @@ export function Header() {
         </button>
 
         <nav className="hidden min-w-0 flex-1 md:flex md:flex-wrap md:items-center md:justify-center md:gap-x-3 md:gap-y-1 lg:gap-x-5 font-bold text-muted text-sm">
-          <Link href="/quick-start" className="text-primary hover:text-primary-dark font-extrabold uppercase text-xs tracking-wider flex items-center gap-1 transition-colors animate-pulse whitespace-nowrap">🚀 Quick Start</Link>
+          <Link href="/quick-start" className="text-primary hover:text-primary-dark font-extrabold uppercase text-xs tracking-wider flex items-center gap-1 transition-colors animate-pulse whitespace-nowrap">Quick Start</Link>
           <Link href="/order-page" className="text-primary hover:text-primary-dark font-extrabold uppercase text-xs tracking-wider transition-colors whitespace-nowrap">Order Page</Link>
           <Link href="/affiliate" className="hover:text-fg transition-colors whitespace-nowrap">Affiliate</Link>
           <Link href="/vip" className="hover:text-primary transition-colors flex items-center gap-1.5 uppercase tracking-wider text-xs font-extrabold whitespace-nowrap">
-            <Crown size={14} />
             VIP
           </Link>
           <Link href="/services" className="hover:text-fg transition-colors whitespace-nowrap">Services</Link>
@@ -260,42 +259,42 @@ export function Header() {
                 onClick={() => setShowMobileMenu(false)}
                 className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-primary hover:bg-primary/10 transition-colors"
               >
-                🚀 Quick Start
+                Quick Start
               </Link>
               <Link 
                 href="/order-page" 
                 onClick={() => setShowMobileMenu(false)}
                 className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-primary hover:bg-primary/10 transition-colors"
               >
-                📦 Order Page
+                Order Page
               </Link>
               <Link 
                 href="/services" 
                 onClick={() => setShowMobileMenu(false)}
                 className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-fg hover:bg-white/5 transition-colors"
               >
-                🛒 Services
+                Services
               </Link>
               <Link 
                 href="/affiliate" 
                 onClick={() => setShowMobileMenu(false)}
                 className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-fg hover:bg-white/5 transition-colors"
               >
-                💰 Affiliate
+                Affiliate
               </Link>
               <Link 
                 href="/vip" 
                 onClick={() => setShowMobileMenu(false)}
                 className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-primary hover:bg-primary/10 transition-colors"
               >
-                👑 VIP Account
+                VIP Account
               </Link>
               <Link 
                 href="/track" 
                 onClick={() => setShowMobileMenu(false)}
                 className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-fg hover:bg-white/5 transition-colors"
               >
-                📍 Status Tracker
+                Status Tracker
               </Link>
             </nav>
           </div>
@@ -315,7 +314,7 @@ export function Header() {
             
             <div className="p-6 border-b border-border/60">
               <h2 className="text-xl font-black text-fg tracking-tight flex items-center gap-2">
-                📋 Your <span className="text-primary">Order History</span>
+                Your <span className="text-primary">Order History</span>
               </h2>
               <p className="text-muted text-xs mt-1">Real-time status tracking for your accounts</p>
             </div>
@@ -354,7 +353,7 @@ export function Header() {
                             <span className="text-primary">₱{Number(order.amount).toFixed(2)}</span>
                           </div>
                           <div className="text-[10px] text-muted truncate max-w-xs sm:max-w-md font-mono select-all">
-                            🔗 {order.target_url}
+                            {order.target_url}
                           </div>
                         </div>
 
