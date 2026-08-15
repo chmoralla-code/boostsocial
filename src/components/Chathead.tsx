@@ -2,7 +2,27 @@
 
 import { useState, useRef, useEffect, useCallback, useMemo, type ReactNode } from "react";
 import NextImage from "next/image";
-import { X, Send, Loader2, Image as ImageIcon, ShoppingCart, Ban, CheckCircle2 } from "lucide-react";
+import { 
+  X, 
+  Send, 
+  Loader2, 
+  Image as ImageIcon, 
+  ShoppingCart, 
+  Ban, 
+  CheckCircle2, 
+  Maximize2, 
+  Minimize2, 
+  Volume2, 
+  VolumeX, 
+  Trash2, 
+  Copy, 
+  Check, 
+  Sparkles, 
+  ShieldCheck, 
+  Search, 
+  ExternalLink,
+  UploadCloud
+} from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { parseDescription } from "@/utils/serviceHelpers";
 import { compressImageWithStats, formatBytes, type CompressResult } from "@/utils/imageCompressor";
@@ -218,7 +238,7 @@ const renderMessageContent = (content: string, isUser: boolean) => {
           className={`font-bold ${
             isUser 
               ? 'text-white underline decoration-wavy' 
-              : 'text-[#1877F2] text-sm'
+              : 'text-[#1877F2]'
           }`}
         >
           {parseMorallaName(match[1], isUser)}
@@ -248,12 +268,19 @@ const renderMessageContent = (content: string, isUser: boolean) => {
   });
 };
 
-
 export function Chathead() {
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([
-    { role: 'assistant', content: 'Hi, welcome to PinoyBoosting. Tell me what you need, like Facebook followers, reactions, GCash help, or send a Tracking ID and I can check it for you.' }
-  ]);
+  const [isMaximized, setIsMaximized] = useState(false);
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [isDraggingFile, setIsDraggingFile] = useState(false);
+
+  const initialWelcomeMsg: Message = { 
+    role: 'assistant', 
+    content: '👋 Hi! Welcome to **PinoyBoosting** support.\n\nTell me what you need (Facebook followers, reactions, views, TikTok, PisoWiFi, or send a **Tracking ID** like `BS-D5D1D849` to check your live order).' 
+  };
+
+  const [messages, setMessages] = useState<Message[]>([initialWelcomeMsg]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -274,6 +301,26 @@ export function Chathead() {
   const [customerEmail, setCustomerEmail] = useState("");
   const [emailInput, setEmailInput] = useState("");
 
+  const playChime = useCallback(() => {
+    if (!soundEnabled || typeof window === "undefined") return;
+    try {
+      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
+      osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.12); // A5
+      gain.gain.setValueAtTime(0.06, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.31);
+    } catch {}
+  }, [soundEnabled]);
+
   const markAdminRepliesRead = useCallback((emailToMark: string) => {
     fetch("/api/chat/messages", {
       method: "PATCH",
@@ -282,10 +329,6 @@ export function Chathead() {
     }).catch((err) => console.error("Error marking admin replies as read:", err));
   }, []);
 
-  // ── Realtime chat plumbing ──────────────────────────────────────────────────
-  // Supabase Realtime streams new customer_messages rows to this chathead so
-  // admin replies appear instantly without polling. A slow 30s backstop poll
-  // (below) catches anything the realtime channel misses.
   const seenIdsRef = useRef<Set<string>>(new Set());
   const localEchoRef = useRef<Array<{ content: string; role: Message["role"]; ts: number }>>([]);
   const isOpenRef = useRef(isOpen);
@@ -304,7 +347,10 @@ export function Chathead() {
     localEchoRef.current.push({ content: stamped.content, role: stamped.role, ts: Date.now() });
     if (localEchoRef.current.length > 20) localEchoRef.current = localEchoRef.current.slice(-20);
     setMessages((prev) => [...prev, stamped]);
-  }, []);
+    if (msg.role === "assistant") {
+      playChime();
+    }
+  }, [playChime]);
 
   const appendOfferPage = useCallback((offerData: ChatOffersApiResponse, fallbackQuery: string) => {
     if (!offerData.offers?.length) return false;
@@ -382,15 +428,11 @@ export function Chathead() {
       const role: Message["role"] = row.sender === "customer" ? "user" : "assistant";
       const now = Date.now();
       if (!options?.fromHistory) {
-        // Suppress the echo of a message we just appended locally (customer's
-        // own message or the system reply we saved right after rendering it).
         const echo = localEchoRef.current.find(
           (e) => e.role === role && e.content === row.message && now - e.ts < 8000
         );
         if (echo) {
           seenIdsRef.current.add(row.id);
-          // Stamp the matching local bubble with the DB id so later history
-          // merges stay stable and do not duplicate or reorder it.
           setMessages((prev) => {
             const idx = [...prev].reverse().findIndex(
               (m) => !m.id && m.role === role && m.content === row.message
@@ -420,6 +462,8 @@ export function Chathead() {
       ]);
 
       if (row.sender === "customer") return;
+      playChime();
+
       if (isOpenRef.current) {
         if (customerEmailRef.current) markAdminRepliesRead(customerEmailRef.current);
         setUnreadAdminCount(0);
@@ -429,7 +473,7 @@ export function Chathead() {
         setAdminNotice(row.message);
       }
     },
-    [markAdminRepliesRead]
+    [markAdminRepliesRead, playChime]
   );
 
   useCustomerMessagesRealtime({
@@ -461,7 +505,7 @@ export function Chathead() {
       });
   }, [supabase]);
 
-  // 1. Initial Email Session Resolution
+  // Initial Email Session Resolution
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
       if (data?.user?.email) {
@@ -477,9 +521,7 @@ export function Chathead() {
     });
   }, [supabase]);
 
-  // 2. Load chat history once on email connect, then backstop Realtime with a
-  //    slow 30s poll that catches any row the realtime channel missed and keeps
-  //    the unread badge in sync with the database.
+  // Load chat history once on email connect
   useEffect(() => {
     if (!customerEmail) return;
     hasLoadedHistoryRef.current = false;
@@ -520,8 +562,6 @@ export function Chathead() {
             createdAt: m.created_at,
           }));
           setMessages((prev) => {
-            // Keep in-flight local bubbles (not yet in DB) after history so
-            // chronological order stays: older DB rows, then newest local sends.
             const localOnly = prev.filter((local) => {
               if (local.offers?.length) {
                 return !mapped.some((m) => m.content === local.content);
@@ -537,7 +577,6 @@ export function Chathead() {
             return [...mapped, ...localOnly];
           });
         } else {
-          // Backstop catch-up for rows Realtime missed.
           for (const m of dbMsgs) {
             if (!seenIdsRef.current.has(m.id)) {
               applyRemoteInsert({
@@ -580,7 +619,6 @@ export function Chathead() {
     const uuidRegex = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
     const trackRegex = /BS-([0-9a-f]{8})/i;
     
-    // Helper function to resolve Tracking ID or UUID to the full UUID from database
     const resolveToFullUuid = async (inputStr: string): Promise<string> => {
       const uuidMatch = inputStr.match(uuidRegex);
       if (uuidMatch) return uuidMatch[0];
@@ -632,9 +670,6 @@ export function Chathead() {
     pushLocalMessage({ role: 'user', content: `[Attached Payment Proof for Order ${displayId}]` });
 
     try {
-      // Client-side compression saves upload bandwidth and gives the user a
-      // live "compressing" effect with a real before/after byte readout. The
-      // server re-compresses as a safety net regardless.
       setCompressState({
         file,
         originalSize: file.size,
@@ -647,22 +682,18 @@ export function Chathead() {
       });
       const result = await compressImageWithStats(file, {
         onProgress: (p) => {
-          // Drive the progress bar via the ratio field (0 → 1) as the image
-          // loads, resizes, and encodes to a compact JPEG.
           setCompressState((prev) =>
             prev ? { ...prev, ratio: p.progress } : prev
           );
         },
       });
       setCompressState(result);
-      // Briefly show the final compressed size, then clear after upload starts.
       setTimeout(() => setCompressState(null), 2500);
 
       const formData = new FormData();
       formData.append("file", result.file);
       formData.append("orderId", resolvedId);
 
-      // Route the file upload through the secure Next.js server API endpoint
       const res = await fetch("/api/upload-receipt", {
         method: "POST",
         body: formData
@@ -671,21 +702,10 @@ export function Chathead() {
       const uploadData = await res.json() as {
         error?: string;
         receiptAnalysis?: {
-          model?: string;
           decision?: "approved" | "rejected_fake" | "rejected_duplicate" | "manual_review";
-          verified?: boolean;
-          autoApproved?: boolean;
           extractedAmount?: number | null;
-          amountMatches?: boolean | null;
           receiverName?: string | null;
-          receiverAccount?: string | null;
-          receiverInstitution?: string | null;
-          paymentRail?: string | null;
-          receiverMatched?: boolean;
-          referenceNumber?: string | null;
-          referenceUnique?: boolean;
           reason?: string;
-          requiresManualReview?: boolean;
         };
       };
       if (!res.ok) {
@@ -700,17 +720,16 @@ export function Chathead() {
         ? formatPhp(analysis.extractedAmount)
         : "unreadable amount";
       const aiReviewNote = analysis?.decision === "approved"
-        ? `\n\n✅ **Kimi approved the proof:** ${receiptAmount}, destination **${analysis.receiverName || "Henry S."}**, and a unique payment reference all matched. Your order is now processing.`
+        ? `\n\n✅ **Payment verified:** ${receiptAmount}, destination **${analysis.receiverName || "Henry S."}**, and a unique payment reference matched. Your order is now processing!`
         : analysis?.decision === "rejected_fake"
-          ? `\n\n❌ **Kimi rejected the proof:** strong signs of an AI-generated or altered receipt were detected. ${analysis.reason || ""}`.trim()
+          ? `\n\n❌ **Receipt rejected:** signs of an altered receipt were detected. ${analysis.reason || ""}`.trim()
           : analysis?.decision === "rejected_duplicate"
-            ? `\n\n❌ **Kimi rejected the proof:** that payment reference was already used on another active transaction.`
-            : `\n\n🔎 **Kimi sent this for manual review:** ${analysis?.reason || "The payment destination, reference number, or amount could not be fully confirmed."}`;
-      // Add success response from AI
+            ? `\n\n❌ **Receipt rejected:** that payment reference was already used on another active transaction.`
+            : `\n\n🔎 **Sent for manual review:** ${analysis?.reason || "Admin has been notified and will verify within 15 minutes."}`;
+
       pushLocalMessage({
         role: 'assistant',
-        content: `🎉 **Receipt screenshot successfully received!**\n\nIt has been automatically linked to **Tracking ID: ${displayId}**.${aiReviewNote}${analysis?.decision === "manual_review" ? "\n\nAdmin has been notified and can approve or reject it from the existing review flow." : ""}${savedLabel ? `\n\n📦 Image optimized${savedLabel}.`
- : ""}`
+        content: `🎉 **Receipt screenshot successfully received!**\n\nLinked to **Tracking ID: ${displayId}**.${aiReviewNote}${savedLabel ? `\n\n📦 Image optimized${savedLabel}.` : ""}`
       });
       setPendingReceiptOrder(null);
 
@@ -743,6 +762,18 @@ export function Chathead() {
           e.preventDefault();
           await uploadReceiptFile(file);
         }
+      }
+    }
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDraggingFile(false);
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      const file = files[0];
+      if (file.type.startsWith("image/")) {
+        await uploadReceiptFile(file);
       }
     }
   };
@@ -839,9 +870,7 @@ export function Chathead() {
       amount?: number;
       quantity?: number;
       serviceTitle?: string;
-      balance?: number;
       requiredAmount?: number;
-      shortfall?: number;
     };
 
     if (walletRes.ok && walletData.orderId) {
@@ -905,14 +934,27 @@ export function Chathead() {
     }
     pushLocalMessage({
       role: "assistant",
-      content: `💳 **Your wallet balance is not enough, so it was not charged.**\n\nI created **${trackingId}** for payment.\n\n* **Pay exactly:** ${formatPhp(amount)}\n* **GCash destination:** 09505339963\n* **Receiver:** Henry S.\n\nYou may pay directly in GCash or send an InstaPay/bank transfer to this GCash destination. Then tap the image button below and upload the payment proof. Kimi will check the destination, unique reference, amount, and visible signs of a fake or altered receipt.`,
+      content: `💳 **Wallet balance is not enough, so it was not charged.**\n\nI created **${trackingId}** for payment.\n\n* **Pay exactly:** ${formatPhp(amount)}\n* **GCash destination:** 09505339963\n* **Receiver:** Henry S.\n* **BPI Option:** #4059901356\n\nPay via GCash or Bank Transfer, then click the image icon or drag-and-drop your receipt screenshot here to verify!`,
     });
+  };
+
+  const handleCopy = (text: string, id: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const handleClearChat = () => {
+    if (confirm("Clear support chat history on your screen?")) {
+      setMessages([initialWelcomeMsg]);
+      setPendingCheckoutOffer(null);
+      setPendingReceiptOrder(null);
+    }
   };
 
   const sendMessage = async (userMsg: string) => {
     setIsLoading(true);
 
-    // Save customer message to Database in background
     if (customerEmail) {
       fetch("/api/chat/messages", {
         method: "POST",
@@ -979,7 +1021,7 @@ export function Chathead() {
         }
       }
 
-      // 1. Check for Order ID or Tracking ID in the user's message
+      // Check for Order ID or Tracking ID in the user's message
       const uuidRegex = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
       const trackRegex = /BS-([0-9a-f]{8})/i;
       
@@ -1001,17 +1043,16 @@ export function Chathead() {
 
         if (data && !error) {
           const displayId = `BS-${data.id.slice(0, 8).toUpperCase()}`;
-          // INSTANTLY reply directly without AI delay!
-          const reply = `🔍 **Order Status Details:**\n\n* **Tracking ID:** ${displayId}\n* **Service:** ${data.services?.title}\n* **Quantity:** ${data.quantity.toLocaleString()} items\n* **Target URL:** ${data.target_url}\n* **Amount:** ₱${Number(data.amount).toFixed(2)}\n* **Status:** **${data.status}**\n\n${
+          const reply = `🔍 **Order Status Details:**\n\n* **Tracking ID:** ${displayId}\n* **Service:** ${data.services?.title || "Boost Service"}\n* **Quantity:** ${data.quantity.toLocaleString()} units\n* **Target Link:** ${data.target_url}\n* **Amount:** ₱${Number(data.amount).toFixed(2)} PHP\n* **Status:** **${data.status}**\n\n${
             data.status === 'Pending' 
-              ? 'Your order is currently **Pending** verification. Once your GCash payment screenshot is uploaded (click 📷 or paste it here!), our team will verify and start full delivery shortly! 🚀' 
+              ? 'Your order is currently **Pending** verification. Upload your GCash/Bank receipt screenshot here (click 📷 or drag-and-drop!) to confirm delivery! 🚀' 
               : data.status === 'Processing' 
-              ? 'Your order is currently **Processing** and active! Results are being delivered to your target link. ⚡' 
+              ? 'Your order is currently **Processing** and active! Delivery is ongoing. ⚡' 
               : data.status === 'Completed' 
-              ? 'Your order has been successfully **Completed**! All amplification quantities have been delivered. Thank you! 🎉' 
+              ? 'Your order has been successfully **Completed**! All units delivered. Thank you! 🎉' 
               : data.status === 'Rejected'
               ? 'Your order status is **Rejected**. Please contact support if you believe this is an error.'
-              : 'Your order status is **Cancelled**. Please contact support if you believe this is an error.'
+              : 'Your order status is **Cancelled**. Funds have been credited to your wallet balance.'
           }`;
           pushLocalMessage({ role: 'assistant', content: reply });
           setIsLoading(false);
@@ -1030,7 +1071,7 @@ export function Chathead() {
           return;
         } else {
           const checkId = uuidMatch ? uuidMatch[0] : `BS-${trackMatch![1].toUpperCase()}`;
-          const notFoundReply = `❌ **Order ID Not Found**\n\nI couldn't locate any order with ID: **${checkId}**.\n\nPlease double-check the ID or copy it directly from your checkout success modal and try again!`;
+          const notFoundReply = `❌ **Order ID Not Found**\n\nI couldn't locate any order with ID: **${checkId}**.\n\nPlease double-check the ID or copy it directly from your checkout success screen and try again!`;
           pushLocalMessage({ role: 'assistant', content: notFoundReply });
           setIsLoading(false);
 
@@ -1049,62 +1090,9 @@ export function Chathead() {
         }
       }
 
-      // 2. Call Pollinations AI for general chatbot messages (Free, unlimited, no API key required)
-      const servicesCatalogText = dbServices.length > 0
-        ? dbServices.map(srv => {
-            let minQtyStr = "";
-            let freeTrialStr = "";
-            try {
-              const parsed = parseDescription(srv.description);
-              if (parsed) {
-                if (parsed.min_qty) minQtyStr = ` (Min order: ${parsed.min_qty})`;
-                if (parsed.free_trial_amount) freeTrialStr = ` (Free Trial: ${parsed.free_trial_amount} units available!)`;
-              }
-            } catch {}
-            
-            const isSingleSrv = 
-              srv.title.toLowerCase().includes("page") || 
-              srv.title.toLowerCase().includes("gemini") || 
-              srv.title.toLowerCase().includes("eap") || 
-              srv.title.toLowerCase().includes("tplink") || 
-              srv.title.toLowerCase().includes("software") || 
-              srv.title.toLowerCase().includes("architectural") || 
-              srv.title.toLowerCase().includes("license") ||
-              srv.id === "03185a81-49f3-4255-868e-9e9ec3189497";
-              
-            if (isSingleSrv) {
-              return `- **${srv.title}:** ₱${Number(srv.starting_price).toFixed(2)} per unit.${minQtyStr}${freeTrialStr}`;
-            }
-            const perThousandPrice = Number(srv.starting_price) * 1000;
-            return `- **${srv.title}:** ₱${perThousandPrice.toFixed(2)} per 1,000 units.${minQtyStr}${freeTrialStr}`;
-          }).join('\n')
-        : `- Facebook Followers: ₱10 per 1,000 followers.\n- Post Reactions (Likes, Hearts, etc.): ₱5 per 1,000 reactions.\n- Video Views (for Reels, Stories, etc.): ₱13 per 1,000 views.`;
-
-      const systemContext = `You are a friendly, natural, and conversational customer support agent for PinoyBoosting (developed by Cyrhiel Moralla). Avoid sounding robotic, cold, or artificial. Answer questions like a real human support desk representative who is warm, welcoming, and direct. Use natural Taglish (Tagalog-English mix) or Bisaya where appropriate to sound friendly and approachable to local clients. Keep replies brief (1-3 sentences max) unless the customer asks for detail. You can answer general questions outside PinoyBoosting too; for non-service questions, answer normally. Start with the answer, then give the next step.
-
-Our live real-time core services and pricing catalog (fetched dynamically from our active database):
-${servicesCatalogText}
-
-CYNETWORK CRITICAL STORE POLICIES & INFORMATION:
-1. **Developer Handshake:** This entire platform is designed and developed by Cyrhiel Moralla. He manually verifies payments, supports architectural setups, and handles support.
-2. **50 Free Trial:** We provide 50 free trial followers, reactions, or views so clients can test our speed before paying! Fully transparent.
-3. **100% Monetization & Adsense Compliant:** CYNETWORK filters out toxic spam bots that direct panels deliver. We guarantee 100% compliance with Adsense, page monetization, and ads guidelines.
-4. **PH Base Organic Notice:** Philippine-based organic local follower services take time to source verified PH profiles. They take up to 24 hours to deliver but ensure maximum retention.
-5. **GCash QR Payments:** Clients pay directly using GCash. They upload the screenshot receipt here or send their Tracking ID in chat for instant manual verification.
-6. **Refund Guarantee:** Orders that fail to process or start are instantly credited back to the customer's wallet balance.
-7. **Status Tracking:** Every order has a Tracking ID (e.g. BS-D5D1D849). Typing it in this chathead instantly queries our live database status (Pending, Processing, Completed).
-8. **Why we win against direct panels like RixeySMM:** Standard wholesale panels require crypto, provide zero Taglish support, and deliver foreign bots that trigger page bans. CYNETWORK has GCash support, Taglish developer care, and safety filtering.
-
-Tone rules:
-- Use the customer's words where possible, like "No worries", "Got you", or "Sure" only when it feels natural.
-- If the question is vague, ask one simple follow-up instead of dumping a long menu.
-- Never invent prices, order statuses, discounts, timelines, or policies.
-- Format list items on separate lines with simple bullets (e.g. * **Item:** text) only when a list is genuinely helpful. Always keep answers warm, human-like, concise, and fully aligned with CYNETWORK policies.`;
-
-      // Slice messages history to the last 4 exchanges to keep request size tiny and super fast!
-      const recentMessages = messages.slice(-4);
+      // Query server AI route
+      const recentMessages = messages.slice(-5);
       const apiMessages = [
-        { role: 'system', content: systemContext },
         ...recentMessages.map(m => ({ role: m.role, content: m.content })),
         { role: 'user', content: userMsg }
       ];
@@ -1113,39 +1101,33 @@ Tone rules:
       try {
         const res = await fetch('/api/chat', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ messages: apiMessages })
         });
 
         if (res.ok) {
           const data = await res.json();
           responseText = data.content || "";
-        } else {
-          console.warn(`Server AI route returned status ${res.status}`);
         }
       } catch (fetchErr) {
         console.error("Failed to query server AI route:", fetchErr);
       }
 
       if (!responseText) {
-        // Safe, smart local fallback context based on user keywords
         const text = userMsg.toLowerCase();
         if (text.includes("price") || text.includes("cost") || text.includes("magkano") || text.includes("pricing") || text.includes("package")) {
-          responseText = `Sure. Prices depend on the exact service and quantity, so the best step is to open SERVICES and pick the package that matches your goal.\n\nTell me the platform, like Facebook followers or TikTok views, and I can narrow it down for you.`;
-        } else if (text.includes("payment") || text.includes("gcash") || text.includes("bayad")) {
-          responseText = `Yes, GCash is accepted. After checkout, upload the receipt screenshot here or on the payment step so admin can verify it and start processing your order.`;
-        } else if (text.includes("who") || text.includes("owner") || text.includes("create") || text.includes("develop") || text.includes("make")) {
-          responseText = `PinoyBoosting/CYNETWORK was created and developed by **Cyrhiel Moralla**. He also handles manual verification and support workflows.`;
+          responseText = `💰 Prices vary by platform:\n* **Facebook Followers:** ₱10 per 1,000\n* **FB Post Reactions:** ₱5 per 1,000\n* **Video Views:** ₱13 per 1,000\n* **TikTok Followers:** ₱45 per 1,000\n\nOpen SERVICES to choose a package!`;
+        } else if (text.includes("payment") || text.includes("gcash") || text.includes("bayad") || text.includes("bpi")) {
+          responseText = `💳 We accept **GCash** (09505339963 • Henry S.) and **BPI Bank Transfer** (#4059901356). Upload your screenshot here after paying for instant approval.`;
+        } else if (text.includes("who") || text.includes("owner") || text.includes("create") || text.includes("developer") || text.includes("cyrhiel")) {
+          responseText = `PinoyBoosting was created and developed by **Cyrhiel Moralla**. Check his Facebook profile: [Cyrhiel Moralla](https://www.facebook.com/profile.php?id=61584774638218).`;
         } else {
-          responseText = `Got you. Tell me what you want to grow or set up, like followers, reactions, views, PisoWiFi, or wallet top-up. If you have an order already, send a Tracking ID like BS-D5D1D849 and I can check it.`;
+          responseText = `Got you! Tell me what you'd like to boost (Facebook, TikTok, Instagram, YouTube) or paste a Tracking ID like **BS-D5D1D849** and I'll check it right away!`;
         }
       }
 
       pushLocalMessage({ role: 'assistant', content: responseText });
 
-      // Save bot reply to Database in background
       if (customerEmail && responseText) {
         fetch("/api/chat/messages", {
           method: "POST",
@@ -1160,7 +1142,7 @@ Tone rules:
 
     } catch (err: unknown) {
       console.error(err);
-      pushLocalMessage({ role: 'assistant', content: `Sorry, I had trouble connecting for a moment. Please try again, or send your Tracking ID if you want me to check an order.` });
+      pushLocalMessage({ role: 'assistant', content: `Sorry, I had trouble connecting. Please send your Tracking ID or try again!` });
     } finally {
       setIsLoading(false);
     }
@@ -1184,92 +1166,188 @@ Tone rules:
 
   return (
     <>
+      {/* Unread Message Pill Alert */}
       {!isOpen && unreadAdminCount > 0 && (
         <button
           type="button"
           onClick={() => openSupportChat()}
-          className="fixed bottom-[calc(env(safe-area-inset-bottom)+4.25rem)] right-3 z-50 max-w-[250px] rounded-2xl border border-red-400/25 bg-card px-4 py-3 text-left shadow-2xl shadow-red-500/10 transition-all hover:border-red-400/45 hover:bg-elevated sm:bottom-24 sm:right-6"
+          className="fixed bottom-[calc(env(safe-area-inset-bottom)+4.5rem)] right-3 z-50 max-w-[280px] rounded-2xl border border-red-500/30 bg-[#181818] p-3.5 text-left shadow-2xl shadow-red-500/20 transition-all hover:border-red-400 hover:scale-105 active:scale-95 sm:bottom-24 sm:right-6 animate-bounce"
         >
-          <span className="block text-[10px] font-black uppercase tracking-widest text-red-300">
-            Admin replied
-          </span>
-          <span className="mt-1 block truncate text-xs font-semibold text-fg">
-            {adminNotice || "Open chat to read the message."}
+          <div className="flex items-center gap-2 mb-1">
+            <span className="h-2 w-2 rounded-full bg-red-500 animate-ping" />
+            <span className="text-[10px] font-black uppercase tracking-widest text-red-400">
+              Admin replied ({unreadAdminCount})
+            </span>
+          </div>
+          <span className="block truncate text-xs font-bold text-white">
+            {adminNotice || "Open chat to read message"}
           </span>
         </button>
       )}
 
-      {/* Floating Button */}
-      <button 
-        onClick={() => {
-          if (isOpen) {
-            setIsOpen(false);
-          } else {
-            openSupportChat();
-          }
-        }}
-        className="fixed bottom-[calc(env(safe-area-inset-bottom)+0.75rem)] right-3 z-50 flex h-12 w-12 items-center justify-center overflow-visible rounded-full shadow-[0_0_20px_rgba(24,119,242,0.4)] transition-all duration-300 hover:scale-110 hover:shadow-[0_0_25px_rgba(24,119,242,0.6)] focus:outline-none group sm:bottom-6 sm:right-6 sm:h-[60px] sm:w-[60px]"
-        aria-label={isOpen ? "Close support chat" : "Open support chat"}
-      >
-        {isOpen ? (
-          <div className="bg-[#1877F2] hover:bg-[#4e8df5] text-white w-full h-full rounded-full flex items-center justify-center transition-all duration-300">
-            <X size={24} className="transition-transform duration-300 group-hover:rotate-90" />
-          </div>
-        ) : (
-          <div className="relative w-full h-full rounded-full p-0.5 bg-gradient-to-tr from-[#1877F2] via-blue-500 to-[#4e8df5] flex items-center justify-center">
-            {/* Online Indicator Badge */}
-            {unreadAdminCount > 0 ? (
-              <span className="absolute -top-1.5 -right-1.5 z-20 flex min-h-6 min-w-6 items-center justify-center rounded-full border-2 border-[#121212] bg-red-500 px-1 text-[10px] font-black text-white shadow-lg">
-                {unreadAdminCount > 9 ? "9+" : unreadAdminCount}
-              </span>
-            ) : (
-              <span className="absolute -top-0.5 -right-0.5 flex h-3.5 w-3.5 z-10">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#1877F2] opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-[#1877F2] border-2 border-[#121212]"></span>
-              </span>
-            )}
-            <div className="w-full h-full rounded-full overflow-hidden bg-[#181818] flex items-center justify-center">
-              <NextImage
-                src="/chathead-face.png" 
-                alt="Support Face" 
-                width={60}
-                height={60}
-                className="w-full h-full object-cover select-none pointer-events-none group-hover:scale-105 transition-transform duration-300"
-              />
-            </div>
+      {/* Floating Chathead Button */}
+      <div className="fixed bottom-[calc(env(safe-area-inset-bottom)+0.75rem)] right-3 sm:bottom-6 sm:right-6 z-50 flex items-center gap-3">
+        {/* Subtle Greeting Bubble */}
+        {!isOpen && unreadAdminCount === 0 && (
+          <div 
+            onClick={() => openSupportChat()}
+            className="hidden md:flex items-center gap-2 bg-[#181818]/95 backdrop-blur-md border border-white/10 hover:border-[#1DB954]/50 py-2 px-3.5 rounded-2xl shadow-xl text-xs font-bold text-zinc-200 hover:text-white cursor-pointer transition-all duration-300 hover:scale-105 select-none animate-in fade-in slide-in-from-right-4"
+          >
+            <Sparkles size={14} className="text-[#1DB954]" />
+            <span>Chat Support & Tracking</span>
           </div>
         )}
-      </button>
 
-      {/* Chat Window */}
-      {isOpen && (
-        <div className="fixed bottom-[calc(env(safe-area-inset-bottom)+4.25rem)] left-3 right-3 z-50 h-[500px] max-h-[78vh] bg-card border border-border/80 rounded-2xl shadow-2xl flex flex-col overflow-hidden sm:left-auto sm:bottom-24 sm:right-6 sm:w-96 sm:max-h-[80vh]">
-          {/* Header */}
-          <div className="bg-elevated border-b border-border p-4 text-fg flex items-center justify-between">
-            <div>
-              <h3 className="font-bold text-sm tracking-tight text-fg">CY<span className="text-[#1DB954]">NETWORK</span> Support</h3>
-              <p className="text-[10px] text-[#1877F2] font-semibold mt-0.5 tracking-wider uppercase">DeepSeek V4 Flash · Kimi Receipt Vision</p>
+        <button 
+          onClick={() => {
+            if (isOpen) {
+              setIsOpen(false);
+            } else {
+              openSupportChat();
+            }
+          }}
+          className="relative flex h-13 w-13 sm:h-15 sm:w-15 items-center justify-center rounded-full shadow-[0_0_25px_rgba(24,119,242,0.45)] transition-all duration-300 hover:scale-110 active:scale-95 group focus:outline-none"
+          aria-label={isOpen ? "Close support chat" : "Open support chat"}
+        >
+          {isOpen ? (
+            <div className="bg-[#1877F2] hover:bg-[#166fe5] text-white w-full h-full rounded-full flex items-center justify-center shadow-lg transition-transform duration-300">
+              <X size={24} className="transition-transform duration-300 group-hover:rotate-90" />
             </div>
-            <button onClick={() => setIsOpen(false)} className="text-muted hover:text-fg transition-colors">
-              <X size={18} />
-            </button>
+          ) : (
+            <div className="relative w-full h-full rounded-full p-0.5 bg-gradient-to-tr from-[#1877F2] via-blue-500 to-[#1DB954] flex items-center justify-center">
+              {/* Online Indicator Badge */}
+              {unreadAdminCount > 0 ? (
+                <span className="absolute -top-1.5 -right-1.5 z-20 flex min-h-6 min-w-6 items-center justify-center rounded-full border-2 border-[#121212] bg-red-500 px-1 text-[10px] font-black text-white shadow-lg animate-pulse">
+                  {unreadAdminCount > 9 ? "9+" : unreadAdminCount}
+                </span>
+              ) : (
+                <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 z-10">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#1DB954] opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-4 w-4 bg-[#1DB954] border-2 border-[#121212]"></span>
+                </span>
+              )}
+              <div className="w-full h-full rounded-full overflow-hidden bg-[#181818] flex items-center justify-center">
+                <NextImage
+                  src="/chathead-face.png" 
+                  alt="Support Agent" 
+                  width={60}
+                  height={60}
+                  className="w-full h-full object-cover select-none pointer-events-none group-hover:scale-105 transition-transform duration-300"
+                />
+              </div>
+            </div>
+          )}
+        </button>
+      </div>
+
+      {/* Chat Window Modal */}
+      {isOpen && (
+        <div 
+          onDragOver={(e) => { e.preventDefault(); setIsDraggingFile(true); }}
+          onDragLeave={() => setIsDraggingFile(false)}
+          onDrop={handleDrop}
+          className={`fixed z-50 bg-[#121212] border border-white/15 rounded-3xl shadow-2xl flex flex-col overflow-hidden transition-all duration-300 ${
+            isMaximized 
+              ? "inset-2 sm:inset-auto sm:right-6 sm:bottom-6 sm:w-[720px] sm:h-[820px] sm:max-h-[92vh]" 
+              : "bottom-[calc(env(safe-area-inset-bottom)+4.5rem)] left-3 right-3 h-[540px] max-h-[82vh] sm:left-auto sm:bottom-24 sm:right-6 sm:w-[410px] sm:h-[600px] sm:max-h-[85vh]"
+          }`}
+        >
+          {/* Drag Overlay */}
+          {isDraggingFile && (
+            <div className="absolute inset-0 z-50 bg-[#1877F2]/90 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center text-white border-2 border-dashed border-white/80 animate-in fade-in duration-200">
+              <UploadCloud size={48} className="animate-bounce mb-3" />
+              <h4 className="text-lg font-black uppercase tracking-wider">Drop Payment Screenshot</h4>
+              <p className="text-xs text-white/90 mt-1">Release file to automatically upload receipt and match with your order</p>
+            </div>
+          )}
+
+          {/* Header */}
+          <div className="bg-[#181818] border-b border-white/10 p-3.5 sm:p-4 text-white flex items-center justify-between select-none">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="relative w-8 h-8 rounded-full overflow-hidden border border-white/20 shrink-0">
+                <NextImage 
+                  src="/chathead-face.png" 
+                  alt="Avatar" 
+                  fill 
+                  className="object-cover"
+                />
+              </div>
+              <div className="truncate">
+                <div className="flex items-center gap-2">
+                  <h3 className="font-black text-sm tracking-tight text-white flex items-center gap-1.5 truncate">
+                    <span>PinoyBoosting</span>
+                    <span className="text-[10px] bg-[#1DB954] text-black font-black px-1.5 py-0.2 rounded-md uppercase">AI</span>
+                  </h3>
+                </div>
+                <p className="text-[10px] text-zinc-400 font-medium tracking-wide truncate">
+                  DeepSeek Core · Live Order Tracking
+                </p>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex items-center gap-1 shrink-0 text-zinc-400">
+              {/* Sound Toggle */}
+              <button
+                type="button"
+                onClick={() => setSoundEnabled(!soundEnabled)}
+                className="p-2 hover:text-white hover:bg-white/10 rounded-xl transition cursor-pointer"
+                title={soundEnabled ? "Mute sounds" : "Unmute sounds"}
+              >
+                {soundEnabled ? <Volume2 size={16} /> : <VolumeX size={16} className="text-zinc-600" />}
+              </button>
+
+              {/* Clear Chat */}
+              <button
+                type="button"
+                onClick={handleClearChat}
+                className="p-2 hover:text-red-400 hover:bg-white/10 rounded-xl transition cursor-pointer"
+                title="Clear chat"
+              >
+                <Trash2 size={16} />
+              </button>
+
+              {/* Maximize / Restore Toggle */}
+              <button
+                type="button"
+                onClick={() => setIsMaximized(!isMaximized)}
+                className="p-2 hover:text-white hover:bg-white/10 rounded-xl transition cursor-pointer"
+                title={isMaximized ? "Restore size" : "Maximize window"}
+              >
+                {isMaximized ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+              </button>
+
+              {/* Close Button */}
+              <button 
+                type="button"
+                onClick={() => setIsOpen(false)} 
+                className="p-2 hover:text-white hover:bg-white/10 rounded-xl transition cursor-pointer ml-1"
+                title="Close chat"
+              >
+                <X size={18} />
+              </button>
+            </div>
           </div>
 
-          {/* Email Support Sync sub-header */}
+          {/* Email Support Sync Sub-header */}
           {!customerEmail ? (
-            <div className="bg-card border-b border-border p-3 text-xs text-fg flex flex-col gap-2 flex-shrink-0">
+            <div className="bg-[#181818]/60 border-b border-white/10 p-3 text-xs text-white flex flex-col gap-2 shrink-0">
               <div className="flex items-center justify-between">
-                <span className="font-bold text-[#1DB954]">💬 Live Support Chat Available!</span>
-                <span className="text-[9px] text-muted font-extrabold uppercase tracking-wide">Sync Account</span>
+                <span className="font-bold text-[#1DB954] flex items-center gap-1.5">
+                  <Sparkles size={13} /> Link Email for Order Sync
+                </span>
+                <span className="text-[9px] text-zinc-500 uppercase font-black">Session Sync</span>
               </div>
-              <p className="text-[10px] text-muted leading-normal">Link your email to instantly message our admin desk and load your previous message history!</p>
-              <div className="flex gap-1.5 mt-0.5">
+              <p className="text-[10px] text-zinc-400 leading-normal">
+                Enter your email to load your previous order history and chat directly with admin support!
+              </p>
+              <div className="flex gap-1.5">
                 <input
                   type="email"
                   placeholder="Enter email to connect..."
                   value={emailInput}
                   onChange={(e) => setEmailInput(e.target.value)}
-                  className="flex-1 bg-elevated border border-border text-fg rounded-lg px-2.5 py-1 text-xs focus:outline-none focus:border-[#1DB954] font-medium"
+                  className="flex-1 bg-black/40 border border-white/15 text-white rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:border-[#1DB954] font-medium"
                 />
                 <button
                   type="button"
@@ -1284,16 +1362,16 @@ Tone rules:
                       localStorage.setItem("last_order_email", trimmed);
                     }
                   }}
-                  className="bg-[#1DB954] hover:bg-[#1ed760] text-black font-extrabold px-3 py-1 rounded-lg text-[10px] uppercase tracking-wider transition-colors"
+                  className="bg-[#1DB954] hover:bg-[#1ed760] text-black font-black px-3.5 py-1.5 rounded-xl text-[10px] uppercase tracking-wider transition active:scale-95 cursor-pointer"
                 >
                   Connect
                 </button>
               </div>
             </div>
           ) : (
-            <div className="bg-[#1DB954]/5 border-b border-[#1DB954]/15 p-2.5 px-4 flex items-center justify-between text-muted text-[10px] font-bold flex-shrink-0">
-              <span className="flex items-center gap-1.5 text-[#1DB954] truncate max-w-[200px]">
-                <span className="relative flex h-2 w-2 flex-shrink-0">
+            <div className="bg-[#1DB954]/8 border-b border-[#1DB954]/20 p-2.5 px-4 flex items-center justify-between text-zinc-400 text-[10px] font-bold shrink-0">
+              <span className="flex items-center gap-1.5 text-[#1DB954] truncate max-w-[240px]">
+                <span className="relative flex h-2 w-2 shrink-0">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#1DB954] opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-[#1DB954]"></span>
                 </span>
@@ -1301,7 +1379,7 @@ Tone rules:
               </span>
               <button 
                 onClick={() => {
-                  if (confirm("Disconnect support session? You can reconnect using your email anytime.")) {
+                  if (confirm("Disconnect support session? You can reconnect anytime.")) {
                     setCustomerEmail("");
                     setUnreadAdminCount(0);
                     setAdminNotice("");
@@ -1310,213 +1388,213 @@ Tone rules:
                     }
                   }
                 }}
-                className="text-red-400 hover:text-red-300 font-extrabold uppercase tracking-widest text-[9px] hover:underline transition-colors flex-shrink-0"
+                className="text-red-400 hover:text-red-300 font-black uppercase tracking-wider text-[9px] hover:underline transition cursor-pointer"
               >
                 Disconnect
               </button>
             </div>
           )}
 
-          {/* Messages — user bubbles hug the right; AI/support hugs the left */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-elevated">
+          {/* Messages Area */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-black/40">
             {messages.map((msg, i) => {
               const isUser = msg.role === "user";
-              const maxWidth = msg.offers?.length ? "max-w-[92%]" : isUser ? "max-w-[75%]" : "max-w-[82%]";
+              const maxWidth = isMaximized 
+                ? (msg.offers?.length ? "max-w-[95%]" : isUser ? "max-w-[70%]" : "max-w-[85%]")
+                : (msg.offers?.length ? "max-w-[95%]" : isUser ? "max-w-[80%]" : "max-w-[88%]");
+
+              const msgKey = msg.id || `msg-${i}`;
+
               return (
-              <div
-                key={msg.id || `local-${msg.role}-${msg.createdAt ?? i}-${i}`}
-                className={`flex w-full ${isUser ? "justify-end" : "justify-start"}`}
-              >
                 <div
-                  className={`${maxWidth} ${isUser ? "ml-auto" : "mr-auto"} rounded-2xl px-4 py-2.5 text-sm shadow-sm break-words ${
-                    isUser
-                      ? "bg-[#1877F2] text-white font-semibold rounded-br-none"
-                      : "bg-card border border-border/60 text-fg rounded-bl-none"
-                  }`}
+                  key={msgKey}
+                  className={`flex w-full group ${isUser ? "justify-end" : "justify-start"}`}
                 >
-                  <span className={`mb-1 block text-[9px] font-black uppercase tracking-widest ${
-                    isUser ? "text-white/70 text-right" : "text-muted"
-                  }`}>
-                    {isUser ? "You" : "Support"}
-                  </span>
-                  {renderMessageContent(msg.content, isUser)}
-                  {msg.offers?.length ? (
-                    <div className="mt-3 space-y-2.5">
-                      {msg.offers.map((offer) => {
-                        const status = offerActionStatus[offer.actionKey] || "idle";
-                        const busy = status === "processing";
-                        const terminal = status === "purchased" || status === "cancelled";
-                        const quantityInput = offerQuantityInputs[offer.actionKey] ?? String(offer.quantity);
-                        const selectedOffer = getSelectedOffer(offer);
-                        const minimumQuantity = getOfferMinimumQuantity(offer);
-                        const maximumQuantity = getOfferMaximumQuantity(offer);
-                        const quantityLocked = status !== "idle" || isLoading || uploading || Boolean(pendingCheckoutOffer);
-                        return (
-                          <div
-                            key={offer.actionKey}
-                            className="rounded-xl border border-[#1877F2]/25 bg-elevated/80 p-3 shadow-inner"
+                  <div className={`relative ${maxWidth} ${isUser ? "ml-auto" : "mr-auto"}`}>
+                    <div
+                      className={`rounded-2xl px-4 py-3 text-sm shadow-sm break-words ${
+                        isUser
+                          ? "bg-[#1877F2] text-white font-semibold rounded-br-none"
+                          : "bg-[#1c1c1c] border border-white/10 text-zinc-100 rounded-bl-none"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1.5 gap-2">
+                        <span className={`block text-[9px] font-black uppercase tracking-widest ${
+                          isUser ? "text-white/80" : "text-[#1877F2]"
+                        }`}>
+                          {isUser ? "You" : "PinoyBoosting Support"}
+                        </span>
+                        
+                        {/* Copy Message Button */}
+                        {!isUser && (
+                          <button
+                            type="button"
+                            onClick={() => handleCopy(msg.content, msgKey)}
+                            className="opacity-0 group-hover:opacity-100 text-zinc-400 hover:text-white transition p-1 rounded-md hover:bg-white/10"
+                            title="Copy text"
                           >
-                            <div className="flex items-center justify-between gap-2">
-                              <span className="rounded-full bg-[#1877F2]/12 px-2 py-1 text-[9px] font-black uppercase tracking-wider text-[#4e8df5]">
-                                {offer.platform} · SMM #{offer.smmServiceId}
-                              </span>
-                              <span className="text-[9px] font-bold uppercase tracking-wider text-muted">
-                                {status === "awaiting_target" ? "Waiting for link" :
-                                  status === "awaiting_receipt" ? "Waiting for payment proof" :
-                                  status === "purchased" ? "Purchased" :
-                                  status === "cancelled" ? "Cancelled" :
-                                  busy ? "Checking out" : "Live offer"}
-                              </span>
-                            </div>
-                            <p className="mt-2 line-clamp-2 text-xs font-black leading-snug text-fg">
-                              {offer.name}
-                            </p>
-                            <div className="mt-2 grid grid-cols-2 gap-2 text-[10px]">
-                              <label
-                                className={`rounded-lg border bg-card px-2 py-1.5 transition ${
-                                  selectedOffer ? "border-border/60 focus-within:border-[#1877F2]/70" : "border-red-400/50"
-                                }`}
+                            {copiedId === msgKey ? (
+                              <Check size={12} className="text-emerald-400" />
+                            ) : (
+                              <Copy size={12} />
+                            )}
+                          </button>
+                        )}
+                      </div>
+
+                      {renderMessageContent(msg.content, isUser)}
+
+                      {/* Live SMM Catalog Offers */}
+                      {msg.offers?.length ? (
+                        <div className={`mt-3.5 space-y-2.5 ${isMaximized ? "grid grid-cols-1 sm:grid-cols-2 gap-3 space-y-0" : ""}`}>
+                          {msg.offers.map((offer) => {
+                            const status = offerActionStatus[offer.actionKey] || "idle";
+                            const busy = status === "processing";
+                            const terminal = status === "purchased" || status === "cancelled";
+                            const quantityInput = offerQuantityInputs[offer.actionKey] ?? String(offer.quantity);
+                            const selectedOffer = getSelectedOffer(offer);
+                            const minimumQuantity = getOfferMinimumQuantity(offer);
+                            const maximumQuantity = getOfferMaximumQuantity(offer);
+                            const quantityLocked = status !== "idle" || isLoading || uploading || Boolean(pendingCheckoutOffer);
+
+                            return (
+                              <div
+                                key={offer.actionKey}
+                                className="rounded-2xl border border-white/10 bg-[#161616] p-3.5 shadow-inner flex flex-col justify-between"
                               >
-                                <span className="block text-muted">Quantity</span>
-                                <input
-                                  type="number"
-                                  inputMode="numeric"
-                                  min={minimumQuantity}
-                                  max={maximumQuantity ?? undefined}
-                                  step={1}
-                                  value={quantityInput}
-                                  onChange={(event) => {
-                                    setOfferQuantityInputs((current) => ({
-                                      ...current,
-                                      [offer.actionKey]: event.target.value,
-                                    }));
-                                  }}
-                                  disabled={quantityLocked}
-                                  aria-label={`Quantity for ${offer.name}`}
-                                  aria-invalid={!selectedOffer}
-                                  className="mt-0.5 w-full bg-transparent text-xs font-black text-fg outline-none disabled:cursor-not-allowed disabled:opacity-70"
-                                />
-                                <span className="mt-0.5 block text-[8px] text-muted">
-                                  Min {minimumQuantity.toLocaleString()}
-                                  {maximumQuantity !== null ? ` · Max ${maximumQuantity.toLocaleString()}` : ""}
-                                </span>
-                              </label>
-                              <div className="rounded-lg border border-[#1DB954]/20 bg-[#1DB954]/5 px-2 py-1.5">
-                                <span className="block text-muted">
-                                  {offer.vipDiscountPercent > 0 ? `Est. VIP -${offer.vipDiscountPercent}%` : "Estimated total"}
-                                </span>
-                                <strong className={selectedOffer ? "text-[#1DB954]" : "text-red-300"}>
-                                  {selectedOffer ? formatPhp(selectedOffer.total) : "Check quantity"}
-                                </strong>
+                                <div>
+                                  <div className="flex items-center justify-between gap-2">
+                                    <span className="rounded-lg bg-[#1877F2]/15 border border-[#1877F2]/30 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-[#4e8df5]">
+                                      {offer.platform} · #{offer.smmServiceId}
+                                    </span>
+                                    <span className="text-[9px] font-bold uppercase tracking-wider text-zinc-400">
+                                      {status === "awaiting_target" ? "Waiting for link" :
+                                        status === "awaiting_receipt" ? "Waiting for payment" :
+                                        status === "purchased" ? "Purchased" :
+                                        status === "cancelled" ? "Cancelled" :
+                                        busy ? "Processing" : "Available"}
+                                    </span>
+                                  </div>
+                                  <p className="mt-2 text-xs font-black text-white leading-snug">
+                                    {offer.name}
+                                  </p>
+                                </div>
+
+                                <div className="mt-3 space-y-2.5">
+                                  <div className="grid grid-cols-2 gap-2 text-[10px]">
+                                    <label className="rounded-xl border border-white/10 bg-black/40 p-2 block">
+                                      <span className="block text-zinc-400 font-bold uppercase text-[9px]">Quantity</span>
+                                      <input
+                                        type="number"
+                                        inputMode="numeric"
+                                        min={minimumQuantity}
+                                        max={maximumQuantity ?? undefined}
+                                        step={1}
+                                        value={quantityInput}
+                                        onChange={(e) => {
+                                          setOfferQuantityInputs((curr) => ({
+                                            ...curr,
+                                            [offer.actionKey]: e.target.value,
+                                          }));
+                                        }}
+                                        disabled={quantityLocked}
+                                        className="mt-1 w-full bg-transparent text-xs font-black text-white outline-none"
+                                      />
+                                    </label>
+                                    <div className="rounded-xl border border-[#1DB954]/20 bg-[#1DB954]/10 p-2 flex flex-col justify-center">
+                                      <span className="block text-zinc-400 font-bold uppercase text-[9px]">
+                                        {offer.vipDiscountPercent > 0 ? `VIP -${offer.vipDiscountPercent}%` : "Total Amount"}
+                                      </span>
+                                      <strong className="text-sm font-black text-[#1DB954]">
+                                        {selectedOffer ? formatPhp(selectedOffer.total) : "Check qty"}
+                                      </strong>
+                                    </div>
+                                  </div>
+
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        if (selectedOffer) void handleBuyOffer(selectedOffer);
+                                      }}
+                                      disabled={!selectedOffer || status !== "idle" || isLoading || uploading || Boolean(pendingCheckoutOffer)}
+                                      className="flex items-center justify-center gap-1.5 rounded-xl bg-[#1DB954] hover:bg-[#1ed760] px-3 py-2 text-[10px] font-black uppercase tracking-wider text-black transition active:scale-95 disabled:opacity-50 cursor-pointer"
+                                    >
+                                      {busy ? <Loader2 size={12} className="animate-spin" /> :
+                                        status === "purchased" ? <CheckCircle2 size={12} /> :
+                                        <ShoppingCart size={12} />}
+                                      {status === "purchased" ? "Bought" : "Buy Now"}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleCancelOffer(offer)}
+                                      disabled={busy || terminal || status === "awaiting_receipt" || isLoading || uploading}
+                                      className="flex items-center justify-center gap-1.5 rounded-xl border border-red-500/25 bg-red-500/10 hover:bg-red-500/20 px-3 py-2 text-[10px] font-black uppercase tracking-wider text-red-300 transition active:scale-95 disabled:opacity-50 cursor-pointer"
+                                    >
+                                      <Ban size={12} />
+                                      Cancel
+                                    </button>
+                                  </div>
+                                </div>
                               </div>
+                            );
+                          })}
+
+                          {msg.offerCatalog?.mode === "all" && msg.id && (
+                            <div className="col-span-full rounded-2xl border border-[#1DB954]/20 bg-[#1DB954]/5 p-3 text-center">
+                              {msg.offerCatalog.hasMore && msg.offerCatalog.nextPage ? (
+                                <button
+                                  type="button"
+                                  onClick={() => void handleLoadMoreOffers(msg.id!, msg.offerCatalog!)}
+                                  disabled={Boolean(loadingOfferPages[msg.id]) || isLoading || uploading}
+                                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#1DB954] hover:bg-[#1ed760] px-4 py-2 text-xs font-black uppercase tracking-wider text-black transition cursor-pointer"
+                                >
+                                  {loadingOfferPages[msg.id] ? <Loader2 size={14} className="animate-spin" /> : null}
+                                  Show More Services ({msg.offerCatalog.totalCount} total)
+                                </button>
+                              ) : (
+                                <p className="text-xs font-bold text-[#1DB954]">
+                                  ✓ All {msg.offerCatalog.totalCount.toLocaleString()} services shown
+                                </p>
+                              )}
                             </div>
-                            {!selectedOffer ? (
-                              <p className="mt-1.5 text-[9px] font-semibold text-red-300" role="alert">
-                                Enter a whole number from {minimumQuantity.toLocaleString()}
-                                {maximumQuantity !== null ? ` to ${maximumQuantity.toLocaleString()}` : " or higher"}.
-                              </p>
-                            ) : null}
-                            <p className="mt-2 text-[9px] leading-relaxed text-muted">
-                              {formatPhp(offer.pricePerThousand)} per 1,000 · final price re-checked before payment
-                            </p>
-                            <div className="mt-3 grid grid-cols-2 gap-2">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  if (selectedOffer) void handleBuyOffer(selectedOffer);
-                                }}
-                                disabled={!selectedOffer || status !== "idle" || isLoading || uploading || Boolean(pendingCheckoutOffer)}
-                                className="flex items-center justify-center gap-1.5 rounded-lg bg-[#1DB954] px-3 py-2 text-[10px] font-black uppercase tracking-wider text-black transition hover:bg-[#1ed760] disabled:cursor-not-allowed disabled:opacity-50"
-                              >
-                                {busy ? <Loader2 size={12} className="animate-spin" /> :
-                                  status === "purchased" ? <CheckCircle2 size={12} /> :
-                                  <ShoppingCart size={12} />}
-                                {status === "purchased" ? "Bought" : "Buy"}
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleCancelOffer(offer)}
-                                disabled={busy || terminal || status === "awaiting_receipt" || isLoading || uploading}
-                                className="flex items-center justify-center gap-1.5 rounded-lg border border-red-400/25 bg-red-500/5 px-3 py-2 text-[10px] font-black uppercase tracking-wider text-red-300 transition hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-50"
-                              >
-                                <Ban size={12} />
-                                Cancel
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                      {msg.offerCatalog?.mode === "all" && msg.id ? (
-                        <div className="rounded-xl border border-[#1DB954]/20 bg-[#1DB954]/5 p-2.5 text-center">
-                          {msg.offerCatalog.hasMore && msg.offerCatalog.nextPage ? (
-                            <button
-                              type="button"
-                              onClick={() => void handleLoadMoreOffers(msg.id!, msg.offerCatalog!)}
-                              disabled={
-                                Boolean(loadingOfferPages[msg.id]) ||
-                                isLoading ||
-                                uploading ||
-                                Boolean(pendingCheckoutOffer)
-                              }
-                              className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#1DB954] px-3 py-2 text-[10px] font-black uppercase tracking-wider text-black transition hover:bg-[#1ed760] disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                              {loadingOfferPages[msg.id] ? <Loader2 size={12} className="animate-spin" /> : null}
-                              {loadingOfferPages[msg.id]
-                                ? "Loading services"
-                                : `Show ${Math.min(msg.offerCatalog.pageSize, msg.offerCatalog.totalCount - msg.offerCatalog.page * msg.offerCatalog.pageSize)} more`}
-                            </button>
-                          ) : (
-                            <p className="text-[9px] font-black uppercase tracking-wider text-[#1DB954]">
-                              All {msg.offerCatalog.totalCount.toLocaleString()} matching services shown
-                            </p>
                           )}
-                          <p className="mt-1.5 text-[9px] text-muted">
-                            {Math.min(
-                              msg.offerCatalog.page * msg.offerCatalog.pageSize,
-                              msg.offerCatalog.totalCount
-                            ).toLocaleString()} of {msg.offerCatalog.totalCount.toLocaleString()} services
-                          </p>
                         </div>
                       ) : null}
                     </div>
-                  ) : null}
+                  </div>
                 </div>
-              </div>
               );
             })}
+
             {isLoading && (
-              <div className="flex w-full justify-start">
-                <div className="mr-auto bg-card border border-border/60 text-fg rounded-2xl rounded-bl-none px-4 py-2 text-sm flex items-center gap-2">
-                  <Loader2 size={16} className="animate-spin text-[#1877F2]" /> Thinking...
+              <div className="flex w-full justify-start animate-in fade-in duration-200">
+                <div className="mr-auto bg-[#1c1c1c] border border-white/10 text-white rounded-2xl rounded-bl-none px-4 py-2.5 text-xs font-bold flex items-center gap-2">
+                  <Loader2 size={14} className="animate-spin text-[#1877F2]" /> PinoyBoosting AI is typing...
                 </div>
               </div>
             )}
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Compressing effect banner — shown while a GCash receipt is being
-              shrunk client-side before upload. */}
+          {/* Compressing Progress Banner */}
           {uploading && compressState && (
-            <div className="px-3 pt-2 bg-elevated">
-              <div className="rounded-xl border border-[#1877F2]/25 bg-[#1877F2]/10 p-2.5 space-y-1.5">
+            <div className="px-4 py-2 bg-[#181818] border-t border-white/10">
+              <div className="rounded-xl border border-[#1877F2]/30 bg-[#1877F2]/10 p-2.5 space-y-1.5">
                 <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-wider">
-                  <span className="flex items-center gap-1.5 text-[#1877F2]">
+                  <span className="flex items-center gap-1.5 text-[#4e8df5]">
                     <Loader2 size={12} className="animate-spin" />
-                    {compressState.savedBytes > 0 ? "Receipt optimized" : "Compressing receipt..."}
+                    {compressState.savedBytes > 0 ? "Receipt optimized" : "Compressing screenshot..."}
                   </span>
-                  {compressState.savedBytes > 0 ? (
-                    <span className="text-[#1DB954] font-black tabular-nums">
-                      {formatBytes(compressState.originalSize)} → {formatBytes(compressState.compressedSize)}
-                    </span>
-                  ) : (
-                    <span className="text-muted tabular-nums">{formatBytes(compressState.originalSize)}</span>
-                  )}
+                  <span className="text-[#1DB954] font-bold">
+                    {formatBytes(compressState.originalSize)} → {formatBytes(compressState.compressedSize)}
+                  </span>
                 </div>
-                <div className="h-1.5 w-full overflow-hidden rounded-full bg-[#1877F2]/15">
+                <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
                   <div
-                    className="h-full rounded-full bg-gradient-to-r from-[#1877F2] to-[#4e8df5] transition-[width] duration-300"
+                    className="h-full rounded-full bg-gradient-to-r from-[#1877F2] to-[#1DB954] transition-all duration-300"
                     style={{
-                      width: `${compressState.savedBytes > 0 ? 100 : Math.max(12, Math.min(90, 12 + compressState.ratio * 80))}%`,
+                      width: `${compressState.savedBytes > 0 ? 100 : Math.max(15, Math.min(95, 15 + compressState.ratio * 80))}%`,
                     }}
                   />
                 </div>
@@ -1524,60 +1602,84 @@ Tone rules:
             </div>
           )}
 
-          {/* Input Area */}
-          {/* Quick Action Chips */}
-          <div className="px-3 py-2 bg-elevated border-t border-border/50 flex gap-2 overflow-x-auto select-none no-scrollbar">
+          {/* Quick Action Chips Bar */}
+          <div className="px-3 py-2 bg-[#181818] border-t border-white/10 flex gap-1.5 overflow-x-auto select-none no-scrollbar">
             <button
               type="button"
               onClick={() => handleQuickAction("show me cheapest facebook followers")}
-              disabled={isLoading || uploading || Boolean(pendingCheckoutOffer)}
-              className="text-[11px] font-semibold bg-card hover:bg-elevated border border-border text-fg hover:text-fg px-3 py-1.5 rounded-full transition-all duration-200 cursor-pointer flex items-center gap-1 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
+              disabled={isLoading || uploading}
+              className="text-[11px] font-bold bg-white/5 hover:bg-white/15 border border-white/10 text-zinc-300 hover:text-white px-3 py-1.5 rounded-full transition active:scale-95 shrink-0 cursor-pointer"
             >
-              Facebook Followers
+              🚀 FB Followers
             </button>
             <button
               type="button"
-              onClick={() => handleQuickAction("show me cheapest instagram followers")}
-              disabled={isLoading || uploading || Boolean(pendingCheckoutOffer)}
-              className="text-[11px] font-semibold bg-card hover:bg-elevated border border-border text-fg hover:text-fg px-3 py-1.5 rounded-full transition-all duration-200 cursor-pointer flex items-center gap-1 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
+              onClick={() => handleQuickAction("show me cheapest facebook reactions")}
+              disabled={isLoading || uploading}
+              className="text-[11px] font-bold bg-white/5 hover:bg-white/15 border border-white/10 text-zinc-300 hover:text-white px-3 py-1.5 rounded-full transition active:scale-95 shrink-0 cursor-pointer"
             >
-              Instagram Followers
+              ❤️ FB Reactions
             </button>
             <button
               type="button"
               onClick={() => handleQuickAction("show me cheapest tiktok followers")}
-              disabled={isLoading || uploading || Boolean(pendingCheckoutOffer)}
-              className="text-[11px] font-semibold bg-card hover:bg-elevated border border-border text-fg hover:text-fg px-3 py-1.5 rounded-full transition-all duration-200 cursor-pointer flex items-center gap-1 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
+              disabled={isLoading || uploading}
+              className="text-[11px] font-bold bg-white/5 hover:bg-white/15 border border-white/10 text-zinc-300 hover:text-white px-3 py-1.5 rounded-full transition active:scale-95 shrink-0 cursor-pointer"
             >
-              TikTok Followers
+              📱 TikTok Followers
+            </button>
+            <button
+              type="button"
+              onClick={() => handleQuickAction("show me cheapest tiktok views")}
+              disabled={isLoading || uploading}
+              className="text-[11px] font-bold bg-white/5 hover:bg-white/15 border border-white/10 text-zinc-300 hover:text-white px-3 py-1.5 rounded-full transition active:scale-95 shrink-0 cursor-pointer"
+            >
+              🎥 TikTok Views
+            </button>
+            <button
+              type="button"
+              onClick={() => handleQuickAction("show me cheapest instagram followers")}
+              disabled={isLoading || uploading}
+              className="text-[11px] font-bold bg-white/5 hover:bg-white/15 border border-white/10 text-zinc-300 hover:text-white px-3 py-1.5 rounded-full transition active:scale-95 shrink-0 cursor-pointer"
+            >
+              📸 IG Followers
             </button>
             <button
               type="button"
               onClick={() => handleQuickAction("show me cheapest youtube subscribers")}
-              disabled={isLoading || uploading || Boolean(pendingCheckoutOffer)}
-              className="text-[11px] font-semibold bg-card hover:bg-elevated border border-border text-fg hover:text-fg px-3 py-1.5 rounded-full transition-all duration-200 cursor-pointer flex items-center gap-1 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
+              disabled={isLoading || uploading}
+              className="text-[11px] font-bold bg-white/5 hover:bg-white/15 border border-white/10 text-zinc-300 hover:text-white px-3 py-1.5 rounded-full transition active:scale-95 shrink-0 cursor-pointer"
             >
-              YouTube Subscribers
+              ▶️ YT Subscribers
             </button>
             <button
               type="button"
               onClick={() => handleQuickAction("show me all smm services")}
-              disabled={isLoading || uploading || Boolean(pendingCheckoutOffer)}
-              className="text-[11px] font-semibold bg-[#1DB954]/10 hover:bg-[#1DB954]/15 border border-[#1DB954]/25 text-[#1DB954] px-3 py-1.5 rounded-full transition-all duration-200 cursor-pointer flex items-center gap-1 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
+              disabled={isLoading || uploading}
+              className="text-[11px] font-bold bg-[#1DB954]/15 hover:bg-[#1DB954]/25 border border-[#1DB954]/30 text-[#1DB954] px-3 py-1.5 rounded-full transition active:scale-95 shrink-0 cursor-pointer"
             >
-              All SMM Services
+              ✨ All Services
             </button>
             <button
               type="button"
-              onClick={() => handleQuickAction("track my order")}
-              disabled={isLoading || uploading || Boolean(pendingCheckoutOffer)}
-              className="text-[11px] font-semibold bg-card hover:bg-elevated border border-border text-fg hover:text-fg px-3 py-1.5 rounded-full transition-all duration-200 cursor-pointer flex items-center gap-1 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
+              onClick={() => handleQuickAction("how to pay with gcash or bank")}
+              disabled={isLoading || uploading}
+              className="text-[11px] font-bold bg-white/5 hover:bg-white/15 border border-white/10 text-zinc-300 hover:text-white px-3 py-1.5 rounded-full transition active:scale-95 shrink-0 cursor-pointer"
             >
-              🔍 Track Order
+              💳 GCash / Bank
+            </button>
+            <button
+              type="button"
+              onClick={() => handleQuickAction("who created pinoyboosting")}
+              disabled={isLoading || uploading}
+              className="text-[11px] font-bold bg-white/5 hover:bg-white/15 border border-white/10 text-zinc-300 hover:text-white px-3 py-1.5 rounded-full transition active:scale-95 shrink-0 cursor-pointer"
+            >
+              👨‍💻 Developer
             </button>
           </div>
 
-          <form onSubmit={handleSubmit} className="p-3 bg-card border-t border-border flex gap-2 items-center">
+          {/* Form Input Area */}
+          <form onSubmit={handleSubmit} className="p-3 bg-[#181818] border-t border-white/10 flex gap-2 items-center">
             <input 
               type="file"
               ref={fileInputRef}
@@ -1589,13 +1691,17 @@ Tone rules:
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={isLoading || uploading}
-              className={`${pendingReceiptOrder ? "border-[#1DB954]/50 bg-[#1DB954]/10 text-[#1DB954]" : "border-slate-700/80 bg-card text-muted"} hover:bg-elevated border hover:text-fg p-2.5 rounded-xl transition-colors flex items-center justify-center flex-shrink-0`}
+              className={`p-2.5 rounded-xl border transition flex items-center justify-center shrink-0 cursor-pointer active:scale-95 ${
+                pendingReceiptOrder 
+                  ? "border-[#1DB954] bg-[#1DB954]/15 text-[#1DB954]" 
+                  : "border-white/15 bg-black/40 text-zinc-400 hover:text-white hover:bg-white/10"
+              }`}
               title={pendingReceiptOrder ? `Upload payment proof for ${pendingReceiptOrder.trackingId}` : "Attach payment screenshot"}
             >
               {uploading ? (
-                <Loader2 size={16} className="animate-spin text-[#1877F2]" />
+                <Loader2 size={18} className="animate-spin text-[#1877F2]" />
               ) : (
-                <ImageIcon size={16} />
+                <ImageIcon size={18} />
               )}
             </button>
             <input
@@ -1607,20 +1713,21 @@ Tone rules:
                 uploading
                   ? (compressState ? "Compressing receipt..." : "Uploading receipt...")
                   : pendingCheckoutOffer
-                    ? "Paste the public target link or type cancel..."
+                    ? "Paste public target link (https://)..."
                     : pendingReceiptOrder
                       ? `Upload proof for ${pendingReceiptOrder.trackingId} (${formatPhp(pendingReceiptOrder.amount)})...`
-                      : "Type message or paste screenshot..."
+                      : "Type message or paste Tracking ID..."
               }
-              className="flex-1 px-4 py-2 bg-card border border-slate-700/80 text-fg rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1877F2] text-sm font-medium placeholder-muted"
+              className="flex-1 px-4 py-2.5 bg-black/50 border border-white/15 text-white rounded-xl focus:outline-none focus:border-[#1877F2] text-sm font-medium placeholder-zinc-500"
               disabled={isLoading || uploading}
             />
             <button 
               type="submit" 
               disabled={isLoading || uploading || !input.trim()}
-              className="bg-[#1877F2] hover:bg-[#4e8df5] disabled:bg-slate-800 text-fg font-bold p-2.5 rounded-xl transition-colors flex items-center justify-center flex-shrink-0"
+              className="bg-[#1877F2] hover:bg-[#166fe5] disabled:bg-white/10 disabled:text-zinc-600 text-white font-bold p-2.5 rounded-xl transition flex items-center justify-center shrink-0 cursor-pointer active:scale-95"
+              title="Send message"
             >
-              <Send size={16} />
+              <Send size={18} />
             </button>
           </form>
         </div>

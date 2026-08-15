@@ -123,8 +123,10 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
   const [orderId, setOrderId] = useState("");
   const [isWalletPayment, setIsWalletPayment] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [copiedPhone, setCopiedPhone] = useState(false);
   const [smmBalance, setSmmBalance] = useState<number>(100);
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [receiptPreviewUrl, setReceiptPreviewUrl] = useState<string | null>(null);
   const [receiptCompressState, setReceiptCompressState] = useState<CompressResult | null>(null);
   const [receiptCompressProgress, setReceiptCompressProgress] = useState(0);
   const [submitStage, setSubmitStage] = useState("");
@@ -977,11 +979,17 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
                   )}
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-4">
                   <div>
-                    <label className="block text-[10px] font-extrabold text-muted uppercase tracking-widest mb-1.5">
-                      Quantity to Boost
-                    </label>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="block text-xs font-bold text-zinc-300 uppercase tracking-wider">
+                        Quantity to Boost
+                      </label>
+                      <span className="text-[11px] text-zinc-400 font-medium">
+                        Min: <strong className="text-white">{selectedService.min.toLocaleString()}</strong> • Max: <strong className="text-white">{selectedService.max.toLocaleString()}</strong>
+                      </span>
+                    </div>
+                    
                     <input 
                       type="number" 
                       required
@@ -989,145 +997,177 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
                       max={selectedService.max}
                       value={quantity || ""}
                       onChange={(e) => setQuantity(parseInt(e.target.value) || 0)}
-                      className="w-full px-4 py-2.5 rounded-xl bg-bg border border-border focus:outline-none focus:ring-1 focus:ring-[#1DB954] text-fg transition-all text-xs font-extrabold"
+                      className="w-full px-4 py-3 rounded-xl bg-black/50 border border-white/15 focus:border-[#1DB954] focus:ring-1 focus:ring-[#1DB954] text-white text-base font-black transition-all outline-none"
                       placeholder={`Min: ${selectedService.min}`}
                     />
-                    <p className="text-[9px] text-muted mt-1">
-                      Min: {selectedService.min.toLocaleString()} • Max: {selectedService.max.toLocaleString()}
-                    </p>
+
+                    {/* Quick quantity preset pills */}
+                    <div className="flex items-center gap-1.5 flex-wrap pt-2">
+                      <span className="text-[10px] text-zinc-500 uppercase font-bold mr-1">Presets:</span>
+                      {[selectedService.min, 1000, 2500, 5000, 10000].filter((v, i, a) => a.indexOf(v) === i && v <= selectedService.max).map((pill) => (
+                        <button
+                          key={pill}
+                          type="button"
+                          onClick={() => setQuantity(pill)}
+                          className={`px-2.5 py-1 rounded-lg text-xs font-black transition active:scale-95 cursor-pointer ${
+                            quantity === pill 
+                              ? "bg-[#1DB954] text-black shadow-sm" 
+                              : "bg-white/5 border border-white/10 text-zinc-400 hover:text-white hover:bg-white/10"
+                          }`}
+                        >
+                          {pill >= 1000 ? `${pill / 1000}k` : pill}
+                        </button>
+                      ))}
+                    </div>
+
                     {quantity > 0 && quantity < selectedService.min && (
-                      <p className="text-[9px] text-[#1DB954] mt-1 font-bold animate-pulse text-left">
-                        💡 Note: Automatically upgraded to minimum {selectedService.min.toLocaleString()} quantity at the minimum rate!
+                      <p className="text-xs text-[#1DB954] mt-2 font-bold animate-pulse text-left">
+                        💡 Automatically adjusted to minimum {selectedService.min.toLocaleString()} units at the minimum rate.
                       </p>
                     )}
-                    {isPhBase && (
-                      <p className="text-[9px] text-muted mt-1.5 font-semibold text-left">
-                        🇵🇭 <strong className="text-fg">PH Base Organic Notice:</strong> Sourced with high-retention local accounts. Delivery completes **within 24 hours**.
-                      </p>
-                    )}
-                    <p className="text-[9px] text-[#1DB954] mt-1 font-bold text-left flex items-center gap-1">
-                      <span>🔒</span> <span>100% Adsense & Monetization Compliant filtered pool.</span>
-                    </p>
                   </div>
 
-                  <div className="flex flex-col justify-end">
-                    <div className="bg-card/80 px-4 py-2.5 rounded-xl border border-border flex justify-between items-center min-h-[42px]">
-                      <span className="text-[9px] font-extrabold text-muted uppercase tracking-wider">Estimator cost:</span>
-                      {hasVipDiscount ? (
-                        <span className="text-right leading-tight">
-                          <span className="block text-[10px] font-mono text-muted line-through">Regular ₱{formatPrice(regularTotal)}</span>
-                          <span className="block text-sm font-black text-[#1DB954]">VIP ₱{formatPrice(payableTotal)}</span>
-                        </span>
-                      ) : (
-                        <span className="text-sm font-black text-fg">₱{formatPrice(regularTotal)} PHP</span>
-                      )}
+                  {/* Price Estimate Card */}
+                  <div className="bg-[#181818] border border-white/10 rounded-2xl p-4 space-y-2">
+                    <div className="flex justify-between items-center text-xs text-zinc-400">
+                      <span>Rate per 1,000</span>
+                      <span className="font-semibold text-white">₱{formatPrice(selectedService.ratePer1k)} PHP</span>
                     </div>
+
+                    <div className="flex justify-between items-center text-xs text-zinc-400">
+                      <span>Quantity Selected</span>
+                      <span className="font-semibold text-white">{Math.max(quantity, selectedService.min).toLocaleString()}</span>
+                    </div>
+
                     {hasVipDiscount && (
-                      <p className="mt-1 text-right text-[9px] font-black uppercase tracking-wider text-[#1DB954]">
-                        Save ₱{formatPrice(vipTotalSummary.savingsAmount)}
-                      </p>
+                      <div className="flex justify-between items-center text-xs text-emerald-400">
+                        <span>VIP Member Discount</span>
+                        <span className="font-bold">-₱{formatPrice(vipTotalSummary.savingsAmount)}</span>
+                      </div>
                     )}
+
+                    <div className="border-t border-white/10 pt-2 flex justify-between items-center">
+                      <span className="text-xs font-black uppercase tracking-wider text-white">Total Payable</span>
+                      <span className="text-lg font-black text-[#1DB954]">₱{formatPrice(payableTotal)} PHP</span>
+                    </div>
                   </div>
                 </div>
 
                 {/* Mandated GCash Payment Receipt Upload */}
-                <div className="space-y-2 bg-elevated/95 border border-border/80 p-4 rounded-xl mt-3 text-left">
-                  <label className="block text-[10px] font-black text-muted uppercase tracking-widest flex justify-between items-center">
-                    <span>GCash Payment Receipt Screenshot {!(user && profile && Number(profile.balance) >= payableTotal) && <span className="text-red-500">*</span>}</span>
-                    <span className="text-[8px] font-black uppercase text-red-500">
-                      {user && profile && Number(profile.balance) >= payableTotal ? "Optional for Wallet" : "Strictly Required"}
+                <div className="space-y-2.5 bg-[#181818] border border-white/10 p-4 rounded-2xl text-left">
+                  <label className="block text-xs font-bold text-zinc-300 uppercase tracking-wider flex justify-between items-center">
+                    <span>Attach Payment Screenshot {!(user && profile && Number(profile.balance) >= payableTotal) && <span className="text-red-400">*</span>}</span>
+                    <span className="text-[10px] text-zinc-500 font-normal">
+                      {user && profile && Number(profile.balance) >= payableTotal ? "Optional for Wallet" : "Required for GCash"}
                     </span>
                   </label>
-                  <div className="relative">
-                    <input 
-                      type="file" 
-                      accept="image/*"
-                      onChange={(e) => setReceiptFile(e.target.files?.[0] || null)}
-                      className="hidden"
-                      id="catalog-receipt-upload"
-                    />
-                    <label 
-                      htmlFor="catalog-receipt-upload"
-                      className="w-full flex items-center justify-center gap-2.5 px-4 py-3 rounded-xl bg-card border border-dashed border-border hover:border-[#1DB954]/50 text-fg hover:text-fg cursor-pointer transition-all text-xs font-black uppercase tracking-wider active:scale-95"
-                    >
-                      <span>📁</span> {receiptFile ? `Receipt: ${receiptFile.name}` : "Attach Payment Screenshot"}
-                    </label>
-                    {receiptFile && (
-                      <div className="text-[9px] text-[#1DB954] font-black uppercase tracking-wider text-center mt-1.5 animate-pulse">
-                        ✓ File loaded: {(receiptFile.size / 1024).toFixed(1)} KB
-                      </div>
-                    )}
 
-                    {/* Compressing effect — live GCash receipt size reduction readout. */}
-                    {isSubmitting && receiptFile && (
-                      <div className="mt-2 rounded-xl border border-[#1DB954]/25 bg-[#1DB954]/8 p-2.5 space-y-1.5 animate-in fade-in zoom-in duration-200">
-                        <div className="flex items-center justify-between text-[9px] font-black uppercase tracking-wider">
-                          <span className="flex items-center gap-1.5 text-[#1DB954]">
-                            <Loader2 size={11} className="animate-spin" />
-                            {receiptCompressState?.savedBytes ? "Receipt optimized" : "Compressing receipt..."}
-                          </span>
-                          <span className="tabular-nums">
-                            {receiptCompressState?.savedBytes ? (
-                              <span className="text-[#1DB954]">
-                                {formatBytes(receiptCompressState.originalSize)} → {formatBytes(receiptCompressState.compressedSize)}
-                              </span>
-                            ) : (
-                              <span className="text-muted">{formatBytes(receiptFile.size)}</span>
-                            )}
-                          </span>
-                        </div>
-                        <div className="h-1.5 w-full overflow-hidden rounded-full bg-[#1DB954]/15">
-                          <div
-                            className="h-full rounded-full bg-gradient-to-r from-[#1DB954] to-[#1ed760] transition-[width] duration-300 ease-out"
-                            style={{ width: `${Math.round(receiptCompressProgress * 100)}%` }}
-                          />
-                        </div>
-                        {receiptCompressState?.savedBytes ? (
-                          <p className="text-[8px] text-[#1DB954] font-bold">
-                            Saved {formatBytes(receiptCompressState.savedBytes)} ({Math.round(receiptCompressState.ratio * 100)}% smaller) before upload.
-                          </p>
-                        ) : (
-                          <p className="text-[8px] text-muted font-semibold">
-                            Resizing & re-encoding to a compact JPEG before upload.
-                          </p>
-                        )}
+                  {receiptPreviewUrl ? (
+                    <div className="flex items-center gap-3 bg-black/50 border border-white/10 p-3 rounded-xl">
+                      <img 
+                        src={receiptPreviewUrl} 
+                        alt="Receipt preview" 
+                        className="w-12 h-12 object-cover rounded-lg border border-white/10 shrink-0"
+                      />
+                      <div className="min-w-0 flex-grow">
+                        <p className="text-xs font-bold text-white truncate">{receiptFile?.name}</p>
+                        <p className="text-[10px] text-emerald-400 font-medium">
+                          ✓ Ready ({((receiptFile?.size || 0) / 1024).toFixed(1)} KB)
+                        </p>
                       </div>
-                    )}
-                  </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (receiptPreviewUrl) URL.revokeObjectURL(receiptPreviewUrl);
+                          setReceiptPreviewUrl(null);
+                          setReceiptFile(null);
+                        }}
+                        className="text-xs text-red-400 hover:text-red-300 font-bold p-2 hover:bg-white/5 rounded-lg shrink-0 cursor-pointer"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ) : (
+                    <div>
+                      <input 
+                        type="file" 
+                        accept="image/*"
+                        onChange={(e) => {
+                          const f = e.target.files?.[0] || null;
+                          setReceiptFile(f);
+                          if (f) setReceiptPreviewUrl(URL.createObjectURL(f));
+                        }}
+                        className="hidden"
+                        id="catalog-receipt-upload"
+                      />
+                      <label 
+                        htmlFor="catalog-receipt-upload"
+                        className="w-full flex flex-col items-center justify-center gap-1.5 p-4 rounded-xl bg-black/40 border border-dashed border-white/20 hover:border-[#1DB954] text-zinc-400 hover:text-white cursor-pointer transition text-center group"
+                      >
+                        <span className="text-2xl">📁</span>
+                        <span className="text-xs font-bold text-white">Tap to attach GCash payment screenshot</span>
+                        <span className="text-[10px] text-zinc-500">Attach receipt image to confirm your order</span>
+                      </label>
+                    </div>
+                  )}
+
+                  {/* Compressing effect */}
+                  {isSubmitting && receiptFile && (
+                    <div className="rounded-xl border border-[#1DB954]/25 bg-[#1DB954]/10 p-2.5 space-y-1.5">
+                      <div className="flex items-center justify-between text-[10px] font-bold text-zinc-300">
+                        <span className="flex items-center gap-1.5 text-[#1DB954]">
+                          <Loader2 size={12} className="animate-spin" />
+                          {receiptCompressState?.savedBytes ? "Receipt optimized" : "Compressing receipt..."}
+                        </span>
+                      </div>
+                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+                        <div
+                          className="h-full rounded-full bg-[#1DB954] transition-all duration-300"
+                          style={{ width: `${Math.round(receiptCompressProgress * 100)}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Direct payment GCash banner */}
-                <div className="bg-elevated/90 border border-border/80 p-4 rounded-xl space-y-3 mt-4 text-left">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-[#1DB954] block mb-1">
-                    📱 GCash Checkout QR Code
-                  </span>
-                  <p className="text-[10px] text-muted leading-relaxed font-semibold">
-                    Pay exactly <strong className="text-fg">₱{formatPrice(payableTotal)} PHP</strong> using the GCash QR code. After placing your order, copy your **Tracking ID** and send it along with your transaction receipt to our Support Chatbot for instant approval.
-                  </p>
-                  {hasVipDiscount && (
-                    <div className="rounded-xl border border-[#1DB954]/25 bg-[#1DB954]/10 px-3 py-2 text-[10px] font-black uppercase tracking-wider text-[#1DB954]">
-                      Regular ₱{formatPrice(regularTotal)} {"->"} VIP ₱{formatPrice(payableTotal)}. You save ₱{formatPrice(vipTotalSummary.savingsAmount)}.
+                <div className="bg-[#181818] border border-white/10 p-4 rounded-2xl space-y-3 text-center">
+                  <div className="flex justify-between items-center border-b border-white/10 pb-2 text-left">
+                    <div>
+                      <span className="text-xs font-black text-white uppercase tracking-wider block">
+                        📱 Instant GCash QR Checkout
+                      </span>
+                      <span className="text-[10px] text-zinc-400">Account: Henry S.</span>
                     </div>
-                  )}
-                  
-                  {/* Safety compliance notice under QR scan text to boost purchase intent */}
-                  <div className="text-[9px] text-muted font-bold border-t border-border pt-2 flex items-center gap-1.5">
-                    <span>🛡️</span>
-                    <span>CYNETWORK Curation guarantees 100% compliant, secure delivery matching Adsense criteria.</span>
+                    <div className="text-right">
+                      <span className="text-[10px] text-zinc-400 block uppercase font-bold">Amount to Send</span>
+                      <span className="text-sm font-black text-[#1DB954]">₱{formatPrice(payableTotal)} PHP</span>
+                    </div>
                   </div>
 
-                  <div className="text-center">
-                    <div className="bg-white p-1 rounded-xl inline-block shadow-md max-w-[120px] mx-auto overflow-hidden border border-border/20">
-                      <img 
-                        src="/gcash-qr.png" 
-                        alt="GCash QR Code" 
-                        className="w-full h-auto rounded-lg object-contain mx-auto"
-                      />
-                    </div>
-                    <div className="flex items-center justify-center gap-2 mt-2 bg-[#1DB954]/10 border border-[#1DB954]/20 px-3 py-1.5 rounded-lg">
-                      <span className="text-[10px] font-black text-[#1DB954] tracking-wider">📞 09505339963 • Henry S.</span>
-                      <button type="button" onClick={() => { navigator.clipboard.writeText('09505339963'); }} className="text-[8px] bg-[#1DB954]/20 hover:bg-[#1DB954]/40 text-[#1DB954] font-black uppercase tracking-wider px-2 py-0.5 rounded-md transition-all cursor-pointer active:scale-95">Copy</button>
-                    </div>
+                  <div className="bg-white p-2 rounded-2xl inline-block shadow-xl border border-zinc-200">
+                    <img 
+                      src="/gcash-qr.png" 
+                      alt="GCash QR Code" 
+                      className="w-32 h-32 object-contain rounded-xl"
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-center gap-2 bg-black/60 border border-white/10 py-2 px-3 rounded-xl max-w-xs mx-auto">
+                    <span className="text-xs font-mono font-bold text-white select-all">
+                      09505339963
+                    </span>
+                    <button 
+                      type="button" 
+                      onClick={() => {
+                        navigator.clipboard.writeText('09505339963');
+                        setCopiedPhone(true);
+                        setTimeout(() => setCopiedPhone(false), 2000);
+                      }} 
+                      className="text-[10px] bg-[#1DB954] hover:bg-[#1ed760] text-black font-black uppercase tracking-wider px-2.5 py-1 rounded-md transition cursor-pointer active:scale-95"
+                    >
+                      {copiedPhone ? "Copied!" : "Copy"}
+                    </button>
                   </div>
                 </div>
 

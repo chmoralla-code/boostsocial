@@ -17,10 +17,12 @@ const HUMAN_SUPPORT_SYSTEM: ChatMessage = {
     "Sound natural, warm, and humanlike, but never claim to be a real human.",
     "You can answer general questions outside PinoyBoosting too. For non-service questions, answer normally instead of forcing a sales or support answer.",
     "Start with the direct answer, then give the next step. Keep it short unless the customer asks for detail.",
-    "Use light Taglish when it fits the customer's wording. Avoid robotic phrases, hype, and repeated exclamation marks.",
-    "Use relevant emojis naturally in your replies to make them more readable and friendly. Use 1-3 emojis per message, placed at the start of key lines or sentences. Do not overuse emojis or put them on every word.",
+    "Use light Taglish (Tagalog-English mix) or Bisaya when it fits the customer's wording. Avoid robotic phrases, hype, and repeated exclamation marks.",
+    "Use relevant emojis naturally in your replies to make them more readable and friendly (1-3 emojis per message).",
     "Never invent prices, order statuses, discounts, timelines, or policies. If unsure, say what you can verify and ask one simple follow-up.",
-    "For buying, guide users to choose a service, submit the target link, pay with GCash or wallet, and upload the receipt if needed.",
+    "For buying, guide users to choose a service, submit the target link, pay with GCash or wallet, and upload the receipt screenshot.",
+    "GCash Payment Info: 09505339963 • Henry S. (Direct GCash / InstaPay transfer accepted).",
+    "BPI Bank Transfer Info: Account #4059901356.",
     "For orders, ask for a Tracking ID like BS-D5D1D849 if they did not provide one.",
     "CREATOR INFO: If anyone asks who created, built, made, or owns this website/app, or asks about the developer/creator, answer: 'This website was created by Cyrhiel Moralla. You can check out his Facebook here: [Cyrhiel Moralla](https://www.facebook.com/profile.php?id=61584774638218)'. Always include the clickable link. Do not invent any other creator names.",
   ].join(" "),
@@ -56,6 +58,88 @@ function sanitizeMessages(value: unknown): ChatMessage[] {
     .filter((message): message is ChatMessage => Boolean(message));
 }
 
+function textPromptFromMessages(messages: ChatMessage[]) {
+  return messages
+    .map((m) => `${m.role === "assistant" ? "Assistant" : m.role === "system" ? "System" : "User"}: ${m.content}`)
+    .join("\n\n");
+}
+
+async function askNeuralwatt(messages: ChatMessage[]): Promise<string> {
+  if (!hasNeuralwattApiKey()) return "";
+  try {
+    const completion = await requestNeuralwattChat({
+      model: NEURALWATT_CHAT_MODEL,
+      messages,
+      maxTokens: 600,
+      temperature: 0.55,
+      timeoutMs: 20_000,
+    });
+    return completion.message.content?.trim() || "";
+  } catch (err) {
+    console.warn("NeuralWatt chat request failed:", err);
+    return "";
+  }
+}
+
+async function askOpenCodeGo(messages: ChatMessage[]): Promise<string> {
+  const apiKey = process.env.OPENCODE_API_KEY;
+  if (!apiKey) return "";
+
+  try {
+    const res = await fetch("https://opencode.ai/zen/go/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: "mimo-v2.5",
+        messages,
+        max_tokens: 600,
+        temperature: 0.55,
+      }),
+      signal: AbortSignal.timeout(20_000),
+      cache: "no-store",
+    });
+
+    if (!res.ok) return "";
+    const data = await res.json();
+    return data.choices?.[0]?.message?.content?.trim() || "";
+  } catch (err) {
+    console.warn("OpenCode Go API request failed:", err);
+    return "";
+  }
+}
+
+async function askPollinationsText(messages: ChatMessage[]): Promise<string> {
+  const model = process.env.POLLINATIONS_TEXT_MODEL || process.env.POLLINATIONS_MODEL || "openai";
+  const prompt = textPromptFromMessages(messages);
+  const params = new URLSearchParams({
+    model,
+    seed: String(Date.now()),
+    referrer: "pinoyboosting-chathead",
+    json: "false",
+  });
+  const url = `https://text.pollinations.ai/${encodeURIComponent(prompt)}?${params.toString()}`;
+
+  try {
+    const res = await fetch(url, {
+      method: "GET",
+      headers: { Accept: "text/plain" },
+      signal: AbortSignal.timeout(15_000),
+      cache: "no-store",
+    });
+
+    if (!res.ok) return "";
+    const content = (await res.text()).trim();
+    if (!content || content.startsWith("{\"error\"")) return "";
+    return content;
+  } catch (error) {
+    console.warn("Pollinations request failed:", error);
+    return "";
+  }
+}
+
 function humanFallback(message: string) {
   const text = message.toLowerCase();
 
@@ -68,7 +152,7 @@ function humanFallback(message: string) {
   }
 
   if (text.includes("gcash") || text.includes("payment") || text.includes("bayad") || text.includes("receipt")) {
-    return "💳 Yes, you can pay with GCash! After checkout, upload the receipt screenshot here so admin can verify it and start processing your order.";
+    return "💳 Yes, you can pay with GCash (09505339963 • Henry S.) or BPI Bank Transfer (#4059901356)! After checkout, upload the receipt screenshot here so admin can verify it and start processing your order.";
   }
 
   if (text.includes("track") || text.includes("status") || text.includes("order")) {
@@ -108,80 +192,30 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Invalid messages format' }, { status: 400 });
     }
 
-    // NeuralWatt DeepSeek is the primary website chathead model.
-    let content = "";
-    let lastError: unknown = null;
     const latestMessage = latestUserMessage(cleanMessages);
-    const apiMessages = [
+    const apiMessages: ChatMessage[] = [
       HUMAN_SUPPORT_SYSTEM,
       ...cleanMessages.filter((message) => message.role !== "system").slice(-8),
     ];
 
-    try {
-      if (hasNeuralwattApiKey()) {
-        const completion = await requestNeuralwattChat({
-          model: NEURALWATT_CHAT_MODEL,
-          messages: apiMessages,
-          maxTokens: 500,
-          temperature: 0.55,
-          timeoutMs: 25_000,
-        });
-        const responseText = completion.message.content?.trim();
-        if (responseText) {
-          content = responseText;
-        }
-      }
-    } catch (err: unknown) {
-      console.error("NeuralWatt chat request failed:", err);
-      lastError = err;
+    // Multi-tier AI Engine: NeuralWatt -> OpenCode -> Pollinations
+    let content = await askNeuralwatt(apiMessages);
+    if (!content) {
+      content = await askOpenCodeGo(apiMessages);
     }
-
-    // Keep the previous provider as a graceful fallback during outages.
-    try {
-      const apiKey = process.env.OPENCODE_API_KEY;
-      if (!content && apiKey) {
-        const res = await fetch("https://opencode.ai/zen/go/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${apiKey}`,
-          },
-          body: JSON.stringify({
-            model: "mimo-v2.5",
-            messages: apiMessages,
-            max_tokens: 500,
-            temperature: 0.55,
-          }),
-          signal: AbortSignal.timeout(25000),
-          cache: "no-store",
-        });
-
-        if (res.ok) {
-          const data = await res.json();
-          const responseText = data.choices?.[0]?.message?.content?.trim();
-          if (responseText) {
-            content = responseText;
-          }
-        } else {
-          console.warn(`OpenCode Go API returned non-OK status: ${res.status}`);
-          lastError = new Error(`OpenCode Go returned status ${res.status}`);
-        }
-      }
-    } catch (err: unknown) {
-      console.error("OpenCode Go API request failed:", err);
-      lastError = err;
+    if (!content) {
+      content = await askPollinationsText(apiMessages);
     }
 
     if (content) {
       return NextResponse.json({ content });
     }
 
-    console.warn("AI unavailable, returning human fallback:", getErrorMessage(lastError));
     const supportQuestion = isSupportQuestion(latestMessage);
     return NextResponse.json({
       content: supportQuestion
         ? humanFallback(latestMessage)
-        : "⏳ I can help with that, but the AI service is temporarily busy. Please try again in a few seconds, or ask me about PinoyBoosting services, payments, wallet top-up, or order tracking.",
+        : "👋 I can help with that! Tell me what service you're interested in (Facebook, TikTok, Instagram, YouTube, PisoWiFi), or send your Tracking ID (e.g. BS-D5D1D849) to check an existing order.",
     });
 
   } catch (err: unknown) {
