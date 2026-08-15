@@ -14,23 +14,6 @@ export default async function Home() {
     .select('*')
     .order('created_at', { ascending: true });
 
-  // Fetch custom services background settings
-  let servicesBg = { videoUrl: "", opacity: 0.15 };
-  try {
-    const { data: bgSetting } = await supabase
-      .from("settings")
-      .select("value")
-      .eq("key", "services_bg_settings")
-      .single();
-    if (bgSetting && bgSetting.value) {
-      servicesBg = {
-        videoUrl: bgSetting.value.videoUrl || "",
-        opacity: bgSetting.value.opacity !== undefined ? Number(bgSetting.value.opacity) : 0.15
-      };
-    }
-  } catch (err) {
-    console.error("Failed to load services background settings:", err);
-  }
 
   // Fetch custom service candidates
   let servicesCandidates = null;
@@ -130,7 +113,7 @@ export default async function Home() {
           </div>
         </div>
 
-        <ServicesSection services={services || []} servicesBg={servicesBg} servicesCandidates={servicesCandidates} />
+        <ServicesSection services={services || []} servicesCandidates={servicesCandidates} />
 
         {/* 📬 Contact & Support */}
         <section id="contact" className="w-full max-w-3xl mx-auto px-4 sm:px-6 md:px-8 py-12 sm:py-16 border-t border-border/40 relative z-10">

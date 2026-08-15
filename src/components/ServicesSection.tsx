@@ -772,54 +772,8 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
       {/* 1. Choose Your Boost Tier Grid */}
       <section
         id="services"
-        className={`w-full max-w-6xl mx-auto mt-12 mb-20 relative z-10 transition-all duration-300 ${
-          servicesBg?.videoUrl
-            ? "px-6 py-12 md:py-16 md:px-12 rounded-3xl overflow-hidden border border-white/[0.03] bg-black/25 backdrop-blur-md shadow-2xl"
-            : "px-4"
-        }`}
+        className="w-full max-w-6xl mx-auto mt-12 mb-20 relative z-10 px-4 transition-all duration-300"
       >
-        {/* Services Section Background Video/Media */}
-        {servicesBg && servicesBg.videoUrl && (
-          <div className="absolute inset-0 hidden overflow-hidden pointer-events-none -z-10 select-none md:block">
-            {(() => {
-              const isImage = (url: string) => {
-                const cleanUrl = url.split("?")[0].toLowerCase();
-                return (
-                  cleanUrl.endsWith(".gif") ||
-                  cleanUrl.endsWith(".jpg") ||
-                  cleanUrl.endsWith(".jpeg") ||
-                  cleanUrl.endsWith(".png") ||
-                  cleanUrl.endsWith(".webp")
-                );
-              };
-              if (isImage(servicesBg.videoUrl)) {
-                return (
-                  <img
-                    src={servicesBg.videoUrl}
-                    className="absolute inset-0 w-full h-full object-cover select-none"
-                    alt="Services Section Background"
-                    style={{ opacity: servicesBg.opacity }}
-                  />
-                );
-              } else {
-                return (
-                  <video
-                    src={servicesBg.videoUrl}
-                    autoPlay
-                    muted
-                    loop
-                    playsInline
-                    preload="metadata"
-                    className="absolute inset-0 w-full h-full object-cover select-none"
-                    style={{ opacity: servicesBg.opacity }}
-                  />
-                );
-              }
-            })()}
-            {/* Subtle Vignette Gradient Overlay */}
-            <div className="absolute inset-0 bg-gradient-to-b from-[#0a0a0a]/90 via-transparent to-[#0a0a0a]/90"></div>
-          </div>
-        )}
 
         <div className="flex flex-col items-center mb-10">
           <h2 className="text-3xl md:text-4xl font-black text-center text-fg tracking-tight">
