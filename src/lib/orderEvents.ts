@@ -12,6 +12,7 @@ export type OrderEventType =
   | "completed"
   | "cancelled"
   | "rejected"
+  | "refunded"
   | "refill_requested";
 
 type RecordOrderEventInput = {
@@ -73,6 +74,7 @@ export function orderEventLabel(eventType: OrderEventType | string) {
     case "completed": return "Order completed";
     case "cancelled": return "Order cancelled";
     case "rejected": return "Order rejected";
+    case "refunded": return "Refund issued";
     case "refill_requested": return "Refill requested";
     default: return eventType;
   }

@@ -8,6 +8,7 @@ import { resolveSmmServiceTitle } from "@/lib/smmServiceResolver";
 import { notifyOrderStatusCustomer } from "@/lib/customerNotifications";
 import { sendOrderApprovedEmail, sendOrderCompletedEmail } from "@/lib/approvalEmails";
 import { recordOrderEvent } from "@/lib/orderEvents";
+import { refundOrderToWallet } from "@/lib/orderRefund";
 
 type JoinedService = { title?: string | null } | { title?: string | null }[] | null | undefined;
 
@@ -19,6 +20,7 @@ type AdminOrderRow = {
   external_order_id?: string | null;
   customer_email?: string | null;
   amount?: number | string | null;
+  original_amount?: number | string | null;
   payment_method?: string | null;
   smm_service_id?: string | number | null;
   services?: JoinedService;
@@ -44,7 +46,7 @@ function mapStatusToEventType(status: string) {
 
 export async function POST(req: NextRequest) {
   try {
-    const { orderId, newStatus } = await req.json();
+    const { orderId, newStatus, refundAmount } = await req.json();
 
     if (!orderId || !newStatus) {
       return NextResponse.json({ error: "Missing orderId or newStatus" }, { status: 400 });
@@ -72,6 +74,7 @@ export async function POST(req: NextRequest) {
         external_order_id,
         customer_email,
         amount,
+        original_amount,
         payment_method,
         smm_service_id,
         services (
@@ -122,6 +125,30 @@ export async function POST(req: NextRequest) {
     }).catch((eventErr) => {
       console.error("Admin order status event failed:", eventErr);
     });
+
+    // Refund the customer's wallet when the order is cancelled. The admin can
+    // pass an exact refundAmount (defaults to the full order amount). Only runs
+    // on a transition INTO Cancelled so re-saves don't double-refund.
+    if (newStatus === "Cancelled" && orderRow.status !== "Cancelled") {
+      const refundBase = Number(orderRow.amount ?? orderRow.original_amount ?? 0);
+      const requestedRefund = refundAmount !== undefined ? Number(refundAmount) : refundBase;
+      const refundToCredit = Number.isFinite(requestedRefund) && requestedRefund > 0
+        ? Math.min(requestedRefund, Math.max(refundBase, 0))
+        : 0;
+
+      if (refundToCredit > 0) {
+        const refundResult = await refundOrderToWallet({
+          client: supabase,
+          orderId,
+          customerEmail: orderRow.customer_email,
+          amount: refundToCredit,
+          trackingId,
+        });
+        if (!refundResult.refunded) {
+          console.warn("Order refund did not complete:", refundResult);
+        }
+      }
+    }
 
     if (newStatus === "Processing" && orderRow.status !== "Processing") {
       const serviceTitle = getJoinedServiceTitle(orderRow.services) || "SMM Service";

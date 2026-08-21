@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { format } from "date-fns";
 import { toZonedTime } from "date-fns-tz";
-import { Trash2, Clock, Search, Filter, ExternalLink, Image, Key, Loader2, Sparkles, RefreshCw } from "lucide-react";
+import { Trash2, Clock, Search, Filter, ExternalLink, Image, Key, Loader2, Sparkles, RefreshCw, Undo2 } from "lucide-react";
 import { formatSmmServiceName } from "@/utils/serviceHelpers";
 
 export function OrdersTable({ initialOrders, receiptFiles = [] }: { initialOrders: any[], receiptFiles?: string[] }) {
@@ -16,6 +16,7 @@ export function OrdersTable({ initialOrders, receiptFiles = [] }: { initialOrder
   const [isDeletingAll, setIsDeletingAll] = useState(false);
   const [isDeletingCompleted, setIsDeletingCompleted] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [cancelOrder, setCancelOrder] = useState<any | null>(null);
   const [smmServiceLabels, setSmmServiceLabels] = useState<Record<string, string>>({});
   const [smmServiceRates, setSmmServiceRates] = useState<Record<string, number>>({});
   const supabase = createClient();
@@ -157,14 +158,14 @@ export function OrdersTable({ initialOrders, receiptFiles = [] }: { initialOrder
     };
   };
 
-  const updateStatus = async (id: string, newStatus: string) => {
+  const updateStatus = async (id: string, newStatus: string, refundAmount?: number) => {
     try {
       const res = await fetch("/api/admin/update-order-status", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({ orderId: id, newStatus })
+        body: JSON.stringify({ orderId: id, newStatus, ...(refundAmount !== undefined ? { refundAmount } : {}) })
       });
 
       if (!res.ok) {
@@ -563,7 +564,14 @@ export function OrdersTable({ initialOrders, receiptFiles = [] }: { initialOrder
                     <td className="py-3.5 px-5">
                       <select 
                         value={order.status}
-                        onChange={(e) => updateStatus(order.id, e.target.value)}
+                        onChange={(e) => {
+                          const next = e.target.value;
+                          if (next === "Cancelled" && order.status !== "Cancelled") {
+                            setCancelOrder(order);
+                          } else if (next !== order.status) {
+                            updateStatus(order.id, next);
+                          }
+                        }}
                         className={`text-[9px] font-black rounded-full px-3 py-1.5 border focus:ring-2 focus:outline-none cursor-pointer uppercase tracking-wider transition-all
                           ${order.status === 'Pending' ? 'bg-orange-500/10 text-orange-400 border-orange-500/20 focus:ring-orange-550/30' : 
                             order.status === 'Processing' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20 focus:ring-blue-550/30' : 
@@ -767,7 +775,13 @@ export function OrdersTable({ initialOrders, receiptFiles = [] }: { initialOrder
                   {['Pending', 'Processing', 'Completed', 'Rejected', 'Cancelled'].map((st) => (
                     <button
                       key={st}
-                      onClick={() => updateStatus(selectedPageSpecs.orderId, st)}
+                      onClick={() => {
+                        if (st === "Cancelled" && selectedPageSpecs.status !== "Cancelled") {
+                          setCancelOrder({ ...selectedPageSpecs, id: selectedPageSpecs.orderId });
+                        } else if (st !== selectedPageSpecs.status) {
+                          updateStatus(selectedPageSpecs.orderId, st);
+                        }
+                      }}
                       disabled={selectedPageSpecs.status === st}
                       className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer border-0 disabled:opacity-40 disabled:cursor-not-allowed
                         ${selectedPageSpecs.status === st 
@@ -783,6 +797,143 @@ export function OrdersTable({ initialOrders, receiptFiles = [] }: { initialOrder
           </div>
         </div>
       )}
+
+      {/* Cancel Order with Refund Modal */}
+      {cancelOrder && (
+        <CancelRefundModal
+          order={cancelOrder}
+          onClose={() => setCancelOrder(null)}
+          onConfirm={async (refundAmount) => {
+            await updateStatus(cancelOrder.id, "Cancelled", refundAmount);
+            setCancelOrder(null);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function CancelRefundModal({ order, onClose, onConfirm }: {
+  order: any;
+  onClose: () => void;
+  onConfirm: (refundAmount: number) => Promise<void>;
+}) {
+  const orderAmount = Number(order.amount ?? 0);
+  const [shouldRefund, setShouldRefund] = useState(true);
+  const [refundAmount, setRefundAmount] = useState<string>(orderAmount.toFixed(2));
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const refundValue = Number(refundAmount);
+  const isValidRefund = Number.isFinite(refundValue) && refundValue >= 0 && refundValue <= orderAmount;
+
+  const handleConfirm = async () => {
+    if (!shouldRefund) {
+      await onConfirm(0);
+      return;
+    }
+    if (!isValidRefund) {
+      setError(`Refund amount must be between ₱0 and ₱${orderAmount.toFixed(2)}`);
+      return;
+    }
+    setError(null);
+    setIsSubmitting(true);
+    try {
+      await onConfirm(refundValue);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const trackingId = `BS-${order.id?.slice(0, 8).toUpperCase() || ""}`;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#090909]/90 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+      <div className="relative w-full max-w-md bg-[#181818] border border-slate-800 rounded-3xl overflow-hidden shadow-2xl p-6 sm:p-8 text-slate-300 animate-in zoom-in-95 duration-200">
+        <div className="flex justify-between items-center mb-5 pb-4 border-b border-slate-850/60">
+          <div>
+            <span className="bg-red-500/10 text-red-400 font-black text-[9px] uppercase tracking-widest px-2.5 py-1 rounded-md border border-red-500/20 flex items-center gap-1.5 w-fit">
+              <Undo2 size={11} /> Cancel Order
+            </span>
+            <h3 className="text-base font-black text-white mt-2">{trackingId}</h3>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-slate-400 hover:text-white transition-colors bg-slate-800/50 hover:bg-slate-700/50 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider cursor-pointer border-0"
+          >
+            Close
+          </button>
+        </div>
+
+        <div className="space-y-5">
+          <div className="bg-[#121212]/80 rounded-2xl p-4 border border-slate-850 flex items-center justify-between">
+            <span className="text-xs font-bold text-slate-400">Order Amount</span>
+            <span className="text-lg font-black text-white">₱{orderAmount.toFixed(2)}</span>
+          </div>
+
+          <div>
+            <label className="flex items-start gap-3 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={shouldRefund}
+                onChange={(e) => setShouldRefund(e.target.checked)}
+                className="mt-0.5 w-4 h-4 accent-[#1DB954] cursor-pointer"
+              />
+              <span className="text-xs font-bold text-white leading-relaxed">
+                Refund this amount back to the customer&apos;s wallet
+              </span>
+            </label>
+          </div>
+
+          {shouldRefund && (
+            <div>
+              <label className="block text-[9px] font-black uppercase tracking-wider text-slate-500 mb-2">
+                Refund Amount (₱)
+              </label>
+              <input
+                type="number"
+                min={0}
+                max={orderAmount}
+                step={0.01}
+                value={refundAmount}
+                onChange={(e) => setRefundAmount(e.target.value)}
+                className="w-full px-4 py-2.5 rounded-xl bg-[#121212]/60 border border-slate-850 focus:outline-none focus:ring-2 focus:ring-[#1DB954]/50 focus:border-[#1DB954] text-sm font-bold text-white transition-all"
+              />
+              <p className="text-[10px] text-slate-500 font-semibold mt-1.5">
+                Defaults to the full order amount. The customer&apos;s wallet is credited instantly on cancel.
+              </p>
+            </div>
+          )}
+
+          {error && (
+            <p className="text-[10px] font-bold text-red-400 bg-red-500/10 border border-red-500/20 rounded-xl px-3 py-2">
+              {error}
+            </p>
+          )}
+
+          <div className="flex gap-3 pt-2">
+            <button
+              onClick={onClose}
+              disabled={isSubmitting}
+              className="flex-1 px-4 py-3 rounded-xl bg-slate-800/50 hover:bg-slate-700/50 text-slate-300 font-black text-xs uppercase tracking-wider transition-all cursor-pointer border-0 disabled:opacity-50"
+            >
+              Back
+            </button>
+            <button
+              onClick={handleConfirm}
+              disabled={isSubmitting}
+              className="flex-1 px-4 py-3 rounded-xl bg-red-500 hover:bg-red-600 text-white font-black text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer border-0 disabled:opacity-50"
+            >
+              {isSubmitting ? (
+                <Loader2 size={13} className="animate-spin" />
+              ) : (
+                <Undo2 size={13} />
+              )}
+              {isSubmitting ? "Cancelling..." : `Cancel${shouldRefund ? ` & Refund ₱${refundValue.toFixed(2)}` : ""}`}
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
