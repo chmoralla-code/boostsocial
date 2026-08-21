@@ -1,8 +1,22 @@
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { ServicesSection } from "@/components/ServicesSection";
+import { StatCounters } from "@/components/StatCounters";
+import { FeatureBadgesGrid } from "@/components/FeatureBadgesGrid";
 import { createClient } from "@/utils/supabase/server";
-import { Download, Shield, Zap, Star, Layers } from "lucide-react";
+import { Download, Shield, Zap, Star, Layers, ChevronDown } from "lucide-react";
+
+const MARQUEE_ITEMS = [
+  "Facebook",
+  "Instagram",
+  "TikTok",
+  "YouTube",
+  "GCash Accepted",
+  "Maya Accepted",
+  "Instant Delivery",
+  "24/7 Support",
+  "No Password Needed",
+];
 
 export const dynamic = "force-dynamic";
 
@@ -66,7 +80,7 @@ export default async function Home() {
             <a 
               href="/downloads/pinoyboosting.apk" 
               download
-              className="robot-btn group relative inline-flex items-center justify-center gap-3 px-8 sm:px-14 py-5 sm:py-7 rounded-2xl bg-gradient-to-r from-white to-[#d4d4d8] text-black font-black text-base sm:text-xl uppercase tracking-wider shadow-2xl hover:shadow-white/40 transform hover:scale-105 transition-all duration-300 overflow-hidden"
+              className="robot-btn magnetic group relative inline-flex items-center justify-center gap-3 px-8 sm:px-14 py-5 sm:py-7 rounded-2xl bg-gradient-to-r from-white to-[#d4d4d8] text-black font-black text-base sm:text-xl uppercase tracking-wider shadow-2xl hover:shadow-white/40 transform transition-all duration-300 overflow-hidden"
             >
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/60 to-transparent translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-1000"></div>
               <Download size={26} className="relative z-10" />
@@ -74,7 +88,7 @@ export default async function Home() {
             </a>
             <a 
               href="#services" 
-              className="robot-btn group relative inline-flex items-center justify-center gap-2 px-8 sm:px-10 py-5 sm:py-7 rounded-2xl border-2 border-white/20 bg-white/[0.03] text-white font-black text-base sm:text-xl uppercase tracking-wider shadow-xl hover:border-primary/50 hover:bg-white/[0.06] transform hover:scale-105 transition-all duration-300 backdrop-blur-sm"
+              className="robot-btn magnetic group relative inline-flex items-center justify-center gap-2 px-8 sm:px-10 py-5 sm:py-7 rounded-2xl border-2 border-white/20 bg-white/[0.03] text-white font-black text-base sm:text-xl uppercase tracking-wider shadow-xl hover:border-primary/50 hover:bg-white/[0.06] transform transition-all duration-300 backdrop-blur-sm"
             >
               <Layers size={24} className="relative z-10 text-primary" />
               <span className="relative z-10">Browse Services</span>
@@ -89,21 +103,21 @@ export default async function Home() {
 
           {/* Trust Indicators */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-5 w-full max-w-3xl animate-fade-in-up-3">
-            <div className="robot-hud flex items-center gap-3 p-3.5 rounded-2xl bg-white/[0.02] border border-white/[0.04] backdrop-blur-sm light-mode:bg-slate-100/50 light-mode:border-slate-200/50">
+            <div className="robot-hud spotlight-card flex items-center gap-3 p-3.5 rounded-2xl bg-white/[0.02] border border-white/[0.04] backdrop-blur-sm light-mode:bg-slate-100/50 light-mode:border-slate-200/50">
               <Shield size={22} className="text-primary shrink-0" />
               <div className="text-left">
                 <div className="text-[11px] font-black text-fg uppercase tracking-wider">100% Safe</div>
                 <div className="text-[10px] text-muted">No password needed</div>
               </div>
             </div>
-            <div className="robot-hud flex items-center gap-3 p-3.5 rounded-2xl bg-white/[0.02] border border-white/[0.04] backdrop-blur-sm light-mode:bg-slate-100/50 light-mode:border-slate-200/50">
+            <div className="robot-hud spotlight-card flex items-center gap-3 p-3.5 rounded-2xl bg-white/[0.02] border border-white/[0.04] backdrop-blur-sm light-mode:bg-slate-100/50 light-mode:border-slate-200/50">
               <Zap size={22} className="text-primary shrink-0" />
               <div className="text-left">
                 <div className="text-[11px] font-black text-fg uppercase tracking-wider">Instant Start</div>
                 <div className="text-[10px] text-muted">5-15 min delivery</div>
               </div>
             </div>
-            <div className="robot-hud flex items-center gap-3 p-3.5 rounded-2xl bg-white/[0.02] border border-white/[0.04] backdrop-blur-sm light-mode:bg-slate-100/50 light-mode:border-slate-200/50">
+            <div className="robot-hud spotlight-card flex items-center gap-3 p-3.5 rounded-2xl bg-white/[0.02] border border-white/[0.04] backdrop-blur-sm light-mode:bg-slate-100/50 light-mode:border-slate-200/50">
               <Star size={22} className="text-primary shrink-0" />
               <div className="text-left">
                 <div className="text-[11px] font-black text-fg uppercase tracking-wider">99.8% Happy</div>
@@ -111,13 +125,56 @@ export default async function Home() {
               </div>
             </div>
           </div>
+
+          {/* Feature badges (admin-toggleable) + scroll hint */}
+          <FeatureBadgesGrid />
+          <a
+            href="#services"
+            aria-label="Scroll to services"
+            className="mt-8 inline-flex flex-col items-center gap-1 text-muted hover:text-fg transition-colors"
+          >
+            <span className="mono-label text-[9px]">Scroll to explore</span>
+            <ChevronDown size={18} className="scroll-hint" />
+          </a>
         </div>
+
+        {/* ⚡ Platform / perks marquee strip */}
+        <div
+          className="marquee w-full border-y border-white/[0.04] bg-white/[0.015] py-3.5 relative z-10 light-mode:bg-slate-100/40 light-mode:border-slate-200/50"
+          aria-hidden="true"
+        >
+          <div className="marquee-track">
+            {[0, 1].map((copy) => (
+              <div key={copy} className="flex items-center shrink-0">
+                {MARQUEE_ITEMS.map((item) => (
+                  <span
+                    key={`${copy}-${item}`}
+                    className="flex items-center text-[10px] sm:text-xs font-black uppercase tracking-[0.25em] text-muted"
+                  >
+                    <span className="px-5 sm:px-7">{item}</span>
+                    <span className="text-slate-600">✦</span>
+                  </span>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <StatCounters />
 
         <ServicesSection services={services || []} servicesCandidates={servicesCandidates} />
 
         {/* 📬 Contact & Support */}
-        <section id="contact" className="w-full max-w-3xl mx-auto px-4 sm:px-6 md:px-8 py-12 sm:py-16 border-t border-border/40 relative z-10">
-          <div className="robot-hud rounded-[2rem] bg-gradient-to-br from-white/[0.04] to-white/[0.01] border border-white/[0.08] p-6 sm:p-8 backdrop-blur-xl shadow-2xl relative text-center light-mode:bg-slate-50/50 light-mode:border-slate-200/50">
+        <section
+          id="contact"
+          data-reveal
+          className="w-full max-w-3xl mx-auto px-4 sm:px-6 md:px-8 py-12 sm:py-16 border-t border-border/40 relative z-10"
+        >
+          <div
+            data-reveal
+            data-reveal-delay="100"
+            className="robot-hud rounded-[2rem] bg-gradient-to-br from-white/[0.04] to-white/[0.01] border border-white/[0.08] p-6 sm:p-8 backdrop-blur-xl shadow-2xl relative text-center light-mode:bg-slate-50/50 light-mode:border-slate-200/50"
+          >
             <div className="absolute top-0 right-0 w-24 h-24 bg-white/5 rounded-full blur-2xl pointer-events-none"></div>
             
             <h3 className="text-lg sm:text-xl font-black text-fg uppercase mb-2 tracking-tight">📬 Need Help?</h3>

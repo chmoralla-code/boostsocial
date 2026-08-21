@@ -5,6 +5,7 @@ import { ClientAppUpdateButton } from "@/components/ClientAppUpdateButton";
 import { ClientAppNavigationControls } from "@/components/ClientAppNavigationControls";
 import { OnboardingRedirect } from "@/components/OnboardingRedirect";
 import { PWARegister } from "@/components/PWARegister";
+import { SiteEffects } from "@/components/SiteEffects";
 import "./globals.css";
 
 const spaceGrotesk = Space_Grotesk({ subsets: ["latin"] });
@@ -147,6 +148,7 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
         />
         <PWARegister />
+        <SiteEffects />
         <OnboardingRedirect />
         {children}
         <FloatingSiteWidgets />

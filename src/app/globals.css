@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+/* Makes every `light-mode:*` utility class in the codebase actually work
+   (they were previously dead — Tailwind v4 skips unknown variants) */
+@custom-variant light-mode (&:where([data-theme="light"] *));
+
 @theme {
   --color-primary: #ffffff;
   --color-primary-dark: #e5e5e5;
@@ -1320,3 +1324,303 @@ html { scroll-behavior: smooth; }
 [data-theme="light"] .text-cyan-300,
 [data-theme="light"] .text-cyan-500,
 [data-theme="light"] .text-green-400 { color: #0f0f0f !important; }
+
+/* ============================================================
+   MOTION PRIMITIVES — scroll reveal, spotlight, tilt, magnetic,
+   marquee, scroll progress. Transform/opacity only (GPU cheap),
+   desktop hover effects gated behind (hover: hover) + (pointer: fine).
+   ============================================================ */
+
+/* ---------- 1. Scroll reveal (driven by SiteEffects.tsx) ---------- */
+.reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition:
+    opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+  transition-delay: var(--reveal-delay, 0ms);
+  will-change: opacity, transform;
+}
+.reveal.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+/* Once revealed, drop will-change so the compositor layer is released */
+.reveal.is-visible {
+  will-change: auto;
+}
+
+/* Horizontal variant for side entrances */
+.reveal-left {
+  transform: translateX(-32px);
+}
+.reveal-left.is-visible {
+  transform: translateX(0);
+}
+.reveal-right {
+  transform: translateX(32px);
+}
+.reveal-right.is-visible {
+  transform: translateX(0);
+}
+
+/* ---------- 2. Fix dead animate-in classes (no tw-animate plugin) ----------
+   Header mobile menu, modals and toasts already use these class names —
+   they silently did nothing before. Minimal faithful reimplementation. */
+.animate-in {
+  animation: pb-enter 200ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes pb-enter {
+  from {
+    opacity: var(--tw-enter-opacity, 1);
+    transform: translate3d(var(--tw-enter-translate-x, 0), var(--tw-enter-translate-y, 0), 0)
+      scale3d(var(--tw-enter-scale, 1), var(--tw-enter-scale, 1), 1);
+  }
+}
+.fade-in {
+  --tw-enter-opacity: 0;
+}
+.fade-out {
+  --tw-exit-opacity: 0;
+}
+.zoom-in-95 {
+  --tw-enter-scale: 0.95;
+}
+.slide-in-from-top-2 {
+  --tw-enter-translate-y: -0.5rem;
+}
+.slide-in-from-top-4 {
+  --tw-enter-translate-y: -1rem;
+}
+.slide-in-from-bottom-2 {
+  --tw-enter-translate-y: 0.5rem;
+}
+.slide-in-from-bottom-4 {
+  --tw-enter-translate-y: 1rem;
+}
+.slide-in-from-right-5 {
+  --tw-enter-translate-x: 5rem;
+}
+.slide-in-from-left-5 {
+  --tw-enter-translate-x: -5rem;
+}
+
+/* ---------- 3. Spotlight card — cursor-following inner glow ---------- */
+@media (hover: hover) and (pointer: fine) {
+  .spotlight-card {
+    position: relative;
+  }
+  .spotlight-card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.4s ease;
+    background: radial-gradient(
+      260px circle at var(--mx, 50%) var(--my, 50%),
+      rgba(255, 255, 255, 0.07),
+      transparent 65%
+    );
+    z-index: 0;
+  }
+  .spotlight-card:hover::before {
+    opacity: 1;
+  }
+  /* Keep real content above the glow layer */
+  .spotlight-card > * {
+    position: relative;
+    z-index: 1;
+  }
+}
+[data-theme="light"] .spotlight-card::before {
+  background: radial-gradient(
+    260px circle at var(--mx, 50%) var(--my, 50%),
+    rgba(0, 0, 0, 0.05),
+    transparent 65%
+  );
+}
+
+/* ---------- 4. 3D tilt (vars driven by SiteEffects.tsx) ---------- */
+@media (hover: hover) and (pointer: fine) {
+  [data-tilt] {
+    transform: perspective(900px) rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg))
+      translateY(var(--tilt-lift, 0px));
+    transition: transform 0.25s ease-out;
+    will-change: transform;
+  }
+}
+
+/* ---------- 5. Magnetic buttons ---------- */
+@media (hover: hover) and (pointer: fine) {
+  .magnetic {
+    transform: translate(var(--mag-x, 0px), var(--mag-y, 0px)) scale(var(--mag-scale, 1));
+    transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    will-change: transform;
+  }
+  /* Hover growth lives here so it composes with the magnetic pull
+     instead of fighting Tailwind's hover:scale-* on the same element. */
+  .magnetic:hover {
+    --mag-scale: 1.05;
+  }
+}
+
+/* ---------- 6. Marquee strip ---------- */
+.marquee {
+  overflow: hidden;
+  position: relative;
+  /* fade edges */
+  -webkit-mask-image: linear-gradient(to right, transparent, black 12%, black 88%, transparent);
+  mask-image: linear-gradient(to right, transparent, black 12%, black 88%, transparent);
+}
+.marquee-track {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  animation: pb-marquee 32s linear infinite;
+  will-change: transform;
+}
+.marquee:hover .marquee-track {
+  animation-play-state: paused;
+}
+@keyframes pb-marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+/* ---------- 7. Scroll progress bar ---------- */
+.scroll-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  z-index: 9999;
+  pointer-events: none;
+  transform-origin: 0 50%;
+  transform: scaleX(var(--scroll-progress, 0));
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.35), #ffffff);
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.4);
+}
+[data-theme="light"] .scroll-progress {
+  background: linear-gradient(90deg, rgba(15, 15, 15, 0.35), #0f0f0f);
+  box-shadow: 0 0 8px rgba(15, 15, 15, 0.3);
+}
+
+/* ---------- 8. Timeline line-draw (track page) ---------- */
+.timeline-draw {
+  transform-origin: top;
+  transform: scaleY(0);
+  transition: transform 0.9s cubic-bezier(0.16, 1, 0.3, 1) 0.15s;
+}
+.is-visible .timeline-draw,
+.timeline-draw.is-visible {
+  transform: scaleY(1);
+}
+
+/* ---------- 9. Star pop-in (reviews) ---------- */
+.star-pop {
+  opacity: 0;
+  transform: scale(0.3) rotate(-20deg);
+  transition:
+    opacity 0.35s cubic-bezier(0.34, 1.56, 0.64, 1),
+    transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition-delay: var(--pop-delay, 0ms);
+}
+.is-visible .star-pop {
+  opacity: 1;
+  transform: scale(1) rotate(0deg);
+}
+
+/* ---------- 10. Scroll-down indicator (hero) ---------- */
+.scroll-hint {
+  animation: pb-scroll-hint 2.2s ease-in-out infinite;
+}
+@keyframes pb-scroll-hint {
+  0%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.45;
+  }
+  50% {
+    transform: translateY(8px);
+    opacity: 1;
+  }
+}
+
+/* ---------- Reduced motion: everything above becomes instant ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .reveal,
+  .reveal-left,
+  .reveal-right {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+  .animate-in {
+    animation: none !important;
+  }
+  .marquee-track {
+    animation: none !important;
+  }
+  .timeline-draw {
+    transform: none !important;
+    transition: none !important;
+  }
+  .star-pop {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+  .scroll-hint {
+    animation: none !important;
+  }
+  [data-tilt],
+  .magnetic {
+    transform: none !important;
+  }
+}
+
+/* ---------- Header polish ---------- */
+
+/* Sticky glass header */
+.header-sticky {
+  position: sticky;
+  top: 0;
+  background: color-mix(in srgb, var(--color-background) 82%, transparent);
+  backdrop-filter: blur(16px) saturate(1.2);
+  -webkit-backdrop-filter: blur(16px) saturate(1.2);
+}
+
+/* Animated underline for nav links */
+.nav-underline {
+  position: relative;
+}
+.nav-underline::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -5px;
+  height: 2px;
+  border-radius: 2px;
+  background: currentColor;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.nav-underline:hover::after,
+.nav-underline:focus-visible::after {
+  transform: scaleX(1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-underline::after {
+    transition: none;
+  }
+}

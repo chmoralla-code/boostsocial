@@ -44,7 +44,7 @@ export function FaqSection() {
 
   return (
     <section className="w-full max-w-4xl mx-auto px-4 mt-20 mb-20 relative z-10">
-      <div className="text-center mb-12">
+      <div className="text-center mb-12" data-reveal>
         <span className="bg-[#1877F2]/10 text-[#1877F2] border border-[#1877F2]/20 font-black text-[10px] tracking-widest uppercase px-3 py-1 rounded-full inline-flex items-center gap-1.5 mb-3">
           <HelpCircle size={10} /> FAQ Portal
         </span>
@@ -60,8 +60,10 @@ export function FaqSection() {
         {FAQS.map((faq, i) => {
           const isOpen = openIdx === i;
           return (
-            <div 
-              key={i} 
+            <div
+              key={i}
+              data-reveal
+              data-reveal-delay={`${Math.min(i * 60, 360)}`}
               className="bg-card/60 border border-border/80 rounded-2xl overflow-hidden transition-all duration-300"
             >
               <button

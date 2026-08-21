@@ -16,6 +16,10 @@ function AnimateNumber({ target, suffix = "", decimals = 0, duration = 1200 }: C
   const containerRef = useRef<HTMLSpanElement>(null);
 
   useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      setIsVisible(true);
+      return;
+    }
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
@@ -43,8 +47,10 @@ function AnimateNumber({ target, suffix = "", decimals = 0, duration = 1200 }: C
     const animate = (timestamp: number) => {
       if (!startTime) startTime = timestamp;
       const progress = Math.min((timestamp - startTime) / duration, 1);
-      
-      const current = progress * target;
+
+      // Ease-out so the counter decelerates into its final value
+      const eased = 1 - Math.pow(1 - progress, 3);
+      const current = eased * target;
       setCount(current);
 
       if (progress < 1) {
@@ -67,47 +73,33 @@ function AnimateNumber({ target, suffix = "", decimals = 0, duration = 1200 }: C
 }
 
 export function StatCounters() {
+  const stats = [
+    { icon: CheckCircle2, target: 15420, suffix: "+", decimals: 0, label: "Orders Completed" },
+    { icon: TrendingUp, target: 8.9, suffix: "M+", decimals: 1, label: "Boosts Delivered" },
+    { icon: Users, target: 99.8, suffix: "%", decimals: 1, label: "Satisfaction Rate" },
+  ];
+
   return (
-    <section className="w-full max-w-5xl mx-auto px-4 mt-6 mb-16 relative z-10">
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-        {/* Card 1 */}
-        <div className="bg-card/40 border border-border/80 rounded-2xl p-6 text-center hover:bg-elevated/30 transition-all duration-300 group flex items-center gap-5 sm:flex-col sm:justify-center">
-          <div className="p-4 rounded-full bg-[#1877F2]/10 text-[#1877F2] shadow-md group-hover:scale-105 transition-transform duration-300">
-            <CheckCircle2 size={24} />
-          </div>
-          <div className="text-left sm:text-center space-y-1">
-            <div className="text-2xl sm:text-3xl font-black text-fg font-mono tracking-tight">
-              <AnimateNumber target={15420} suffix="+" />
+    <section className="w-full max-w-4xl mx-auto px-4 mt-4 mb-14 sm:mb-20 relative z-10">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-5">
+        {stats.map((stat, i) => (
+          <div
+            key={stat.label}
+            data-reveal
+            data-reveal-delay={i * 100}
+            className="robot-hud spotlight-card flex items-center gap-4 sm:flex-col sm:justify-center sm:text-center p-5 rounded-2xl bg-white/[0.02] border border-white/[0.05] backdrop-blur-sm light-mode:bg-slate-100/50 light-mode:border-slate-200/50"
+          >
+            <div className="p-3 rounded-xl bg-white/[0.05] border border-white/[0.06] text-primary shrink-0 light-mode:bg-slate-200/60 light-mode:border-slate-300/40">
+              <stat.icon size={22} />
             </div>
-            <p className="text-xs text-muted font-bold uppercase tracking-wider">Orders Completed</p>
-          </div>
-        </div>
-
-        {/* Card 2 */}
-        <div className="bg-card/40 border border-border/80 rounded-2xl p-6 text-center hover:bg-elevated/30 transition-all duration-300 group flex items-center gap-5 sm:flex-col sm:justify-center">
-          <div className="p-4 rounded-full bg-[#1877F2]/10 text-[#1877F2] shadow-md group-hover:scale-105 transition-transform duration-300">
-            <TrendingUp size={24} />
-          </div>
-          <div className="text-left sm:text-center space-y-1">
-            <div className="text-2xl sm:text-3xl font-black text-fg font-mono tracking-tight">
-              <AnimateNumber target={8.9} suffix="M+" decimals={1} />
+            <div className="text-left sm:text-center space-y-0.5">
+              <div className="text-2xl sm:text-3xl font-black text-fg tracking-tight">
+                <AnimateNumber target={stat.target} suffix={stat.suffix} decimals={stat.decimals} />
+              </div>
+              <p className="mono-label text-[10px] text-muted">{stat.label}</p>
             </div>
-            <p className="text-xs text-muted font-bold uppercase tracking-wider">Boosts Delivered</p>
           </div>
-        </div>
-
-        {/* Card 3 */}
-        <div className="bg-card/40 border border-border/80 rounded-2xl p-6 text-center hover:bg-elevated/30 transition-all duration-300 group flex items-center gap-5 sm:flex-col sm:justify-center">
-          <div className="p-4 rounded-full bg-[#1877F2]/10 text-[#1877F2] shadow-md group-hover:scale-105 transition-transform duration-300">
-            <Users size={24} />
-          </div>
-          <div className="text-left sm:text-center space-y-1">
-            <div className="text-2xl sm:text-3xl font-black text-fg font-mono tracking-tight">
-              <AnimateNumber target={99.8} suffix="%" decimals={1} />
-            </div>
-            <p className="text-xs text-muted font-bold uppercase tracking-wider">Satisfaction Rate</p>
-          </div>
-        </div>
+        ))}
       </div>
     </section>
   );

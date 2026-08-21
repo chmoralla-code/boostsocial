@@ -44,7 +44,7 @@ export default function AffiliatePage() {
           ) : user ? (
             <ReferralDashboardContent user={user} profile={profile} />
           ) : (
-            <div className="rounded-2xl border border-slate-800 bg-[#121212] p-8 text-center">
+            <div className="rounded-2xl border border-slate-800 bg-[#121212] p-8 text-center" data-reveal>
               <h1 className="text-2xl font-black text-white">Affiliate Dashboard</h1>
               <p className="mx-auto mt-2 max-w-xl text-sm font-semibold leading-relaxed text-slate-400">
                 Sign in or create an account to get your referral link, track commissions, and request GCash payout.

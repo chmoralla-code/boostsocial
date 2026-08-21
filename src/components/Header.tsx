@@ -99,7 +99,7 @@ export function Header() {
 
   return (
     <>
-      <header className="w-full border-b border-border/40 relative z-50 overflow-hidden">
+      <header className="header-sticky w-full border-b border-border/40 relative z-50 overflow-hidden">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-6 md:gap-4 md:px-6 md:py-6">
         <Link href="/" className="flex min-w-0 shrink-0 items-center gap-2 group">
           <div className="shrink-0 text-primary drop-shadow-[0_0_10px_rgba(255,255,255,0.3)] group-hover:scale-110 transition-transform duration-300">
@@ -130,14 +130,14 @@ export function Header() {
         </button>
 
         <nav className="hidden min-w-0 flex-1 md:flex md:flex-wrap md:items-center md:justify-center md:gap-x-3 md:gap-y-1 lg:gap-x-5 font-bold text-muted text-sm">
-          <Link href="/quick-start" className="text-primary hover:text-primary-dark font-extrabold uppercase text-xs tracking-wider flex items-center gap-1 transition-colors animate-pulse whitespace-nowrap">Quick Start</Link>
-          <Link href="/order-page" className="text-primary hover:text-primary-dark font-extrabold uppercase text-xs tracking-wider transition-colors whitespace-nowrap">Order Page</Link>
-          <Link href="/affiliate" className="hover:text-fg transition-colors whitespace-nowrap">Affiliate</Link>
-          <Link href="/vip" className="hover:text-primary transition-colors flex items-center gap-1.5 uppercase tracking-wider text-xs font-extrabold whitespace-nowrap">
+          <Link href="/quick-start" className="nav-underline text-primary hover:text-primary-dark font-extrabold uppercase text-xs tracking-wider flex items-center gap-1 transition-colors whitespace-nowrap">Quick Start</Link>
+          <Link href="/order-page" className="nav-underline text-primary hover:text-primary-dark font-extrabold uppercase text-xs tracking-wider transition-colors whitespace-nowrap">Order Page</Link>
+          <Link href="/affiliate" className="nav-underline hover:text-fg transition-colors whitespace-nowrap">Affiliate</Link>
+          <Link href="/vip" className="nav-underline hover:text-primary transition-colors flex items-center gap-1.5 uppercase tracking-wider text-xs font-extrabold whitespace-nowrap">
             VIP
           </Link>
-          <Link href="/services" className="hover:text-fg transition-colors whitespace-nowrap">Services</Link>
-          <Link href="/track" className="hover:text-fg transition-colors whitespace-nowrap hidden lg:inline">Status Tracker</Link>
+          <Link href="/services" className="nav-underline hover:text-fg transition-colors whitespace-nowrap">Services</Link>
+          <Link href="/track" className="nav-underline hover:text-fg transition-colors whitespace-nowrap hidden lg:inline">Status Tracker</Link>
         </nav>
 
         <div className={user ? "hidden md:flex md:w-auto md:shrink-0 md:items-center md:justify-end md:gap-2 lg:gap-3" : "hidden md:flex md:w-auto md:shrink-0 md:items-center md:justify-end"}>
@@ -184,7 +184,7 @@ export function Header() {
                   <ThemeToggle />
                   <Link
                     href="/login"
-                    className="bg-white hover:bg-[#d4d4d8] text-black font-extrabold py-2 px-4 rounded-full transition-all duration-300 transform hover:scale-[1.03] shadow-md shadow-white/10 text-xs uppercase tracking-wider"
+                    className="magnetic bg-white hover:bg-[#d4d4d8] text-black font-extrabold py-2 px-4 rounded-full transition-all duration-300 transform shadow-md shadow-white/10 text-xs uppercase tracking-wider"
                   >
                     Sign In
                   </Link>

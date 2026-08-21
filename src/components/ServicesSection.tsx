@@ -775,7 +775,7 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
         className="w-full max-w-6xl mx-auto mt-12 mb-20 relative z-10 px-4 transition-all duration-300"
       >
 
-        <div className="flex flex-col items-center mb-10">
+        <div className="flex flex-col items-center mb-10" data-reveal>
           <h2 className="text-3xl md:text-4xl font-black text-center text-fg tracking-tight">
             Choose Your <span className="text-[#1877F2]">Boost Tier</span>
           </h2>
@@ -786,7 +786,7 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
 
         {/* Premium Consolidated Homepage Grid (Mobile-First responsive grids) */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 justify-center max-w-6xl mx-auto">
-          {activeCandidates.map((card) => {
+          {activeCandidates.map((card, cardIdx) => {
             // Determine button click action
             const isPlatform = card.id === "facebook" || card.id === "instagram" || card.id === "tiktok" || card.id === "youtube";
             const isAvailable = !isPlatform || platformAvailability[card.id] !== false;
@@ -850,10 +850,12 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
             const candidateVideoUrl = card.video_url?.trim();
 
             return (
-              <div 
-                key={card.id} 
+              <div
+                key={card.id}
+                data-reveal
+                data-reveal-delay={`${Math.min(cardIdx * 70, 420)}`}
                 className={`relative bg-elevated/50 hover:bg-elevated/90 backdrop-blur-md rounded-3xl ${cardPaddingClass} ${cardLayoutClass} flex flex-col items-start text-left w-full border border-white/[0.04] shadow-[0_12px_40px_rgba(0,0,0,0.4)] transition-all duration-500 transform hover:-translate-y-2 group`}
-                style={{ 
+                style={{
                   boxShadow: `0 12px 40px rgba(0,0,0,0.4)`
                 }}
                 onMouseEnter={(e) => {
@@ -957,7 +959,7 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
                 <h4 
                   className="text-xl font-bold text-fg mb-3 transition-colors group-hover:text-fg"
                   onMouseEnter={(e) => e.currentTarget.style.color = card.theme_color}
-                  onMouseLeave={(e) => e.currentTarget.style.color = "white"}
+                  onMouseLeave={(e) => e.currentTarget.style.color = ""}
                 >
                   {card.title}
                 </h4>
@@ -1056,7 +1058,7 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
 
       {/* 4.5 Comparison Grid - CYNETWORK vs Faceless SMM Panels */}
       <section className="w-full max-w-5xl mx-auto px-4 mt-24 mb-20 relative z-10">
-        <div className="text-center mb-12">
+        <div className="text-center mb-12" data-reveal>
           <span className="bg-[#1DB954]/10 text-[#1DB954] border border-[#1DB954]/20 font-black text-[10px] tracking-widest uppercase px-3 py-1 rounded-full inline-flex items-center gap-1.5 mb-3">
             ⚖️ Strategic Advantage
           </span>
@@ -1068,7 +1070,7 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
           </p>
         </div>
 
-        <div className="bg-elevated/50 backdrop-blur-xl border border-white/[0.04] rounded-3xl overflow-hidden shadow-2xl">
+        <div className="bg-elevated/50 backdrop-blur-xl border border-white/[0.04] rounded-3xl overflow-hidden shadow-2xl" data-reveal data-reveal-delay="150">
           {/* Grid Header (Hidden on Mobile) */}
           <div className="hidden md:grid grid-cols-3 border-b border-border/80 bg-black/40 py-5 px-8 text-xs font-black uppercase tracking-wider text-muted text-left">
             <div>Core Feature</div>

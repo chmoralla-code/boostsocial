@@ -145,7 +145,7 @@ export default function VipPage() {
       <Header />
       <main className="min-h-screen bg-[#0a0a0a] px-4 py-8 text-slate-200 sm:px-6 lg:px-8">
         <section className="mx-auto max-w-6xl space-y-7">
-          <div className="text-center">
+          <div className="text-center" data-reveal>
             <span className="inline-flex rounded-full border border-[#1DB954]/25 bg-[#1DB954]/10 px-4 py-1.5 text-[10px] font-black uppercase tracking-widest text-[#1DB954]">
               VIP Access
             </span>

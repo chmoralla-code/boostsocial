@@ -444,7 +444,7 @@ export default function TrackPage() {
           <div className="absolute top-[30%] right-[-10%] w-[500px] h-[500px] rounded-full fb-glow-blob"></div>
         </div>
 
-        <div className="w-full max-w-2xl mx-auto px-4 z-10 text-center">
+        <div className="w-full max-w-2xl mx-auto px-4 z-10 text-center" data-reveal>
           <span className="bg-[#1877F2]/10 text-[#1877F2] border border-[#1877F2]/20 font-black text-[10px] tracking-widest uppercase px-3 py-1 rounded-full inline-flex items-center gap-1.5 mb-3">
             <ShieldCheck size={10} /> SMM Status Terminal
           </span>

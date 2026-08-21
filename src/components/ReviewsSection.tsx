@@ -104,7 +104,7 @@ export function ReviewsSection() {
 
   return (
     <section className="w-full max-w-5xl mx-auto px-4 mt-20 mb-24 relative z-10">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6 mb-12">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6 mb-12" data-reveal>
         <div className="text-left">
           <span className="bg-[#1877F2]/10 text-[#1877F2] border border-[#1877F2]/20 font-black text-[10px] tracking-widest uppercase px-3 py-1 rounded-full inline-flex items-center gap-1.5 mb-3">
             <Star size={10} fill="currentColor" /> Reviews Grid
@@ -208,9 +208,11 @@ export function ReviewsSection() {
 
       {/* Reviews Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
-        {reviews.map((rev) => (
-          <div 
-            key={rev.id} 
+        {reviews.map((rev, revIdx) => (
+          <div
+            key={rev.id}
+            data-reveal
+            data-reveal-delay={`${Math.min(revIdx * 80, 400)}`}
             className="bg-card/60 border border-border/80 rounded-2xl p-5 hover:bg-elevated/30 transition-all duration-300 flex flex-col justify-between text-left group"
           >
             <div className="space-y-3">
