@@ -103,7 +103,7 @@ export const DEFAULT_SERVICE_CANDIDATES: ServiceCandidate[] = [
     glow_color: "rgba(139, 92, 246, 0.45)",
     video_url: "/hormachuelos-promo.mp4",
     coming_soon: false,
-    page_href: "https://hormachuelos.vercel.app/#/",
+    page_href: "https://hormachuelos.com/#/",
   },
   {
     id: "other",

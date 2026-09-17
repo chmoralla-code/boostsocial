@@ -12,7 +12,7 @@ import { createClient } from "@/utils/supabase/client";
 import { getVipDiscountPercent, isVipActive } from "@/utils/vip";
 import { FB_REACTIONS_MAP } from "@/utils/fbReactions";
 
-const HORMACHUELOS_AI_URL = "https://hormachuelos.vercel.app/#/";
+const HORMACHUELOS_AI_URL = "https://hormachuelos.com/#/";
 
 interface Service {
   id: string;
