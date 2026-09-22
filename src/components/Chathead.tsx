@@ -495,6 +495,12 @@ export function Chathead() {
     }
   }, [customerEmail, markAdminRepliesRead]);
 
+  // Tell other floating widgets (live boost popup) to stand down while chat is open
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.dispatchEvent(new CustomEvent("pinoyboosting:chat-open", { detail: { open: isOpen } }));
+  }, [isOpen]);
+
   useEffect(() => {
     supabase
       .from('services')
@@ -1171,7 +1177,7 @@ export function Chathead() {
         <button
           type="button"
           onClick={() => openSupportChat()}
-          className="fixed bottom-[calc(env(safe-area-inset-bottom)+4.5rem)] right-3 z-50 max-w-[280px] rounded-2xl border border-red-500/30 bg-[#181818] p-3.5 text-left shadow-2xl shadow-red-500/20 transition-all hover:border-red-400 hover:scale-105 active:scale-95 sm:bottom-24 sm:right-6 animate-bounce"
+          className="fixed bottom-[calc(env(safe-area-inset-bottom)+4.5rem)] right-3 z-[100] max-w-[280px] rounded-2xl border border-red-500/30 bg-[#181818] p-3.5 text-left shadow-2xl shadow-red-500/20 transition-all hover:border-red-400 hover:scale-105 active:scale-95 sm:bottom-24 sm:right-6 animate-bounce"
         >
           <div className="flex items-center gap-2 mb-1">
             <span className="h-2 w-2 rounded-full bg-red-500 animate-ping" />
@@ -1186,7 +1192,7 @@ export function Chathead() {
       )}
 
       {/* Floating Chathead Button */}
-      <div className="fixed bottom-[calc(env(safe-area-inset-bottom)+0.75rem)] right-3 sm:bottom-6 sm:right-6 z-50 flex items-center gap-3">
+      <div className="fixed bottom-[calc(env(safe-area-inset-bottom)+0.75rem)] right-3 sm:bottom-6 sm:right-6 z-[100] flex items-center gap-3">
         {/* Subtle Greeting Bubble */}
         {!isOpen && unreadAdminCount === 0 && (
           <div 
@@ -1210,7 +1216,7 @@ export function Chathead() {
           aria-label={isOpen ? "Close support chat" : "Open support chat"}
         >
           {isOpen ? (
-            <div className="bg-[#1877F2] hover:bg-[#166fe5] text-white w-full h-full rounded-full flex items-center justify-center shadow-lg transition-transform duration-300">
+            <div className="bg-[#2f2f2f] hover:bg-[#3d3d3d] text-white w-full h-full rounded-full flex items-center justify-center shadow-lg transition-transform duration-300">
               <X size={24} className="transition-transform duration-300 group-hover:rotate-90" />
             </div>
           ) : (
@@ -1246,7 +1252,7 @@ export function Chathead() {
           onDragOver={(e) => { e.preventDefault(); setIsDraggingFile(true); }}
           onDragLeave={() => setIsDraggingFile(false)}
           onDrop={handleDrop}
-          className={`fixed z-50 bg-[#121212] border border-white/15 rounded-3xl shadow-2xl flex flex-col overflow-hidden transition-all duration-300 ${
+          className={`fixed z-[100] bg-[#121212] border border-white/15 rounded-3xl shadow-2xl flex flex-col overflow-hidden transition-all duration-300 ${
             isMaximized 
               ? "inset-2 sm:inset-auto sm:right-6 sm:bottom-6 sm:w-[720px] sm:h-[820px] sm:max-h-[92vh]" 
               : "bottom-[calc(env(safe-area-inset-bottom)+4.5rem)] left-3 right-3 h-[540px] max-h-[82vh] sm:left-auto sm:bottom-24 sm:right-6 sm:w-[410px] sm:h-[600px] sm:max-h-[85vh]"
@@ -1414,7 +1420,7 @@ export function Chathead() {
                     <div
                       className={`rounded-2xl px-4 py-3 text-sm shadow-sm break-words ${
                         isUser
-                          ? "bg-[#1877F2] text-white font-semibold rounded-br-none"
+                          ? "bg-[#2f2f2f] text-white font-semibold rounded-br-none"
                           : "bg-[#1c1c1c] border border-white/10 text-zinc-100 rounded-bl-none"
                       }`}
                     >
@@ -1724,7 +1730,7 @@ export function Chathead() {
             <button 
               type="submit" 
               disabled={isLoading || uploading || !input.trim()}
-              className="bg-[#1877F2] hover:bg-[#166fe5] disabled:bg-white/10 disabled:text-zinc-600 text-white font-bold p-2.5 rounded-xl transition flex items-center justify-center shrink-0 cursor-pointer active:scale-95"
+              className="bg-[#2f2f2f] hover:bg-[#3d3d3d] disabled:bg-white/10 disabled:text-zinc-600 text-white font-bold p-2.5 rounded-xl transition flex items-center justify-center shrink-0 cursor-pointer active:scale-95"
               title="Send message"
             >
               <Send size={18} />

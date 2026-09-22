@@ -24,8 +24,19 @@ const MOCK_QUANTITIES = [500, 1000, 2000, 5000, 10000];
 export function LiveOrderTicker() {
   const [notification, setNotification] = useState<LiveOrderNotification | null>(null);
   const [isVisible, setIsVisible] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
   const [servicesMap, setServicesMap] = useState<Record<string, string>>({});
   const supabase = createClient();
+
+  // Step aside while the support chat is open so it never covers the input row
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent<{ open?: boolean }>).detail;
+      setChatOpen(Boolean(detail?.open));
+    };
+    window.addEventListener("pinoyboosting:chat-open", handler);
+    return () => window.removeEventListener("pinoyboosting:chat-open", handler);
+  }, []);
 
   // 1. Fetch services list to map service_id -> service_title
   useEffect(() => {
@@ -145,7 +156,7 @@ export function LiveOrderTicker() {
     };
   }, [servicesMap]);
 
-  if (!notification) return null;
+  if (!notification || chatOpen) return null;
 
   return (
     <div
