@@ -33,6 +33,15 @@ type OrderRow = {
   services?: { title?: string } | null;
 };
 
+/**
+ * The chat model is a reasoning model: it needs a generous token budget and
+ * enough wall-clock time to finish thinking before `content` appears. These
+ * bounds keep the whole provider chain inside the route's `maxDuration`.
+ */
+const AI_ROUTE_BUDGET_MS = 52_000;
+/** Skip a fallback provider unless at least this much of the budget is left. */
+const AI_ROUTE_MIN_PROVIDER_MS = 8_000;
+
 const PINOYBOOSTING_INTENT_WORDS = [
   "pinoyboosting", "cynetwork", "service", "services", "price", "pricing", "rate", "rates", "magkano", "package",
   "order", "tracking", "track", "status", "gcash", "payment", "receipt", "wallet", "topup", "top-up", "login",
@@ -275,16 +284,19 @@ function textPromptFromMessages(messages: ChatMessage[]) {
   ].join("\n\n");
 }
 
-async function askNeuralwatt(messages: ChatMessage[]): Promise<string> {
+async function askNeuralwatt(messages: ChatMessage[], remainingMs: number): Promise<string> {
   if (!hasNeuralwattApiKey()) return "";
 
   try {
     const completion = await requestNeuralwattChat({
       model: NEURALWATT_CHAT_MODEL,
       messages,
-      maxTokens: 500,
+      // The configured model is a reasoning model: it needs room to finish
+      // thinking before it emits an answer, otherwise `content` comes back
+      // empty and the caller falls through to a canned reply.
+      maxTokens: 2048,
       temperature: 0.7,
-      timeoutMs: 25_000,
+      timeoutMs: Math.min(45_000, remainingMs),
     });
     return completion.message.content?.trim() || "";
   } catch (error) {
@@ -293,7 +305,7 @@ async function askNeuralwatt(messages: ChatMessage[]): Promise<string> {
   }
 }
 
-async function askOpenCodeGo(messages: ChatMessage[]): Promise<string> {
+async function askOpenCodeGo(messages: ChatMessage[], remainingMs: number): Promise<string> {
   const apiKey = process.env.OPENCODE_API_KEY;
   if (!apiKey) return "";
 
@@ -307,10 +319,10 @@ async function askOpenCodeGo(messages: ChatMessage[]): Promise<string> {
       body: JSON.stringify({
         model: "mimo-v2.5",
         messages,
-        max_tokens: 500,
+        max_tokens: 2048,
         temperature: 0.7,
       }),
-      signal: AbortSignal.timeout(25000),
+      signal: AbortSignal.timeout(Math.min(20_000, remainingMs)),
       cache: "no-store",
     });
 
@@ -329,7 +341,7 @@ async function askOpenCodeGo(messages: ChatMessage[]): Promise<string> {
   }
 }
 
-async function askPollinationsText(messages: ChatMessage[]): Promise<string> {
+async function askPollinationsText(messages: ChatMessage[], remainingMs: number): Promise<string> {
   const model = process.env.POLLINATIONS_TEXT_MODEL || process.env.POLLINATIONS_MODEL || "openai";
   const prompt = textPromptFromMessages(messages);
   const params = new URLSearchParams({
@@ -344,7 +356,7 @@ async function askPollinationsText(messages: ChatMessage[]): Promise<string> {
     const res = await fetch(url, {
       method: "GET",
       headers: { Accept: "text/plain" },
-      signal: AbortSignal.timeout(15000),
+      signal: AbortSignal.timeout(Math.min(15_000, remainingMs)),
       cache: "no-store",
     });
 
@@ -362,15 +374,19 @@ async function askPollinationsText(messages: ChatMessage[]): Promise<string> {
   }
 }
 
-async function askAI(messages: ChatMessage[]): Promise<string> {
-  const neuralwatt = await askNeuralwatt(messages);
+async function askAI(messages: ChatMessage[], remainingMs: () => number): Promise<string> {
+  const neuralwatt = await askNeuralwatt(messages, remainingMs());
   if (neuralwatt) return neuralwatt;
 
-  const openCodeGo = await askOpenCodeGo(messages);
-  if (openCodeGo) return openCodeGo;
+  if (remainingMs() >= AI_ROUTE_MIN_PROVIDER_MS) {
+    const openCodeGo = await askOpenCodeGo(messages, remainingMs());
+    if (openCodeGo) return openCodeGo;
+  }
 
-  const pollinations = await askPollinationsText(messages);
-  if (pollinations) return pollinations;
+  if (remainingMs() >= AI_ROUTE_MIN_PROVIDER_MS) {
+    const pollinations = await askPollinationsText(messages, remainingMs());
+    if (pollinations) return pollinations;
+  }
 
   return "";
 }
@@ -467,6 +483,8 @@ function localFallback(message: string) {
   return "👋 I can help with that! Open /app to browse SERVICES, or tell me the platform and goal — Facebook followers, TikTok views, PisoWiFi, or top-up help. If you have an order, send a Tracking ID like BS-D5D1D849 and I will check it.";
 }
 
+export const maxDuration = 60;
+
 export async function POST(request: Request) {
   let userMessage = "";
 
@@ -531,7 +549,12 @@ export async function POST(request: Request) {
       ...messages.slice(-8), // Increased context window for better conversation
     ];
 
-    const content = await askAI(promptMessages);
+    // Share one deadline across the provider chain so a slow reasoning model
+    // cannot push the route past maxDuration.
+    const aiStartedAt = Date.now();
+    const aiRemainingMs = () => Math.max(0, AI_ROUTE_BUDGET_MS - (Date.now() - aiStartedAt));
+
+    const content = await askAI(promptMessages, aiRemainingMs);
     const fallbackContent = pinoyBoostingQuestion
       ? liveDataFallback(matchedServices, matchedCandidates, userMessage)
       : "⏳ I can help with that, but the AI service is temporarily busy. Please send the question again in a few seconds, or ask me about services, wallet top-up, or an order Tracking ID.";

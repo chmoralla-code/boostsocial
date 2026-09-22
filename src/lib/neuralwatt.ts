@@ -16,6 +16,15 @@
 
 const RETRYABLE_STATUSES = new Set([402, 408, 429, 500, 502, 503]);
 const MAX_ATTEMPTS_PER_PROVIDER = 2;
+const DEFAULT_MAX_TOKENS = 500;
+const DEFAULT_TIMEOUT_MS = 25_000;
+/** Budget multiplier used when a model burns its whole allowance on reasoning. */
+const EMPTY_CONTENT_RETRY_MULTIPLIER = 4;
+/** Hard ceiling for the enlarged retry so a request cannot run away in time. */
+const EMPTY_CONTENT_RETRY_CEILING = 4096;
+const MAX_EMPTY_CONTENT_RETRIES = 1;
+/** Never spend less than this on a retry; bail out and use what we have. */
+const MIN_RETRY_REMAINING_MS = 4_000;
 
 export const COMMANDCODE_DEFAULT_BASE_URL = "https://api.commandcode.ai/provider/v1";
 export const OPENROUTER_DEFAULT_BASE_URL = "https://openrouter.ai/api/v1";
@@ -194,7 +203,7 @@ function buildBody(options: CompletionOptions, model: string, includeResponseFor
   const body: Record<string, unknown> = {
     model,
     messages: options.messages,
-    max_tokens: options.maxTokens ?? 500,
+    max_tokens: options.maxTokens ?? DEFAULT_MAX_TOKENS,
     temperature: options.temperature ?? 0.6,
   };
 
@@ -267,6 +276,16 @@ async function readErrorDetail(response: Response) {
   }
 }
 
+function readMessageText(message: NeuralwattCompletion["message"]) {
+  return typeof message.content === "string" ? message.content.trim() : "";
+}
+
+/** Reasoning models stream their thinking into `reasoning` / `reasoning_content`. */
+function readReasoningText(message: NeuralwattCompletion["message"]) {
+  const reasoning = message.reasoning ?? message.reasoning_content;
+  return typeof reasoning === "string" ? reasoning.trim() : "";
+}
+
 async function requestFromProvider(
   provider: Provider,
   options: CompletionOptions,
@@ -279,6 +298,13 @@ async function requestFromProvider(
   const model = (useRequestedModel && options.model) || providerModel;
   let includeResponseFormat = Boolean(options.responseFormat);
 
+  // A reasoning model can spend the whole budget thinking and come back with an
+  // empty `content`. Retry once with a larger budget, then fall back to the
+  // reasoning text so a chat reply is never silently dropped.
+  let currentOptions = options;
+  let enlargedAttempts = 0;
+  const requestStartedAt = Date.now();
+
   for (let attempt = 0; attempt < MAX_ATTEMPTS_PER_PROVIDER; attempt += 1) {
     let response: Response;
     try {
@@ -289,8 +315,8 @@ async function requestFromProvider(
           "Content-Type": "application/json",
           ...provider.headers,
         },
-        body: JSON.stringify(buildBody(options, model, includeResponseFormat)),
-        signal: AbortSignal.timeout(options.timeoutMs ?? 25_000),
+        body: JSON.stringify(buildBody(currentOptions, model, includeResponseFormat)),
+        signal: AbortSignal.timeout(currentOptions.timeoutMs ?? DEFAULT_TIMEOUT_MS),
         cache: "no-store",
       });
     } catch (error) {
@@ -317,9 +343,50 @@ async function requestFromProvider(
         throw new Error("AI API returned an empty completion");
       }
 
+      const finishReason = data.choices?.[0]?.finish_reason;
+
+      if (!readMessageText(message)) {
+        const currentBudget = currentOptions.maxTokens ?? DEFAULT_MAX_TOKENS;
+        const callerTimeout = currentOptions.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+        const remainingMs = callerTimeout - (Date.now() - requestStartedAt);
+
+        // Only stretch the budget when there is time left to actually use it.
+        // Without this the retry starts a fresh long timeout and the whole
+        // request outlives the caller's timeout (and the function's duration).
+        const shouldEnlarge =
+          finishReason === "length" &&
+          enlargedAttempts < MAX_EMPTY_CONTENT_RETRIES &&
+          currentBudget < EMPTY_CONTENT_RETRY_CEILING &&
+          remainingMs >= MIN_RETRY_REMAINING_MS;
+
+        if (shouldEnlarge) {
+          enlargedAttempts += 1;
+          currentOptions = {
+            ...currentOptions,
+            maxTokens: Math.min(currentBudget * EMPTY_CONTENT_RETRY_MULTIPLIER, EMPTY_CONTENT_RETRY_CEILING),
+            timeoutMs: remainingMs,
+            disableThinking: false,
+            thinkingTokenBudget: undefined,
+          };
+          await response.body?.cancel();
+          continue;
+        }
+
+        const reasoning = readReasoningText(message);
+        if (reasoning) {
+          return {
+            message: { ...message, content: reasoning },
+            finishReason,
+            model: data.model,
+            usage: data.usage,
+            energy: data.energy,
+          };
+        }
+      }
+
       return {
         message,
-        finishReason: data.choices?.[0]?.finish_reason,
+        finishReason,
         model: data.model,
         usage: data.usage,
         energy: data.energy,
