@@ -369,11 +369,14 @@ export async function requestNeuralwattChat(
       return await requestFromProvider(provider, options, isFirst);
     } catch (error) {
       lastError = error;
-      // A rejected request (bad schema, bad key) will be rejected the same way
-      // everywhere, so only fall through on errors a second provider can fix.
+      // Only fall through on errors a second provider can actually fix. A
+      // timeout is not one of them: the caller's 45s budget plus a second 45s
+      // attempt would outlive the route's 60s limit, so the request would be
+      // killed instead of recording a reason. Stopping here keeps the worst
+      // case inside the limit and leaves a readable error on the row.
       const worthTryingNext =
-        isAbortError(error) ||
-        (error instanceof NeuralwattApiError && (error.retryable || error.status === 401 || error.status === 403));
+        error instanceof NeuralwattApiError &&
+        (error.retryable || error.status === 401 || error.status === 403);
       if (!worthTryingNext) throw error;
     } finally {
       isFirst = false;

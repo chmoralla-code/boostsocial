@@ -574,7 +574,7 @@ export async function verifyReceipt(
     const primaryResult = await callVisionModel(base64, mimeType, primaryPrompt);
     const parsed = parseReceiptAnalysis(primaryResult.rawText);
     if (!parsed) {
-      throw new Error("Kimi receipt analysis did not match the required schema");
+      throw new Error("Receipt analysis did not match the required schema");
     }
 
     const extractedAmount = parsed.amount;
