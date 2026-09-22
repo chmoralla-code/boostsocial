@@ -2,7 +2,16 @@ import type { SmmCatalogService } from "@/lib/smmCatalog";
 
 export const CHAT_CATALOG_SERVICE_ID = "e6f61249-71fe-40df-84f3-96d03d3e8dcf";
 
-const BLOCKED_SERVICE_IDS = new Set(["118"]);
+/**
+ * Provider service ids that must never be surfaced as chat offers.
+ * Keep empty by default: the live RixeySMM catalog already omits delisted
+ * services, so a hardcoded blocklist is only a safety net for the stale
+ * fallback catalog. Add an id here only when the provider lists a service
+ * that is unusable on our side.
+ * (`118` used to be listed here while it was temporarily delisted — it is
+ * back in the live catalog at 10.93 PHP/1k, so it is no longer blocked.)
+ */
+const BLOCKED_SERVICE_IDS = new Set<string>();
 const CHEAPEST_ALIASES = ["cheap", "cheapest", "lowest", "budget", "affordable", "barato", "mura"];
 const ALL_CATALOG_ALIASES = [
   "all smm",

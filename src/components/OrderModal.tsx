@@ -32,7 +32,7 @@ import { useWidgetVisibility } from "@/hooks/useWidgetVisibility";
 import { LinkPreviewWindow } from "./LinkPreviewWindow";
 import { compressImage, compressImageWithStats, formatBytes, type CompressResult } from "@/utils/imageCompressor";
 import { parseDescription } from "@/utils/serviceHelpers";
-import { getFBReactionRetailPrice, getFBReactionsSMMDetails } from "@/utils/fbReactions";
+import { getFBReactionRetailPrice, getFBReactionsSMMDetails, FB_REACTIONS_MAP } from "@/utils/fbReactions";
 import { getVipDiscountSummary } from "@/utils/vip";
 
 interface OrderModalProps {
@@ -61,6 +61,16 @@ const REACTION_OPTIONS = [
   { name: "Sad", emoji: "😢", color: "#F7B125", glow: "rgba(247, 177, 37, 0.35)" },
   { name: "Angry", emoji: "😡", color: "#E96630", glow: "rgba(233, 102, 48, 0.35)" }
 ];
+
+/**
+ * Provider service id for the current reaction selection.
+ * RixeySMM has no mixed-reaction service, so a multi reaction selection can
+ * never be placed — fall back to Like rather than sending a null id upstream.
+ */
+const resolveReactionSmmId = (reactions: string[]) => {
+  const details = getFBReactionsSMMDetails(reactions);
+  return details.smmId !== null ? String(details.smmId) : String(FB_REACTIONS_MAP.Like.smmId);
+};
 
 export function OrderModal({ 
   isOpen, 
@@ -235,7 +245,7 @@ export function OrderModal({
     : Math.max(parsedDetails.min_quantity || 100, 1);
 
   const resolvedSmmIdForAvailability = isReactionService
-    ? String(getFBReactionsSMMDetails(selectedReactions).smmId)
+    ? resolveReactionSmmId(selectedReactions)
     : (parsedDetails.smm_service_id ? String(parsedDetails.smm_service_id) : null);
 
   const isServiceAvailable = (() => {
@@ -342,21 +352,9 @@ export function OrderModal({
   };
 
   const toggleReaction = (name: string) => {
-    if (selectedReactions.includes(name)) {
-      if (selectedReactions.length > 1) {
-        setSelectedReactions(selectedReactions.filter(r => r !== name));
-      }
-    } else {
-      setSelectedReactions([...selectedReactions, name]);
-    }
-  };
-
-  const toggleAllReactions = () => {
-    if (selectedReactions.length === REACTION_OPTIONS.length) {
-      setSelectedReactions(["Like"]);
-    } else {
-      setSelectedReactions(REACTION_OPTIONS.map(r => r.name));
-    }
+    // Single-select: RixeySMM has no mixed-reaction service, so an order can
+    // only be placed for one reaction type at a time.
+    setSelectedReactions([name]);
   };
 
   const compressAndUploadAsset = async (file: File, orderId: string, assetType: string): Promise<string> => {
@@ -551,7 +549,7 @@ export function OrderModal({
           paymentMethod,
           quantity: finalQuantity,
           smmServiceId: isReactionService
-            ? String(getFBReactionsSMMDetails(selectedReactions).smmId)
+            ? resolveReactionSmmId(selectedReactions)
             : (parsedDetails.smm_service_id ? String(parsedDetails.smm_service_id) : null)
         })
       });
@@ -644,7 +642,7 @@ export function OrderModal({
       }
 
       const resolvedSmmServiceId = isReactionService
-        ? String(getFBReactionsSMMDetails(selectedReactions).smmId)
+        ? resolveReactionSmmId(selectedReactions)
         : (parsedDetails.smm_service_id ? String(parsedDetails.smm_service_id) : null);
 
       const res = await fetch("/api/checkout-wallet", {
@@ -993,15 +991,11 @@ export function OrderModal({
                 <div className="space-y-2.5 bg-[#181818] border border-white/10 p-3.5 rounded-2xl">
                   <div className="flex justify-between items-center">
                     <span className="text-xs font-bold uppercase tracking-wider text-zinc-300">
-                      Choose Reactions
+                      Choose Reaction
                     </span>
-                    <button
-                      type="button"
-                      onClick={toggleAllReactions}
-                      className="text-[11px] font-black text-[#1877F2] hover:underline cursor-pointer"
-                    >
-                      {selectedReactions.length === REACTION_OPTIONS.length ? "Reset to Like" : "Select All"}
-                    </button>
+                    <span className="text-[11px] font-medium text-zinc-500">
+                      One reaction per order
+                    </span>
                   </div>
 
                   <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">

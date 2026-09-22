@@ -84,6 +84,12 @@ Catalog UI showed stale service **#118**; orders failed with provider unavailabl
 
 Do **not** use delisted **#118**.
 
+> ⚠️ **Superseded — see the 2026-09-22 addendum below.** #118 has since returned
+> to the live RixeySMM catalog (10.93 PHP/1k) and is no longer blocked in
+> `src/lib/chatOffers.ts`. The live catalog now spans ids **4–1376** with
+> **1079** services, and the specific ids listed above are only examples —
+> always resolve against the live catalog rather than a hardcoded id.
+
 ---
 
 ## 5. Email system used for auth
@@ -207,4 +213,49 @@ src/app/api/admin/sync-external-orders/route.ts
 - [x] Completion emails on order Completed
 - [x] AI auto-approve for matching GCash destination + unique payment reference (including InstaPay/bank transfers to that GCash account)
 - [ ] Optionally re-sync admin service mappings that still point at delisted IDs (e.g. #118)
+
+---
+
+## Addendum — 2026-09-22 (RixeySMM re-debug)
+
+Re-verified the provider integration end to end.
+
+### Provider status
+- Endpoint `https://rixeysmm.shop/api/v2` responding normally; root site HTTP 200.
+- `RIXEYSMM_API_KEY` valid — `action=balance` → **₱448.43 PHP**.
+- `action=services` → **1079 services**, ids **4–1376**, ~5.4s cold fetch.
+
+### What was actually broken
+1. `RIXEYSMM_API_KEY` was **absent from `.env.local`** entirely, so local dev
+   silently fell back to the stored catalog and every order failed placement.
+   It now has to exist on Vercel for production too.
+2. **Twelve hardcoded provider ids were delisted**:
+   `fbReactions.ts` — `2860`, `3021–3026`, `1961–1965`; `orderPricing.ts` /
+   `order-page/page.tsx` — `CUSTOM_PAGE_SMM_ID` = `2026`.
+   Every Facebook reaction order was failing at placement because of this.
+
+### Fixes applied
+| File | Change |
+|------|--------|
+| `src/utils/fbReactions.ts` | Remapped to live `#1086–#1092` (all 7 reaction types, uniform 5.80 PHP/1k). Multi-reaction selections now report `isMixed` / `smmId: null`. |
+| `src/lib/orderPricing.ts` | Rejects mixed-reaction orders with a clear message (no provider service exists for a specific mix). |
+| `src/components/OrderModal.tsx` | Reaction picker is single-select; id resolution is null-safe. |
+| `src/app/api/smm/balance/route.ts` | Distinguishes `missing_key` / `provider_error` / `network_error` / `ok`; low-balance alert only fires on a successful read. |
+| `src/lib/chatOffers.ts` | `118` unblocked (it is live again); blocklist documented as an empty safety net. |
+| `.env.local` | `RIXEYSMM_API_KEY` added (gitignored — still set it on Vercel). |
+| `src/middleware.ts` → `src/proxy.ts` | Next.js 16 renamed Middleware to Proxy; official codemod equivalent applied. |
+| `next.config.ts` | `turbopack.root` pinned to the project root (stray lockfile in the home dir confused root detection). |
+
+### Cost impact
+The old Like rate was 4.49 and other reactions 5.68. The live replacement
+family is a uniform **5.80**, so retail prices rise ~29% for Like and ~2% for
+the rest (× your markup multiplier). Worth re-checking margins.
+
+### Still open
+- `CUSTOM_PAGE_SMM_ID = "2026"` is delisted and RixeySMM offers **no**
+  equivalent "custom Facebook page" service. Custom-page orders cannot be
+  placed automatically — needs a business decision (re-map, re-scope, or make
+  it manual fulfilment).
+- Reaction orders now work for a **single** reaction type only.
+- `.env.local` still has no Supabase variables, so DB-backed pages fail locally.
 - [ ] Keep Resend / Rixey keys rotated if exposed in chat history

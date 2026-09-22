@@ -116,8 +116,25 @@ describe("resolveOrderPricing — reaction services", () => {
       quantity: 100,
       targetUrl: "Reactions: [Like] Link: https://fb.com/post",
     });
-    // Like retail per piece at 3x = 4.49/1000*3 = 0.01347; 100 * = 1.347 → floor 5
+    // Like retail per piece at 3x = 5.80/1000*3 = 0.0174; 100 * = 1.74 → floor 5
     expect(result.regularAmount).toBeGreaterThanOrEqual(5);
-    expect(result.smmServiceId).toBe(String(2860));
+    expect(result.smmServiceId).toBe(String(1086));
+  });
+
+  it("rejects mixed reaction selections the provider cannot fulfil", async () => {
+    const client = makeClient({
+      id: "svc-3",
+      title: "Facebook Reactions",
+      description: "{}",
+      starting_price: 0.02,
+    });
+    await expect(
+      resolveOrderPricing({
+        client,
+        serviceId: "svc-3",
+        quantity: 100,
+        targetUrl: "Reactions: [Like, Love] Link: https://fb.com/post",
+      })
+    ).rejects.toThrow(/mixed reaction orders are temporarily unavailable/i);
   });
 });

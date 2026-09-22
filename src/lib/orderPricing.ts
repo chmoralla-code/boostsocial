@@ -1,5 +1,5 @@
 import { SupabaseClient } from "@supabase/supabase-js";
-import { getFBReactionRetailPrice, getFBReactionsSMMDetails } from "@/utils/fbReactions";
+import { getFBReactionRetailPrice, getFBReactionsSMMDetails, MIXED_REACTIONS_UNAVAILABLE_MESSAGE } from "@/utils/fbReactions";
 import { parseDescription } from "@/utils/serviceHelpers";
 import { getSmmCatalogServiceById, type SmmCatalogService } from "@/lib/smmCatalog";
 
@@ -261,6 +261,12 @@ export async function resolveOrderPricing({
   const reactions = /reaction|react/i.test(title) ? parseSelectedReactions(targetUrl) : null;
   if (reactions) {
     const reactionDetails = getFBReactionsSMMDetails(reactions);
+    // RixeySMM has no mixed-reaction service, so a multi-reaction selection
+    // cannot be placed. Reject before the order is created rather than letting
+    // it fail at the provider during placement.
+    if (reactionDetails.isMixed || reactionDetails.smmId === null) {
+      throw new Error(MIXED_REACTIONS_UNAVAILABLE_MESSAGE);
+    }
     // Soft check only — DB/reaction pricing is authoritative for checkout speed.
     await assertSmmServiceAvailable(reactionDetails.smmId, { required: false });
     return {

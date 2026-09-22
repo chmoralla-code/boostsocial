@@ -2,29 +2,45 @@ import { describe, it, expect } from "vitest";
 import { getFBReactionsSMMDetails, getFBReactionRetailPrice, FB_REACTIONS_MAP } from "@/utils/fbReactions";
 
 describe("getFBReactionsSMMDetails", () => {
-  it("single Like maps to its cheap id", () => {
+  it("single Like maps to its live provider id", () => {
     const details = getFBReactionsSMMDetails(["Like"]);
     expect(details.smmId).toBe(FB_REACTIONS_MAP["Like"].smmId);
+    expect(details.isMixed).toBe(false);
   });
 
-  it("single non-like maps to its id", () => {
-    expect(getFBReactionsSMMDetails(["Love"]).smmId).toBe(3021);
+  it("maps every reaction type to its own distinct provider id", () => {
+    const ids = Object.keys(FB_REACTIONS_MAP).map((name) => {
+      const details = getFBReactionsSMMDetails([name]);
+      expect(details.smmId).toBe(FB_REACTIONS_MAP[name].smmId);
+      expect(details.isMixed).toBe(false);
+      return details.smmId;
+    });
+    expect(new Set(ids).size).toBe(Object.keys(FB_REACTIONS_MAP).length);
+  });
+
+  it("single non-like maps to its own id", () => {
+    expect(getFBReactionsSMMDetails(["Love"]).smmId).toBe(FB_REACTIONS_MAP["Love"].smmId);
   });
 
   it("empty selection falls back to Like", () => {
     expect(getFBReactionsSMMDetails([]).smmId).toBe(FB_REACTIONS_MAP["Like"].smmId);
   });
 
-  it("Like+Love maps to mixed package 1961", () => {
-    expect(getFBReactionsSMMDetails(["Like", "Love"]).smmId).toBe(1961);
+  it("ignores blank entries in the selection", () => {
+    expect(getFBReactionsSMMDetails([""]).smmId).toBe(FB_REACTIONS_MAP["Like"].smmId);
   });
 
-  it("full 5-mix maps to 1964", () => {
-    expect(getFBReactionsSMMDetails(["Like", "Love", "Care", "Haha", "Wow"]).smmId).toBe(1964);
+  it("mixed selections are flagged instead of guessing an id", () => {
+    // RixeySMM has no Facebook mixed-reaction service, so there is no valid id.
+    const details = getFBReactionsSMMDetails(["Like", "Love"]);
+    expect(details.isMixed).toBe(true);
+    expect(details.smmId).toBeNull();
   });
 
-  it("unknown complex mix falls back to 1965", () => {
-    expect(getFBReactionsSMMDetails(["Like", "Sad", "Angry"]).smmId).toBe(1965);
+  it("a full mix is still reported as mixed", () => {
+    const details = getFBReactionsSMMDetails(Object.keys(FB_REACTIONS_MAP));
+    expect(details.isMixed).toBe(true);
+    expect(details.smmId).toBeNull();
   });
 });
 
@@ -37,5 +53,11 @@ describe("getFBReactionRetailPrice", () => {
   it("applies custom markup", () => {
     const price = getFBReactionRetailPrice(["Like"], 2.0);
     expect(price).toBeCloseTo((FB_REACTIONS_MAP["Like"].rate / 1000) * 2, 4);
+  });
+
+  it("prices a mixed selection at the highest selected rate", () => {
+    const price = getFBReactionRetailPrice(["Like", "Angry"]);
+    const highest = Math.max(FB_REACTIONS_MAP["Like"].rate, FB_REACTIONS_MAP["Angry"].rate);
+    expect(price).toBeCloseTo((highest / 1000) * 3, 4);
   });
 });

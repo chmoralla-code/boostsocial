@@ -5,6 +5,12 @@ const cleanEnvValue = (value: string | undefined) =>
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  // A stray package-lock.json in the user's home directory made Next.js infer
+  // the wrong Turbopack workspace root. Pin it to the project root explicitly
+  // (the directory the npm scripts and the Vercel build run from).
+  turbopack: {
+    root: process.cwd(),
+  },
   env: {
     NEXT_PUBLIC_SUPABASE_URL: cleanEnvValue(process.env.NEXT_PUBLIC_SUPABASE_URL),
     NEXT_PUBLIC_SUPABASE_ANON_KEY: cleanEnvValue(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY),
