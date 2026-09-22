@@ -876,7 +876,7 @@ export function OrderModal({
               {/* Action Buttons */}
               <div className="flex flex-col sm:flex-row gap-2.5 pt-2">
                 <a
-                  href={`/track-order?id=${orderId.slice(0, 8)}`}
+                  href={`/track?id=${orderId.slice(0, 8)}`}
                   className="flex-1 bg-[#1877F2] hover:bg-[#1877F2]/90 text-white font-bold py-3 px-4 rounded-xl text-xs uppercase tracking-wider text-center transition flex items-center justify-center gap-1.5 shadow-lg shadow-[#1877F2]/25"
                 >
                   <ExternalLink size={14} /> Track Order Status

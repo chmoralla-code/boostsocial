@@ -1,11 +1,35 @@
-const DEFAULT_NEURALWATT_BASE_URL = "https://api.neuralwatt.com/v1";
-const RETRYABLE_STATUSES = new Set([429, 500, 502, 503]);
+/**
+ * OpenAI-compatible AI client.
+ *
+ * The provider is OpenRouter. Both chat and receipt-vision requests default to
+ * the `openrouter/free` router, which picks an available free model per request
+ * and automatically filters for the features the request needs (image input,
+ * structured outputs, tool calling).
+ *
+ * The exported names still say "Neuralwatt" on purpose: they are imported by the
+ * receipt verifier and both chat routes, and renaming them here would only move
+ * churn into call sites that do not care which provider sits underneath.
+ */
+
+const DEFAULT_BASE_URL = "https://openrouter.ai/api/v1";
+const RETRYABLE_STATUSES = new Set([402, 408, 429, 500, 502, 503]);
 const MAX_ATTEMPTS = 2;
 
+export const FREE_MODELS_ROUTER = "openrouter/free";
+
+function envValue(...names: string[]) {
+  for (const name of names) {
+    const value = process.env[name]?.trim();
+    if (value) return value;
+  }
+  return "";
+}
+
 export const NEURALWATT_CHAT_MODEL =
-  process.env.NEURALWATT_CHAT_MODEL?.trim() || "deepseek-v4-flash";
+  envValue("OPENROUTER_CHAT_MODEL", "NEURALWATT_CHAT_MODEL") || FREE_MODELS_ROUTER;
+
 export const NEURALWATT_VISION_MODEL =
-  process.env.NEURALWATT_VISION_MODEL?.trim() || "kimi-k2.7-code";
+  envValue("OPENROUTER_VISION_MODEL", "NEURALWATT_VISION_MODEL") || FREE_MODELS_ROUTER;
 
 export type NeuralwattTextPart = {
   type: "text";
@@ -90,20 +114,55 @@ type CompletionOptions = {
 export class NeuralwattApiError extends Error {
   readonly status: number;
   readonly retryable: boolean;
+  readonly detail?: string;
 
-  constructor(status: number) {
-    super(`NeuralWatt API request failed with status ${status}`);
+  constructor(status: number, detail?: string) {
+    super(
+      detail
+        ? `Vision/chat API request failed with status ${status}: ${detail}`
+        : `Vision/chat API request failed with status ${status}`
+    );
     this.name = "NeuralwattApiError";
     this.status = status;
     this.retryable = RETRYABLE_STATUSES.has(status);
+    this.detail = detail;
   }
 }
 
 function apiBaseUrl() {
   return (
-    process.env.NEURALWATT_BASE_URL?.trim().replace(/\/+$/, "") ||
-    DEFAULT_NEURALWATT_BASE_URL
+    envValue("OPENROUTER_BASE_URL", "NEURALWATT_BASE_URL").replace(/\/+$/, "") || DEFAULT_BASE_URL
   );
+}
+
+function apiKey() {
+  return envValue("OPENROUTER_API_KEY", "NEURALWATT_API_KEY");
+}
+
+function buildBody(options: CompletionOptions, includeResponseFormat: boolean) {
+  const body: Record<string, unknown> = {
+    model: options.model,
+    messages: options.messages,
+    max_tokens: options.maxTokens ?? 500,
+    temperature: options.temperature ?? 0.6,
+  };
+
+  if (options.tools?.length) {
+    body.tools = options.tools;
+    body.tool_choice = options.toolChoice ?? "auto";
+  }
+  if (includeResponseFormat && options.responseFormat) {
+    body.response_format = options.responseFormat;
+  }
+  // OpenRouter expresses "do not reason" as a reasoning object. Free models that
+  // do not support it simply ignore the field.
+  if (options.disableThinking) {
+    body.reasoning = { enabled: false, exclude: true };
+  } else if (typeof options.thinkingTokenBudget === "number") {
+    body.reasoning = { max_tokens: options.thinkingTokenBudget };
+  }
+
+  return body;
 }
 
 function retryDelayMs(response: Response, attempt: number) {
@@ -128,37 +187,37 @@ function wait(ms: number) {
 }
 
 export function hasNeuralwattApiKey() {
-  return Boolean(process.env.NEURALWATT_API_KEY?.trim());
+  return Boolean(apiKey());
+}
+
+async function readErrorDetail(response: Response) {
+  try {
+    const text = await response.text();
+    if (!text) return undefined;
+    try {
+      const parsed = JSON.parse(text) as { error?: { message?: string } | string; message?: string };
+      const nested = parsed.error;
+      if (typeof nested === "string") return nested.slice(0, 300);
+      if (nested && typeof nested.message === "string") return nested.message.slice(0, 300);
+      if (typeof parsed.message === "string") return parsed.message.slice(0, 300);
+    } catch {
+      return text.slice(0, 300);
+    }
+    return text.slice(0, 300);
+  } catch {
+    return undefined;
+  }
 }
 
 export async function requestNeuralwattChat(
   options: CompletionOptions
 ): Promise<NeuralwattCompletion> {
-  const apiKey = process.env.NEURALWATT_API_KEY?.trim();
-  if (!apiKey) {
-    throw new Error("NEURALWATT_API_KEY is not configured");
+  const key = apiKey();
+  if (!key) {
+    throw new Error("OPENROUTER_API_KEY is not configured");
   }
 
-  const body: Record<string, unknown> = {
-    model: options.model,
-    messages: options.messages,
-    max_tokens: options.maxTokens ?? 500,
-    temperature: options.temperature ?? 0.6,
-  };
-
-  if (options.tools?.length) {
-    body.tools = options.tools;
-    body.tool_choice = options.toolChoice ?? "auto";
-  }
-  if (options.responseFormat) {
-    body.response_format = options.responseFormat;
-  }
-  if (typeof options.thinkingTokenBudget === "number") {
-    body.thinking_token_budget = options.thinkingTokenBudget;
-  }
-  if (options.disableThinking) {
-    body.chat_template_kwargs = { enable_thinking: false };
-  }
+  let includeResponseFormat = Boolean(options.responseFormat);
 
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt += 1) {
     let response: Response;
@@ -166,10 +225,12 @@ export async function requestNeuralwattChat(
       response = await fetch(`${apiBaseUrl()}/chat/completions`, {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${apiKey}`,
+          Authorization: `Bearer ${key}`,
           "Content-Type": "application/json",
+          "HTTP-Referer": "https://faceboosting.vercel.app",
+          "X-Title": "BoostSocial",
         },
-        body: JSON.stringify(body),
+        body: JSON.stringify(buildBody(options, includeResponseFormat)),
         signal: AbortSignal.timeout(options.timeoutMs ?? 25_000),
         cache: "no-store",
       });
@@ -192,7 +253,7 @@ export async function requestNeuralwattChat(
       const message = data.choices?.[0]?.message;
 
       if (!message) {
-        throw new Error("NeuralWatt API returned an empty completion");
+        throw new Error("AI API returned an empty completion");
       }
 
       return {
@@ -204,7 +265,18 @@ export async function requestNeuralwattChat(
       };
     }
 
-    const apiError = new NeuralwattApiError(response.status);
+    const detail = await readErrorDetail(response);
+
+    // A free model may reject the strict JSON schema or the tool schema. Drop the
+    // structured-output request and try once more: the receipt verifier already
+    // parses plain JSON out of the message content when no tool call is present.
+    if (response.status === 400 && includeResponseFormat) {
+      includeResponseFormat = false;
+      await response.body?.cancel();
+      continue;
+    }
+
+    const apiError = new NeuralwattApiError(response.status, detail);
     const shouldRetry = apiError.retryable && attempt < MAX_ATTEMPTS - 1;
     if (!shouldRetry) {
       throw apiError;
@@ -214,5 +286,5 @@ export async function requestNeuralwattChat(
     await wait(retryDelayMs(response, attempt));
   }
 
-  throw new Error("NeuralWatt API request failed");
+  throw new Error("AI API request failed");
 }

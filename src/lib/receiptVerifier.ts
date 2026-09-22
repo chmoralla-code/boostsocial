@@ -240,7 +240,7 @@ async function callVisionModel(
     "";
 
   if (!rawText) {
-    throw new Error("Kimi receipt analysis returned no structured result");
+    throw new Error("Receipt analysis returned no structured result");
   }
 
   return {
@@ -716,7 +716,11 @@ export async function autoVerifyAndApproveTopup(params: {
     !result.isDuplicate;
 
   let reason = result.reason || null;
-  if (!result.receiverMatched) {
+  if (!result.success) {
+    // Keep the verifier's own error (missing API key, HTTP error, timeout,
+    // schema mismatch). Do not let the checks below invent a mismatch reason.
+    reason = reason || "Receipt verification did not complete";
+  } else if (!result.receiverMatched) {
     reason = `Payment destination mismatch: saw "${result.receiverName || "unknown"}", expected ${expectedPaymentDestinationLabel()}.`;
   } else if (!result.referenceNumber) {
     reason = "Payment reference number not found on receipt";
@@ -838,7 +842,11 @@ export async function autoVerifyAndApproveOrder(params: {
     Boolean(result.referenceUnique);
 
   let reason = result.reason || null;
-  if (!result.receiverMatched) {
+  if (!result.success) {
+    // Keep the verifier's own error (missing API key, HTTP error, timeout,
+    // schema mismatch). Do not let the checks below invent a mismatch reason.
+    reason = reason || "Receipt verification did not complete";
+  } else if (!result.receiverMatched) {
     reason = `Payment destination mismatch: saw "${result.receiverName || "unknown"}", expected ${expectedPaymentDestinationLabel()}.`;
   } else if (!result.referenceNumber) {
     reason = "Payment reference number not found on receipt";

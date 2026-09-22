@@ -18,6 +18,11 @@ import { recordOrderEvent } from "@/lib/orderEvents";
 const MAX_RECEIPT_FILE_BYTES = 8 * 1024 * 1024;
 const ALLOWED_RECEIPT_TYPES = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp"]);
 
+// The vision call can take up to 45s and the free router may need a retry, so the
+// default limit is not enough. Without this the request is killed mid-call and the
+// upload silently falls back to manual review.
+export const maxDuration = 60;
+
 async function updateOrderReceipt(
   supabase: SupabaseClient,
   orderId: string,
