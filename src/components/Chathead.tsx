@@ -334,6 +334,9 @@ export function Chathead() {
   const isOpenRef = useRef(isOpen);
   const customerEmailRef = useRef(customerEmail);
   const hasLoadedHistoryRef = useRef(false);
+  const clearedAtRef = useRef(0);
+  const clearedIdsRef = useRef<Set<string>>(new Set());
+  const [confirmClear, setConfirmClear] = useState(false);
   const [compressState, setCompressState] = useState<CompressResult | null>(null);
 
   useEffect(() => { isOpenRef.current = isOpen; }, [isOpen]);
@@ -425,6 +428,22 @@ export function Chathead() {
   const applyRemoteInsert = useCallback(
     (row: CustomerMessageRow, options?: { fromHistory?: boolean }) => {
       if (seenIdsRef.current.has(row.id)) return;
+      // A message the customer already cleared stays hidden, even if realtime
+      // or a poll delivers it again.
+      if (clearedIdsRef.current.has(String(row.id))) {
+        seenIdsRef.current.add(row.id);
+        return;
+      }
+      if (clearedAtRef.current > 0) {
+        const rowTime = Date.parse(row.created_at || "");
+        const olderThanClear = Number.isFinite(rowTime)
+          ? rowTime <= clearedAtRef.current
+          : !row.created_at;
+        if (olderThanClear) {
+          seenIdsRef.current.add(row.id);
+          return;
+        }
+      }
       const role: Message["role"] = row.sender === "customer" ? "user" : "assistant";
       const now = Date.now();
       if (!options?.fromHistory) {
@@ -527,6 +546,18 @@ export function Chathead() {
     });
   }, [supabase]);
 
+  // Restore this customer clear-chat watermark, so a cleared conversation
+  // stays cleared after a reload or a re-open.
+  useEffect(() => {
+    if (!customerEmail || typeof window === "undefined") {
+      clearedAtRef.current = 0;
+      return;
+    }
+    const stored = Number(localStorage.getItem(`chat_cleared_at:${customerEmail}`) || 0);
+    clearedAtRef.current = Number.isFinite(stored) && stored > 0 ? stored : 0;
+    clearedIdsRef.current = new Set();
+  }, [customerEmail]);
+
   // Load chat history once on email connect
   useEffect(() => {
     if (!customerEmail) return;
@@ -556,7 +587,19 @@ export function Chathead() {
         const res = await fetch(`/api/chat/messages?email=${encodeURIComponent(customerEmail)}`);
         if (!res.ok) return;
         const data = await res.json();
-        const dbMsgs = (data.messages || []) as ChatDbMessage[];
+        const allMsgs = (data.messages || []) as ChatDbMessage[];
+        // Rows the customer cleared stay hidden on their screen only: admin
+        // keeps the full record. Anything newer than the clear still shows.
+        const clearWatermark = clearedAtRef.current;
+        const clearedIds = clearedIdsRef.current;
+        const dbMsgs = clearWatermark > 0 || clearedIds.size > 0
+          ? allMsgs.filter((m) => {
+              if (clearedIds.has(String(m.id))) return false;
+              if (clearWatermark <= 0) return true;
+              const ts = Date.parse(m.created_at || "");
+              return Number.isFinite(ts) ? ts > clearWatermark : Boolean(m.created_at);
+            })
+          : allMsgs;
 
         if (!hasLoadedHistoryRef.current) {
           hasLoadedHistoryRef.current = true;
@@ -591,7 +634,7 @@ export function Chathead() {
                 sender: m.sender,
                 message: m.message,
                 is_read: Boolean(m.is_read),
-                created_at: "",
+                created_at: m.created_at || "",
               });
             }
           }
@@ -951,11 +994,33 @@ export function Chathead() {
   };
 
   const handleClearChat = () => {
-    if (confirm("Clear support chat history on your screen?")) {
-      setMessages([initialWelcomeMsg]);
-      setPendingCheckoutOffer(null);
-      setPendingReceiptOrder(null);
+    // Watermark taken from the newest server timestamp on screen. Comparing
+    // server time against server time stays correct even when the device clock
+    // is wrong, and it is what keeps the old conversation from coming back.
+    // reduce, not Math.max(...times): spreading a very long history into a call
+    // can overflow the argument stack.
+    const watermark = messages.reduce((newest, msg) => {
+      if (!msg.id) return newest;
+      const time = Date.parse(String(msg.createdAt ?? ""));
+      return Number.isFinite(time) && time > newest ? time : newest;
+    }, 0);
+
+    clearedAtRef.current = watermark;
+    // Also remember the ids on screen, so a row without a usable timestamp
+    // cannot slip back in after the clear.
+    clearedIdsRef.current = new Set(
+      messages.filter((msg) => Boolean(msg.id)).map((msg) => String(msg.id))
+    );
+    if (watermark > 0 && customerEmail && typeof window !== "undefined") {
+      localStorage.setItem(`chat_cleared_at:${customerEmail}`, String(watermark));
     }
+
+    hasLoadedHistoryRef.current = false;
+    localEchoRef.current = [];
+    setMessages([initialWelcomeMsg]);
+    setPendingCheckoutOffer(null);
+    setPendingReceiptOrder(null);
+    setConfirmClear(false);
   };
 
   const sendMessage = async (userMsg: string) => {
@@ -1122,7 +1187,9 @@ export function Chathead() {
       if (!responseText) {
         const text = userMsg.toLowerCase();
         if (text.includes("price") || text.includes("cost") || text.includes("magkano") || text.includes("pricing") || text.includes("package")) {
-          responseText = `💰 Prices vary by platform:\n* **Facebook Followers:** ₱10 per 1,000\n* **FB Post Reactions:** ₱5 per 1,000\n* **Video Views:** ₱13 per 1,000\n* **TikTok Followers:** ₱45 per 1,000\n\nOpen SERVICES to choose a package!`;
+          // Never quote a hardcoded number here: the real rates come from the
+          // live catalog, and a stale guess would disagree with the website.
+          responseText = `💰 I could not reach the live price list just now. Please send that again in a moment, or open the **SERVICES** section to see the current rates. Tell me the platform and goal (for example **FB followers**) and I will pull the exact price for you.`;
         } else if (text.includes("payment") || text.includes("gcash") || text.includes("bayad") || text.includes("bpi")) {
           responseText = `💳 We accept **GCash** (09505339963 • Henry S.) and **BPI Bank Transfer** (#4059901356). Upload your screenshot here after paying for instant approval.`;
         } else if (text.includes("who") || text.includes("owner") || text.includes("create") || text.includes("developer") || text.includes("cyrhiel")) {
@@ -1306,8 +1373,8 @@ export function Chathead() {
               {/* Clear Chat */}
               <button
                 type="button"
-                onClick={handleClearChat}
-                className="p-2 hover:text-red-400 hover:bg-white/10 rounded-xl transition cursor-pointer"
+                onClick={() => setConfirmClear((open) => !open)}
+                className={`p-2 rounded-xl transition cursor-pointer ${confirmClear ? "text-red-400 bg-white/10" : "hover:text-red-400 hover:bg-white/10"}`}
                 title="Clear chat"
               >
                 <Trash2 size={16} />
@@ -1334,6 +1401,34 @@ export function Chathead() {
               </button>
             </div>
           </div>
+
+          {/* Clear Chat Confirmation - inline, because a native confirm() dialog
+              can be suppressed inside the mobile app webview and then the button
+              looks dead. */}
+          {confirmClear && (
+            <div className="flex items-center justify-between gap-2 border-b border-red-500/25 bg-red-500/10 px-3 py-2 shrink-0">
+              <span className="text-[11px] font-bold text-white leading-tight">
+                Clear this chat on your screen?
+                <span className="block text-[9px] font-medium text-zinc-400">Admin keeps the full record.</span>
+              </span>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={handleClearChat}
+                  className="rounded-lg bg-red-500 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-white hover:bg-red-400 transition cursor-pointer"
+                >
+                  Clear
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmClear(false)}
+                  className="rounded-lg border border-white/15 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-zinc-300 hover:text-white hover:bg-white/10 transition cursor-pointer"
+                >
+                  Keep
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Email Support Sync Sub-header */}
           {!customerEmail ? (
