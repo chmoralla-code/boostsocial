@@ -31,9 +31,27 @@ export const OPENROUTER_DEFAULT_BASE_URL = "https://openrouter.ai/api/v1";
 export const COMMANDCODE_DEFAULT_MODEL = "deepseek/deepseek-v4.1-flash";
 export const FREE_MODELS_ROUTER = "openrouter/free";
 
+/**
+ * Some dashboards store a whole `KEY=value` string in the value field by
+ * mistake. That produced a URL that was literally
+ * "COMMANDCODE_BASE_URL=https://..." and killed every AI call with an invalid
+ * URL, which then surfaced as a canned fallback reply. Strip the leading
+ * assignment and any stray quotes so the client keeps working either way.
+ */
+function normalizeEnvValue(raw: string) {
+  let value = raw.trim().replace(/^["']|["']$/g, "").trim();
+  const assignment = value.match(/^[A-Z0-9_]+=(.*)$/s);
+  if (assignment) {
+    value = assignment[1].trim().replace(/^["']|["']$/g, "").trim();
+  }
+  return value;
+}
+
 function envValue(...names: string[]) {
   for (const name of names) {
-    const value = process.env[name]?.trim();
+    const raw = process.env[name];
+    if (!raw) continue;
+    const value = normalizeEnvValue(raw);
     if (value) return value;
   }
   return "";
@@ -41,6 +59,23 @@ function envValue(...names: string[]) {
 
 function stripTrailingSlash(url: string) {
   return url.replace(/\/+$/, "");
+}
+
+/**
+ * A malformed base URL used to fail later as "Failed to parse URL from ..."
+ * inside `fetch`, where the only symptom the customer saw was a canned reply.
+ * Rejecting it here skips that provider instead, so the chain moves on to one
+ * that can actually answer.
+ */
+function validBaseUrl(url: string) {
+  if (!url) return "";
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return "";
+    return stripTrailingSlash(url);
+  } catch {
+    return "";
+  }
 }
 
 type Provider = {
@@ -55,10 +90,11 @@ type Provider = {
 function commandCodeProvider(): Provider | null {
   const apiKey = envValue("COMMANDCODE_API_KEY");
   if (!apiKey) return null;
+  const baseUrl =
+    validBaseUrl(envValue("COMMANDCODE_BASE_URL")) || COMMANDCODE_DEFAULT_BASE_URL;
   return {
     name: "commandcode",
-    baseUrl:
-      stripTrailingSlash(envValue("COMMANDCODE_BASE_URL")) || COMMANDCODE_DEFAULT_BASE_URL,
+    baseUrl,
     apiKey,
     chatModel: envValue("COMMANDCODE_CHAT_MODEL") || COMMANDCODE_DEFAULT_MODEL,
     visionModel: envValue("COMMANDCODE_VISION_MODEL") || COMMANDCODE_DEFAULT_MODEL,
@@ -69,11 +105,12 @@ function commandCodeProvider(): Provider | null {
 function openRouterProvider(): Provider | null {
   const apiKey = envValue("OPENROUTER_API_KEY", "NEURALWATT_API_KEY");
   if (!apiKey) return null;
+  const baseUrl =
+    validBaseUrl(envValue("OPENROUTER_BASE_URL", "NEURALWATT_BASE_URL")) ||
+    OPENROUTER_DEFAULT_BASE_URL;
   return {
     name: "openrouter",
-    baseUrl:
-      stripTrailingSlash(envValue("OPENROUTER_BASE_URL", "NEURALWATT_BASE_URL")) ||
-      OPENROUTER_DEFAULT_BASE_URL,
+    baseUrl,
     apiKey,
     chatModel: envValue("OPENROUTER_CHAT_MODEL", "NEURALWATT_CHAT_MODEL") || FREE_MODELS_ROUTER,
     visionModel:
