@@ -353,31 +353,51 @@ export async function middleware(request: NextRequest) {
   // 3. Perform standard administrator authentication enforcement
   const needsAuthCheck = isAdminArea || isAdminApi;
 
-  const supabase = createServerClient(
-    getSupabaseUrl(),
-    getSupabaseAnonKey(),
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll()
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
-          supabaseResponse = NextResponse.next({
-            request,
-          })
-          cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
-          )
-        },
-      },
-    }
-  )
-
+  // Build the auth client defensively. If Supabase env vars are missing or
+  // malformed this used to throw OUTSIDE any try/catch and take the whole site
+  // down with a 500 on every page. Now it fails safe: admin areas stay locked
+  // (fail closed) while public pages keep serving (fail open).
+  let supabase: ReturnType<typeof createServerClient> | null = null;
   let user: { email?: string } | null = null;
-  if (needsAuthCheck) {
-    const { data } = await supabase.auth.getUser();
-    user = data.user ?? null;
+
+  try {
+    supabase = createServerClient(
+      getSupabaseUrl(),
+      getSupabaseAnonKey(),
+      {
+        cookies: {
+          getAll() {
+            return request.cookies.getAll()
+          },
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
+            supabaseResponse = NextResponse.next({
+              request,
+            })
+            cookiesToSet.forEach(({ name, value, options }) =>
+              supabaseResponse.cookies.set(name, value, options)
+            )
+          },
+        },
+      }
+    )
+
+    if (needsAuthCheck) {
+      const { data } = await supabase.auth.getUser();
+      user = data.user ?? null;
+    }
+  } catch (err) {
+    console.error('Middleware auth check error:', err)
+
+    if (needsAuthCheck) {
+      // Never let a config problem open the admin console.
+      return applySecurityHeaders(
+        new NextResponse('Service temporarily unavailable', { status: 503 })
+      )
+    }
+
+    // Public traffic must keep working even if auth config is broken.
+    return applySecurityHeaders(NextResponse.next({ request }))
   }
 
   if (isAdminArea && request.nextUrl.pathname !== '/admin/login') {
