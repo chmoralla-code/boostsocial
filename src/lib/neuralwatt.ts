@@ -40,7 +40,7 @@ export const FREE_MODELS_ROUTER = "openrouter/free";
  */
 function normalizeEnvValue(raw: string) {
   let value = raw.trim().replace(/^["']|["']$/g, "").trim();
-  const assignment = value.match(/^[A-Z0-9_]+=(.*)$/s);
+  const assignment = value.match(/^[A-Za-z][A-Za-z0-9_]*=([\s\S]*)$/);
   if (assignment) {
     value = assignment[1].trim().replace(/^["']|["']$/g, "").trim();
   }
