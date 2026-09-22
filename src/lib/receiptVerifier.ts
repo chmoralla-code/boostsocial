@@ -309,7 +309,12 @@ function parseReceiptAnalysis(text: string): ParsedReceiptAnalysis | null {
   const tamperingScore = boundedNumber(parsed.tampering_score, 0, 100);
   const confidence = boundedNumber(parsed.confidence, 0, 1);
   const receiptDescription = nullableString(parsed.receipt_description);
-  const paymentRail = nullableString(parsed.payment_rail);
+  const paymentRailRaw = nullableString(parsed.payment_rail);
+  // Models are inconsistent about casing here ("GCash" vs "gcash"), and the
+  // strict enum below would otherwise throw away an otherwise perfect analysis.
+  const paymentRail = paymentRailRaw
+    ? paymentRailRaw.trim().toLowerCase().replace(/[\s-]+/g, "_")
+    : null;
 
   if (
     typeof parsed.is_payment_receipt !== "boolean" ||

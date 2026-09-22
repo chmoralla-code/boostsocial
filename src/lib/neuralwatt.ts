@@ -1,20 +1,25 @@
 /**
  * OpenAI-compatible AI client.
  *
- * The provider is OpenRouter. Both chat and receipt-vision requests default to
- * the `openrouter/free` router, which picks an available free model per request
- * and automatically filters for the features the request needs (image input,
- * structured outputs, tool calling).
+ * Primary provider: CommandCode (`https://api.commandcode.ai/provider/v1`),
+ * serving `deepseek/deepseek-v4.1-flash` for both website/app chat and receipt
+ * vision.
+ *
+ * Fallback provider: OpenRouter's free router, used only when its key is set and
+ * the primary call fails. This keeps a single missing key from silently killing
+ * auto-approval, which is exactly what happened before.
  *
  * The exported names still say "Neuralwatt" on purpose: they are imported by the
  * receipt verifier and both chat routes, and renaming them here would only move
  * churn into call sites that do not care which provider sits underneath.
  */
 
-const DEFAULT_BASE_URL = "https://openrouter.ai/api/v1";
 const RETRYABLE_STATUSES = new Set([402, 408, 429, 500, 502, 503]);
-const MAX_ATTEMPTS = 2;
+const MAX_ATTEMPTS_PER_PROVIDER = 2;
 
+export const COMMANDCODE_DEFAULT_BASE_URL = "https://api.commandcode.ai/provider/v1";
+export const OPENROUTER_DEFAULT_BASE_URL = "https://openrouter.ai/api/v1";
+export const COMMANDCODE_DEFAULT_MODEL = "deepseek/deepseek-v4.1-flash";
 export const FREE_MODELS_ROUTER = "openrouter/free";
 
 function envValue(...names: string[]) {
@@ -25,11 +30,65 @@ function envValue(...names: string[]) {
   return "";
 }
 
-export const NEURALWATT_CHAT_MODEL =
-  envValue("OPENROUTER_CHAT_MODEL", "NEURALWATT_CHAT_MODEL") || FREE_MODELS_ROUTER;
+function stripTrailingSlash(url: string) {
+  return url.replace(/\/+$/, "");
+}
 
-export const NEURALWATT_VISION_MODEL =
-  envValue("OPENROUTER_VISION_MODEL", "NEURALWATT_VISION_MODEL") || FREE_MODELS_ROUTER;
+type Provider = {
+  name: string;
+  baseUrl: string;
+  apiKey: string;
+  chatModel: string;
+  visionModel: string;
+  headers: Record<string, string>;
+};
+
+function commandCodeProvider(): Provider | null {
+  const apiKey = envValue("COMMANDCODE_API_KEY");
+  if (!apiKey) return null;
+  return {
+    name: "commandcode",
+    baseUrl:
+      stripTrailingSlash(envValue("COMMANDCODE_BASE_URL")) || COMMANDCODE_DEFAULT_BASE_URL,
+    apiKey,
+    chatModel: envValue("COMMANDCODE_CHAT_MODEL") || COMMANDCODE_DEFAULT_MODEL,
+    visionModel: envValue("COMMANDCODE_VISION_MODEL") || COMMANDCODE_DEFAULT_MODEL,
+    headers: {},
+  };
+}
+
+function openRouterProvider(): Provider | null {
+  const apiKey = envValue("OPENROUTER_API_KEY", "NEURALWATT_API_KEY");
+  if (!apiKey) return null;
+  return {
+    name: "openrouter",
+    baseUrl:
+      stripTrailingSlash(envValue("OPENROUTER_BASE_URL", "NEURALWATT_BASE_URL")) ||
+      OPENROUTER_DEFAULT_BASE_URL,
+    apiKey,
+    chatModel: envValue("OPENROUTER_CHAT_MODEL", "NEURALWATT_CHAT_MODEL") || FREE_MODELS_ROUTER,
+    visionModel:
+      envValue("OPENROUTER_VISION_MODEL", "NEURALWATT_VISION_MODEL") || FREE_MODELS_ROUTER,
+    headers: {
+      "HTTP-Referer": "https://faceboosting.vercel.app",
+      "X-Title": "BoostSocial",
+    },
+  };
+}
+
+function providers(): Provider[] {
+  return [commandCodeProvider(), openRouterProvider()].filter(
+    (provider): provider is Provider => provider !== null
+  );
+}
+
+function primaryProvider(): Provider | null {
+  return providers()[0] ?? null;
+}
+
+export const NEURALWATT_CHAT_MODEL = primaryProvider()?.chatModel || COMMANDCODE_DEFAULT_MODEL;
+
+export const NEURALWATT_VISION_MODEL = primaryProvider()?.visionModel || COMMANDCODE_DEFAULT_MODEL;
 
 export type NeuralwattTextPart = {
   type: "text";
@@ -99,7 +158,7 @@ export type NeuralwattCompletion = {
 };
 
 type CompletionOptions = {
-  model: string;
+  model?: string;
   messages: NeuralwattMessage[];
   maxTokens?: number;
   temperature?: number;
@@ -109,6 +168,8 @@ type CompletionOptions = {
   responseFormat?: Record<string, unknown>;
   thinkingTokenBudget?: number;
   disableThinking?: boolean;
+  /** Which of the request's two model slots to use. Defaults to "chat". */
+  task?: "chat" | "vision";
 };
 
 export class NeuralwattApiError extends Error {
@@ -129,19 +190,9 @@ export class NeuralwattApiError extends Error {
   }
 }
 
-function apiBaseUrl() {
-  return (
-    envValue("OPENROUTER_BASE_URL", "NEURALWATT_BASE_URL").replace(/\/+$/, "") || DEFAULT_BASE_URL
-  );
-}
-
-function apiKey() {
-  return envValue("OPENROUTER_API_KEY", "NEURALWATT_API_KEY");
-}
-
-function buildBody(options: CompletionOptions, includeResponseFormat: boolean) {
+function buildBody(options: CompletionOptions, model: string, includeResponseFormat: boolean) {
   const body: Record<string, unknown> = {
-    model: options.model,
+    model,
     messages: options.messages,
     max_tokens: options.maxTokens ?? 500,
     temperature: options.temperature ?? 0.6,
@@ -154,8 +205,8 @@ function buildBody(options: CompletionOptions, includeResponseFormat: boolean) {
   if (includeResponseFormat && options.responseFormat) {
     body.response_format = options.responseFormat;
   }
-  // OpenRouter expresses "do not reason" as a reasoning object. Free models that
-  // do not support it simply ignore the field.
+  // Expressed as a reasoning object, the OpenAI-compatible way. Providers or
+  // models that do not support it ignore the field.
   if (options.disableThinking) {
     body.reasoning = { enabled: false, exclude: true };
   } else if (typeof options.thinkingTokenBudget === "number") {
@@ -186,8 +237,15 @@ function wait(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function isAbortError(error: unknown) {
+  return (
+    error instanceof Error &&
+    (error.name === "AbortError" || error.name === "TimeoutError")
+  );
+}
+
 export function hasNeuralwattApiKey() {
-  return Boolean(apiKey());
+  return providers().length > 0;
 }
 
 async function readErrorDetail(response: Response) {
@@ -209,33 +267,36 @@ async function readErrorDetail(response: Response) {
   }
 }
 
-export async function requestNeuralwattChat(
-  options: CompletionOptions
+async function requestFromProvider(
+  provider: Provider,
+  options: CompletionOptions,
+  useRequestedModel: boolean
 ): Promise<NeuralwattCompletion> {
-  const key = apiKey();
-  if (!key) {
-    throw new Error("OPENROUTER_API_KEY is not configured");
-  }
-
+  const providerModel =
+    options.task === "vision" ? provider.visionModel : provider.chatModel;
+  // The caller's model name only makes sense on the provider it was configured
+  // for. A fallback provider has its own catalogue, so it gets its own model.
+  const model = (useRequestedModel && options.model) || providerModel;
   let includeResponseFormat = Boolean(options.responseFormat);
 
-  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt += 1) {
+  for (let attempt = 0; attempt < MAX_ATTEMPTS_PER_PROVIDER; attempt += 1) {
     let response: Response;
     try {
-      response = await fetch(`${apiBaseUrl()}/chat/completions`, {
+      response = await fetch(`${provider.baseUrl}/chat/completions`, {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${key}`,
+          Authorization: `Bearer ${provider.apiKey}`,
           "Content-Type": "application/json",
-          "HTTP-Referer": "https://faceboosting.vercel.app",
-          "X-Title": "BoostSocial",
+          ...provider.headers,
         },
-        body: JSON.stringify(buildBody(options, includeResponseFormat)),
+        body: JSON.stringify(buildBody(options, model, includeResponseFormat)),
         signal: AbortSignal.timeout(options.timeoutMs ?? 25_000),
         cache: "no-store",
       });
     } catch (error) {
-      if (attempt >= MAX_ATTEMPTS - 1) throw error;
+      // A second attempt would double the worst-case wall time and can push the
+      // whole serverless request past its limit, so a timeout is final.
+      if (isAbortError(error) || attempt >= MAX_ATTEMPTS_PER_PROVIDER - 1) throw error;
       await wait(400 * 2 ** attempt);
       continue;
     }
@@ -267,9 +328,9 @@ export async function requestNeuralwattChat(
 
     const detail = await readErrorDetail(response);
 
-    // A free model may reject the strict JSON schema or the tool schema. Drop the
-    // structured-output request and try once more: the receipt verifier already
-    // parses plain JSON out of the message content when no tool call is present.
+    // Some models reject the strict JSON schema. Drop the structured-output
+    // request and try once more: the receipt verifier already parses plain JSON
+    // out of the message content when no tool call is present.
     if (response.status === 400 && includeResponseFormat) {
       includeResponseFormat = false;
       await response.body?.cancel();
@@ -277,7 +338,7 @@ export async function requestNeuralwattChat(
     }
 
     const apiError = new NeuralwattApiError(response.status, detail);
-    const shouldRetry = apiError.retryable && attempt < MAX_ATTEMPTS - 1;
+    const shouldRetry = apiError.retryable && attempt < MAX_ATTEMPTS_PER_PROVIDER - 1;
     if (!shouldRetry) {
       throw apiError;
     }
@@ -287,4 +348,37 @@ export async function requestNeuralwattChat(
   }
 
   throw new Error("AI API request failed");
+}
+
+export async function requestNeuralwattChat(
+  options: CompletionOptions
+): Promise<NeuralwattCompletion> {
+  const chain = providers();
+
+  if (!chain.length) {
+    throw new Error(
+      "No AI provider is configured. Set COMMANDCODE_API_KEY (preferred) or OPENROUTER_API_KEY."
+    );
+  }
+
+  let lastError: unknown;
+  let isFirst = true;
+
+  for (const provider of chain) {
+    try {
+      return await requestFromProvider(provider, options, isFirst);
+    } catch (error) {
+      lastError = error;
+      // A rejected request (bad schema, bad key) will be rejected the same way
+      // everywhere, so only fall through on errors a second provider can fix.
+      const worthTryingNext =
+        isAbortError(error) ||
+        (error instanceof NeuralwattApiError && (error.retryable || error.status === 401 || error.status === 403));
+      if (!worthTryingNext) throw error;
+    } finally {
+      isFirst = false;
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error("AI API request failed");
 }
