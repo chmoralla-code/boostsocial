@@ -1056,14 +1056,14 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
       {/* 4. Customer reviews Grid & Form */}
       <ReviewsSection />
 
-      {/* 4.5 Comparison Grid - CYNETWORK vs Faceless SMM Panels */}
+      {/* 4.5 Comparison Grid - PINOYBOOSTING vs Faceless SMM Panels */}
       <section className="w-full max-w-5xl mx-auto px-4 mt-24 mb-20 relative z-10">
         <div className="text-center mb-12" data-reveal>
           <span className="bg-[#1DB954]/10 text-[#1DB954] border border-[#1DB954]/20 font-black text-[10px] tracking-widest uppercase px-3 py-1 rounded-full inline-flex items-center gap-1.5 mb-3">
             ⚖️ Strategic Advantage
           </span>
           <h2 className="text-3xl md:text-4xl font-black text-center text-fg tracking-tight">
-            How <span className="text-[#1DB954]">CYNETWORK</span> Wins Against Wholesale Panels
+            How <span className="text-[#1DB954]">PINOYBOOSTING</span> Wins Against Wholesale Panels
           </h2>
           <p className="text-sm text-muted mt-2 font-medium">
             Unlike sterile automated direct SMM panels (like RixeySMM), we offer premium curated layers of safety and trust
@@ -1074,7 +1074,7 @@ export function ServicesSection({ services, servicesBg, servicesCandidates }: Se
           {/* Grid Header (Hidden on Mobile) */}
           <div className="hidden md:grid grid-cols-3 border-b border-border/80 bg-black/40 py-5 px-8 text-xs font-black uppercase tracking-wider text-muted text-left">
             <div>Core Feature</div>
-            <div className="text-[#1DB954] flex items-center gap-1.5">🟢 CYNETWORK Curation</div>
+            <div className="text-[#1DB954] flex items-center gap-1.5">🟢 PINOYBOOSTING Curation</div>
             <div className="text-muted flex items-center gap-1.5">🔴 Faceless Wholesale SMM Panels</div>
           </div>
 

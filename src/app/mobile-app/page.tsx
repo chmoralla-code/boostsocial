@@ -74,6 +74,11 @@ export default async function MobileAppDownloadPage() {
                 Open Website
               </Link>
             </div>
+            <p className="rounded-2xl border border-amber-400/20 bg-amber-400/10 px-4 py-3 text-[11px] font-semibold leading-5 text-amber-200">
+              Already had an older PinoyBoosting APK? Android cannot update across the new
+              security signature — uninstall the old app once, then install this build. All
+              updates after that install normally.
+            </p>
           </div>
 
           <div className="rounded-2xl border border-slate-800/80 bg-[#121212]/90 p-5 shadow-2xl">

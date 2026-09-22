@@ -47,7 +47,7 @@ export function InstallAppButton() {
       setIsInstalled(true);
       setIsInstallable(false);
       setDeferredPrompt(null);
-      console.log('CYNETWORK Admin PWA was successfully installed.');
+      console.log('PinoyBoosting Admin PWA was successfully installed.');
     };
 
     window.addEventListener('appinstalled', handleAppInstalled);
@@ -85,7 +85,7 @@ export function InstallAppButton() {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h4 className="text-sm font-black text-white uppercase tracking-wider">CYNETWORK Standalone Active</h4>
+                <h4 className="text-sm font-black text-white uppercase tracking-wider">PinoyBoosting Standalone Active</h4>
                 <span className="bg-[#1DB954]/20 text-[#1DB954] text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest border border-[#1DB954]/30">Auto-Update Enabled</span>
               </div>
               <p className="text-[11px] text-slate-400 font-semibold mt-1">
@@ -109,7 +109,7 @@ export function InstallAppButton() {
             </div>
             <div>
               <h4 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-1.5">
-                Download CYNETWORK Admin App
+                Download PinoyBoosting Admin App
               </h4>
               <p className="text-[11px] text-slate-400 font-semibold mt-1">
                 Install as a native application on your iPhone or iPad with automated background sync.
@@ -159,7 +159,7 @@ export function InstallAppButton() {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h4 className="text-sm font-black text-white uppercase tracking-wider">CYNETWORK Admin Standalone Available</h4>
+                <h4 className="text-sm font-black text-white uppercase tracking-wider">PinoyBoosting Admin Standalone Available</h4>
                 <span className="bg-[#1DB954]/15 text-[#1DB954] text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest border border-[#1DB954]/20">PWA Desktop App</span>
               </div>
               <p className="text-[11px] text-slate-400 font-semibold mt-1">

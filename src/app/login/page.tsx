@@ -84,7 +84,7 @@ export default function LoginPage() {
       setRedirectTo(appRedirect);
 
       if (verified === "true" || code) {
-        setSuccess("✨ Account Successfully Activated! Your email has been verified. Welcome to your CYNETWORK workspace! Please sign in below to manage your services and track your orders in real time. 🚀");
+        setSuccess("✨ Account Successfully Activated! Your email has been verified. Welcome to your PinoyBoosting workspace! Please sign in below to manage your services and track your orders in real time. 🚀");
       }
       if (errParam) {
         setError(decodeURIComponent(errParam));
@@ -459,7 +459,7 @@ export default function LoginPage() {
             <Rocket size={40} strokeWidth={2.5} />
           </div>
           <h1 className="text-2xl font-black text-white tracking-tight flex items-center justify-center">
-            {"CYNETWORK".split("").map((letter, idx) => (
+            {"PINOYBOOSTING".split("").map((letter, idx) => (
               <span
                 key={idx}
                 className="inline-block transition-all duration-300 transform hover:scale-135 hover:text-[#1877F2] hover:rotate-6 hover:-translate-y-1 cursor-default select-none drop-shadow-[0_0_8px_transparent] hover:drop-shadow-[0_0_12px_rgba(24,119,242,0.6)] font-black"

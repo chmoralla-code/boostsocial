@@ -1,7 +1,6 @@
 import Link from "next/link";
-import { ArrowLeft, Download, ShieldCheck, Smartphone, RefreshCw } from "lucide-react";
+import { ArrowLeft, ShieldCheck, Smartphone, RefreshCw } from "lucide-react";
 
-const apkPath = "/downloads/pinoyboosting-admin-debug.apk";
 
 export default function AdminAppDownloadPage() {
   return (
@@ -29,20 +28,12 @@ export default function AdminAppDownloadPage() {
                 PinoyBoosting Admin Android App
               </h1>
               <p className="max-w-xl text-sm font-semibold leading-7 text-muted">
-                Install the Android admin shell for direct access to the live PinoyBoosting
-                dashboard.
+                Use the live PinoyBoosting dashboard on any device. Install it straight
+                from your browser as an app on Android, iPhone, or desktop.
               </p>
             </div>
 
             <div className="flex flex-col gap-3 sm:flex-row">
-              <a
-                href={apkPath}
-                download
-                className="inline-flex items-center justify-center gap-2 rounded-full bg-[#1DB954] px-6 py-4 text-xs font-black uppercase tracking-wider text-black shadow-lg shadow-emerald-500/10 transition hover:bg-[#1ed760]"
-              >
-                <Download size={17} />
-                Download APK
-              </a>
               <Link
                 href="/admin"
                 className="inline-flex items-center justify-center gap-2 rounded-full border border-border bg-card px-6 py-4 text-xs font-black uppercase tracking-wider text-fg transition hover:border-[#1DB954]/40 hover:text-primary"
@@ -50,13 +41,18 @@ export default function AdminAppDownloadPage() {
                 Open Web Admin
               </Link>
             </div>
+            <p className="max-w-xl text-xs font-semibold leading-6 text-muted">
+              The Android admin shell is not distributed as an APK download right now. Open the
+              web admin and use your browser&apos;s &quot;Install app&quot; / &quot;Add to Home Screen&quot; option to
+              get the same dashboard as a phone or desktop app.
+            </p>
           </div>
 
           <div className="rounded-2xl border border-border bg-card p-5 shadow-2xl">
             <div className="rounded-xl border border-border bg-elevated p-5">
               <div className="mb-5 flex items-center justify-between">
                 <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#1DB954] text-sm font-black text-black">
-                  C
+                  P
                 </span>
                 <span className="rounded-full border border-[#1DB954]/20 bg-[#1DB954]/10 px-3 py-1 text-[9px] font-black uppercase tracking-widest text-[#1DB954]">
                   Android

@@ -108,7 +108,7 @@ export default function RootLayout({
         "@type": "Organization",
         "@id": "https://pinoyboosting.com/#organization",
         name: "PinoyBoosting",
-        alternateName: "CYNETWORK",
+        alternateName: "PINOYBOOSTING",
         url: "https://pinoyboosting.com/",
         logo: {
           "@type": "ImageObject",

@@ -30,8 +30,8 @@ const FAQS: FaqItem[] = [
     answer: "Yes, we guarantee complete satisfaction. If an order fails to process or start, the exact order amount is immediately credited back to your digital wallet balance, which you can use to purchase other packages at any time."
   },
   {
-    question: "Why is CYNETWORK safer and better than direct automated SMM panels like RixeySMM?",
-    answer: "Wholesale automated panels like RixeySMM are built for raw bot-makers; they require complex payment methods (like crypto), offer zero actual customer service, and deliver unfiltered foreign spam accounts that drop rapidly and risk triggering immediate page monetization flags or bans. CYNETWORK acts as your premium local safety filter: we curate high-retention organic-profile pools, support fast local GCash top-ups, and offer direct 24-hour Taglish support from Cyrhiel Moralla to keep your campaigns 100% compliant and secure."
+    question: "Why is PinoyBoosting safer and better than direct automated SMM panels like RixeySMM?",
+    answer: "Wholesale automated panels like RixeySMM are built for raw bot-makers; they require complex payment methods (like crypto), offer zero actual customer service, and deliver unfiltered foreign spam accounts that drop rapidly and risk triggering immediate page monetization flags or bans. PinoyBoosting acts as your premium local safety filter: we curate high-retention organic-profile pools, support fast local GCash top-ups, and offer direct 24-hour Taglish support from Cyrhiel Moralla to keep your campaigns 100% compliant and secure."
   }
 ];
 

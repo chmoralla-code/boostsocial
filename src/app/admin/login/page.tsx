@@ -54,7 +54,7 @@ export default function AdminLoginPage() {
         } else {
           // Log out immediately if not an admin
           await supabase.auth.signOut();
-          setError("🔴 Access Denied: This portal is reserved for authorized CYNETWORK administrators only.");
+          setError("🔴 Access Denied: This portal is reserved for authorized PinoyBoosting administrators only.");
           setLoading(false);
         }
       }
@@ -87,7 +87,7 @@ export default function AdminLoginPage() {
             <Terminal size={32} strokeWidth={2.5} />
           </div>
           <h1 className="text-2xl font-black text-white tracking-tight flex items-center justify-center">
-            {"CYNETWORK".split("").map((letter, idx) => (
+            {"PINOYBOOSTING".split("").map((letter, idx) => (
               <span
                 key={idx}
                 className="inline-block transition-all duration-300 transform hover:scale-135 hover:text-[#1DB954] hover:rotate-6 hover:-translate-y-1 cursor-default select-none drop-shadow-[0_0_8px_transparent] hover:drop-shadow-[0_0_12px_rgba(29,185,84,0.6)] font-black text-white"

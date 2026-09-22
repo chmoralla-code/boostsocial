@@ -70,7 +70,7 @@ export function Footer() {
 
         <div className="border-t border-slate-800/40 mt-8 pt-5 text-center light-mode:border-slate-200">
           <p className="mono-label text-[10px] text-slate-600 light-mode:text-slate-500">
-            © {year} CYNETWORK. ALL RIGHTS RESERVED.
+            © {year} PINOYBOOSTING. ALL RIGHTS RESERVED.
           </p>
         </div>
       </div>

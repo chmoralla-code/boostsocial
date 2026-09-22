@@ -11,10 +11,10 @@ export function PWARegister() {
           navigator.serviceWorker
             .register('/sw.js')
             .then((registration) => {
-              console.log('CYNETWORK PWA Service Worker registered with scope:', registration.scope);
+              console.log('PinoyBoosting PWA Service Worker registered with scope:', registration.scope);
             })
             .catch((error) => {
-              console.error('CYNETWORK PWA Service Worker registration failed:', error);
+              console.error('PinoyBoosting PWA Service Worker registration failed:', error);
             });
         }
       });

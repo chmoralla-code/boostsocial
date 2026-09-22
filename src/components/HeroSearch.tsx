@@ -269,7 +269,7 @@ export function HeroSearch({ services }: HeroSearchProps) {
         </button>
       </div>
 
-      {/* 3. CYNETWORK AI Smart Recommendation Box */}
+      {/* 3. PINOYBOOSTING AI Smart Recommendation Box */}
       {aiRecommend && (
         <div className="mt-8 w-full bg-elevated/95 border border-[#1DB954]/30 rounded-3xl p-6 sm:p-7 shadow-[0_20px_50px_rgba(29,185,84,0.15)] backdrop-blur-md animate-in slide-in-from-top-4 duration-350 text-left relative overflow-hidden group">
           <div className="absolute -right-16 -top-16 w-32 h-32 bg-[#1DB954]/5 rounded-full blur-2xl group-hover:bg-[#1DB954]/10 transition-all duration-500" />
@@ -285,7 +285,7 @@ export function HeroSearch({ services }: HeroSearchProps) {
           <div className="flex items-center gap-2 mb-3">
             <span className="text-base animate-bounce">🤖</span>
             <span className="text-[10px] font-black uppercase tracking-widest text-[#1DB954] flex items-center gap-1 font-mono">
-              CYNETWORK AI Smart Recommendation
+              PINOYBOOSTING AI Smart Recommendation
             </span>
           </div>
 

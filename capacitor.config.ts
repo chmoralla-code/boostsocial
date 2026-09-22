@@ -5,7 +5,7 @@ const config: CapacitorConfig = {
   appName: "PinoyBoosting",
   webDir: "android-shell",
   backgroundColor: "#0a0a0a",
-  loggingBehavior: "debug",
+  loggingBehavior: "none",
   appendUserAgent: " PinoyBoostingClientApp",
   server: {
     url: "https://pinoyboosting.com/app",

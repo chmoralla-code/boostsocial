@@ -2,7 +2,7 @@
 // It implements a Network-First strategy for pages to ensure the admin dashboard
 // always has the absolute latest live data and reflects new features immediately.
 
-const CACHE_NAME = 'cynetwork-pwa-cache-v2';
+const CACHE_NAME = 'pinoyboosting-pwa-cache-v3';
 const STATIC_ASSETS = [
   '/icon.svg',
   '/next.svg',
