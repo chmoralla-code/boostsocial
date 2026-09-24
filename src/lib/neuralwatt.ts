@@ -116,7 +116,7 @@ function openRouterProvider(): Provider | null {
     visionModel:
       envValue("OPENROUTER_VISION_MODEL", "NEURALWATT_VISION_MODEL") || FREE_MODELS_ROUTER,
     headers: {
-      "HTTP-Referer": "https://faceboosting.vercel.app",
+      "HTTP-Referer": "https://pinoyboosting.com",
       "X-Title": "BoostSocial",
     },
   };

@@ -35,6 +35,8 @@ export default function LoginPage() {
   const [otpVerified, setOtpVerified] = useState(false);
   const [otpCountdown, setOtpCountdown] = useState(0);
   const [registeredEmail, setRegisteredEmail] = useState("");
+  // Direct account-activation link fallback (used only while email delivery is misconfigured server-side).
+  const [activationLink, setActivationLink] = useState<string | null>(null);
 
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
@@ -211,6 +213,7 @@ export default function LoginPage() {
         } else {
           // Switch to OTP verification mode — signup already sends the code server-side.
           setRegisteredEmail(loginEmail);
+          setActivationLink(null);
           setOtpMode(true);
           setOtpVerified(false);
           setOtpCode("");
@@ -228,6 +231,7 @@ export default function LoginPage() {
             setOtpCountdown(0);
             setSuccess("");
             setError(resData.otp_error || "Account created, but we couldn't send the verification email. Tap Resend Code.");
+            void fetchDirectActivationLink(loginEmail);
           }
         }
       } catch (err: unknown) {
@@ -302,6 +306,7 @@ export default function LoginPage() {
         if (confirmData.exists && !confirmData.confirmed) {
           // Drop the user into OTP verification and auto-send a fresh code.
           setRegisteredEmail(loginEmail);
+          setActivationLink(null);
           setOtpMode(true);
           setOtpVerified(false);
           setOtpCode("");
@@ -326,10 +331,12 @@ export default function LoginPage() {
             } else {
               setSuccess("");
               setError(otpData.error || "Couldn't send verification code. Tap Resend Code.");
+              void fetchDirectActivationLink(loginEmail);
             }
           } catch {
             setSuccess("");
             setError("Couldn't send verification code. Tap Resend Code.");
+            void fetchDirectActivationLink(loginEmail);
           } finally {
             setOtpSending(false);
           }
@@ -385,6 +392,33 @@ export default function LoginPage() {
     setOtpSent(false);
     setOtpCountdown(0);
     setRegisteredEmail("");
+    setActivationLink(null);
+  };
+
+  /**
+   * Fallback used when verification emails cannot be delivered (server email
+   * service unavailable): asks the server for a direct account-activation
+   * link. The server only returns one while email delivery is misconfigured,
+   * so this cannot surface links once email works normally.
+   */
+  const fetchDirectActivationLink = async (email: string) => {
+    try {
+      const res = await fetch("/api/auth/resend-confirmation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json();
+      if (typeof data?.confirmationLink === "string" && data.confirmationLink) {
+        setActivationLink(data.confirmationLink);
+        setSuccess("✅ Your activation link is ready. Tap the green Activate button below to verify your account.");
+        setError("");
+        return true;
+      }
+    } catch (err) {
+      console.warn("Direct activation link fetch failed:", err);
+    }
+    return false;
   };
 
   const handleResendOtp = async () => {
@@ -407,9 +441,11 @@ export default function LoginPage() {
         if (data.remaining) setOtpCountdown(data.remaining);
       } else {
         setError(data.error || "Failed to send code.");
+        void fetchDirectActivationLink(registeredEmail);
       }
     } catch {
       setError("Network error. Please try again.");
+      void fetchDirectActivationLink(registeredEmail);
     } finally {
       setOtpSending(false);
     }
@@ -673,6 +709,15 @@ export default function LoginPage() {
                     </button>
                   )}
                 </div>
+              )}
+
+              {!otpVerified && activationLink && (
+                <a
+                  href={activationLink}
+                  className="block w-full text-center bg-[#1DB954] hover:bg-[#1ed760] text-black font-black py-2.5 rounded-xl transition-all duration-300 text-[10px] uppercase tracking-widest"
+                >
+                  ✅ Activate My Account (No Email Needed)
+                </a>
               )}
 
               {otpVerified && (

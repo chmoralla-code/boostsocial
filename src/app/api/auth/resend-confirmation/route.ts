@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { getSiteOrigin } from "@/utils/auth/email";
 
 // Track last resend attempt per email to enforce server-side cooldown
 const resendCooldowns = new Map<string, number>();
@@ -38,9 +39,12 @@ export async function POST(req: NextRequest) {
       } catch { /* ignore */ }
     }
 
-    // 2. Generate a direct confirmation link via GoTrue Admin API
+    // 2. Direct account-activation fallback. The raw confirmation link is only
+    //    exposed while the transactional email service is misconfigured so it
+    //    cannot be used to bypass email verification during normal operation.
+    const emailConfigured = Boolean(process.env.RESEND_API_KEY);
     let confirmationLink: string | null = null;
-    if (serviceRoleKey) {
+    if (!emailConfigured && serviceRoleKey) {
       try {
         const res = await fetch(`${supabaseUrl}/auth/v1/admin/generate_link`, {
           method: "POST",
@@ -52,7 +56,7 @@ export async function POST(req: NextRequest) {
           body: JSON.stringify({
             type: "signup",
             email: cleanEmail,
-            redirect_to: "https://faceboosting.vercel.app/auth/callback"
+            redirect_to: `${getSiteOrigin()}/auth/callback`
           })
         });
         if (res.ok) {
