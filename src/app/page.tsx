@@ -5,6 +5,7 @@ import { StatCounters } from "@/components/StatCounters";
 import { FeatureBadgesGrid } from "@/components/FeatureBadgesGrid";
 import { createClient } from "@/utils/supabase/server";
 import { Download, Shield, Zap, Star, Layers, ChevronDown } from "lucide-react";
+import { repairMojibakeDeep } from "@/utils/mojibake";
 
 const MARQUEE_ITEMS = [
   "Facebook",
@@ -162,7 +163,10 @@ export default async function Home() {
 
         <StatCounters />
 
-        <ServicesSection services={services || []} servicesCandidates={servicesCandidates} />
+        <ServicesSection
+          services={repairMojibakeDeep(services || [])}
+          servicesCandidates={repairMojibakeDeep(servicesCandidates)}
+        />
 
         {/* 📬 Contact & Support */}
         <section

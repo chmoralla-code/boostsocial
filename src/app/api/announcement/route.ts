@@ -4,6 +4,7 @@ import {
   normalizeAnnouncementSettings,
 } from "@/lib/announcement";
 import { fallbackRead } from "@/utils/supabase/dual-db";
+import { repairMojibakeDeep } from "@/utils/mojibake";
 
 export const dynamic = "force-dynamic";
 
@@ -24,7 +25,7 @@ export async function GET() {
       );
     }
 
-    const settings = normalizeAnnouncementSettings(data.value);
+    const settings = normalizeAnnouncementSettings(repairMojibakeDeep(data.value));
     if (!settings.enabled || !settings.message) {
       return NextResponse.json(
         { enabled: false },
