@@ -14,6 +14,7 @@ import Link from "next/link";
 if (typeof window !== "undefined" && window.location.hash.includes("access_token=")) {
   try {
     window.sessionStorage.setItem("pb_activation_fragment", window.location.hash.slice(1));
+    document.documentElement.setAttribute("data-pb-captured", "module");
   } catch {
     /* ignore */
   }
@@ -120,9 +121,11 @@ export default function LoginPage() {
         // Strip the sensitive tokens (and stale error text) from the address bar.
         window.history.replaceState(null, "", window.location.pathname);
         if (accessToken && refreshToken) {
-          supabase.auth
-            .setSession({ access_token: accessToken, refresh_token: refreshToken })
-            .then(({ error: sessionError }) => {
+          void (async () => {
+            try {
+              document.documentElement.setAttribute("data-pb-dbg", "attempting");
+              const { error: sessionError } = await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+              document.documentElement.setAttribute("data-pb-dbg", sessionError ? "resolved-error:" + sessionError.message : "resolved-ok");
               if (!sessionError) {
                 setError("");
                 setSuccess("✅ Account activated! Signing you in...");
@@ -131,10 +134,11 @@ export default function LoginPage() {
                 setError("");
                 setSuccess("✅ Account activated! Please sign in below.");
               }
-            })
-            .catch(() => {
+            } catch (err) {
+              document.documentElement.setAttribute("data-pb-dbg", "threw:" + (err instanceof Error ? err.message : String(err)));
               setSuccess("✅ Account activated! Please sign in below.");
-            });
+            }
+          })();
         } else {
           setError("");
           setSuccess("✅ Account activated! Please sign in below.");
