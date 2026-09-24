@@ -85,6 +85,40 @@ export default function LoginPage() {
           : "/";
       setRedirectTo(appRedirect);
 
+      // Direct activation links (email-outage fallback) arrive as URL fragments:
+      // /login#access_token=...&refresh_token=... - the server callback cannot read
+      // fragments, so establish the session here and continue to the app.
+      const hash = window.location.hash.startsWith("#") ? window.location.hash.slice(1) : "";
+      if (hash.includes("access_token=")) {
+        const hashParams = new URLSearchParams(hash);
+        const accessToken = hashParams.get("access_token");
+        const refreshToken = hashParams.get("refresh_token") || "";
+        // Strip the sensitive tokens (and stale error text) from the address bar.
+        window.history.replaceState(null, "", window.location.pathname);
+        if (accessToken && refreshToken) {
+          supabase.auth
+            .setSession({ access_token: accessToken, refresh_token: refreshToken })
+            .then(({ error: sessionError }) => {
+              if (!sessionError) {
+                setError("");
+                setSuccess("✅ Account activated! Signing you in...");
+                router.replace(appRedirect);
+              } else {
+                setError("");
+                setSuccess("✅ Account activated! Please sign in below.");
+              }
+            })
+            .catch(() => {
+              setSuccess("✅ Account activated! Please sign in below.");
+            });
+        } else {
+          setError("");
+          setSuccess("✅ Account activated! Please sign in below.");
+        }
+        return;
+      }
+
+
       if (verified === "true" || code) {
         setSuccess("✨ Account Successfully Activated! Your email has been verified. Welcome to your PinoyBoosting workspace! Please sign in below to manage your services and track your orders in real time. 🚀");
       }
