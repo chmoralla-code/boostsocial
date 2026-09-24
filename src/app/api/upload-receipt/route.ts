@@ -346,7 +346,7 @@ export async function POST(req: NextRequest) {
           }
 
           if (!orderData.external_order_id) {
-            autoPlaceRixeyOrder(
+            await autoPlaceRixeyOrder(
               orderId,
               orderData.service_id,
               orderData.target_url,
