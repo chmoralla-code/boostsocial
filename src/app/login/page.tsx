@@ -6,6 +6,21 @@ import { createClient } from "@/utils/supabase/client";
 import { Loader2, Rocket, ArrowLeft, Eye, EyeOff, CheckCircle2, AlertCircle, Sparkles, MailCheck } from "lucide-react";
 import Link from "next/link";
 
+/**
+ * Capture implicit-flow session fragments (#access_token=...) synchronously at
+ * module load, before the Supabase client can consume or clear them, then hand
+ * the tokens to the login effect below via sessionStorage.
+ */
+if (typeof window !== "undefined" && window.location.hash.includes("access_token=")) {
+  try {
+    window.sessionStorage.setItem("pb_activation_fragment", window.location.hash.slice(1));
+  } catch {
+    /* ignore */
+  }
+  window.history.replaceState(null, "", window.location.pathname + window.location.search.replace(/[?&]error=[^&]*/, ""));
+}
+
+
 export default function LoginPage() {
   const [mode, setMode] = useState<"signin" | "signup" | "forgot">("signin");
   const [email, setEmail] = useState("");
@@ -87,8 +102,17 @@ export default function LoginPage() {
 
       // Direct activation links (email-outage fallback) arrive as URL fragments:
       // /login#access_token=...&refresh_token=... - the server callback cannot read
-      // fragments, so establish the session here and continue to the app.
-      const hash = window.location.hash.startsWith("#") ? window.location.hash.slice(1) : "";
+      // fragments, and the Supabase client may clear them before this effect runs,
+      // so the fragment is captured synchronously at module load and stashed below.
+      let hash = "";
+      try {
+        hash = window.sessionStorage.getItem("pb_activation_fragment") || "";
+        window.sessionStorage.removeItem("pb_activation_fragment");
+      } catch {
+        /* ignore */
+      }
+      const liveHash = window.location.hash.startsWith("#") ? window.location.hash.slice(1) : "";
+      if (!hash && liveHash.includes("access_token=")) hash = liveHash;
       if (hash.includes("access_token=")) {
         const hashParams = new URLSearchParams(hash);
         const accessToken = hashParams.get("access_token");
