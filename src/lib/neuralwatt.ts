@@ -128,6 +128,16 @@ function providers(): Provider[] {
   );
 }
 
+/** Configured providers in fallback order, without secrets (for diagnostics). */
+export function describeAiProviders() {
+  return providers().map((provider) => ({
+    name: provider.name,
+    host: new URL(provider.baseUrl).host,
+    chatModel: provider.chatModel,
+    visionModel: provider.visionModel,
+  }));
+}
+
 function primaryProvider(): Provider | null {
   return providers()[0] ?? null;
 }
