@@ -1,4 +1,4 @@
-import { fallbackRead } from "@/utils/supabase/dual-db";
+import { fallbackRead, getPrimaryAdminClient } from "@/utils/supabase/dual-db";
 import { CustomersList } from "./CustomersList";
 
 interface AggregatedCustomer {
@@ -19,7 +19,33 @@ interface AggregatedCustomer {
   };
 }
 
-type ProfileRow = { id: string; email: string | null; balance: number | string | null };
+type ProfileRow = { id: string; email: string | null; balance: number | string | null; is_deleted?: boolean | null };
+
+async function loadProfiles(): Promise<ProfileRow[] | null> {
+  const PAGE_SIZE = 1000;
+  try {
+    const primary = getPrimaryAdminClient();
+    const rows: ProfileRow[] = [];
+    for (let from = 0; ; from += PAGE_SIZE) {
+      const { data, error } = await primary
+        .from("profiles")
+        .select("id, email, balance, is_deleted")
+        .range(from, from + PAGE_SIZE - 1);
+      if (error) throw error;
+      rows.push(...((data ?? []) as ProfileRow[]));
+      if (!data || data.length < PAGE_SIZE) break;
+    }
+    return rows;
+  } catch (err) {
+    console.error("Customers page: primary Supabase profile read failed, using fallback:", err);
+    const { data } = await fallbackRead(async (db) => {
+      return db
+        .from("profiles")
+        .select("id, email, balance");
+    });
+    return (data as ProfileRow[] | null) ?? null;
+  }
+}
 type OrderRow = { customer_email: string | null; amount: number | string | null; status: string | null; created_at: string };
 type ChatMessageRow = { customer_email: string | null; sender: string | null; is_read: boolean | null; created_at: string | null };
 
@@ -35,12 +61,12 @@ export default async function CustomersPage() {
       .order("created_at", { ascending: false });
   });
 
-  // Fetch all registered user profiles
-  const { data: profiles } = await fallbackRead(async (db) => {
-    return db
-      .from("profiles")
-      .select("id, email, balance");
-  });
+  // Fetch all registered user profiles from the primary Supabase project: it
+  // is the wallet source of truth (update-balance writes there and the
+  // customer's header reads from there). DigitalOcean can be missing profiles,
+  // which turned registered customers into "Guest shopper" rows with no
+  // Edit Balance button. DigitalOcean/backups are only a fallback.
+  const profiles = await loadProfiles();
 
   // Fetch live-support contacts too so chat-only customers still appear in admin.
   const { data: chatMessages, error: chatMessagesError } = await fallbackRead(async (db) => {
@@ -58,12 +84,29 @@ export default async function CustomersPage() {
   const customersMap = new Map<string, AggregatedCustomer>();
 
   // 1. Populate registered profiles first
+  const deletedProfileIds = new Set<string>();
   if (profiles) {
     (profiles as ProfileRow[]).forEach((p) => {
       if (!p.email) return;
       const email = p.email.trim();
       const emailLower = email.toLowerCase();
       if (emailLower === "[deleted user]" || emailLower === "deleted user") return;
+
+      // Re-registered emails can have more than one profile row. Prefer the
+      // live (not soft-deleted) row, since that is the one the customer logs
+      // into; between rows of the same kind, keep the one holding the balance.
+      const existing = customersMap.get(emailLower);
+      if (existing) {
+        const existingIsDeleted = deletedProfileIds.has(existing.id!);
+        const candidateIsDeleted = !!p.is_deleted;
+        const candidateHasMoreBalance = (Number(p.balance) || 0) > existing.balance;
+        const candidateIsBetter = existingIsDeleted !== candidateIsDeleted
+          ? !candidateIsDeleted
+          : candidateHasMoreBalance;
+        if (!candidateIsBetter) return;
+      }
+      if (p.is_deleted) deletedProfileIds.add(p.id);
+      else deletedProfileIds.delete(p.id);
 
       customersMap.set(emailLower, {
         id: p.id,
