@@ -65,11 +65,6 @@ export default async function CustomersPage() {
       const emailLower = email.toLowerCase();
       if (emailLower === "[deleted user]" || emailLower === "deleted user") return;
 
-      // Re-registered emails can have more than one profile row. Keep the one
-      // holding the wallet balance instead of whichever row happened to load last.
-      const existing = customersMap.get(emailLower);
-      if (existing && existing.balance >= (Number(p.balance) || 0)) return;
-
       customersMap.set(emailLower, {
         id: p.id,
         email: p.email,

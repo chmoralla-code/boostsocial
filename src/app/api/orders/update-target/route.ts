@@ -87,11 +87,9 @@ export async function POST(req: NextRequest) {
     });
 
     if (order.status === "Processing" && !order.external_order_id && order.smm_service_id) {
-      after(() =>
-        autoPlaceRixeyOrder(cleanOrderId, order.service_id, cleanTargetUrl, Number(order.quantity || 0)).catch((err) => {
-          console.error("Async auto-placement after target update failed:", err);
-        })
-      );
+      autoPlaceRixeyOrder(cleanOrderId, order.service_id, cleanTargetUrl, Number(order.quantity || 0)).catch((err) => {
+        console.error("Async auto-placement after target update failed:", err);
+      });
     }
 
     return NextResponse.json({ success: true });

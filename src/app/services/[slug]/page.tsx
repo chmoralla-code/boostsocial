@@ -7,7 +7,6 @@ import { Footer } from "@/components/Footer";
 import { createClient } from "@/utils/supabase/server";
 import { parseDescription } from "@/utils/serviceHelpers";
 import { getServiceLandingPage, SERVICE_LANDING_PAGES, type ServiceLandingPage } from "@/lib/serviceLandingPages";
-import { repairMojibakeDeep } from "@/utils/mojibake";
 
 type ServiceRow = {
   id: string;
@@ -60,7 +59,7 @@ async function getServices() {
       .select("id,title,description,starting_price,icon_type")
       .order("created_at", { ascending: true });
 
-    return Array.isArray(data) ? repairMojibakeDeep(data as ServiceRow[]) : [];
+    return Array.isArray(data) ? data as ServiceRow[] : [];
   } catch (error) {
     console.error("Failed to load service landing services:", error);
     return [];

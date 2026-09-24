@@ -1,4 +1,4 @@
-import { after, NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { autoPlaceRixeyOrder } from "@/lib/rixeysmm";
 import { syncBackupAdminClients, fallbackRead } from "@/utils/supabase/dual-db";
@@ -362,12 +362,9 @@ async function handleOrderAction(callbackData: string, chatId: number, messageId
     }
 
     if (!order.external_order_id) {
-      // after(): see admin/update-order-status — keep the function alive.
-      after(() =>
-        autoPlaceRixeyOrder(orderId, order.service_id, order.target_url, order.quantity).catch((err) => {
-          console.error("Async auto-placement on RixeySMM from Telegram approval failed:", err);
-        })
-      );
+      autoPlaceRixeyOrder(orderId, order.service_id, order.target_url, order.quantity).catch((err) => {
+        console.error("Async auto-placement on RixeySMM from Telegram approval failed:", err);
+      });
     }
 
     await answerWithOrderBots(configs, callbackQueryId, "Order approved. Status changed to Processing.");

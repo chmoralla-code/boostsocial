@@ -521,10 +521,10 @@ export function OrdersTable({ initialOrders, receiptFiles = [] }: { initialOrder
                     {/* Profit */}
                     <td className="py-3.5 px-5">
                       <div className={`text-xs font-black ${orderProfit.profit >= 0 ? "text-[#1DB954]" : "text-red-400"}`}>
-                        ₱{orderProfit.profit.toFixed(2)}
+                        â‚±{orderProfit.profit.toFixed(2)}
                       </div>
                       <div className="text-[9px] text-slate-500 font-bold mt-0.5">
-                        Cost ₱{orderProfit.providerCost.toFixed(2)}
+                        Cost â‚±{orderProfit.providerCost.toFixed(2)}
                       </div>
                     </td>
 

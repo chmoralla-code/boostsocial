@@ -24,18 +24,13 @@ export async function POST(req: NextRequest) {
     });
     if (limited) return limited;
 
-    const { email, code, password } = await req.json();
+    const { email, code } = await req.json();
     if (!email || !code) {
       return NextResponse.json({ error: "Missing email or code" }, { status: 400 });
     }
 
     const cleanEmail = email.trim().toLowerCase();
     const cleanCode = String(code).trim();
-    // Optional: the password typed on the signup form. When someone re-registers
-    // an email that already has an unverified account, we keep that account (and
-    // its wallet/orders) and only apply the new password once the code proves
-    // they own the inbox.
-    const newPassword = typeof password === "string" && password.length >= 6 ? password : null;
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
@@ -117,7 +112,6 @@ export async function POST(req: NextRequest) {
     // Code is valid — confirm the user's email and clear the OTP.
     const { error: updateError } = await supabase.auth.admin.updateUserById(user.id, {
       email_confirm: true,
-      ...(newPassword ? { password: newPassword } : {}),
       user_metadata: {
         ...meta,
         otp_code: null,
@@ -138,10 +132,9 @@ export async function POST(req: NextRequest) {
     for (const backup of getBackupAdminClients()) {
       try {
         const backupUser = await findAuthUserByEmail(backup.client, cleanEmail);
-        if (backupUser && (!backupUser.email_confirmed_at || newPassword)) {
+        if (backupUser && !backupUser.email_confirmed_at) {
           await backup.client.auth.admin.updateUserById(backupUser.id, {
             email_confirm: true,
-            ...(newPassword ? { password: newPassword } : {}),
           });
         }
       } catch (e) {

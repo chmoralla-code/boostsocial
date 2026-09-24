@@ -57,37 +57,27 @@ export async function findAuthUserByEmail(
   const target = email.trim().toLowerCase();
   if (!target) return null;
 
-  // 1. profiles fast path (avoids scanning auth.users entirely). A
-  //    re-registered email can have several profile rows (old soft-deleted
-  //    ones included), so check each candidate rather than maybeSingle().
+  // 1. profiles fast path (avoids scanning auth.users entirely).
   try {
-    const { data: profiles, error: profileError } = await supabase
+    const { data: profile, error: profileError } = await supabase
       .from("profiles")
       .select("id")
-      .ilike("email", target)
-      .limit(10);
+      .eq("email", target)
+      .limit(1)
+      .maybeSingle();
     if (profileError) {
       console.warn("Profile email lookup error:", profileError.message);
-    }
-    for (const profile of profiles ?? []) {
-      if (!profile?.id) continue;
+    } else if (profile?.id) {
       const { data, error } = await supabase.auth.admin.getUserById(profile.id);
-      if (!error && data?.user?.email?.toLowerCase() === target) return data.user;
+      if (!error && data?.user) return data.user;
     }
   } catch (err) {
     console.warn("Profile email lookup failed, falling back to filter/pagination:", err);
   }
 
-  // 2. GoTrue admin filter query, against the project this client points at.
-  //    Reading the primary env vars here made every backup lookup silently
-  //    return the primary's user instead.
-  const clientConfig = supabase as unknown as { supabaseUrl?: unknown; supabaseKey?: unknown };
-  const supabaseUrl = typeof clientConfig.supabaseUrl === "string"
-    ? clientConfig.supabaseUrl
-    : process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceRoleKey = typeof clientConfig.supabaseKey === "string"
-    ? clientConfig.supabaseKey
-    : process.env.SUPABASE_SERVICE_ROLE_KEY;
+  // 2. GoTrue admin filter query.
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (supabaseUrl && serviceRoleKey) {
     try {

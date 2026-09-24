@@ -276,14 +276,7 @@ class SpyQueryBuilder {
           builder = builder.single();
         }
 
-        if (this.action === "select" && this.limitVal === null && !this.isSingle) {
-          // PostgREST caps every response at max_rows (1000). An unbounded read
-          // (e.g. the admin Customers directory) silently dropped every row past
-          // that, so customers "disappeared". Page through the full result.
-          supabaseResult = await this.selectAllPages(builder);
-        } else {
-          supabaseResult = await builder;
-        }
+        supabaseResult = await builder;
       } catch (err) {
         supabaseResult = { data: null, error: err };
       }
@@ -300,23 +293,6 @@ class SpyQueryBuilder {
     }
 
     return supabaseResult;
-  }
-
-  private async selectAllPages(builder: {
-    range: (from: number, to: number) => PromiseLike<{ data: unknown; error: unknown }>;
-  }): Promise<{ data: unknown[] | null; error: unknown }> {
-    const PAGE_SIZE = 1000;
-    const MAX_PAGES = 200;
-    const rows: unknown[] = [];
-    for (let page = 0; page < MAX_PAGES; page++) {
-      const from = page * PAGE_SIZE;
-      const { data, error } = await builder.range(from, from + PAGE_SIZE - 1);
-      if (error) return { data: page === 0 ? null : rows, error: page === 0 ? error : null };
-      const batch = Array.isArray(data) ? data : [];
-      rows.push(...batch);
-      if (batch.length < PAGE_SIZE) break;
-    }
-    return { data: rows, error: null };
   }
 
   private async executeDigitalOcean(): Promise<{ data: any; error: any }> {

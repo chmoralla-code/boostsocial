@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import type { SupabaseClient, User } from "@supabase/supabase-js";
 import { promises as dnsPromises } from "dns";
 import { dualWrite, getPrimaryAdminClient, getBackupAdminClients } from "@/utils/supabase/dual-db";
 import { findAuthUserByEmail } from "@/utils/auth/find-user";
@@ -141,41 +140,6 @@ function isJunkUsername(username: string): string | null {
   return null;
 }
 
-/**
- * Signup hit an email that already has an account. Confirmed accounts are
- * sent to sign in. Unconfirmed ones get a fresh verification code so the
- * customer can finish activating the account they (or a past attempt) made.
- */
-async function respondToExistingAccount(
-  primaryAdmin: SupabaseClient,
-  user: User,
-  cleanEmail: string
-) {
-  if (user.email_confirmed_at) {
-    return NextResponse.json(
-      { error: "This email is already registered. Please sign in, or use Forgot Password if you can't remember it." },
-      { status: 400 }
-    );
-  }
-
-  const otpResult = await storeAndSendOtp(primaryAdmin, user, cleanEmail);
-  // A rate-limited resend means a code was sent moments ago and is still valid.
-  const otpSent = otpResult.ok || otpResult.error === "rate_limited";
-  const otpError = otpResult.ok || otpResult.error === "rate_limited" ? null : otpResult.message;
-
-  return NextResponse.json({
-    success: true,
-    existing_account: true,
-    user: { id: user.id, email: cleanEmail },
-    otp_required: true,
-    otp_sent: otpSent,
-    otp_error: otpError,
-    message: otpSent
-      ? "This email already has an account that isn't verified yet. We sent a code — enter it to activate it. Your wallet and orders are safe. 🔒"
-      : "This email already has an account that isn't verified yet. Tap Resend Code to get your verification code.",
-  });
-}
-
 // ═════════════════════════════════════════════════════════════
 //  MAIN SIGNUP HANDLER
 // ═════════════════════════════════════════════════════════════
@@ -279,12 +243,10 @@ export async function POST(req: NextRequest) {
     const primaryAdmin = getPrimaryAdminClient();
     const backupAdmins = getBackupAdminClients();
 
-    // 2. Look for an existing account, primary first, then the backups.
-    let existingUser: User | null = null;
-    let existingInPrimary = false;
+    // 2. Fetch user lists to prevent duplicate registrations across primary & backup
+    let existingUser = null;
     try {
       existingUser = await findAuthUserByEmail(primaryAdmin, cleanEmail);
-      existingInPrimary = !!existingUser;
     } catch (e) {
       console.warn("Failed listing primary users:", e);
     }
@@ -300,50 +262,111 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // An account that exists in the primary is never deleted and recreated
-    // here. The old "purge unconfirmed account and re-register" path gave the
-    // customer a brand-new user id, which orphaned their wallet top-ups,
-    // referral link and profile (and, whenever one of its safety checks hit a
-    // DB error, wiped accounts that did hold money). Instead we re-send the
-    // verification code to the SAME account; once the customer proves they
-    // own the inbox, verify-otp applies the password they just chose.
-    if (existingUser && existingInPrimary) {
-      return respondToExistingAccount(primaryAdmin, existingUser, cleanEmail);
+    if (existingUser) {
+      // If the user is soft-deleted or never confirmed their email, we previously
+      // purged the auth user + profile + topups so re-registration would work.
+      // That purge CASCADE-deleted the profiles row (via profiles_id_fkey
+      // ON DELETE CASCADE) and silently wiped the customer's email, wallet
+      // balance, referral_code, and VIP status — which then disappeared from
+      // the admin Customers directory.
+      //
+      // New behavior: NEVER destroy a profile that has real money, orders, or
+      // VIP attached. If the stale account is truly empty, allow re-registration.
+      // If it has any value, refuse and tell the user to sign in instead.
+      const isSoftDeleted = !!(existingUser as any).deleted_at;
+      const isUnconfirmed = !(existingUser as any).email_confirmed_at;
+
+      if (isSoftDeleted || isUnconfirmed) {
+        // Check for any existing profile balance, orders, or topups before purging.
+        let existingBalance = 0;
+        let existingOrderCount = 0;
+        let existingTopupCount = 0;
+        try {
+          const { data: existingProfile } = await primaryAdmin
+            .from("profiles")
+            .select("balance")
+            .eq("id", existingUser.id)
+            .maybeSingle();
+          existingBalance = Number(existingProfile?.balance) || 0;
+        } catch (e) {
+          console.warn("Failed to read existing profile balance before purge:", e);
+        }
+        try {
+          const { count } = await primaryAdmin
+            .from("orders")
+            .select("id", { count: "exact", head: true })
+            .eq("customer_email", cleanEmail);
+          existingOrderCount = count ?? 0;
+        } catch (e) {
+          console.warn("Failed to count existing orders before purge:", e);
+        }
+        try {
+          const { count } = await primaryAdmin
+            .from("topups")
+            .select("id", { count: "exact", head: true })
+            .eq("user_id", existingUser.id);
+          existingTopupCount = count ?? 0;
+        } catch (e) {
+          console.warn("Failed to count existing topups before purge:", e);
+        }
+
+        const hasValue = existingBalance > 0 || existingOrderCount > 0 || existingTopupCount > 0;
+
+        if (hasValue) {
+          // This account has real money/history — do NOT purge. Tell the user
+          // to sign in and verify instead, so we never silently destroy data.
+          return NextResponse.json({
+            error: "This email is already linked to an account with wallet balance or order history. Please sign in instead, or contact support to recover access. 🔒"
+          }, { status: 400 });
+        }
+
+        console.log(`Found empty stale user ${cleanEmail} (softDeleted: ${isSoftDeleted}, unconfirmed: ${isUnconfirmed}). Purging auth user only; profile row preserved via soft-delete.`);
+
+        // Soft-mark the profile so it survives the auth-user hard delete
+        // (the migration drops the profiles_id_fkey cascade entirely, so
+        // the profile row is never auto-deleted anymore; we mark it for
+        // auditability). We do NOT delete the profile row.
+        try {
+          await primaryAdmin
+            .from("profiles")
+            .update({ is_deleted: true, deleted_at: new Date().toISOString() })
+            .eq("id", existingUser.id);
+        } catch (e) {
+          console.warn("Failed to soft-mark stale profile:", e);
+        }
+
+        // Hard-delete from primary auth only (profile row is preserved).
+        try {
+          await primaryAdmin.auth.admin.deleteUser(existingUser.id, false);
+        } catch (e) {
+          console.warn("Failed to hard-delete stale auth user from primary:", e);
+        }
+
+        // Hard-delete auth user from all backup databases (profile rows stay).
+        for (const backup of getBackupAdminClients()) {
+          try {
+            await backup.client.auth.admin.deleteUser(existingUser.id, false);
+          } catch (e) {
+            console.warn(`Failed to hard-delete stale auth user from ${backup.displayName}:`, e);
+          }
+        }
+
+        existingUser = null; // Clear so registration proceeds
+      } else {
+        return NextResponse.json({ error: "This email is already registered. Please sign in!" }, { status: 400 });
+      }
     }
 
     // 3. Create the auth user in the PRIMARY database via Admin API.
     //    email_confirm: false so the user must verify via OTP before they can sign in.
-    //    If the account only survived in a backup, recreate it in the primary
-    //    with the SAME id so its profile, top-ups and orders stay linked.
-    if (existingUser && (existingUser as User & { deleted_at?: string | null }).deleted_at) {
-      return NextResponse.json({
-        error: "This email belongs to an account that was removed. Please message us in the chat and we'll restore it for you. 🔒"
-      }, { status: 400 });
-    }
-
     const { data: createData, error: createError } = await primaryAdmin.auth.admin.createUser({
-      ...(existingUser ? { id: existingUser.id } : {}),
       email: cleanEmail,
       password: password,
-      // Always unconfirmed, even when restoring: the OTP proves the person
-      // signing up owns the inbox before this password can be used.
-      email_confirm: false,
+      email_confirm: false
     });
 
     if (createError) {
-      // The lookup can miss (e.g. a transient auth API error) while the email
-      // is in fact registered. Treat that as an existing account, not a failure.
-      if (/already (been )?registered|already exists/i.test(createError.message)) {
-        const again = await findAuthUserByEmail(primaryAdmin, cleanEmail).catch(() => null);
-        if (again) return respondToExistingAccount(primaryAdmin, again, cleanEmail);
-        return NextResponse.json({ error: "This email is already registered. Please sign in!" }, { status: 400 });
-      }
       return NextResponse.json({ error: createError.message }, { status: 400 });
-    }
-
-    if (existingUser) {
-      console.log(`Restored primary auth user ${existingUser.id} for ${cleanEmail} from a backup database.`);
-      return respondToExistingAccount(primaryAdmin, createData.user ?? existingUser, cleanEmail);
     }
 
     const newUserId = createData.user?.id;

@@ -28,7 +28,6 @@ import { parseDescription } from "@/utils/serviceHelpers";
 import { compressImageWithStats, formatBytes, type CompressResult } from "@/utils/imageCompressor";
 import { useCustomerMessagesRealtime } from "@/hooks/useCustomerMessagesRealtime";
 import type { CustomerMessageRow } from "@/utils/realtimeChat";
-import { repairMojibakeDeep } from "@/utils/mojibake";
 
 interface Message {
   id?: string;
@@ -527,7 +526,7 @@ export function Chathead() {
       .select('*')
       .order('created_at', { ascending: true })
       .then(({ data }) => {
-        if (data) setDbServices(repairMojibakeDeep(data as DbService[]));
+        if (data) setDbServices(data as DbService[]);
       });
   }, [supabase]);
 

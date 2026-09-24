@@ -234,7 +234,7 @@ export default async function AdminOverview() {
           <div className="flex justify-between items-start">
             <div className="space-y-1">
               <span className="text-[10px] font-black uppercase text-slate-500 tracking-wider">Est. Profit</span>
-              <h3 className="text-2xl font-black text-white tracking-tight">₱{totalEstimatedProfit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</h3>
+              <h3 className="text-2xl font-black text-white tracking-tight">â‚±{totalEstimatedProfit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</h3>
             </div>
             <span className="bg-emerald-500/10 text-emerald-400 p-2.5 rounded-xl border border-emerald-500/25">
               <TrendingUp size={18} />
@@ -242,7 +242,7 @@ export default async function AdminOverview() {
           </div>
           <div className="flex items-center gap-1.5 mt-4 text-[10px] font-bold text-slate-450">
             <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span>
-            <span>Cost est. ₱{totalProviderCost.toFixed(2)}</span>
+            <span>Cost est. â‚±{totalProviderCost.toFixed(2)}</span>
           </div>
         </div>
 

@@ -1,7 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { parseDescription } from "@/utils/serviceHelpers";
 import { getMarkupMultiplier } from "@/lib/markupConfig";
-import { repairMojibakeDeep } from "@/utils/mojibake";
 
 const RIXEYSMM_API_URL = "https://rixeysmm.shop/api/v2";
 const CACHE_TTL = 5 * 60 * 1000;
@@ -81,7 +80,7 @@ async function getStoredServicesFallback(markupMultiplier: number) {
   if (error) throw error;
 
   const seen = new Set<string>();
-  return repairMojibakeDeep(data || [])
+  return (data || [])
     .map((service) => {
       const parsed = parseDescription(service.description);
       const smmServiceId = parsed?.smm_service_id ? String(parsed.smm_service_id) : "";
@@ -134,8 +133,7 @@ async function fetchLiveRixeyCatalog(
 
   if (!res.ok) throw new Error(`RixeySMM API returned status ${res.status}`);
 
-  // Provider names/descriptions sometimes arrive garbled ("â€“", "â‚±").
-  const services = repairMojibakeDeep(await res.json());
+  const services = await res.json();
   if (!Array.isArray(services)) throw new Error("Invalid response format from RixeySMM API");
 
   cachedServices = services.map((s: RixeyService) => processRixeyService(s, markupMultiplier)).filter(Boolean) as SmmCatalogService[];

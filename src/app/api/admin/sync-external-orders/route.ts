@@ -1,4 +1,4 @@
-import { after, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { sendOrderCompleteNotification } from "@/lib/telegram";
 import { syncBackupAdminClients } from "@/utils/supabase/dual-db";
@@ -6,11 +6,8 @@ import { resolveSmmServiceTitle } from "@/lib/smmServiceResolver";
 import { notifyOrderStatusCustomer } from "@/lib/customerNotifications";
 import { sendOrderCompletedEmail } from "@/lib/approvalEmails";
 import { recordOrderEvent } from "@/lib/orderEvents";
-import { retryUnplacedOrders } from "@/lib/rixeysmm";
 
 const RIXEYSMM_API_URL = "https://rixeysmm.shop/api/v2";
-
-export const maxDuration = 60;
 
 type JoinedService = { title?: string | null } | { title?: string | null }[] | null | undefined;
 
@@ -60,15 +57,6 @@ export async function POST() {
     const supabase = createClient(supabaseUrl, serviceRoleKey, {
       auth: { persistSession: false }
     });
-
-    // The daily cron is the only other thing that re-sends stuck orders, so
-    // approved orders that never reached RixeySMM could sit for up to a day.
-    // Opening the admin Orders page now nudges a few of them right away.
-    after(() =>
-      retryUnplacedOrders({ limit: 5 }).catch((err) => {
-        console.error("Re-sending unplaced orders from Orders sync failed:", err);
-      })
-    );
 
     // 1. Fetch all orders that are currently "Processing" and have an active RixeySMM Order ID (including all details for notification)
     const { data: activeOrders, error: fetchError } = await supabase

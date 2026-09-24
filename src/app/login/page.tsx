@@ -52,9 +52,6 @@ export default function LoginPage() {
   const [registeredEmail, setRegisteredEmail] = useState("");
   // Direct account-activation link fallback (used only while email delivery is misconfigured server-side).
   const [activationLink, setActivationLink] = useState<string | null>(null);
-  // Password chosen on the signup form, sent with the OTP so an existing
-  // unverified account picks it up, then used to sign the customer straight in.
-  const [pendingPassword, setPendingPassword] = useState("");
 
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
@@ -275,7 +272,6 @@ export default function LoginPage() {
           // Switch to OTP verification mode — signup already sends the code server-side.
           setRegisteredEmail(loginEmail);
           setActivationLink(null);
-          setPendingPassword(password);
           setOtpMode(true);
           setOtpVerified(false);
           setOtpCode("");
@@ -287,9 +283,7 @@ export default function LoginPage() {
             setOtpSent(true);
             setOtpCountdown(30);
             setError("");
-            setSuccess(resData.existing_account
-              ? `📬 ${resData.message}`
-              : "📬 Verification code sent! Please check your inbox (and spam folder) for the 6-digit code.");
+            setSuccess("📬 Verification code sent! Please check your inbox (and spam folder) for the 6-digit code.");
           } else {
             setOtpSent(false);
             setOtpCountdown(0);
@@ -457,7 +451,6 @@ export default function LoginPage() {
     setOtpCountdown(0);
     setRegisteredEmail("");
     setActivationLink(null);
-    setPendingPassword("");
   };
 
   /**
@@ -524,29 +517,13 @@ export default function LoginPage() {
       const res = await fetch("/api/auth/verify-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: registeredEmail,
-          code: otpCode,
-          ...(pendingPassword ? { password: pendingPassword } : {}),
-        })
+        body: JSON.stringify({ email: registeredEmail, code: otpCode })
       });
       const data = await res.json();
       if (res.ok) {
         setOtpVerified(true);
-        setError("");
-        if (pendingPassword) {
-          setSuccess("✅ Email verified! Signing you in...");
-          const { error: signInError } = await supabase.auth.signInWithPassword({
-            email: registeredEmail,
-            password: pendingPassword,
-          });
-          setPendingPassword("");
-          if (!signInError) {
-            router.push(redirectTo);
-            return;
-          }
-        }
         setSuccess("✅ Email verified successfully! You can now sign in.");
+        setError("");
       } else {
         setError(data.error || "Invalid code. Please try again.");
       }

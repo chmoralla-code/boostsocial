@@ -1,4 +1,4 @@
-import { after, NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { autoPlaceRixeyOrder } from "@/lib/rixeysmm";
 import { sendOrderCompleteNotification } from "@/lib/telegram";
@@ -183,14 +183,9 @@ export async function POST(req: NextRequest) {
 
     if (newStatus === "Processing" && !orderRow.external_order_id) {
       // autoPlaceRixeyOrder has its own guard to only run for the Followers service ID
-      // after() keeps the serverless function alive until the provider call
-      // finishes. A bare fire-and-forget promise was frozen when the response
-      // was sent, so approved orders silently never reached RixeySMM.
-      after(() =>
-        autoPlaceRixeyOrder(orderId, orderRow.service_id, orderRow.target_url, orderRow.quantity).catch((err) => {
-          console.error("Async auto-placement on RixeySMM from admin status update failed:", err);
-        })
-      );
+      autoPlaceRixeyOrder(orderId, orderRow.service_id, orderRow.target_url, orderRow.quantity).catch((err) => {
+        console.error("Async auto-placement on RixeySMM from admin status update failed:", err);
+      });
     }
 
     // 4. Fire Telegram + email completion notifications if:

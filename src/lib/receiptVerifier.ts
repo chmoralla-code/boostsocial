@@ -187,9 +187,6 @@ async function callVisionModel(
 ): Promise<{ rawText: string; model: string }> {
   const completion = await requestNeuralwattChat({
     model: NEURALWATT_VISION_MODEL,
-    // Without this the fallback provider (OpenRouter) was sent its *chat*
-    // model, which cannot read the image, so every fallback run failed.
-    task: "vision",
     messages: [
       {
         role: "system",
@@ -651,33 +648,9 @@ export async function verifyReceipt(
   }
 }
 
-/**
- * The receipt must show at least the requested amount. A small overage is
- * allowed because InstaPay/bank proofs can include the transfer fee in the
- * total. The old symmetric ±5% window also accepted UNDERpayments, e.g. a
- * PHP 950 receipt auto-credited a PHP 1,000 top-up.
- */
-export function amountMatches(extracted: number | null, requested: number) {
+function amountMatches(extracted: number | null, requested: number) {
   if (extracted === null || !Number.isFinite(extracted) || !Number.isFinite(requested)) return false;
-  if (requested <= 0) return false;
-  const shortfallTolerance = 0.01;
-  const overpayAllowance = Math.max(requested * 0.05, 1);
-  return extracted >= requested - shortfallTolerance && extracted <= requested + overpayAllowance;
-}
-
-/**
- * Two uploads of the same payment made seconds apart both pass the first
- * duplicate check, because neither has saved its reference yet. After saving
- * ours, look again: if another active record now carries the same reference,
- * hold this one for manual review instead of crediting twice.
- */
-async function findConcurrentReferenceClaim(
-  supabase: SupabaseClient,
-  referenceNumber: string | null | undefined,
-  exclude: { topupId?: string; orderId?: string }
-) {
-  if (!referenceNumber) return null;
-  return findActiveDuplicateGcashReference(supabase, referenceNumber, exclude);
+  return Math.abs(extracted - requested) <= Math.max(requested * 0.05, 0.5);
 }
 
 export async function autoVerifyAndApproveTopup(params: {
@@ -759,13 +732,7 @@ export async function autoVerifyAndApproveTopup(params: {
   } else if (!result.referenceUnique) {
     reason = result.duplicateRef || "Payment reference is not unique";
   } else if (!amountMatches(result.extractedAmount, requestedAmount)) {
-    reason = result.extractedAmount !== null && result.extractedAmount < requestedAmount
-      ? `Amount too low: receipt shows ₱${result.extractedAmount}, requested ₱${requestedAmount}`
-      : `Amount mismatch: extracted ₱${result.extractedAmount} vs requested ₱${requestedAmount}`;
-  } else if (result.confidence < 0.7) {
-    reason = `Low read confidence (${Math.round(result.confidence * 100)}%)`;
-  } else if (result.isAIGenerated || (result.tamperingScore ?? 0) >= 70) {
-    reason = `Possible edited image (tampering score ${result.tamperingScore ?? 0}%)`;
+    reason = `Amount mismatch: extracted ₱${result.extractedAmount} vs requested ₱${requestedAmount}`;
   }
 
   await persistGcashReference(supabase, "topups", topupId, result.referenceNumber || null, {
@@ -775,17 +742,6 @@ export async function autoVerifyAndApproveTopup(params: {
   });
 
   if (match) {
-    const concurrentClaim = await findConcurrentReferenceClaim(supabase, result.referenceNumber, { topupId });
-    if (concurrentClaim) {
-      const heldReason = `Held for manual review: payment reference also submitted on ${concurrentClaim}`;
-      await persistGcashReference(supabase, "topups", topupId, result.referenceNumber || null, {
-        ...baseMeta,
-        auto_approved: false,
-        reason: heldReason,
-      });
-      return { ...result, autoApproved: false, reason: heldReason };
-    }
-
     try {
       const { error: approvalError } = await supabase.rpc("approve_topup_atomic", {
         p_topup_id: topupId,
@@ -902,13 +858,7 @@ export async function autoVerifyAndApproveOrder(params: {
   } else if (!result.referenceUnique) {
     reason = result.duplicateRef || "Payment reference is not unique";
   } else if (!amountMatches(result.extractedAmount, requestedAmount)) {
-    reason = result.extractedAmount !== null && result.extractedAmount < requestedAmount
-      ? `Amount too low: receipt shows ₱${result.extractedAmount}, requested ₱${requestedAmount}`
-      : `Amount mismatch: extracted ₱${result.extractedAmount} vs requested ₱${requestedAmount}`;
-  } else if (result.confidence < 0.7) {
-    reason = `Low read confidence (${Math.round(result.confidence * 100)}%)`;
-  } else if (result.isAIGenerated || (result.tamperingScore ?? 0) >= 70) {
-    reason = `Possible edited image (tampering score ${result.tamperingScore ?? 0}%)`;
+    reason = `Amount mismatch: extracted ₱${result.extractedAmount} vs requested ₱${requestedAmount}`;
   }
 
   await persistGcashReference(supabase, "orders", orderId, result.referenceNumber || null, {
@@ -923,17 +873,6 @@ export async function autoVerifyAndApproveOrder(params: {
       autoApproved: false,
       reason: reason || "Receipt did not meet auto-approval rules",
     };
-  }
-
-  const concurrentClaim = await findConcurrentReferenceClaim(supabase, result.referenceNumber, { orderId });
-  if (concurrentClaim) {
-    const heldReason = `Held for manual review: payment reference also submitted on ${concurrentClaim}`;
-    await persistGcashReference(supabase, "orders", orderId, result.referenceNumber || null, {
-      ...baseMeta,
-      auto_approved: false,
-      reason: heldReason,
-    });
-    return { ...result, autoApproved: false, reason: heldReason };
   }
 
   const { data: updated, error: updateError } = await supabase
