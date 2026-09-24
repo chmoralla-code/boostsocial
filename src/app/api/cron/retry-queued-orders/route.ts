@@ -1,12 +1,14 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-import { autoPlaceRixeyOrder } from "@/lib/rixeysmm";
+import { retryUnplacedOrders } from "@/lib/rixeysmm";
 
 const CRON_SECRET = process.env.CRON_SECRET;
 const RETRY_MIN_INTERVAL_MINUTES = 30;
+// Each placement is a balance check plus an order call to the provider.
+export const maxDuration = 60;
 
 /**
- * Re-submits orders stuck in "Queued: ..." or "Failed: ..." provider states
+ * Re-submits Processing orders that never reached the provider: stuck in
+ * "Queued: ..." / "Failed: ..." states, or never attempted at all
  * (no external_order_id yet). Guards with last_attempt_at so a flapping
  * provider never hammers the API more than once per 30 minutes per order.
  */
@@ -30,46 +32,12 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Server credentials missing" }, { status: 500 });
     }
 
-    const supabase = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } });
-    const retryCutoff = new Date(Date.now() - RETRY_MIN_INTERVAL_MINUTES * 60 * 1000).toISOString();
-
-    // Processing orders with no external order id, in a queued/failed provider state,
-    // that haven't been retried within the interval.
-    const { data: orders, error } = await supabase
-      .from("orders")
-      .select("id, service_id, target_url, quantity")
-      .eq("status", "Processing")
-      .is("external_order_id", null)
-      .or(`external_status.ilike.Queued:%,external_status.ilike.Failed:%`)
-      .or(`last_attempt_at.is.null,last_attempt_at.lt.${retryCutoff}`);
-
-    if (error) throw error;
-
-    const rows = (orders || []) as Array<{
-      id: string;
-      service_id: string;
-      target_url: string;
-      quantity: number;
-    }>;
-
-    let retried = 0;
-    const results = await Promise.allSettled(
-      rows.map(async (order) => {
-        await autoPlaceRixeyOrder(order.id, order.service_id, order.target_url, order.quantity);
-        retried++;
-      })
-    );
-
-    for (const result of results) {
-      if (result.status === "rejected") {
-        console.error("Queue retry failed for an order:", result.reason);
-      }
-    }
+    const result = await retryUnplacedOrders({ limit: 20, retryIntervalMinutes: RETRY_MIN_INTERVAL_MINUTES });
 
     return NextResponse.json({
       success: true,
-      scanned: rows.length,
-      retried,
+      scanned: result.scanned,
+      retried: result.attempted,
       retryIntervalMinutes: RETRY_MIN_INTERVAL_MINUTES,
     });
   } catch (err: unknown) {

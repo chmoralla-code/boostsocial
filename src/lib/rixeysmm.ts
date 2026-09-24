@@ -75,6 +75,39 @@ async function markOrderQueuedForProviderFunding(
   });
 }
 
+/** Minimum gap between two placement attempts for the same order. */
+const PLACEMENT_CLAIM_WINDOW_MS = 2 * 60 * 1000;
+
+/**
+ * Claim the right to place this order by stamping last_attempt_at, but only if
+ * nobody else attempted it in the last couple of minutes. Admin approval, the
+ * Telegram button, the receipt verifier, the retry cron and the Orders page
+ * can all try to place the same order; without this they could each send it
+ * to RixeySMM and the customer's order would be bought twice.
+ */
+async function claimPlacement(
+  supabase: ReturnType<typeof getSupabase>,
+  orderId: string,
+  allowReplace: boolean
+) {
+  const now = new Date();
+  const cutoff = new Date(now.getTime() - PLACEMENT_CLAIM_WINDOW_MS).toISOString();
+  let query = supabase
+    .from("orders")
+    .update({ last_attempt_at: now.toISOString() })
+    .eq("id", orderId)
+    .or(`last_attempt_at.is.null,last_attempt_at.lt.${cutoff}`);
+  if (!allowReplace) query = query.is("external_order_id", null);
+
+  const { data, error } = await query.select("id");
+  if (error) {
+    // Older databases may lack last_attempt_at; placing is better than stalling.
+    console.warn(`[RixeySMM] Placement claim unavailable for ${orderId}:`, error.message);
+    return true;
+  }
+  return Array.isArray(data) && data.length > 0;
+}
+
 /** Touch the retry-guard timestamp after any placement attempt (queued/failed/placed). */
 async function markPlacementAttempt(supabase: ReturnType<typeof getSupabase>, orderId: string) {
   const attempt = { last_attempt_at: new Date().toISOString() };
@@ -113,7 +146,9 @@ export async function reQueueRefill(refillId: string) {
     String(refill.original_order_id || ""),
     String(serviceId || ""),
     String(refill.target_url || ""),
-    Number(refill.quantity || 0)
+    Number(refill.quantity || 0),
+    // A refill deliberately re-places against the original (already placed) order.
+    { allowReplace: true }
   );
 
   // autoPlaceRixeyOrder wrote the result to the ORIGINAL order. Copy the outcome
@@ -151,9 +186,11 @@ export async function autoPlaceRixeyOrder(
   orderId: string,
   serviceId: string,
   targetUrl: string,
-  quantity: number
+  quantity: number,
+  options?: { allowReplace?: boolean }
 ) {
   const supabase = getSupabase();
+  const allowReplace = Boolean(options?.allowReplace);
 
   try {
     console.log(`[RixeySMM] Triggering automated placement for Order ID: ${orderId}`);
@@ -161,11 +198,16 @@ export async function autoPlaceRixeyOrder(
     // 1. Load order details to check for an smm_service_id
     const { data: order, error: orderErr } = await supabase
       .from("orders")
-      .select("smm_service_id, service_id")
+      .select("smm_service_id, service_id, external_order_id")
       .eq("id", orderId)
       .maybeSingle();
 
     if (orderErr) throw orderErr;
+
+    if (order?.external_order_id && !allowReplace) {
+      console.log(`[RixeySMM] Order ${orderId} already placed as #${order.external_order_id}. Skipping.`);
+      return;
+    }
 
     let smmServiceId = order?.smm_service_id;
 
@@ -206,6 +248,11 @@ export async function autoPlaceRixeyOrder(
         .update({ external_status: errorMsg })
         .eq("id", orderId);
       await syncOrderUpdateToBackups(orderId, { external_status: errorMsg });
+      return;
+    }
+
+    if (!(await claimPlacement(supabase, orderId, allowReplace))) {
+      console.log(`[RixeySMM] Order ${orderId} is already being placed by another request. Skipping.`);
       return;
     }
 
@@ -370,4 +417,51 @@ export async function autoPlaceRixeyOrder(
     await syncOrderUpdateToBackups(orderId, { external_status: externalStatus });
     await markPlacementAttempt(supabase, orderId);
   }
+}
+
+/**
+ * Re-sends Processing orders that never reached RixeySMM: placement failed,
+ * was queued for provider funding, or never ran at all (no external status —
+ * e.g. the serverless function was frozen before the provider call). The
+ * claim in autoPlaceRixeyOrder keeps concurrent runs from placing twice.
+ */
+export async function retryUnplacedOrders(options?: {
+  limit?: number;
+  retryIntervalMinutes?: number;
+  minAgeMinutes?: number;
+}) {
+  const supabase = getSupabase();
+  const limit = options?.limit ?? 25;
+  const retryCutoff = new Date(Date.now() - (options?.retryIntervalMinutes ?? 15) * 60_000).toISOString();
+  // Give a freshly approved order time to be placed by its own request first.
+  const ageCutoff = new Date(Date.now() - (options?.minAgeMinutes ?? 3) * 60_000).toISOString();
+
+  const { data, error } = await supabase
+    .from("orders")
+    .select("id, service_id, target_url, quantity, external_status, created_at")
+    .eq("status", "Processing")
+    .is("external_order_id", null)
+    .lt("created_at", ageCutoff)
+    .or(`last_attempt_at.is.null,last_attempt_at.lt.${retryCutoff}`)
+    .order("created_at", { ascending: true })
+    .limit(limit * 2);
+
+  if (error) throw error;
+
+  const rows = (data || []).filter((order) => {
+    const status = String(order.external_status || "").trim();
+    return !status || /^queued:/i.test(status) || /^failed:/i.test(status);
+  }).slice(0, limit);
+
+  let attempted = 0;
+  for (const order of rows) {
+    await autoPlaceRixeyOrder(
+      String(order.id),
+      String(order.service_id || ""),
+      String(order.target_url || ""),
+      Number(order.quantity || 0)
+    );
+    attempted += 1;
+  }
+  return { scanned: rows.length, attempted };
 }

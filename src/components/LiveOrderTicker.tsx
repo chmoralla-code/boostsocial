@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { Rocket, X, TrendingUp } from "lucide-react";
+import { repairMojibake } from "@/utils/mojibake";
 
 interface LiveOrderNotification {
   id: string;
@@ -45,7 +46,7 @@ export function LiveOrderTicker() {
       if (!error && data) {
         const dict: Record<string, string> = {};
         data.forEach((s) => {
-          dict[s.id] = s.title;
+          dict[s.id] = repairMojibake(s.title);
         });
         setServicesMap(dict);
       }

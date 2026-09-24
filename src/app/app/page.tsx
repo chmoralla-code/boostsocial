@@ -3,6 +3,7 @@ import { createClient } from "@/utils/supabase/server";
 import { ClientAppHome } from "./ClientAppHome";
 import { readMobileAppSettingsFromAnyDatabase } from "@/lib/mobileAppServer";
 import { readServiceCandidatesFromAnyDatabase } from "@/lib/serviceCandidatesServer";
+import { repairMojibakeDeep } from "@/utils/mojibake";
 
 type AppService = {
   id: string;
@@ -27,7 +28,7 @@ async function getServices(): Promise<AppService[]> {
       .select("id,title,description,starting_price,icon_type")
       .order("created_at", { ascending: true });
 
-    return Array.isArray(data) ? data : [];
+    return Array.isArray(data) ? repairMojibakeDeep(data) : [];
   } catch (error) {
     console.error("Failed to load client app services:", error);
     return [];

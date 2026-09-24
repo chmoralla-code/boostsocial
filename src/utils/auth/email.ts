@@ -1,6 +1,11 @@
 export const AUTH_EMAIL_FROM = "PINOYBOOSTING <noreply@pinoyboosting.com>";
 export const AUTH_EMAIL_BRAND = "PINOYBOOSTING";
 
+const RESEND_MAX_ATTEMPTS = 3;
+const RESEND_RETRY_DELAYS_MS = [700, 2000];
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 type SendEmailInput = {
   to: string;
   subject: string;
@@ -26,42 +31,47 @@ export async function sendAuthEmail(input: SendEmailInput): Promise<SendEmailRes
     };
   }
 
-  try {
-    const sendRes = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${resendKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        from: AUTH_EMAIL_FROM,
-        to: input.to.trim().toLowerCase(),
-        subject: input.subject,
-        text: input.text,
-        html: input.html,
-      }),
-    });
+  const payload = JSON.stringify({
+    from: AUTH_EMAIL_FROM,
+    to: input.to.trim().toLowerCase(),
+    subject: input.subject,
+    text: input.text,
+    html: input.html,
+  });
 
-    if (!sendRes.ok) {
+  // Resend returns 429 when the per-second or daily quota is hit and 5xx on
+  // transient outages. Retry those a couple of times before giving up so a
+  // brief spike doesn't leave a customer with no verification code.
+  let lastStatus: number | undefined;
+  for (let attempt = 0; attempt < RESEND_MAX_ATTEMPTS; attempt++) {
+    if (attempt > 0) await sleep(RESEND_RETRY_DELAYS_MS[attempt - 1] ?? 2000);
+    try {
+      const sendRes = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${resendKey}`,
+          "Content-Type": "application/json",
+        },
+        body: payload,
+      });
+
+      if (sendRes.ok) return { ok: true };
+
+      lastStatus = sendRes.status;
       const body = await sendRes.text().catch(() => "");
-      console.error("Resend send failed:", sendRes.status, body);
-      return {
-        ok: false,
-        error: "email",
-        status: sendRes.status,
-        message: "Failed to send email. Please try again.",
-      };
+      console.error(`Resend send failed (attempt ${attempt + 1}):`, sendRes.status, body);
+      if (sendRes.status !== 429 && sendRes.status < 500) break;
+    } catch (err) {
+      console.error(`Resend fetch failed (attempt ${attempt + 1}):`, err);
     }
-
-    return { ok: true };
-  } catch (err) {
-    console.error("Resend fetch failed:", err);
-    return {
-      ok: false,
-      error: "email",
-      message: "Failed to reach the email service. Please try again.",
-    };
   }
+
+  return {
+    ok: false,
+    error: "email",
+    status: lastStatus,
+    message: "Failed to send email. Please try again.",
+  };
 }
 
 export function getSiteOrigin() {

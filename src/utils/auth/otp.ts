@@ -1,6 +1,7 @@
 import { createHash, randomBytes } from "crypto";
 import type { SupabaseClient, User } from "@supabase/supabase-js";
 import { AUTH_EMAIL_BRAND, sendAuthEmail } from "@/utils/auth/email";
+import { sendAdminAlert } from "@/lib/telegram";
 
 export const OTP_EXPIRY_MS = 5 * 60 * 1000; // 5 minutes
 export const OTP_COOLDOWN_MS = 30_000; // 30 seconds
@@ -77,13 +78,19 @@ export async function storeAndSendOtp(
         otp_attempts: 0,
       },
     });
+    // Tell the admin right away so they can verify the customer by hand from
+    // the Customers page instead of the customer being locked out.
+    await sendAdminAlert({
+      title: "⚠️ Verification code could not be sent",
+      message: `Customer: ${cleanEmail}\nReason: ${emailResult.error === "config" ? "RESEND_API_KEY missing" : `Resend error${emailResult.status ? ` (HTTP ${emailResult.status})` : ""}`}\n\nOpen Admin → Customers and tap "Verify email" to activate this account manually.`,
+    });
     return {
       ok: false,
       error: emailResult.error,
       message:
         emailResult.error === "config"
           ? emailResult.message
-          : "Failed to send verification code. Please try again.",
+          : "We couldn't send your verification code right now. Please try Resend Code in a minute, or message us in the chat and we'll activate your account.",
     };
   }
 

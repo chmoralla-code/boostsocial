@@ -9,7 +9,7 @@ import { buildReceiptFileName, findActiveDuplicateReceiptRecord, hashReceiptFile
 import { notifyCustomer, notifyOrderStatusCustomer } from "@/lib/customerNotifications";
 import { compressReceiptImage, bufferToDataUrl } from "@/utils/serverImageCompressor";
 import { syncBackupAdminClients } from "@/utils/supabase/dual-db";
-import { autoVerifyAndApproveOrder } from "@/lib/receiptVerifier";
+import { amountMatches as receiptAmountMatches, autoVerifyAndApproveOrder } from "@/lib/receiptVerifier";
 import { autoPlaceRixeyOrder } from "@/lib/rixeysmm";
 import { creditReferralCommission } from "@/utils/referrals";
 import { sendOrderApprovedEmail } from "@/lib/approvalEmails";
@@ -197,8 +197,7 @@ export async function POST(req: NextRequest) {
     const amountMatches =
       extractedAmount === null || orderAmount <= 0
         ? null
-        : Math.abs(extractedAmount - orderAmount) <=
-          Math.max(orderAmount * 0.05, 0.5);
+        : receiptAmountMatches(extractedAmount, orderAmount);
     const rejectedAsFake = Boolean(
       autoApproval && "rejectedAsFake" in autoApproval && autoApproval.rejectedAsFake
     );
@@ -347,7 +346,7 @@ export async function POST(req: NextRequest) {
           }
 
           if (!orderData.external_order_id) {
-            autoPlaceRixeyOrder(
+            await autoPlaceRixeyOrder(
               orderId,
               orderData.service_id,
               orderData.target_url,
