@@ -1,13 +1,14 @@
 import type { SupabaseClient, User } from "@supabase/supabase-js";
 
-const PER_PAGE = 1000;
+const PER_PAGE = 100;
 // Bound the scan so a runaway loop can never exhaust the function's time budget.
-// 200 pages * 1000 per page covers 200k users.
+// 200 pages * 100 per page covers 20k users.
 const MAX_PAGES = 200;
 
 /**
- * Prefer GoTrue's `filter` query (email substring match) so we don't paginate
- * the entire auth.users table on every OTP / confirmation lookup.
+ * Fast path: GoTrue's `filter` query (email substring match). Supported by
+ * newer GoTrue versions; on older ones the param is ignored and the caller
+ * still verifies an exact match, so a miss just falls through.
  */
 async function findAuthUserByEmailFilter(
   supabaseUrl: string,
@@ -27,7 +28,10 @@ async function findAuthUserByEmailFilter(
     cache: "no-store",
   });
 
-  if (!res.ok) return null;
+  if (!res.ok) {
+    console.warn(`Auth user filter lookup returned HTTP ${res.status}; continuing with other lookups.`);
+    return null;
+  }
 
   const data = (await res.json()) as { users?: User[] };
   const users = data?.users ?? [];
@@ -38,9 +42,13 @@ async function findAuthUserByEmailFilter(
 /**
  * Find an auth user by email.
  *
- * Tries GoTrue's admin `filter` param first (O(1)-ish), then falls back to
- * bounded pagination. `listUsers()` alone only sees page 1 by default, so a
- * plain call silently fails to find anyone past page 1 once the user base grows.
+ * Lookup order (each step returns immediately on an exact match):
+ *   1. profiles.email -> auth user id  (single indexed row, fastest + most reliable)
+ *   2. GoTrue admin `filter` query     (exact match verified after)
+ *   3. Bounded pagination of auth.users (safety net; scans until an empty page)
+ *
+ * A plain listUsers() only sees page 1, and older GoTrue versions ignore the
+ * `filter` param, so the pagination step is required to bound worst cases.
  */
 export async function findAuthUserByEmail(
   supabase: SupabaseClient,
@@ -49,37 +57,40 @@ export async function findAuthUserByEmail(
   const target = email.trim().toLowerCase();
   if (!target) return null;
 
+  // 1. profiles fast path (avoids scanning auth.users entirely).
+  try {
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("email", target)
+      .limit(1)
+      .maybeSingle();
+    if (profileError) {
+      console.warn("Profile email lookup error:", profileError.message);
+    } else if (profile?.id) {
+      const { data, error } = await supabase.auth.admin.getUserById(profile.id);
+      if (!error && data?.user) return data.user;
+    }
+  } catch (err) {
+    console.warn("Profile email lookup failed, falling back to filter/pagination:", err);
+  }
+
+  // 2. GoTrue admin filter query.
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (supabaseUrl && serviceRoleKey) {
     try {
-      const filtered = await findAuthUserByEmailFilter(
-        supabaseUrl,
-        serviceRoleKey,
-        target
-      );
+      const filtered = await findAuthUserByEmailFilter(supabaseUrl, serviceRoleKey, target);
       if (filtered) return filtered;
     } catch (err) {
-      console.warn("Auth email filter lookup failed, falling back to profiles/pagination:", err);
+      console.warn("Auth email filter lookup failed, falling back to pagination:", err);
     }
   }
 
-  // Fast path: profiles.email → auth user id (avoids full auth.users scan).
-  try {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("id")
-      .eq("email", target)
-      .maybeSingle();
-    if (profile?.id) {
-      const { data, error } = await supabase.auth.admin.getUserById(profile.id);
-      if (!error && data?.user) return data.user;
-    }
-  } catch (err) {
-    console.warn("Profile email lookup failed, falling back to pagination:", err);
-  }
-
+  // 3. Bounded pagination. Scan until an empty page appears so an ignored
+  //    per_page cap (which makes early pages shorter than PER_PAGE) can never
+  //    stop the scan before the target user is reached.
   for (let page = 1; page <= MAX_PAGES; page++) {
     const { data, error } = await supabase.auth.admin.listUsers({
       page,
@@ -88,13 +99,12 @@ export async function findAuthUserByEmail(
     if (error) throw error;
 
     const users = data?.users ?? [];
-    const match = users.find(
-      (u) => u.email && u.email.toLowerCase() === target
-    );
-    if (match) return match;
+    if (users.length === 0) break;
 
-    if (users.length < PER_PAGE) break;
+    const match = users.find((u) => u.email && u.email.toLowerCase() === target);
+    if (match) return match;
   }
 
+  console.warn(`Auth user lookup found no account for ${target} after all strategies.`);
   return null;
 }
