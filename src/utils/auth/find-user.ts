@@ -49,8 +49,15 @@ export async function findAuthUserByEmail(
   const target = email.trim().toLowerCase();
   if (!target) return null;
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  // Query the project this client points at. Reading the primary env vars here
+  // made every backup lookup silently return the primary's user instead.
+  const clientConfig = supabase as unknown as { supabaseUrl?: unknown; supabaseKey?: unknown };
+  const supabaseUrl = typeof clientConfig.supabaseUrl === "string"
+    ? clientConfig.supabaseUrl
+    : process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceRoleKey = typeof clientConfig.supabaseKey === "string"
+    ? clientConfig.supabaseKey
+    : process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (supabaseUrl && serviceRoleKey) {
     try {
@@ -67,14 +74,17 @@ export async function findAuthUserByEmail(
 
   // Fast path: profiles.email → auth user id (avoids full auth.users scan).
   try {
-    const { data: profile } = await supabase
+    // A re-registered email can have several profile rows (old soft-deleted
+    // ones included), so don't use maybeSingle(): it errors on duplicates.
+    const { data: profiles } = await supabase
       .from("profiles")
       .select("id")
-      .eq("email", target)
-      .maybeSingle();
-    if (profile?.id) {
+      .ilike("email", target)
+      .limit(10);
+    for (const profile of profiles ?? []) {
+      if (!profile?.id) continue;
       const { data, error } = await supabase.auth.admin.getUserById(profile.id);
-      if (!error && data?.user) return data.user;
+      if (!error && data?.user?.email?.toLowerCase() === target) return data.user;
     }
   } catch (err) {
     console.warn("Profile email lookup failed, falling back to pagination:", err);

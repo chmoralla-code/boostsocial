@@ -35,6 +35,8 @@ export default function AppAuthPage() {
   const [otpVerifying, setOtpVerifying] = useState(false);
   const [otpCountdown, setOtpCountdown] = useState(0);
   const [pendingPassword, setPendingPassword] = useState("");
+  // True when pendingPassword came from the register form (not a login attempt).
+  const [pendingIsSignup, setPendingIsSignup] = useState(false);
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
 
@@ -97,6 +99,7 @@ export default function AppAuthPage() {
         if (!res.ok) throw new Error(data.error || "Registration failed.");
 
         setPendingPassword(password);
+        setPendingIsSignup(true);
         setPassword("");
         setConfirmPassword("");
         setOtpMode(true);
@@ -104,7 +107,9 @@ export default function AppAuthPage() {
 
         if (data.otp_sent) {
           setOtpCountdown(30);
-          setSuccess("Verification code sent. Enter the 6-digit code to activate your account.");
+          setSuccess(data.existing_account
+            ? data.message
+            : "Verification code sent. Enter the 6-digit code to activate your account.");
         } else {
           setOtpCountdown(0);
           setError(data.otp_error || "Account created, but we couldn't send the verification email. Tap Resend Code.");
@@ -117,6 +122,7 @@ export default function AppAuthPage() {
       const message = getErrorMessage(err);
       if (message.toLowerCase().includes("confirm")) {
         setPendingPassword(password);
+        setPendingIsSignup(false);
         setOtpMode(true);
         setOtpCode("");
         setOtpSending(true);
@@ -184,7 +190,11 @@ export default function AppAuthPage() {
       const res = await fetch("/api/auth/verify-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: cleanEmail, code: otpCode }),
+        body: JSON.stringify({
+          email: cleanEmail,
+          code: otpCode,
+          ...(pendingIsSignup && pendingPassword ? { password: pendingPassword } : {}),
+        }),
       });
       const data = await res.json();
       if (!res.ok) {

@@ -513,6 +513,32 @@ export function CustomersList({
                     )}
                     <button
                       onClick={async () => {
+                        if (!confirm(`Mark ${customer.email} as verified? Only do this after confirming the customer owns this email (e.g. they messaged you from it).`)) return;
+                        try {
+                          const res = await fetch("/api/admin/confirm-customer-email", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ email: customer.email })
+                          });
+                          const data = await res.json().catch(() => ({}));
+                          if (res.ok) {
+                            alert(data.alreadyVerified
+                              ? "This customer's email is already verified. They can sign in (or use Forgot Password)."
+                              : "Email verified. The customer can now sign in with their password.");
+                          } else {
+                            alert(data.error || "Failed to verify email");
+                          }
+                        } catch {
+                          alert("An error occurred");
+                        }
+                      }}
+                      className="px-3 py-1.5 bg-amber-500/10 border border-amber-500/20 text-amber-400 hover:bg-amber-500/20 rounded-lg text-xs font-bold transition-colors shadow-sm"
+                      title="Manually verify this customer's email so they can sign in"
+                    >
+                      Verify Email
+                    </button>
+                    <button
+                      onClick={async () => {
                         if (confirm(`Are you sure you want to delete ${customer.email}? This action cannot be undone.`)) {
                           try {
                             const res = await fetch("/api/admin/delete-customer", {
