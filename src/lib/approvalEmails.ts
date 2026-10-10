@@ -45,10 +45,10 @@ export async function sendOrderApprovedEmail(input: OrderApprovalEmailInput) {
     `Your order ${trackingId} (${service}) has been approved and is now processing.`,
     amountText ? `Amount: ${amountText}` : null,
     ``,
-    `Track your order anytime: ${site}/app/orders`,
+    `Track your order anytime: ${site}/track?id=${encodeURIComponent(trackingId)}`,
     ``,
     `Need more reach? Browse Facebook likes, followers, views, PisoWiFi packages, and more — your next boost is one tap away:`,
-    `${site}/app`,
+    `${site}/#services`,
     ``,
     `Thank you for choosing ${AUTH_EMAIL_BRAND}. We're ready when you are.`,
     ``,
@@ -63,11 +63,11 @@ export async function sendOrderApprovedEmail(input: OrderApprovalEmailInput) {
       <p style="font-size:18px;margin:0 0 16px"><strong>Request received, enjoy the services!</strong></p>
       <p>Your order <strong>${escapeHtml(trackingId)}</strong> (${escapeHtml(service)}) has been approved and is now processing.${amountText ? ` Amount: <strong>${escapeHtml(amountText)}</strong>.` : ""}</p>
       <p style="margin:24px 0">
-        <a href="${escapeHtml(site)}/app/orders" style="display:inline-block;background:#0f766e;color:#fff;text-decoration:none;padding:12px 18px;border-radius:8px;font-weight:600">Track my order</a>
+        <a href="${escapeHtml(site)}/track?id=${encodeURIComponent(trackingId)}" style="display:inline-block;background:#0f766e;color:#fff;text-decoration:none;padding:12px 18px;border-radius:8px;font-weight:600">Track my order</a>
       </p>
       <p>Craving more growth? Top up your wallet and grab likes, followers, views, or PisoWiFi packages — faster delivery starts with your next order.</p>
       <p style="margin:24px 0">
-        <a href="${escapeHtml(site)}/app" style="display:inline-block;background:#111;color:#fff;text-decoration:none;padding:12px 18px;border-radius:8px;font-weight:600">Browse more services</a>
+        <a href="${escapeHtml(site)}/#services" style="display:inline-block;background:#111;color:#fff;text-decoration:none;padding:12px 18px;border-radius:8px;font-weight:600">Browse more services</a>
       </p>
       <p style="color:#555;font-size:13px">Thank you for choosing ${escapeHtml(AUTH_EMAIL_BRAND)}. We're ready when you are.</p>
     </div>
@@ -98,7 +98,7 @@ export async function sendTopupApprovedEmail(input: TopupApprovalEmailInput) {
     balanceText ? `New balance: ${balanceText}` : null,
     ``,
     `Your wallet is ready — spend it on Facebook likes, followers, views, PisoWiFi packages, and more:`,
-    `${site}/app`,
+    `${site}/#services`,
     ``,
     `Thank you for choosing ${AUTH_EMAIL_BRAND}. The more you boost, the faster you grow.`,
     ``,
@@ -114,7 +114,7 @@ export async function sendTopupApprovedEmail(input: TopupApprovalEmailInput) {
       <p>Your wallet top-up of <strong>${escapeHtml(amountText)}</strong> was approved and credited.${balanceText ? ` New balance: <strong>${escapeHtml(balanceText)}</strong>.` : ""}</p>
       <p>Your wallet is ready — put it to work on likes, followers, views, PisoWiFi packages, and more. The more you boost, the faster you grow.</p>
       <p style="margin:24px 0">
-        <a href="${escapeHtml(site)}/app" style="display:inline-block;background:#0f766e;color:#fff;text-decoration:none;padding:12px 18px;border-radius:8px;font-weight:600">Shop services now</a>
+        <a href="${escapeHtml(site)}/#services" style="display:inline-block;background:#0f766e;color:#fff;text-decoration:none;padding:12px 18px;border-radius:8px;font-weight:600">Shop services now</a>
       </p>
       <p style="color:#555;font-size:13px">Thank you for choosing ${escapeHtml(AUTH_EMAIL_BRAND)}.</p>
     </div>
@@ -161,10 +161,10 @@ export async function sendOrderCompletedEmail(input: OrderCompletedEmailInput) {
     amountText ? `Amount: ${amountText}` : null,
     ``,
     `Please check your target link. If anything looks off, reply via support from:`,
-    `${site}/app/orders`,
+    `${site}/track?id=${encodeURIComponent(trackingId)}`,
     ``,
     `Ready for another boost? Keep the momentum going with more likes, followers, views, or PisoWiFi packages:`,
-    `${site}/app`,
+    `${site}/#services`,
     ``,
     `Thank you for choosing ${AUTH_EMAIL_BRAND}. See you on your next order!`,
     ``,
@@ -180,11 +180,11 @@ export async function sendOrderCompletedEmail(input: OrderCompletedEmailInput) {
       <p>Order <strong>${escapeHtml(trackingId)}</strong> (${escapeHtml(service)}) has been delivered.${quantityText ? ` Quantity: <strong>${escapeHtml(quantityText)}</strong>.` : ""}${amountText ? ` Amount: <strong>${escapeHtml(amountText)}</strong>.` : ""}</p>
       <p>Please check your target link. If anything looks off, open Track Order and chat with support.</p>
       <p style="margin:24px 0">
-        <a href="${escapeHtml(site)}/app/orders" style="display:inline-block;background:#0f766e;color:#fff;text-decoration:none;padding:12px 18px;border-radius:8px;font-weight:600">View my order</a>
+        <a href="${escapeHtml(site)}/track?id=${encodeURIComponent(trackingId)}" style="display:inline-block;background:#0f766e;color:#fff;text-decoration:none;padding:12px 18px;border-radius:8px;font-weight:600">View my order</a>
       </p>
       <p>Ready for another boost? Keep the momentum going with more likes, followers, views, or PisoWiFi packages.</p>
       <p style="margin:24px 0">
-        <a href="${escapeHtml(site)}/app" style="display:inline-block;background:#111;color:#fff;text-decoration:none;padding:12px 18px;border-radius:8px;font-weight:600">Order again</a>
+        <a href="${escapeHtml(site)}/#services" style="display:inline-block;background:#111;color:#fff;text-decoration:none;padding:12px 18px;border-radius:8px;font-weight:600">Order again</a>
       </p>
       <p style="color:#555;font-size:13px">Thank you for choosing ${escapeHtml(AUTH_EMAIL_BRAND)}. See you on your next order!</p>
     </div>
@@ -237,11 +237,11 @@ export async function sendOrderPlacedEmail(input: OrderPlacedEmailInput) {
           `To complete payment, send the total to our GCash:`,
           `09505339963 • Henry S.`,
           `Then upload your receipt on the tracking page:`,
-          `${site}/app/orders`,
+          `${site}/track?id=${encodeURIComponent(trackingId)}`,
         ].join("\n")
       : `Your wallet payment was applied — your order is now processing.`,
     ``,
-    `Track your order anytime: ${site}/app/orders`,
+    `Track your order anytime: ${site}/track?id=${encodeURIComponent(trackingId)}`,
     ``,
     `— ${AUTH_EMAIL_BRAND} Team`,
   ]
@@ -264,7 +264,7 @@ export async function sendOrderPlacedEmail(input: OrderPlacedEmailInput) {
           : `<p style="margin:20px 0;padding:14px;border-radius:10px;background:#ecfdf5;border:1px solid #a7f3d0">Wallet payment applied — your order is now processing.</p>`
       }
       <p style="margin:24px 0">
-        <a href="${escapeHtml(site)}/app/orders" style="display:inline-block;background:#0f766e;color:#fff;text-decoration:none;padding:12px 18px;border-radius:8px;font-weight:600">Track my order</a>
+        <a href="${escapeHtml(site)}/track?id=${encodeURIComponent(trackingId)}" style="display:inline-block;background:#0f766e;color:#fff;text-decoration:none;padding:12px 18px;border-radius:8px;font-weight:600">Track my order</a>
       </p>
       <p style="color:#555;font-size:13px">— ${escapeHtml(AUTH_EMAIL_BRAND)} Team</p>
     </div>
@@ -385,7 +385,7 @@ export async function sendCheckInEmail(input: CheckInEmailInput) {
     `Your new wallet balance is ${balanceText}.`,
     ``,
     `Come back tomorrow for another bonus:`,
-    `${site}/app`,
+    `${site}/#services`,
     ``,
     `— ${AUTH_EMAIL_BRAND} Team`,
   ].join("\n");
@@ -398,7 +398,7 @@ export async function sendCheckInEmail(input: CheckInEmailInput) {
       <p>Your new wallet balance is <strong>${escapeHtml(balanceText)}</strong>.</p>
       <p>Come back tomorrow for another bonus.</p>
       <p style="margin:24px 0">
-        <a href="${escapeHtml(site)}/app" style="display:inline-block;background:#0f766e;color:#fff;text-decoration:none;padding:12px 18px;border-radius:8px;font-weight:600">Browse services</a>
+        <a href="${escapeHtml(site)}/#services" style="display:inline-block;background:#0f766e;color:#fff;text-decoration:none;padding:12px 18px;border-radius:8px;font-weight:600">Browse services</a>
       </p>
       <p style="color:#555;font-size:13px">— ${escapeHtml(AUTH_EMAIL_BRAND)} Team</p>
     </div>
