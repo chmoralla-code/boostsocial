@@ -1649,3 +1649,16 @@ html { scroll-behavior: smooth; }
 .bg-\[\#8B5CF6\].text-fg {
   color: var(--color-background) !important;
 }
+
+/* Same fix for brand fills paired with `text-black` (e.g. the green
+   toggles). In light theme the fill flips to near-black, which would
+   make a black label disappear the same way. */
+.bg-\[\#1877F2\].text-black,
+.bg-\[\#1DB954\].text-black,
+.bg-\[\#1ed760\].text-black,
+.bg-\[\#E1306C\].text-black,
+.bg-\[\#00F2FE\].text-black,
+.bg-\[\#FF0000\].text-black,
+.bg-\[\#8B5CF6\].text-black {
+  color: var(--color-background) !important;
+}
