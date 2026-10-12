@@ -1,7 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
-import Image from "next/image";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -19,7 +18,6 @@ import {
   LogIn,
   LogOut,
   RefreshCw,
-  Upload,
   UserPlus,
   Wallet,
   X,
@@ -36,9 +34,6 @@ type AppProfile = {
   vip_plan?: string | null;
   vip_expires_at?: string | null;
 };
-
-const GCASH_NUMBER = "09505339963";
-const GCASH_NAME = "Henry S.";
 
 type PushStatus = "checking" | "unsupported" | "disabled" | "saving" | "enabled" | "blocked" | "setup";
 
@@ -76,13 +71,11 @@ export default function AppProfilePage() {
   const [refreshing, setRefreshing] = useState(false);
   const [topUpOpen, setTopUpOpen] = useState(false);
   const [topUpAmount, setTopUpAmount] = useState("");
-  const [topUpReceipt, setTopUpReceipt] = useState<File | null>(null);
   const [topUpSubmitting, setTopUpSubmitting] = useState(false);
-  const [topUpStatus, setTopUpStatus] = useState<"idle" | "submitting" | "reading" | "verifying">("idle");
   const [topUpError, setTopUpError] = useState("");
-  const [topUpSuccess, setTopUpSuccess] = useState("");
+  // null = still checking, true = ready, false = gateway not configured.
+  const [paymongoConfigured, setPaymongoConfigured] = useState<boolean | null>(null);
   const [copied, setCopied] = useState(false);
-  const [copiedGcash, setCopiedGcash] = useState(false);
   const [checkinStatus, setCheckinStatus] = useState<"idle" | "checking" | "claiming" | "claimed" | "error">("idle");
   const [checkinReward, setCheckinReward] = useState(0);
   const [checkinMessage, setCheckinMessage] = useState("");
@@ -220,7 +213,6 @@ export default function AppProfilePage() {
 
   const openTopUp = () => {
     setTopUpError("");
-    setTopUpSuccess("");
     setTopUpOpen(true);
   };
 
@@ -228,14 +220,23 @@ export default function AppProfilePage() {
     if (topUpSubmitting) return;
     setTopUpOpen(false);
     setTopUpError("");
-    setTopUpSuccess("");
   };
 
-  const copyGcashNumber = async () => {
-    await navigator.clipboard.writeText(GCASH_NUMBER);
-    setCopiedGcash(true);
-    window.setTimeout(() => setCopiedGcash(false), 1600);
-  };
+  // Only offer the gateway when the server says the keys are present, so a
+  // half-configured deploy never shows a button that cannot work.
+  useEffect(() => {
+    if (!topUpOpen) return;
+    let cancelled = false;
+    fetch("/api/paymongo/status")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!cancelled && d) setPaymongoConfigured(Boolean(d.enabled));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [topUpOpen]);
 
   const claimDailyCheckin = async () => {
     if (checkinStatus === "claiming" || checkinStatus === "claimed") return;
@@ -263,81 +264,39 @@ export default function AppProfilePage() {
     }
   };
 
-  const submitTopUp = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!user?.id || !user.email) {
-      setTopUpError("Please login again before submitting a top-up.");
-      return;
-    }
-
+  const handlePaymongoTopUp = async () => {
     const amount = Number(topUpAmount);
     if (!Number.isFinite(amount) || amount <= 0) {
       setTopUpError("Enter a valid PHP amount.");
       return;
     }
 
-    if (!topUpReceipt) {
-      setTopUpError("Upload your GCash receipt screenshot.");
+    if (amount < 50) {
+      setTopUpError("Minimum top-up is ₱50.");
       return;
     }
 
     setTopUpSubmitting(true);
     setTopUpError("");
-    setTopUpSuccess("");
-    setTopUpStatus("submitting");
 
     try {
-      const formData = new FormData();
-      formData.append("file", topUpReceipt);
-      formData.append("userId", user.id);
-      formData.append("email", user.email);
-      formData.append("amount", String(amount));
-
-      setTimeout(() => setTopUpStatus("reading"), 800);
-
-      const res = await fetch("/api/topup/create", {
+      const res = await fetch("/api/paymongo/checkout", {
         method: "POST",
-        body: formData,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount }),
       });
+      const data = await res.json().catch(() => ({}));
 
-      setTopUpStatus("verifying");
-
-      const data = (await res.json().catch(() => ({}))) as {
-        error?: string;
-        autoApproved?: boolean;
-        rejectedAsFake?: boolean;
-        rejectedAsDuplicate?: boolean;
-      };
-
-      if (!res.ok) {
-        throw new Error(data.error || "Failed to submit top-up request.");
+      if (!res.ok || !data.checkoutUrl) {
+        throw new Error(data.error || "Could not start the payment.");
       }
 
-      if (data.rejectedAsFake) {
-        setTopUpError("Suspicious receipt — image appears AI-generated. Please upload a real GCash screenshot.");
-        setTopUpStatus("idle");
-        return;
-      }
-
-      if (data.rejectedAsDuplicate) {
-        setTopUpError("Duplicate receipt — this was already used for another transaction.");
-        setTopUpStatus("idle");
-        return;
-      }
-
-      setTopUpAmount("");
-      setTopUpReceipt(null);
-      setTopUpSuccess(
-        data.autoApproved
-          ? "Top-up approved! AI verified and instantly credited to your wallet. 🚀"
-          : "Top-up submitted. Admin verification is now pending."
-      );
-      await loadProfile(user);
+      // Hand off to PayMongo's own page. The wallet is credited by the
+      // webhook, not by the return page, so nothing here decides money.
+      window.location.href = data.checkoutUrl;
     } catch (err: unknown) {
-      setTopUpError(err instanceof Error ? err.message : "Failed to submit top-up request.");
-    } finally {
+      setTopUpError(err instanceof Error ? err.message : "Could not start the payment.");
       setTopUpSubmitting(false);
-      setTopUpStatus("idle");
     }
   };
 
@@ -585,8 +544,8 @@ export default function AppProfilePage() {
                   <Wallet size={21} />
                 </span>
                 <div>
-                  <h2 className="text-lg font-black">App Wallet Top-Up</h2>
-                  <p className="text-xs font-semibold text-zinc-500">Stay in the app, upload receipt, wait for approval.</p>
+                  <h2 className="text-lg font-black">Wallet Top-Up</h2>
+                  <p className="text-xs font-semibold text-zinc-500">Pay online — your wallet is credited instantly.</p>
                 </div>
               </div>
               <button type="button" onClick={closeTopUp} disabled={topUpSubmitting} className="rounded-full p-2 text-zinc-500 disabled:opacity-50" aria-label="Close top-up">
@@ -594,99 +553,58 @@ export default function AppProfilePage() {
               </button>
             </div>
 
-            <form onSubmit={submitTopUp} className="max-h-[74vh] space-y-4 overflow-y-auto p-4">
-              {topUpSuccess ? (
-                <div className="rounded-3xl border border-emerald-100 bg-emerald-50 p-5 text-center">
-                  <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-600 text-white">
-                    <CheckCircle size={26} />
-                  </span>
-                  <h3 className="mt-4 text-lg font-black text-emerald-900">Receipt submitted</h3>
-                  <p className="mt-2 text-sm font-semibold leading-6 text-emerald-800">{topUpSuccess}</p>
-                  <button type="button" onClick={closeTopUp} className="mt-5 h-11 w-full rounded-2xl bg-emerald-600 text-sm font-black text-white">
-                    Done
-                  </button>
+            <div className="max-h-[74vh] space-y-4 overflow-y-auto p-4">
+              {topUpError && (
+                <div className="flex items-start gap-2 rounded-2xl border border-red-100 bg-red-50 p-3 text-xs font-bold leading-5 text-red-700">
+                  <AlertCircle size={15} className="mt-0.5 shrink-0" />
+                  <span>{topUpError}</span>
                 </div>
-              ) : (
-                <>
-                  {topUpError && (
-                    <div className="flex items-start gap-2 rounded-2xl border border-red-100 bg-red-50 p-3 text-xs font-bold leading-5 text-red-700">
-                      <AlertCircle size={15} className="mt-0.5 shrink-0" />
-                      <span>{topUpError}</span>
-                    </div>
-                  )}
-
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-black uppercase tracking-wider text-zinc-400">Amount in PHP</label>
-                    <input
-                      type="number"
-                      min="1"
-                      step="0.01"
-                      inputMode="decimal"
-                      value={topUpAmount}
-                      onChange={(event) => {
-                        setTopUpAmount(event.target.value);
-                        setTopUpError("");
-                      }}
-                      className="h-12 w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 text-base font-black outline-none transition focus:border-emerald-500"
-                      placeholder="500.00"
-                    />
-                  </div>
-
-                  <div className="rounded-3xl border border-zinc-200 bg-zinc-50 p-4">
-                    <div className="text-center">
-                      <p className="text-sm font-black">Pay with GCash</p>
-                      <p className="mt-1 text-xs font-semibold text-zinc-500">Send the exact amount before uploading your receipt.</p>
-                    </div>
-                    <div className="mx-auto mt-4 flex h-48 w-48 items-center justify-center rounded-3xl bg-white p-3 shadow-sm">
-                      <Image src="/gcash-qr.png" alt="GCash QR code" width={192} height={192} className="h-full w-full object-contain" />
-                    </div>
-                    <div className="mt-4 flex items-center justify-between gap-2 rounded-2xl border border-emerald-100 bg-white px-3 py-2">
-                      <div className="min-w-0">
-                        <p className="truncate text-xs font-black text-zinc-900">{GCASH_NUMBER}</p>
-                        <p className="truncate text-[11px] font-semibold text-zinc-500">{GCASH_NAME}</p>
-                      </div>
-                      <button type="button" onClick={copyGcashNumber} className="shrink-0 rounded-full bg-emerald-50 px-3 py-2 text-[11px] font-black text-emerald-700">
-                        {copiedGcash ? "Copied" : "Copy"}
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-black uppercase tracking-wider text-zinc-400">Receipt Screenshot</label>
-                    <label className="flex min-h-28 cursor-pointer flex-col items-center justify-center rounded-3xl border-2 border-dashed border-zinc-200 bg-zinc-50 px-4 text-center transition active:scale-[0.99]">
-                      <Upload size={23} className="text-emerald-700" />
-                      <span className="mt-2 max-w-full truncate text-sm font-black text-zinc-800">
-                        {topUpReceipt ? topUpReceipt.name : "Upload GCash receipt"}
-                      </span>
-                      <span className="mt-1 text-[11px] font-semibold text-zinc-500">PNG, JPG, or WebP up to 8MB</span>
-                      <input
-                        type="file"
-                        accept="image/png,image/jpeg,image/jpg,image/webp"
-                        className="sr-only"
-                        onChange={(event) => {
-                          setTopUpReceipt(event.target.files?.[0] || null);
-                          setTopUpError("");
-                        }}
-                      />
-                    </label>
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={topUpSubmitting}
-                    className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 text-sm font-black text-white shadow-lg shadow-emerald-600/20 hover:bg-emerald-500 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 transition-all"
-                  >
-                    {topUpSubmitting ? <Loader2 size={17} className="animate-spin" /> : <Wallet size={17} />}
-                    {topUpSubmitting
-                      ? topUpStatus === "submitting" ? "Submitting..."
-                        : topUpStatus === "reading" ? "Reading receipt..."
-                        : topUpStatus === "verifying" ? "Verifying amount..."
-                        : "Submitting..."
-                      : "Submit top-up"}
-                  </button>
-                </>
               )}
-            </form>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase tracking-wider text-zinc-400">Amount in PHP</label>
+                <input
+                  type="number"
+                  min="50"
+                  step="0.01"
+                  inputMode="decimal"
+                  value={topUpAmount}
+                  onChange={(event) => {
+                    setTopUpAmount(event.target.value);
+                    setTopUpError("");
+                  }}
+                  className="h-12 w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 text-base font-black outline-none transition focus:border-emerald-500"
+                  placeholder="500.00"
+                />
+                <p className="text-[11px] font-semibold text-zinc-500">Minimum top-up is ₱50.</p>
+              </div>
+
+              <div className="rounded-3xl border border-emerald-100 bg-emerald-50 p-4">
+                <p className="flex items-center gap-2 text-sm font-black text-emerald-800">
+                  <CheckCircle size={16} /> Secure online checkout
+                </p>
+                <p className="mt-1 text-xs font-semibold leading-5 text-emerald-800">
+                  Pay with GCash, Maya, GrabPay or QR Ph. Your wallet is credited automatically the moment the payment is confirmed — no receipt upload needed.
+                </p>
+              </div>
+
+              {paymongoConfigured === false && (
+                <div className="flex items-start gap-2 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-xs font-bold leading-5 text-amber-800">
+                  <AlertCircle size={15} className="mt-0.5 shrink-0" />
+                  <span>Online payment is temporarily unavailable. Please try again shortly.</span>
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={handlePaymongoTopUp}
+                disabled={topUpSubmitting || paymongoConfigured === false}
+                className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 text-sm font-black text-white shadow-lg shadow-emerald-600/20 hover:bg-emerald-500 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 transition-all"
+              >
+                {topUpSubmitting ? <Loader2 size={17} className="animate-spin" /> : <Wallet size={17} />}
+                {topUpSubmitting ? "Starting PayMongo..." : "Pay with PayMongo"}
+              </button>
+            </div>
           </section>
         </div>
       )}
