@@ -5,8 +5,8 @@ import { X, Search, Loader2, Globe, ArrowLeft, ShieldCheck, Check, Copy, AlertCi
 import { createClient } from "@/utils/supabase/client";
 import { useWidgetVisibility } from "@/hooks/useWidgetVisibility";
 import { LinkPreviewWindow } from "./LinkPreviewWindow";
+import { TopUpModal } from "./TopUpModal";
 import { isOrganic, formatSmmServiceName, matchesServiceQualityFilter } from "@/utils/serviceHelpers";
-import { compressImageWithStats, formatBytes, type CompressResult } from "@/utils/imageCompressor";
 import { getVipDiscountSummary } from "@/utils/vip";
 
 
@@ -123,16 +123,8 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
   const [orderId, setOrderId] = useState("");
   const [isWalletPayment, setIsWalletPayment] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [copiedPhone, setCopiedPhone] = useState(false);
   const [smmBalance, setSmmBalance] = useState<number>(100);
-  const [receiptFile, setReceiptFile] = useState<File | null>(null);
-  const [receiptPreviewUrl, setReceiptPreviewUrl] = useState<string | null>(null);
-  const [receiptCompressState, setReceiptCompressState] = useState<CompressResult | null>(null);
-  const [receiptCompressProgress, setReceiptCompressProgress] = useState(0);
-  const [submitStage, setSubmitStage] = useState("");
-  const [receiptUploadPending, setReceiptUploadPending] = useState(false);
-  const [receiptUploadError, setReceiptUploadError] = useState("");
-  const [pendingReceiptFile, setPendingReceiptFile] = useState<File | null>(null);
+  const [showTopUp, setShowTopUp] = useState(false);
 
   useEffect(() => {
     if (checkoutStep === "success") {
@@ -154,9 +146,6 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
       setCheckoutStep("catalog");
       setSelectedService(null);
       setUrl("");
-      setReceiptFile(null);
-      setReceiptCompressState(null);
-      setReceiptCompressProgress(0);
 
       // Auto-initialize search query and platform tab from Puter AI prefill
       if (prefilledSearch) {
@@ -246,6 +235,18 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
     navigator.clipboard.writeText(`BS-${orderId.slice(0, 8).toUpperCase()}`);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const refreshProfile = () => {
+    if (!user) return;
+    supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", user.id)
+      .single()
+      .then(({ data }) => {
+        if (data) setProfile(data);
+      });
   };
 
   // Filter categories based on selected platform
@@ -356,161 +357,16 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
        selectedService.category.toLowerCase().includes("philippine"))
     : false;
 
-  // Manual GCash submission
-  const uploadReceiptForOrder = async (file: File, createdOrderId: string) => {
-    setReceiptUploadPending(true);
-    setReceiptUploadError("");
-    setSubmitStage("Compressing receipt...");
-    setReceiptCompressState(null);
-    setReceiptCompressProgress(0.1);
-
-    try {
-      const compressedReceiptResult = await compressImageWithStats(file, {
-        onProgress: (p) => {
-          setReceiptCompressProgress(
-            p.stage === "loading" ? 0.2 : p.stage === "resizing" ? 0.45 : p.stage === "encoding" ? 0.7 : 0.95
-          );
-        },
-      });
-      setReceiptCompressState(compressedReceiptResult);
-      setReceiptCompressProgress(1);
-      setSubmitStage("Uploading receipt...");
-
-      const receiptFormData = new FormData();
-      receiptFormData.append("file", compressedReceiptResult.file);
-      receiptFormData.append("orderId", createdOrderId);
-
-      const uploadRes = await fetch("/api/upload-receipt", {
-        method: "POST",
-        body: receiptFormData,
-      });
-
-      if (!uploadRes.ok) {
-        const errData = await uploadRes.json();
-        throw new Error(errData.error || "Failed to upload payment receipt screenshot.");
-      }
-
-      setPendingReceiptFile(null);
-      setSubmitStage("");
-    } catch (uploadReceiptErr: any) {
-      console.error("Receipt upload failed:", uploadReceiptErr);
-      setReceiptUploadError(uploadReceiptErr.message || "Failed to upload payment receipt file.");
-      setSubmitStage("");
-      throw uploadReceiptErr;
-    } finally {
-      setReceiptUploadPending(false);
-    }
-  };
-
-  const handleRetryReceiptUpload = async () => {
-    if (!orderId || !pendingReceiptFile) return;
-    try {
-      await uploadReceiptForOrder(pendingReceiptFile, orderId);
-    } catch {
-      // Error already stored
-    }
-  };
-
-  const handleSubmitGcash = async (e: React.FormEvent) => {
+  // Wallet-only checkout. Balances are topped up through the PayMongo gateway,
+  // so an order is paid straight from the wallet — no receipt and no admin step.
+  const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedService) return;
 
-    if (!receiptFile) {
-      setError("Please attach your GCash transaction receipt screenshot first.");
+    if (!user) {
+      setError("Please sign in to place a boost order.");
       return;
     }
-
-    if (quantity > selectedService.max) {
-      setError(`Quantity cannot exceed ${selectedService.max.toLocaleString()}.`);
-      return;
-    }
-    if (quantity <= 0) {
-      setError("Quantity must be greater than 0.");
-      return;
-    }
-
-    const finalQuantity = Math.max(quantity, selectedService.min);
-    const receiptToUpload = receiptFile;
-
-    setIsSubmitting(true);
-    setError("");
-    setReceiptUploadError("");
-    setSubmitStage("Creating order...");
-
-    const optimisticOrderId = crypto.randomUUID();
-    setOrderId(optimisticOrderId);
-    setIsWalletPayment(false);
-    setCheckoutStep("success");
-    setPendingReceiptFile(receiptToUpload);
-    setIsSubmitting(false);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("last_order_id", optimisticOrderId);
-      localStorage.setItem("last_order_email", email.trim());
-    }
-
-    try {
-      setSubmitStage("Saving order...");
-      const createRes = await fetch("/api/orders/create", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          orderId: optimisticOrderId,
-          serviceId: CUSTOM_SMM_SERVICE_ID,
-          email: email.trim(),
-          targetUrl: url.trim(),
-          amount: regularTotal,
-          paymentMethod: "GCash",
-          quantity: finalQuantity,
-          smmServiceId: selectedService.id,
-          catalogSnapshot: {
-            id: selectedService.id,
-            name: selectedService.name,
-            startingPrice: selectedService.startingPrice,
-            min: selectedService.min,
-            max: selectedService.max,
-          },
-        })
-      });
-      const createData = await createRes.json();
-      if (!createRes.ok) throw new Error(createData.error || "Failed to create order.");
-
-      const insertData = { id: createData.orderId || createData.data?.id || optimisticOrderId };
-
-      fetch("/api/notify-order", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          trackingId: `BS-${insertData.id.slice(0, 8).toUpperCase()}`,
-          service: `[SMM #${selectedService.id}] ${selectedService.name}`,
-          email: email.trim(),
-          quantity: finalQuantity,
-          amount: payableTotal,
-          paymentMethod: "📱 GCash",
-          details: url.trim(),
-        }),
-      }).catch(() => {});
-
-      try {
-        await uploadReceiptForOrder(receiptToUpload, insertData.id);
-      } catch {
-        // Tracking ID already shown
-      }
-    } catch (err: any) {
-      setCheckoutStep("form");
-      setOrderId("");
-      setPendingReceiptFile(null);
-      setError(err.message || "Failed to place order.");
-      setSubmitStage("");
-      if (typeof window !== "undefined") {
-        localStorage.removeItem("last_order_id");
-      }
-    }
-  };
-
-  // Wallet deduction checkout (Server-side insertion to bypass client RLS and remove receipt screenshot upload checks)
-  const handleWalletCheckout = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedService || !user) return;
 
     if (quantity > selectedService.max) {
       setError(`Quantity cannot exceed ${selectedService.max.toLocaleString()}.`);
@@ -525,6 +381,7 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
 
     if (Number(profile?.balance || 0) < payableTotal) {
       setError("Insufficient wallet balance. Please top up first.");
+      setShowTopUp(true);
       return;
     }
 
@@ -562,14 +419,13 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
       setOrderId(data.orderId);
       setIsWalletPayment(true);
       setCheckoutStep("success");
-      
+
       if (typeof window !== "undefined") {
         localStorage.setItem("last_order_id", data.orderId);
         localStorage.setItem("last_order_email", user.email || "");
       }
-      
-      setProfile({ ...profile, balance: data.newBalance });
 
+      setProfile({ ...profile, balance: data.newBalance });
     } catch (err: any) {
       setError(err.message || "Wallet payment transaction failed.");
     } finally {
@@ -926,7 +782,7 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
               )}
 
               {/* Order Placement Form */}
-              <form onSubmit={handleSubmitGcash} className="space-y-4">
+              <form onSubmit={handlePlaceOrder} className="space-y-4">
                 {user ? (
                   <div>
                     <label className="block text-[10px] font-extrabold text-muted uppercase tracking-widest mb-1.5 flex justify-between">
@@ -1053,149 +909,54 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
                   </div>
                 </div>
 
-                {/* Mandated GCash Payment Receipt Upload */}
-                <div className="space-y-2.5 bg-[#181818] border border-white/10 p-4 rounded-2xl text-left">
-                  <label className="block text-xs font-bold text-zinc-300 uppercase tracking-wider flex justify-between items-center">
-                    <span>Attach Payment Screenshot {!(user && profile && Number(profile.balance) >= payableTotal) && <span className="text-red-400">*</span>}</span>
-                    <span className="text-[10px] text-zinc-500 font-normal">
-                      {user && profile && Number(profile.balance) >= payableTotal ? "Optional for Wallet" : "Required for GCash"}
+                {/* Wallet payment panel */}
+                <div className="space-y-3 bg-[#181818] border border-white/10 p-4 rounded-2xl text-left">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs font-black text-white uppercase tracking-wider">Pay from Wallet</span>
+                    <span className="text-[10px] text-zinc-500 font-normal">Instant • No receipt needed</span>
+                  </div>
+
+                  <div className="flex justify-between items-center text-xs text-zinc-400">
+                    <span>Wallet Balance</span>
+                    <span className="font-semibold text-white">
+                      {user ? `₱${formatPrice(Number(profile?.balance || 0))} PHP` : "Sign in required"}
                     </span>
-                  </label>
+                  </div>
 
-                  {receiptPreviewUrl ? (
-                    <div className="flex items-center gap-3 bg-black/50 border border-white/10 p-3 rounded-xl">
-                      <img 
-                        src={receiptPreviewUrl} 
-                        alt="Receipt preview" 
-                        className="w-12 h-12 object-cover rounded-lg border border-white/10 shrink-0"
-                      />
-                      <div className="min-w-0 flex-grow">
-                        <p className="text-xs font-bold text-white truncate">{receiptFile?.name}</p>
-                        <p className="text-[10px] text-emerald-400 font-medium">
-                          ✓ Ready ({((receiptFile?.size || 0) / 1024).toFixed(1)} KB)
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (receiptPreviewUrl) URL.revokeObjectURL(receiptPreviewUrl);
-                          setReceiptPreviewUrl(null);
-                          setReceiptFile(null);
-                        }}
-                        className="text-xs text-red-400 hover:text-red-300 font-bold p-2 hover:bg-white/5 rounded-lg shrink-0 cursor-pointer"
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  ) : (
-                    <div>
-                      <input 
-                        type="file" 
-                        accept="image/*"
-                        onChange={(e) => {
-                          const f = e.target.files?.[0] || null;
-                          setReceiptFile(f);
-                          if (f) setReceiptPreviewUrl(URL.createObjectURL(f));
-                        }}
-                        className="hidden"
-                        id="catalog-receipt-upload"
-                      />
-                      <label 
-                        htmlFor="catalog-receipt-upload"
-                        className="w-full flex flex-col items-center justify-center gap-1.5 p-4 rounded-xl bg-black/40 border border-dashed border-white/20 hover:border-[#1DB954] text-zinc-400 hover:text-white cursor-pointer transition text-center group"
-                      >
-                        <span className="text-2xl">📁</span>
-                        <span className="text-xs font-bold text-white">Tap to attach GCash payment screenshot</span>
-                        <span className="text-[10px] text-zinc-500">Attach receipt image to confirm your order</span>
-                      </label>
-                    </div>
+                  <p className="text-[10px] text-zinc-500 leading-relaxed">
+                    Top up securely with GCash, Maya, GrabPay or QR Ph. Your balance is credited
+                    automatically the moment the payment is confirmed.
+                  </p>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowTopUp(true)}
+                    className="w-full bg-[#1877F2]/10 hover:bg-[#1877F2]/20 border border-[#1877F2]/30 hover:border-[#1877F2]/50 text-[#1877F2] font-extrabold py-2.5 rounded-xl transition-all flex items-center justify-center gap-2 text-[11px] uppercase tracking-wider cursor-pointer"
+                  >
+                    <Wallet size={14} /> Top Up Wallet
+                  </button>
+
+                  {user && Number(profile?.balance || 0) < payableTotal && (
+                    <p className="text-[10px] text-amber-400 font-bold">
+                      ⚠️ Your wallet balance is below the order total. Top up to continue.
+                    </p>
                   )}
-
-                  {/* Compressing effect */}
-                  {isSubmitting && receiptFile && (
-                    <div className="rounded-xl border border-[#1DB954]/25 bg-[#1DB954]/10 p-2.5 space-y-1.5">
-                      <div className="flex items-center justify-between text-[10px] font-bold text-zinc-300">
-                        <span className="flex items-center gap-1.5 text-[#1DB954]">
-                          <Loader2 size={12} className="animate-spin" />
-                          {receiptCompressState?.savedBytes ? "Receipt optimized" : "Compressing receipt..."}
-                        </span>
-                      </div>
-                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
-                        <div
-                          className="h-full rounded-full bg-[#1DB954] transition-all duration-300"
-                          style={{ width: `${Math.round(receiptCompressProgress * 100)}%` }}
-                        />
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Direct payment GCash banner */}
-                <div className="bg-[#181818] border border-white/10 p-4 rounded-2xl space-y-3 text-center">
-                  <div className="flex justify-between items-center border-b border-white/10 pb-2 text-left">
-                    <div>
-                      <span className="text-xs font-black text-white uppercase tracking-wider block">
-                        📱 Instant GCash QR Checkout
-                      </span>
-                      <span className="text-[10px] text-zinc-400">Account: Henry S.</span>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-[10px] text-zinc-400 block uppercase font-bold">Amount to Send</span>
-                      <span className="text-sm font-black text-[#1DB954]">₱{formatPrice(payableTotal)} PHP</span>
-                    </div>
-                  </div>
-
-                  <div className="bg-white p-2 rounded-2xl inline-block shadow-xl border border-zinc-200">
-                    <img 
-                      src="/gcash-qr.png" 
-                      alt="GCash QR Code" 
-                      className="w-32 h-32 object-contain rounded-xl"
-                    />
-                  </div>
-
-                  <div className="flex items-center justify-center gap-2 bg-black/60 border border-white/10 py-2 px-3 rounded-xl max-w-xs mx-auto">
-                    <span className="text-xs font-mono font-bold text-white select-all">
-                      09505339963
-                    </span>
-                    <button 
-                      type="button" 
-                      onClick={() => {
-                        navigator.clipboard.writeText('09505339963');
-                        setCopiedPhone(true);
-                        setTimeout(() => setCopiedPhone(false), 2000);
-                      }} 
-                      className="text-[10px] bg-[#1DB954] hover:bg-[#1ed760] text-black font-black uppercase tracking-wider px-2.5 py-1 rounded-md transition cursor-pointer active:scale-95"
-                    >
-                      {copiedPhone ? "Copied!" : "Copy"}
-                    </button>
-                  </div>
                 </div>
 
                 {/* Submitting Actions */}
                 <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-border">
-                  {user && profile && Number(profile.balance) >= payableTotal && (
-                    <button
-                      type="button"
-                      disabled={isSubmitting}
-                      onClick={handleWalletCheckout}
-                      className="flex-1 bg-[#1DB954]/10 hover:bg-[#1DB954]/20 border border-[#1DB954]/30 hover:border-[#1DB954]/50 disabled:opacity-50 text-[#1DB954] font-extrabold py-3 rounded-xl transition-all flex items-center justify-center gap-2 text-xs uppercase tracking-wider"
-                    >
-                      <Wallet size={14} /> Pay with Wallet (₱{formatPrice(payableTotal)})
-                    </button>
-                  )}
-                  
                   <button
                     type="submit"
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || !user}
                     className="flex-1 bg-[#1DB954] hover:bg-[#1ed760] disabled:bg-slate-800 text-black font-extrabold py-3 rounded-xl transition-all flex items-center justify-center gap-2 text-xs uppercase tracking-wider shadow-md"
                   >
                     {isSubmitting ? (
                       <>
                         <Loader2 size={14} className="animate-spin" />
-                        {submitStage || (receiptCompressProgress > 0 && receiptCompressProgress < 1 ? "Compressing..." : "Submitting...")}
+                        Placing order...
                       </>
                     ) : (
-                      "Place Boost Order"
+                      `Pay ₱${formatPrice(payableTotal)} from Wallet`
                     )}
                   </button>
                 </div>
@@ -1230,33 +991,7 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
                 </button>
               </div>
 
-              {(receiptUploadPending || submitStage || receiptUploadError) && !isWalletPayment && (
-                <div className={`text-left rounded-xl border p-3 space-y-2 ${receiptUploadError ? "border-red-500/30 bg-red-500/10" : "border-[#1DB954]/25 bg-[#1DB954]/10"}`}>
-                  {receiptUploadPending || submitStage ? (
-                    <p className="text-[11px] font-bold text-fg flex items-center gap-2">
-                      <Loader2 size={14} className="animate-spin text-[#1DB954]" />
-                      {submitStage || "Finishing receipt upload..."}
-                    </p>
-                  ) : null}
-                  {receiptUploadError ? (
-                    <>
-                      <p className="text-[11px] font-semibold text-red-300">{receiptUploadError}</p>
-                      {pendingReceiptFile ? (
-                        <button
-                          type="button"
-                          onClick={handleRetryReceiptUpload}
-                          disabled={receiptUploadPending}
-                          className="w-full rounded-lg bg-[#1DB954] px-3 py-2 text-[10px] font-black uppercase tracking-wider text-black disabled:opacity-50"
-                        >
-                          Retry receipt upload
-                        </button>
-                      ) : null}
-                    </>
-                  ) : null}
-                </div>
-              )}
-
-              {isWalletPayment ? (
+              {isWalletPayment && (
                 <div className="bg-[#1DB954]/5 border border-[#1DB954]/20 p-4 rounded-xl text-left space-y-2 text-xs font-semibold text-fg">
                   <span className="text-[10px] font-black uppercase tracking-widest text-[#1DB954] block">
                     ✓ Balance Deducted Successful!
@@ -1270,21 +1005,9 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
                     </p>
                   ) : (
                     <p className="text-[10px] text-muted italic mt-1.5">
-                      Your receipt is attached and the order is queued for verified processing. You can monitor it from the chatbot or Track Order button.
+                      Your order is queued and being sent to the provider. You can monitor it from the chatbot or the Track Order button.
                     </p>
                   )}
-                </div>
-              ) : (
-                <div className="bg-slate-900/60 border border-border p-4 rounded-xl text-left space-y-2.5 text-xs font-semibold text-fg">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-[#1DB954] block">
-                    📋 Next Steps for Approval
-                  </span>
-                  <p>
-                    1. Send your **Tracking ID** and **GCash transaction screenshot** to our support chat in the bottom right corner.
-                  </p>
-                  <p>
-                    2. Once the admin confirms the receipt, your order will be approved instantly!
-                  </p>
                 </div>
               )}
 
@@ -1309,6 +1032,13 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
           )}
         </div>
       </div>
+
+      <TopUpModal
+        isOpen={showTopUp}
+        onClose={() => setShowTopUp(false)}
+        user={user}
+        onTopUpSuccess={refreshProfile}
+      />
     </div>
   );
 }
