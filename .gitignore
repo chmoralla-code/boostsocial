@@ -72,3 +72,6 @@ public/downloads/*-admin*.apk
 *.keystore
 android/keystore.properties
 android/app/keystore.properties
+
+# HORMACHUELOS: local notes, screenshots and scratch artifacts stay on this PC
+.hormachuelos/

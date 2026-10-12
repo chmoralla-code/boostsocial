@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { X, Loader2, Upload, Wallet, CheckCircle, Clock, AlertTriangle, Ban } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { compressImageWithStats, formatBytes, type CompressResult } from "@/utils/imageCompressor";
@@ -15,11 +15,28 @@ export function TopUpModal({ isOpen, onClose, user, onTopUpSuccess }: { isOpen: 
   const [success, setSuccess] = useState(false);
   const [successAutoApproved, setSuccessAutoApproved] = useState(false);
   const [error, setError] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState<"GCash" | "BPI">("GCash");
+  const [paymentMethod, setPaymentMethod] = useState<"GCash" | "BPI" | "PayMongo">("GCash");
+  const [paymongoConfigured, setPaymongoConfigured] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<"idle" | "compressing" | "submitting" | "reading" | "verifying">("idle");
   const [compressState, setCompressState] = useState<CompressResult | null>(null);
   const [compressProgress, setCompressProgress] = useState(0);
   const supabase = createClient();
+
+  // Only offer the gateway when the keys are actually present, so a
+  // half-configured deploy never shows a button that cannot work.
+  useEffect(() => {
+    if (!isOpen) return;
+    let cancelled = false;
+    fetch("/api/paymongo/status")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!cancelled && d) setPaymongoConfigured(Boolean(d.enabled));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -110,6 +127,38 @@ export function TopUpModal({ isOpen, onClose, user, onTopUpSuccess }: { isOpen: 
     }
   };
 
+  const handlePaymongo = async () => {
+    if (!amount || Number(amount) <= 0) {
+      setError("Please enter a valid amount to top up.");
+      return;
+    }
+
+    setIsUploading(true);
+    setError("");
+    setUploadStatus("submitting");
+
+    try {
+      const res = await fetch("/api/paymongo/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount: Number(amount) }),
+      });
+      const data = await res.json();
+
+      if (!res.ok || !data.checkoutUrl) {
+        throw new Error(data.error || "Could not start the PayMongo checkout.");
+      }
+
+      // Hand off to PayMongo's own page. The wallet is credited by the
+      // webhook, not by the return page, so nothing here decides money.
+      window.location.href = data.checkoutUrl;
+    } catch (err: any) {
+      setError(err.message || "Could not start the PayMongo checkout.");
+      setUploadStatus("idle");
+      setIsUploading(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
       <div className="bg-elevated w-full max-w-md rounded-2xl border border-border shadow-2xl overflow-hidden relative animate-in fade-in zoom-in duration-300">
@@ -166,7 +215,7 @@ export function TopUpModal({ isOpen, onClose, user, onTopUpSuccess }: { isOpen: 
               {/* Payment Method Selector */}
               <div className="space-y-2">
                 <label className="text-xs font-bold text-muted uppercase tracking-wider">Payment Method</label>
-                <div className="grid grid-cols-2 gap-2">
+                <div className={`grid gap-2 ${paymongoConfigured ? "grid-cols-3" : "grid-cols-2"}`}>
                   <button
                     type="button"
                     onClick={() => setPaymentMethod("GCash")}
@@ -190,6 +239,19 @@ export function TopUpModal({ isOpen, onClose, user, onTopUpSuccess }: { isOpen: 
                     <img src="/bpi-logo.svg" alt="BPI" className="h-4 w-auto" />
                     BPI
                   </button>
+                  {paymongoConfigured && (
+                    <button
+                      type="button"
+                      onClick={() => { setPaymentMethod("PayMongo"); setError(""); }}
+                      className={`flex items-center justify-center gap-2 px-3 py-3 rounded-xl border-2 text-xs font-black uppercase tracking-wider transition-all ${
+                        paymentMethod === "PayMongo"
+                          ? "border-[#0070E0] bg-[#0070E0]/15 text-[#0070E0]"
+                          : "border-border bg-card text-muted hover:text-fg"
+                      }`}
+                    >
+                      ⚡ PayMongo
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -235,7 +297,8 @@ export function TopUpModal({ isOpen, onClose, user, onTopUpSuccess }: { isOpen: 
                 </div>
               )}
 
-              {/* File Upload */}
+              {/* File Upload — hidden for PayMongo, which needs no receipt */}
+              {paymentMethod !== "PayMongo" && (
               <div className="space-y-2">
                 <label className="text-xs font-bold text-muted uppercase tracking-wider">Upload Payment Receipt</label>
                 <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-border border-dashed rounded-xl cursor-pointer hover:bg-card hover:border-[#1877F2] transition-all group">
@@ -284,14 +347,25 @@ export function TopUpModal({ isOpen, onClose, user, onTopUpSuccess }: { isOpen: 
                   </div>
                 )}
               </div>
+              )}
+
+              {paymentMethod === "PayMongo" && (
+                <div className="bg-[#0070E0]/8 border border-[#0070E0]/20 rounded-xl px-4 py-3">
+                  <p className="text-[10px] text-muted font-semibold leading-relaxed text-center">
+                    ⚡ You'll be redirected to PayMongo to pay with GCash, Maya or QR Ph.
+                    Your wallet is credited automatically once payment is confirmed.
+                  </p>
+                </div>
+              )}
 
               <button
-                onClick={handleUpload}
+                onClick={paymentMethod === "PayMongo" ? handlePaymongo : handleUpload}
                 disabled={isUploading}
                 className="w-full bg-[#1877F2] hover:bg-[#4e8df5] text-white font-extrabold py-3.5 rounded-xl transition-all shadow-[0_0_15px_rgba(24,119,242,0.3)] disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2"
               >
                 {isUploading ? (
                   <><Loader2 className="animate-spin" size={18} /> {
+                    paymentMethod === "PayMongo" ? "Starting PayMongo..." :
                     uploadStatus === "compressing" ? "Compressing receipt..." :
                     uploadStatus === "submitting" ? "Submitting..." :
                     uploadStatus === "reading" ? "Reading receipt..." :
@@ -299,7 +373,7 @@ export function TopUpModal({ isOpen, onClose, user, onTopUpSuccess }: { isOpen: 
                     "Submitting..."
                   }</>
                 ) : (
-                  "Submit Top-Up"
+                  paymentMethod === "PayMongo" ? "Pay with PayMongo" : "Submit Top-Up"
                 )}
               </button>
             </>
