@@ -1624,3 +1624,28 @@ html { scroll-behavior: smooth; }
     transition: none;
   }
 }
+
+/* ─────────────────────────────────────────────────────────────
+   Label color on monochrome-filled primary buttons
+   The neutralizer above repaints every brand fill to white (dark
+   theme) or near-black (light theme), but the buttons' text-white
+   was left untouched — so the label became white-on-white and
+   vanished. Invert the label with the fill so primary buttons
+   always stay readable. Kept last so it wins the cascade against
+   [data-theme="light"] .text-white above.
+   ───────────────────────────────────────────────────────────── */
+.bg-\[\#1877F2\].text-white,
+.bg-\[\#1DB954\].text-white,
+.bg-\[\#1ed760\].text-white,
+.bg-\[\#E1306C\].text-white,
+.bg-\[\#00F2FE\].text-white,
+.bg-\[\#FF0000\].text-white,
+.bg-\[\#8B5CF6\].text-white,
+.bg-\[\#1877F2\].text-fg,
+.bg-\[\#1DB954\].text-fg,
+.bg-\[\#E1306C\].text-fg,
+.bg-\[\#00F2FE\].text-fg,
+.bg-\[\#FF0000\].text-fg,
+.bg-\[\#8B5CF6\].text-fg {
+  color: var(--color-background) !important;
+}
