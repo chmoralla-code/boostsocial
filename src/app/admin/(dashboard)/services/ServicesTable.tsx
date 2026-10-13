@@ -90,7 +90,7 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
       const res = await fetch("/api/admin/sync-smm-services", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ markupPercent: 90 }), // default 90% markup
+        body: JSON.stringify({}), // server derives markup % from the real multiplier
       });
       const data = await res.json();
       if (!res.ok) {
@@ -122,7 +122,6 @@ export function ServicesTable({ initialServices }: { initialServices: Service[] 
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
-          markupPercent: 90,
           serviceId: serviceId 
         }),
       });

@@ -203,7 +203,12 @@ function matchesExactly(name: string, cat: string, config: CoreServiceConfig): b
 export async function POST(req: NextRequest) {
   try {
     const { markupPercent, serviceId } = await req.json();
-    const markup = markupPercent !== undefined ? Number(markupPercent) : 90; // default to 90% markup
+    // The stored markup % must describe the REAL pricing multiplier, otherwise
+    // the admin label disagrees with what customers are actually charged.
+    // 3.0x => 200%, not the 90% that used to be hardcoded here.
+    const markup = markupPercent !== undefined
+      ? Number(markupPercent)
+      : Math.round((await getMarkupMultiplier() - 1) * 100);
 
     if (isNaN(markup) || markup < 0) {
       return NextResponse.json({ error: "Invalid markup percentage" }, { status: 400 });

@@ -3,7 +3,7 @@ import { getFBReactionRetailPrice, getFBReactionsSMMDetails, MIXED_REACTIONS_UNA
 import { parseDescription } from "@/utils/serviceHelpers";
 import { getSmmCatalogServiceById, type SmmCatalogService } from "@/lib/smmCatalog";
 
-const CATALOG_SERVICE_ID = "e6f61249-71fe-40df-84f3-96d03d3e8dcf";
+export const CATALOG_SERVICE_ID = "e6f61249-71fe-40df-84f3-96d03d3e8dcf";
 const CUSTOM_PAGE_SMM_ID = "2026";
 const BASE_PAGE_PRICE = 1999;
 const INCLUDED_PAGE_FOLLOWERS = 10000;

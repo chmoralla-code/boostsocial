@@ -11,6 +11,7 @@ import { ServicesCandidatesPanel } from "./ServicesCandidatesPanel";
 import { WidgetVisibilityPanel } from "./WidgetVisibilityPanel";
 import { ShowcaseVideoSettingsPanel } from "./ShowcaseVideoSettingsPanel";
 import { MarkupSettingsPanel } from "./MarkupSettingsPanel";
+import { ResellerApiPanel } from "./ResellerApiPanel";
 import { CleanupSettingsPanel } from "./CleanupSettingsPanel";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
@@ -481,6 +482,7 @@ export default async function AdminOverview() {
               <ServicesCandidatesPanel />
               <WidgetVisibilityPanel />
               <MarkupSettingsPanel />
+              <ResellerApiPanel />
             </div>
           </section>
 

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import Link from 'next/link';
-import { Rocket, LogOut, ClipboardList, X, Loader2, Wallet, Gift, Crown, Menu, ChevronDown, Sparkles, Share2 } from 'lucide-react';
+import { Rocket, LogOut, ClipboardList, X, Loader2, Wallet, Gift, Crown, Menu, ChevronDown, Sparkles, Share2, Key } from 'lucide-react';
 import { ThemeToggle } from "./ThemeToggle";
 import { createClient } from "@/utils/supabase/client";
 import type { User } from "@supabase/supabase-js";
@@ -253,6 +253,14 @@ export function Header() {
                     >
                       <Share2 size={16} className="text-muted" />
                       Affiliate Program
+                    </Link>
+                    <Link
+                      href="/app/api-access"
+                      onClick={() => setShowAccountMenu(false)}
+                      className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-semibold text-fg transition-colors hover:bg-elevated"
+                    >
+                      <Key size={16} className="text-muted" />
+                      Reseller API
                     </Link>
                     <div className="my-1 border-t border-border/60" />
                     <div className="flex items-center justify-between rounded-xl px-3 py-2.5">

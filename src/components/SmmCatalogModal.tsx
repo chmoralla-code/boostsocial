@@ -457,7 +457,7 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
               <h2 className="text-xl sm:text-2xl font-black text-fg tracking-tight">
                 ALL <span className="text-[#1DB954]">SERVICES</span>
               </h2>
-              <p className="text-muted text-xs mt-0.5">Direct reseller pricing on 1,100+ services with a 60% ROI markup.</p>
+              <p className="text-muted text-xs mt-0.5">Direct reseller pricing on 1,100+ services. Ordered instantly — no approval needed.</p>
             </div>
           </div>
         </div>
