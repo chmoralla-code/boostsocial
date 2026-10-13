@@ -548,15 +548,25 @@ export function ClientAppHome({
         setTheme(savedTheme);
       }
 
-      if (savedVersion) {
-        setLocalVersion(savedVersion);
-      } else {
-        window.localStorage.setItem(MOBILE_APP_LOCAL_VERSION_KEY, appSettings.appVersion);
+      // The device keeps its own copy of the version in local storage, and it
+      // is only written on a fresh install or after tapping Update. So a phone
+      // that ran an older build keeps showing that old number forever, and the
+      // header badge drifts away from the APK the admin says is current.
+      // When no update is pending, the server record is the truth, so the
+      // remembered value is corrected to match it here.
+      const followServerVersion = !appSettings.updateAvailable;
+      const resolvedVersion =
+        savedVersion && !followServerVersion ? savedVersion : appSettings.appVersion;
+
+      if (resolvedVersion !== savedVersion) {
+        window.localStorage.setItem(MOBILE_APP_LOCAL_VERSION_KEY, resolvedVersion);
       }
+
+      setLocalVersion(resolvedVersion);
     }, 0);
 
     return () => window.clearTimeout(timeout);
-  }, [appSettings.appVersion]);
+  }, [appSettings.appVersion, appSettings.updateAvailable]);
 
   useEffect(() => {
     const updateNetworkState = () => {

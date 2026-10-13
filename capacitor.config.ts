@@ -11,7 +11,18 @@ const config: CapacitorConfig = {
     url: "https://pinoyboosting.com/app",
     cleartext: false,
     androidScheme: "https",
-    allowNavigation: ["pinoyboosting.com", "www.pinoyboosting.com"],
+    // PayMongo's hosted checkout must stay inside the app's WebView. Without
+    // these hosts Capacitor treats the checkout page as an external link and
+    // hands it to Chrome, where the customer is no longer signed in - so the
+    // payment succeeds but the return page shows a logged-out site and the
+    // wallet never appears to update.
+    allowNavigation: [
+      "pinoyboosting.com",
+      "www.pinoyboosting.com",
+      "paymongo.com",
+      "checkout.paymongo.com",
+      "*.paymongo.com",
+    ],
     errorPath: "offline.html",
   },
   android: {

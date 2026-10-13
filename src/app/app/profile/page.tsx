@@ -143,6 +143,36 @@ export default function AppProfilePage() {
     };
   }, [loadProfile, supabase.auth]);
 
+  // PayMongo returns here as /app/profile?topup=processing. The wallet is
+  // credited by the webhook, which can land a moment AFTER this page loads - so
+  // poll briefly rather than showing the old balance and letting the customer
+  // think their payment failed.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const state = new URLSearchParams(window.location.search).get("topup");
+    if (!state) return;
+
+    let alive = true;
+    let attempts = 0;
+    const timers: number[] = [];
+
+    const poll = async () => {
+      if (!alive || attempts >= 6) return;
+      attempts += 1;
+      const { data } = await supabase.auth.getSession();
+      if (!alive) return;
+      await loadProfile(data.session?.user || null);
+      if (alive && attempts < 6) timers.push(window.setTimeout(poll, 3000));
+    };
+
+    timers.push(window.setTimeout(poll, 2500));
+
+    return () => {
+      alive = false;
+      timers.forEach((timer) => window.clearTimeout(timer));
+    };
+  }, [loadProfile, supabase.auth]);
+
   useEffect(() => {
     let alive = true;
 
