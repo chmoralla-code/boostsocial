@@ -33,6 +33,13 @@
   --color-muted: #6b6b6b;
   --color-border: #e4e4e7;
   --color-card: #ffffff;
+  /* Primary is the strongest-contrast ink. In dark theme that is white,
+     so in light theme it MUST flip to near-black — otherwise every
+     text-primary / bg-primary / border-primary element paints white on
+     a white background and disappears (wallet pill, hero badge, trust
+     icons, stat counters, footer brand, VIP badge, avatar). */
+  --color-primary: #0f0f0f;
+  --color-primary-dark: #3f3f46;
 }
 
 body {
@@ -664,7 +671,9 @@ html { scroll-behavior: smooth; }
 }
 
 [data-theme="light"] .text-slate-500 {
-  color: #94a3b8 !important;
+  /* #94a3b8 on white is only ~2.6:1 — below the 4.5:1 readable minimum,
+     which is what made small labels look washed out. */
+  color: #64748b !important;
 }
 
 [data-theme="light"] input,
@@ -1661,4 +1670,125 @@ html { scroll-behavior: smooth; }
 .bg-\[\#FF0000\].text-black,
 .bg-\[\#8B5CF6\].text-black {
   color: var(--color-background) !important;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   🌞 LIGHT MODE — PRIMARY INK & WHITE-PILL FIXES
+
+   1. The hand-written primary opacity utilities above hard-code
+      rgba(255,255,255,…), so they ignored the light-theme token and
+      stayed white on white (the header wallet pill and VIP badge).
+   2. Solid white pills (bg-white + text-black) — the Order Page CTA,
+      Sign In, hero CTA — vanish into the white header/page because
+      both fill and surroundings are white.
+   3. A primary fill paired with a light label must invert together.
+
+   Kept last so it wins the cascade against the blocks above.
+   ───────────────────────────────────────────────────────────── */
+
+[data-theme="light"] .bg-primary\/10 {
+  background-color: rgba(15, 15, 15, 0.06) !important;
+}
+
+[data-theme="light"] .bg-primary\/20 {
+  background-color: rgba(15, 15, 15, 0.12) !important;
+}
+
+[data-theme="light"] .hover\:border-primary\/40:hover {
+  border-color: rgba(15, 15, 15, 0.4) !important;
+}
+
+/* A primary fill always carries the opposite ink, in both themes */
+.bg-primary.text-white,
+.bg-primary.text-fg {
+  color: var(--color-background) !important;
+}
+
+/* Solid white pills become near-black in light theme, label inverts */
+[data-theme="light"] .bg-white.text-black {
+  background-color: #0f0f0f !important;
+  color: #ffffff !important;
+}
+
+[data-theme="light"] .bg-white.text-black:hover {
+  background-color: #3f3f46 !important;
+  color: #ffffff !important;
+}
+
+[data-theme="light"] .bg-white.text-black.border-white {
+  border-color: #0f0f0f !important;
+}
+
+/* Hand-written white hairlines/fills need the same inversion. White ink
+   in dark theme = black ink in light theme, or the shape vanishes into
+   the white page (hero badge, "Browse Services" button). */
+[data-theme="light"] .border-white\/20 {
+  border-color: rgba(0, 0, 0, 0.18) !important;
+}
+
+[data-theme="light"] .bg-white\/\[0\.03\] {
+  background-color: rgba(0, 0, 0, 0.03) !important;
+}
+
+[data-theme="light"] .bg-white\/\[0\.06\] {
+  background-color: rgba(0, 0, 0, 0.06) !important;
+}
+
+[data-theme="light"] .hover\:bg-white\/\[0\.06\]:hover {
+  background-color: rgba(0, 0, 0, 0.07) !important;
+}
+
+/* Card / badge surfaces built from white ink. On a dark page they lift the
+   surface; on a white page 2% white is invisible, so the cards read as flat
+   and shapeless. Mirror the same amount in black instead. */
+[data-theme="light"] .bg-white\/\[0\.015\] {
+  background-color: rgba(0, 0, 0, 0.02) !important;
+}
+
+[data-theme="light"] .bg-white\/\[0\.02\] {
+  background-color: rgba(0, 0, 0, 0.025) !important;
+}
+
+[data-theme="light"] .bg-white\/\[0\.04\] {
+  background-color: rgba(0, 0, 0, 0.04) !important;
+}
+
+[data-theme="light"] .bg-white\/\[0\.05\] {
+  background-color: rgba(0, 0, 0, 0.05) !important;
+}
+
+[data-theme="light"] .border-white\/\[0\.05\] {
+  border-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+[data-theme="light"] .border-white\/\[0\.06\] {
+  border-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+/* Green-tint buttons that fill solid on hover: the dark-theme neutralizer
+   paints that hover fill white, which on a white card leaves a shapeless
+   pill. Fill with ink instead and flip the label so it stays readable. */
+[data-theme="light"] .hover\:bg-\[\#1DB954\]:hover {
+  background-color: #0f0f0f !important;
+  color: #ffffff !important;
+}
+
+/* Light-purple accent ("Coming Soon" badge, purple rate text) is ~2.4:1
+   on white — unreadable. Match the other brand colors and go to ink. */
+[data-theme="light"] .text-\[\#a78bfa\] {
+  color: #0f0f0f !important;
+}
+
+/* Solid white gradient buttons ("Download APK Free", bottom CTA) carry
+   `text-black`. On a white page the fill disappears and only a black
+   label floats there, so the button stops looking like a button.
+   Invert the gradient to ink and flip the label to white. */
+[data-theme="light"] .bg-gradient-to-r.from-white.to-\[\#d4d4d8\] {
+  background-image: linear-gradient(to right, #0f0f0f, #3f3f46) !important;
+  color: #ffffff !important;
+}
+
+[data-theme="light"] .bg-gradient-to-r.from-white.to-\[\#d4d4d8\] .text-black,
+[data-theme="light"] .bg-gradient-to-r.from-white.to-\[\#d4d4d8\].text-black {
+  color: #ffffff !important;
 }
