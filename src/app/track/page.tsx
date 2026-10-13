@@ -1,13 +1,15 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
+import type { User } from "@supabase/supabase-js";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { LinkPreviewWindow } from "@/components/LinkPreviewWindow";
-import { Search, Loader2, ShieldCheck, CheckCircle2, AlertCircle, Copy, Check, UploadCloud, Image, ArrowRight, MessageCircle } from "lucide-react";
+import { TopUpModal } from "@/components/TopUpModal";
+import { Search, Loader2, ShieldCheck, CheckCircle2, AlertCircle, Copy, Check, MessageCircle } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { format } from "date-fns";
-import { compressImageWithStats, formatBytes, type CompressResult } from "@/utils/imageCompressor";
 
 export default function TrackPage() {
   const [trackingInput, setTrackingInput] = useState("");
@@ -99,12 +101,11 @@ export default function TrackPage() {
     }
   };
   
-  // File upload state for Pending orders
-  const [uploading, setUploading] = useState(false);
-  const [uploadSuccess, setUploadSuccess] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [receiptCompressState, setReceiptCompressState] = useState<CompressResult | null>(null);
-  const [receiptCompressProgress, setReceiptCompressProgress] = useState(0);
+  // Wallet payment state for Pending orders
+  const [user, setUser] = useState<User | null>(null);
+  const [walletBalance, setWalletBalance] = useState(0);
+  const [showTopUp, setShowTopUp] = useState(false);
+  const [payingWallet, setPayingWallet] = useState(false);
 
   const supabase = createClient();
   const [smmBalance, setSmmBalance] = useState<number>(100);
@@ -204,8 +205,6 @@ export default function TrackPage() {
     setLoading(false);
     setError("");
     setOrder(null);
-    setUploadSuccess(false);
-    setSelectedFile(null);
     setIssueSuccess("");
     setLoading(true);
 
@@ -249,61 +248,59 @@ export default function TrackPage() {
     }
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setSelectedFile(file);
-      setUploadSuccess(false);
+
+  const refreshWallet = async () => {
+    const { data } = await supabase.auth.getUser();
+    setUser(data.user ?? null);
+    if (!data.user?.id) {
+      setWalletBalance(0);
+      return;
     }
+    const { data: profileData } = await supabase
+      .from("profiles")
+      .select("balance")
+      .eq("id", data.user.id)
+      .single();
+    if (profileData) setWalletBalance(Number(profileData.balance || 0));
   };
 
-  const handleUploadReceipt = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedFile || !order) return;
+  useEffect(() => {
+    void refreshWallet();
+  }, []);
 
-    setUploading(true);
-    setUploadSuccess(false);
-    setReceiptCompressState(null);
-    setReceiptCompressProgress(0.1);
-
+  const handlePayFromWallet = async () => {
+    if (!order || !user?.id || !user.email || payingWallet) return;
+    setPayingWallet(true);
     try {
-      // Client-side compression with a live "compressing" effect. The server
-      // re-compresses as a safety net regardless.
-      const result = await compressImageWithStats(selectedFile, {
-        onProgress: (p) => {
-          setReceiptCompressProgress(
-            p.stage === "loading" ? 0.2 : p.stage === "resizing" ? 0.45 : p.stage === "encoding" ? 0.7 : 0.95
-          );
-        },
-      });
-      setReceiptCompressState(result);
-      setReceiptCompressProgress(1);
-
-      const formData = new FormData();
-      formData.append("file", result.file);
-      formData.append("orderId", order.id);
-
-      const res = await fetch("/api/upload-receipt", {
+      const res = await fetch("/api/checkout-wallet", {
         method: "POST",
-        body: formData
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          existingOrderId: order.id,
+          userId: user.id,
+          serviceId: order.service_id,
+          email: user.email,
+          url: order.target_url || "",
+          quantity: Number(order.quantity || 1),
+          smmServiceId: order.smm_service_id || undefined,
+        }),
       });
-
-      if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.error || "Upload receipt failed");
+      const data = await res.json();
+      if (res.status === 402 || data?.code === "INSUFFICIENT_BALANCE") {
+        setWalletBalance(Number(data.balance || walletBalance));
+        setShowTopUp(true);
+        return;
       }
-
-      setUploadSuccess(true);
-      setSelectedFile(null);
-
-      // Refresh order details to show pending payment verification is set up
+      if (!res.ok) throw new Error(data.error || "Wallet payment failed.");
+      setWalletBalance(Number(data.newBalance || 0));
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("balance-update"));
+      }
       handleTrackOrder(order.id);
     } catch (err: any) {
-      alert(`❌ Error uploading screenshot: ${err.message || err.toString()}`);
+      alert(err.message || "Wallet payment failed.");
     } finally {
-      setUploading(false);
-      setReceiptCompressState(null);
-      setReceiptCompressProgress(0);
+      setPayingWallet(false);
     }
   };
 
@@ -741,9 +738,9 @@ export default function TrackPage() {
                           Payment Verification
                         </h5>
                         <p className="text-slate-450 font-semibold leading-relaxed">
-                          {order.status === "Pending" 
-                            ? "Waiting for GCash screenshot upload. Once uploaded, admin verification takes 5-15 mins." 
-                            : "GCash payment verified successfully! Balance processed."
+                          {order.status === "Pending"
+                            ? "Waiting for wallet payment. Top up, then pay from your wallet to start processing."
+                            : "Payment confirmed. Your boost is processing."
                           }
                         </p>
                       </div>
@@ -866,123 +863,62 @@ export default function TrackPage() {
                 )}
               </div>
 
-              {/* Uploader section (ONLY displays if status is Pending) */}
+              {/* Wallet payment section (ONLY displays if status is Pending) */}
               {order.status === "Pending" && (
                 <div className="bg-[#181818]/60 border border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-2xl relative">
                   <h4 className="text-xs font-black uppercase tracking-wider text-slate-400 mb-4 flex items-center gap-2">
-                    <UploadCloud size={16} className="text-[#1877F2]" /> Upload GCash Receipt Screenshot
+                    <ShieldCheck size={16} className="text-[#1DB954]" /> Complete Payment From Wallet
                   </h4>
                   <p className="text-xs text-slate-450 font-semibold mb-6 leading-relaxed">
-                    If you did not upload your GCash payment receipt screenshot at checkout, you can upload it here to link it directly to your order and initiate processing immediately!
+                    This order is waiting for payment. Top up instantly with GCash or Maya through PayMongo, then pay from your wallet and your boost starts processing right away.
                   </p>
 
-                  <div className="text-center mb-6">
-                    <div className="bg-white p-1 rounded-xl inline-block shadow-md max-w-[110px] mx-auto overflow-hidden border border-slate-700/20">
-                      <img 
-                        src="/gcash-qr.png" 
-                        alt="GCash QR Code" 
-                        className="w-full h-auto rounded-lg object-contain mx-auto"
-                      />
-                    </div>
-                    <p className="text-[9px] text-slate-500 font-bold mt-1.5">Account Curation Name: HE***Y S.</p>
-                    
-                    <div className="mt-2 flex items-center justify-center gap-2">
-                      <div className="bg-[#121212] border border-slate-800 rounded-md px-3 py-1 flex items-center justify-between min-w-[160px]">
-                        <span className="text-[10px] text-slate-300 font-mono tracking-wider">09505339963</span>
-                        <button 
-                          type="button"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            navigator.clipboard.writeText('09505339963');
-                            alert('GCash number copied to clipboard!');
-                          }}
-                          className="text-[9px] text-[#1DB954] hover:text-white font-black uppercase ml-3 bg-transparent p-0 transition-colors"
-                        >
-                          Copy
-                        </button>
+                  <div className="rounded-2xl border border-slate-800 bg-black/35 p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Wallet Balance</p>
+                        <p className="mt-1 text-lg font-black text-white">
+                          {user ? `PHP ${walletBalance.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "Sign in required"}
+                        </p>
                       </div>
+                      {user ? (
+                        <button
+                          type="button"
+                          onClick={() => setShowTopUp(true)}
+                          className="rounded-full border border-[#1877F2]/30 bg-[#1877F2]/10 px-4 py-2 text-[10px] font-black uppercase tracking-wider text-[#1877F2] transition hover:bg-[#1877F2]/20"
+                        >
+                          Top Up
+                        </button>
+                      ) : null}
                     </div>
+                    <div className="mt-3 flex items-center justify-between gap-3 border-t border-slate-800 pt-3 text-xs font-bold">
+                      <span className="text-slate-400">Order total</span>
+                      <span className="text-[#1DB954]">PHP {Number(order.amount || 0).toFixed(2)}</span>
+                    </div>
+                    {user && walletBalance < Number(order.amount || 0) && (
+                      <p className="mt-3 rounded-xl border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-[10px] font-black uppercase tracking-wider text-amber-400">
+                        Balance is below the order total. Please top up first.
+                      </p>
+                    )}
                   </div>
 
-                  {uploadSuccess ? (
-                    <div className="flex flex-col items-center justify-center py-6 bg-[#121212]/50 border border-slate-850 p-6 rounded-2xl gap-2 text-center">
-                      <div className="text-[#1877F2] animate-bounce">
-                        <CheckCircle2 size={36} />
-                      </div>
-                      <h5 className="text-sm font-black text-white">Receipt Linked Successfully!</h5>
-                      <p className="text-xs text-slate-400 max-w-sm">
-                        Our administrative operations team will verify your GCash receipt shortly. Enjoy the boost!
-                      </p>
-                    </div>
+                  {user ? (
+                    <button
+                      type="button"
+                      onClick={handlePayFromWallet}
+                      disabled={payingWallet || walletBalance < Number(order.amount || 0)}
+                      className="mt-5 w-full bg-[#1DB954] hover:bg-[#1ed760] disabled:bg-slate-850 disabled:text-slate-500 text-black font-black py-3 rounded-xl shadow-lg transition-all text-xs uppercase tracking-wider flex items-center justify-center gap-1.5"
+                    >
+                      {payingWallet ? <Loader2 size={14} className="animate-spin" /> : <ShieldCheck size={14} />}
+                      Pay From Wallet
+                    </button>
                   ) : (
-                    <form onSubmit={handleUploadReceipt} className="space-y-4">
-                      <div className="flex flex-col items-center justify-center border-2 border-dashed border-slate-800/80 rounded-2xl p-6 bg-[#121212]/50 hover:bg-[#121212]/80 transition-colors relative cursor-pointer group">
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={handleFileChange}
-                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                        />
-                        <Image size={32} className="text-[#1877F2] group-hover:scale-110 transition-transform mb-2" />
-                        <span className="text-xs font-black text-white">
-                          {selectedFile ? selectedFile.name : "Choose Payment Screenshot"}
-                        </span>
-                        <span className="text-[10px] text-slate-500 mt-1 font-semibold">
-                          PNG, JPG, or JPEG accepted
-                        </span>
-                      </div>
-
-                      {selectedFile && (
-                        <button
-                          type="submit"
-                          disabled={uploading}
-                          className="w-full bg-[#1877F2] hover:bg-[#4e8df5] disabled:bg-slate-850 text-white font-black py-3 rounded-xl shadow-lg transition-all text-xs uppercase tracking-wider flex items-center justify-center gap-1.5"
-                        >
-                          {uploading ? (
-                            <>
-                              <Loader2 size={14} className="animate-spin" />{" "}
-                              {receiptCompressState ? "Uploading Receipt..." : "Compressing Receipt..."}
-                            </>
-                          ) : (
-                            <>
-                              Confirm Upload <ArrowRight size={14} />
-                            </>
-                          )}
-                        </button>
-                      )}
-
-                      {uploading && (
-                        <div className="w-full bg-slate-900/80 border border-slate-700/60 rounded-xl p-3 space-y-2">
-                          <div className="flex items-center justify-between text-[11px] font-bold">
-                            <span className="text-[#1877F2]">
-                              {receiptCompressState?.savedBytes ? "Receipt optimized" : "Compressing receipt..."}
-                            </span>
-                            <span className="text-slate-400 tabular-nums">
-                              {receiptCompressState
-                                ? `${formatBytes(receiptCompressState.originalSize)} → ${formatBytes(receiptCompressState.compressedSize)}`
-                                : formatBytes(selectedFile?.size || 0)}
-                            </span>
-                          </div>
-                          <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
-                            <div
-                              className="h-full bg-gradient-to-r from-[#1877F2] to-[#4e8df5] transition-all duration-300 rounded-full"
-                              style={{
-                                width: `${
-                                  receiptCompressState
-                                    ? 100
-                                    : Math.round(Math.max(10, Math.min(95, receiptCompressProgress * 100)))
-                                }%`,
-                              }}
-                            />
-                          </div>
-                          {receiptCompressState?.savedBytes ? (
-                            <p className="text-[10px] text-emerald-400 font-semibold">
-                              Saved {formatBytes(receiptCompressState.savedBytes)} ({Math.round(receiptCompressState.ratio * 100)}% smaller) before upload.
-                            </p>
-                          ) : null}
-                        </div>
-                      )}
-                    </form>
+                    <Link
+                      href="/login"
+                      className="mt-5 block w-full text-center bg-[#1877F2] hover:bg-[#4e8df5] text-white font-black py-3 rounded-xl shadow-lg transition-all text-xs uppercase tracking-wider"
+                    >
+                      Sign In to Pay From Wallet
+                    </Link>
                   )}
                 </div>
               )}
@@ -992,6 +928,14 @@ export default function TrackPage() {
       </main>
 
       <Footer />
+      {user && (
+        <TopUpModal
+          isOpen={showTopUp}
+          onClose={() => setShowTopUp(false)}
+          user={user}
+          onTopUpSuccess={refreshWallet}
+        />
+      )}
     </>
   );
 }

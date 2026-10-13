@@ -13,15 +13,11 @@ import {
   Trash2, 
   Lock, 
   User, 
-  Image as ImageIcon, 
   AlertCircle, 
   AlertTriangle,
   ArrowLeft,
   ArrowRight,
-  UploadCloud,
   Sparkles,
-  Smartphone,
-  CreditCard,
   Wallet,
   CheckCircle2,
   ExternalLink,
@@ -30,7 +26,8 @@ import {
 import { createClient } from "@/utils/supabase/client";
 import { useWidgetVisibility } from "@/hooks/useWidgetVisibility";
 import { LinkPreviewWindow } from "./LinkPreviewWindow";
-import { compressImage, compressImageWithStats, formatBytes, type CompressResult } from "@/utils/imageCompressor";
+import { TopUpModal } from "./TopUpModal";
+import { compressImage } from "@/utils/imageCompressor";
 import { parseDescription } from "@/utils/serviceHelpers";
 import { getFBReactionRetailPrice, getFBReactionsSMMDetails, FB_REACTIONS_MAP } from "@/utils/fbReactions";
 import { getVipDiscountSummary } from "@/utils/vip";
@@ -94,24 +91,15 @@ export function OrderModal({
   const [orderId, setOrderId] = useState<string>("");
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
-  const [copiedAccount, setCopiedAccount] = useState(false);
-  const [copiedAmount, setCopiedAmount] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
   const [isWalletPayment, setIsWalletPayment] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<"GCash" | "BPI">("GCash");
+  const [showTopUp, setShowTopUp] = useState(false);
   const [markupMultiplier, setMarkupMultiplier] = useState(3.0);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [selectedReactions, setSelectedReactions] = useState<string[]>(["Like"]);
   const [eapDeviceCount, setEapDeviceCount] = useState<number>(1);
-  const [receiptFile, setReceiptFile] = useState<File | null>(null);
-  const [receiptPreviewUrl, setReceiptPreviewUrl] = useState<string | null>(null);
-  const [receiptCompressState, setReceiptCompressState] = useState<CompressResult | null>(null);
-  const [receiptCompressProgress, setReceiptCompressProgress] = useState(0);
   const [submitStage, setSubmitStage] = useState("");
-  const [receiptUploadPending, setReceiptUploadPending] = useState(false);
-  const [receiptUploadError, setReceiptUploadError] = useState("");
-  const [pendingReceiptFile, setPendingReceiptFile] = useState<File | null>(null);
   const [bulkMode, setBulkMode] = useState(false);
   const [bulkUrls, setBulkUrls] = useState("");
   const [bulkResult, setBulkResult] = useState<Array<{ orderId: string; trackingId: string }>>([]);
@@ -266,13 +254,6 @@ export function OrderModal({
       setError("");
       setSuccess(false);
       setCustomFieldValues({});
-      setReceiptFile(null);
-      if (receiptPreviewUrl) {
-        URL.revokeObjectURL(receiptPreviewUrl);
-        setReceiptPreviewUrl(null);
-      }
-      setReceiptCompressState(null);
-      setReceiptCompressProgress(0);
       setSelectedReactions(["Like"]);
       setEapDeviceCount(1);
       
@@ -326,29 +307,10 @@ export function OrderModal({
     }
   }, [eapDeviceCount, isEapService]);
 
-  // Handle receipt selection with clean preview
-  const handleReceiptChange = (file: File | null) => {
-    if (receiptPreviewUrl) {
-      URL.revokeObjectURL(receiptPreviewUrl);
-      setReceiptPreviewUrl(null);
-    }
-    setReceiptFile(file);
-    if (file) {
-      setReceiptPreviewUrl(URL.createObjectURL(file));
-      setError("");
-    }
-  };
-
   const handleCopyTracking = () => {
     navigator.clipboard.writeText(`BS-${orderId.slice(0, 8).toUpperCase()}`);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
-  };
-
-  const handleCopyAccountNum = (num: string) => {
-    navigator.clipboard.writeText(num);
-    setCopiedAccount(true);
-    setTimeout(() => setCopiedAccount(false), 2000);
   };
 
   const toggleReaction = (name: string) => {
@@ -400,56 +362,18 @@ export function OrderModal({
   const hasWalletBalanceForOrder = Boolean(!isPisoWifiService && user && profile && Number(profile.balance) >= payableTotal);
   const formatPrice = (amount: number) => amount.toFixed(2);
 
-  const uploadReceiptForOrder = async (file: File, createdOrderId: string) => {
-    setReceiptUploadPending(true);
-    setReceiptUploadError("");
-    setSubmitStage("Optimizing receipt...");
-    setReceiptCompressState(null);
-    setReceiptCompressProgress(0.1);
-
-    try {
-      const compressedReceiptResult = await compressImageWithStats(file, {
-        onProgress: (p) => {
-          setReceiptCompressProgress(
-            p.stage === "loading" ? 0.2 : p.stage === "resizing" ? 0.45 : p.stage === "encoding" ? 0.7 : 0.95
-          );
-        },
-      });
-      setReceiptCompressState(compressedReceiptResult);
-      setReceiptCompressProgress(1);
-      setSubmitStage("Uploading receipt...");
-
-      const receiptFormData = new FormData();
-      receiptFormData.append("file", compressedReceiptResult.file);
-      receiptFormData.append("orderId", createdOrderId);
-
-      const uploadRes = await fetch("/api/upload-receipt", {
-        method: "POST",
-        body: receiptFormData,
-      });
-
-      if (!uploadRes.ok) {
-        const errData = await uploadRes.json();
-        throw new Error(errData.error || "Failed to upload payment receipt.");
-      }
-
-      setPendingReceiptFile(null);
-      setSubmitStage("");
-    } catch (uploadReceiptErr: any) {
-      console.error("Receipt upload failed:", uploadReceiptErr);
-      setReceiptUploadError(uploadReceiptErr.message || "Failed to upload payment receipt screenshot.");
-      setSubmitStage("");
-      throw uploadReceiptErr;
-    } finally {
-      setReceiptUploadPending(false);
+  const refreshProfile = async () => {
+    const { data } = await supabase.auth.getUser();
+    if (!data.user?.id) return;
+    const { data: pData } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", data.user.id)
+      .single();
+    if (pData) {
+      setProfile(pData);
+      setUser(data.user);
     }
-  };
-
-  const handleRetryReceiptUpload = async () => {
-    if (!orderId || !pendingReceiptFile) return;
-    try {
-      await uploadReceiptForOrder(pendingReceiptFile, orderId);
-    } catch {}
   };
 
   // Validate step 1 before proceeding to step 2
@@ -492,125 +416,6 @@ export function OrderModal({
     setCurrentStep("payment");
   };
 
-  const handleSubmitGcashOrBpi = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!serviceId) return;
-
-    if (!isServiceAvailable) {
-      setError("This service is temporarily unavailable. Please choose another service.");
-      return;
-    }
-
-    if (!receiptFile) {
-      setError("Please attach your payment receipt screenshot before placing the order.");
-      return;
-    }
-
-    const finalQuantity = Math.max(quantity, minQty);
-    const receiptToUpload = receiptFile;
-
-    setIsSubmitting(true);
-    setError("");
-    setReceiptUploadError("");
-    setSubmitStage("Creating order...");
-
-    const optimisticOrderId = crypto.randomUUID();
-    setOrderId(optimisticOrderId);
-    setIsWalletPayment(false);
-    setSuccess(true);
-    setPendingReceiptFile(receiptToUpload);
-    setIsSubmitting(false);
-
-    if (typeof window !== "undefined") {
-      localStorage.setItem("last_order_id", optimisticOrderId);
-      localStorage.setItem("last_order_email", email.trim());
-    }
-
-    try {
-      let tempUrl = url.trim();
-      if (parsedDetails.custom_fields && parsedDetails.custom_fields.length > 0) {
-        tempUrl = "Custom Request: " + Object.entries(customFieldValues).map(([k, v]) => `[${k}: ${v}]`).join(" ");
-      } else if (isPageService) {
-        tempUrl = "Compiling page specifications...";
-      } else if (isReactionService) {
-        tempUrl = `Reactions: [${selectedReactions.join(", ")}] Link: ${url.trim()}`;
-      }
-
-      setSubmitStage("Saving order details...");
-      const createRes = await fetch("/api/orders/create", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          orderId: optimisticOrderId,
-          serviceId,
-          email: email.trim(),
-          targetUrl: tempUrl,
-          amount: payableTotal,
-          paymentMethod,
-          quantity: finalQuantity,
-          smmServiceId: isReactionService
-            ? resolveReactionSmmId(selectedReactions)
-            : (parsedDetails.smm_service_id ? String(parsedDetails.smm_service_id) : null)
-        })
-      });
-      const createData = await createRes.json();
-      if (!createRes.ok) throw new Error(createData.error || "Failed to register order.");
-
-      const insertData = { id: createData.orderId || createData.data?.id || optimisticOrderId };
-
-      fetch("/api/notify-order", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          trackingId: `BS-${insertData.id.slice(0, 8).toUpperCase()}`,
-          service: serviceTitle,
-          email: email.trim(),
-          quantity: finalQuantity,
-          amount: payableTotal,
-          paymentMethod: paymentMethod === "BPI" ? "🏦 BPI Transfer" : "📱 GCash QR",
-          details: tempUrl,
-        }),
-      }).catch(() => {});
-
-      if (isPageService) {
-        setSubmitStage("Uploading page assets...");
-        const [uploadedProfile, uploadedCover] = await Promise.all([
-          profilePic ? compressAndUploadAsset(profilePic, insertData.id, "profile") : Promise.resolve("N/A"),
-          coverPic ? compressAndUploadAsset(coverPic, insertData.id, "cover") : Promise.resolve("N/A"),
-        ]);
-
-        const finalUrl = `Page Wants: [Name: ${desiredName.trim() || 'Any'}] [Category: ${pageCategory}] [Region: ${demographics}] [FB Admin: ${fbProfile.trim() || 'Any'}] [Profile Pic: ${uploadedProfile}] [Cover Pic: ${uploadedCover}]${notes.trim() ? ` [Notes: ${notes.trim()}]` : ""}`;
-
-        const targetRes = await fetch("/api/orders/update-target", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            orderId: insertData.id,
-            targetUrl: finalUrl,
-            customerEmail: email.trim()
-          })
-        });
-        if (!targetRes.ok) {
-          const targetData = await targetRes.json();
-          setReceiptUploadError(targetData.error || "Failed to save page specifications.");
-        }
-      }
-
-      try {
-        await uploadReceiptForOrder(receiptToUpload, insertData.id);
-      } catch {}
-    } catch (err: any) {
-      setSuccess(false);
-      setOrderId("");
-      setPendingReceiptFile(null);
-      setError(err.message || "An error occurred while creating your order.");
-      setSubmitStage("");
-      if (typeof window !== "undefined") {
-        localStorage.removeItem("last_order_id");
-      }
-    }
-  };
-
   const handleWalletCheckout = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!serviceId || !user) return;
@@ -623,7 +428,7 @@ export function OrderModal({
     const finalQuantity = Math.max(quantity, minQty);
 
     if (Number(profile?.balance || 0) < payableTotal) {
-      setError("Insufficient wallet balance. Please top up your wallet or pay via GCash.");
+      setError("Insufficient wallet balance. Please top up your wallet to continue.");
       return;
     }
 
@@ -769,7 +574,7 @@ export function OrderModal({
                 2
               </span>
               <span className={currentStep === "payment" ? "text-white font-black" : "text-zinc-500"}>
-                2. Payment & QR
+                2. Payment
               </span>
             </div>
           </div>
@@ -821,35 +626,6 @@ export function OrderModal({
                 </p>
               </div>
 
-              {/* Receipt upload retry if needed */}
-              {(receiptUploadPending || submitStage || receiptUploadError) && !isWalletPayment && (
-                <div className={`text-left rounded-xl border p-3.5 space-y-2 ${
-                  receiptUploadError ? "border-red-500/30 bg-red-500/10" : "border-[#1877F2]/25 bg-[#1877F2]/10"
-                }`}>
-                  {receiptUploadPending || submitStage ? (
-                    <p className="text-xs font-bold text-white flex items-center gap-2">
-                      <Loader2 size={15} className="animate-spin text-[#1877F2]" />
-                      {submitStage || "Finishing receipt upload..."}
-                    </p>
-                  ) : null}
-                  {receiptUploadError && (
-                    <>
-                      <p className="text-xs font-semibold text-red-300">{receiptUploadError}</p>
-                      {pendingReceiptFile && (
-                        <button
-                          type="button"
-                          onClick={handleRetryReceiptUpload}
-                          disabled={receiptUploadPending}
-                          className="w-full rounded-xl bg-[#1877F2] px-3 py-2 text-xs font-black uppercase tracking-wider text-white disabled:opacity-50 cursor-pointer"
-                        >
-                          Retry Receipt Upload
-                        </button>
-                      )}
-                    </>
-                  )}
-                </div>
-              )}
-
               {/* Next Steps Roadmap */}
               <div className="bg-[#161616] border border-white/10 rounded-2xl p-4 text-left space-y-3">
                 <span className="text-[11px] font-black uppercase tracking-widest text-zinc-300 block">
@@ -858,7 +634,7 @@ export function OrderModal({
                 <div className="space-y-2.5 text-xs text-zinc-300">
                   <div className="flex items-start gap-2.5">
                     <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400 font-black text-[10px] shrink-0 mt-0.5">1</span>
-                    <p><strong className="text-white">Verification:</strong> Your payment receipt and URL format are confirmed (instant to 15 mins).</p>
+                    <p><strong className="text-white">Payment Applied:</strong> Your wallet payment was processed instantly and your order is now queued.</p>
                   </div>
                   <div className="flex items-start gap-2.5">
                     <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#1877F2]/20 text-[#1877F2] font-black text-[10px] shrink-0 mt-0.5">2</span>
@@ -1280,16 +1056,17 @@ export function OrderModal({
                   disabled={!isServiceAvailable}
                   className="w-full bg-[#1877F2] hover:bg-[#1877F2]/90 disabled:bg-zinc-800 disabled:text-zinc-600 text-white font-black py-3.5 px-4 rounded-xl text-xs uppercase tracking-wider transition flex items-center justify-center gap-2 shadow-lg shadow-[#1877F2]/30 active:scale-[0.99] cursor-pointer"
                 >
-                  <span>Continue to Payment & QR</span>
+                  <span>Continue to Payment</span>
                   <ArrowRight size={15} />
                 </button>
               </div>
             </form>
           ) : (
             /* ========================================================================= */
-            /* STEP 2: PAYMENT & RECEIPT UPLOAD */
             /* ========================================================================= */
-            <form onSubmit={handleSubmitGcashOrBpi} className="space-y-4">
+            /* STEP 2: WALLET PAYMENT */
+            /* ========================================================================= */
+            <form onSubmit={handleWalletCheckout} className="space-y-4">
               
               {/* Back to details button & Mini Order Pill */}
               <div className="flex items-center justify-between bg-white/5 border border-white/10 p-3 rounded-2xl">
@@ -1314,185 +1091,58 @@ export function OrderModal({
                 </div>
               </div>
 
-              {/* Payment Method Selector */}
-              <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-zinc-300 uppercase tracking-wider">
-                  Select Payment Method
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod("GCash")}
-                    className={`flex items-center justify-center gap-2 py-3 px-4 rounded-xl border text-xs font-black uppercase tracking-wider transition cursor-pointer ${
-                      paymentMethod === "GCash"
-                        ? "bg-[#1877F2]/20 border-[#1877F2] text-[#1877F2] shadow-md shadow-[#1877F2]/20"
-                        : "bg-black/40 border-white/10 text-zinc-400 hover:text-white"
-                    }`}
-                  >
-                    <Smartphone size={15} />
-                    <span>GCash QR</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod("BPI")}
-                    className={`flex items-center justify-center gap-2 py-3 px-4 rounded-xl border text-xs font-black uppercase tracking-wider transition cursor-pointer ${
-                      paymentMethod === "BPI"
-                        ? "bg-[#D42027]/20 border-[#D42027] text-[#D42027] shadow-md shadow-[#D42027]/20"
-                        : "bg-black/40 border-white/10 text-zinc-400 hover:text-white"
-                    }`}
-                  >
-                    <CreditCard size={15} />
-                    <span>BPI Bank</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* GCash Details & QR Code */}
-              {paymentMethod === "GCash" && (
-                <div className="bg-[#181818] border border-white/10 rounded-2xl p-4 space-y-3.5 text-center">
-                  <div className="flex justify-between items-center border-b border-white/10 pb-2 text-left">
-                    <div>
-                      <span className="text-xs font-black text-white uppercase tracking-wider block">
-                        GCash QR & Account
-                      </span>
-                      <span className="text-[10px] text-zinc-400">Account Name: Henry S.</span>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-[10px] text-zinc-400 block uppercase font-bold">Amount to Send</span>
-                      <span className="text-sm font-black text-emerald-400">₱{formatPrice(payableTotal)}</span>
-                    </div>
+              {user ? (
+                <div className="space-y-3 bg-[#181818] border border-white/10 p-4 rounded-2xl">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs font-black text-white uppercase tracking-wider">Pay from Wallet</span>
+                    <span className="text-[10px] text-zinc-500 font-normal">Instant • No receipt needed</span>
                   </div>
 
-                  {/* QR Image */}
-                  <div className="bg-white p-2.5 rounded-2xl inline-block shadow-xl border border-zinc-200">
-                    <img 
-                      src="/gcash-qr.png" 
-                      alt="GCash QR Code" 
-                      className="w-36 h-36 object-contain rounded-xl"
-                    />
-                  </div>
-
-                  {/* Phone number copy strip */}
-                  <div className="flex items-center justify-center gap-2 bg-black/60 border border-white/10 py-2 px-3 rounded-xl max-w-xs mx-auto">
-                    <span className="text-xs font-mono font-bold text-white select-all">
-                      09505339963
+                  <div className="flex justify-between items-center text-xs text-zinc-400">
+                    <span>Wallet Balance</span>
+                    <span className="font-semibold text-white">
+                      ₱{formatPrice(Number(profile?.balance || 0))} PHP
                     </span>
-                    <button
-                      type="button"
-                      onClick={() => handleCopyAccountNum("09505339963")}
-                      className="text-[10px] font-black uppercase tracking-wider bg-[#1877F2] hover:bg-[#1877F2]/80 text-white px-2.5 py-1 rounded-md transition cursor-pointer"
-                    >
-                      {copiedAccount ? "Copied!" : "Copy"}
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* BPI Bank Transfer Details */}
-              {paymentMethod === "BPI" && (
-                <div className="bg-[#181818] border border-white/10 rounded-2xl p-4 space-y-3 text-center">
-                  <div className="flex justify-between items-center border-b border-white/10 pb-2 text-left">
-                    <div>
-                      <span className="text-xs font-black text-white uppercase tracking-wider block">
-                        BPI Bank Transfer
-                      </span>
-                      <span className="text-[10px] text-zinc-400">Bank of the Philippine Islands</span>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-[10px] text-zinc-400 block uppercase font-bold">Amount to Send</span>
-                      <span className="text-sm font-black text-emerald-400">₱{formatPrice(payableTotal)}</span>
-                    </div>
                   </div>
 
-                  <div className="bg-black/60 border border-white/10 p-3.5 rounded-xl text-center space-y-1">
-                    <span className="text-[10px] uppercase font-bold text-zinc-400">Account Number</span>
-                    <p className="text-lg font-mono font-black text-[#D42027] tracking-wider select-all">
-                      4059901356
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => handleCopyAccountNum("4059901356")}
-                      className="text-[10px] font-black uppercase tracking-wider bg-[#D42027] hover:bg-[#D42027]/80 text-white px-3 py-1 rounded-md transition mt-1 cursor-pointer"
-                    >
-                      {copiedAccount ? "Copied Account Number!" : "Copy Account Number"}
-                    </button>
+                  <div className="flex justify-between items-center text-xs text-zinc-400 border-t border-white/10 pt-2.5">
+                    <span>Order Total</span>
+                    <span className="font-black text-emerald-400">₱{formatPrice(payableTotal)} PHP</span>
                   </div>
 
-                  <p className="text-[10px] text-amber-400 bg-amber-400/10 border border-amber-400/20 p-2 rounded-lg text-left">
-                    ⚠️ If sending from GCash to BPI, please include the ₱15 bank fee to ensure full payment.
+                  <p className="text-[10px] text-zinc-500 leading-relaxed">
+                    Top up securely with GCash, Maya, GrabPay or QR Ph. Your balance is credited
+                    automatically the moment the payment is confirmed.
                   </p>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowTopUp(true)}
+                    className="w-full bg-[#1877F2]/10 hover:bg-[#1877F2]/20 border border-[#1877F2]/30 hover:border-[#1877F2]/50 text-[#1877F2] font-extrabold py-2.5 rounded-xl transition-all flex items-center justify-center gap-2 text-[11px] uppercase tracking-wider cursor-pointer"
+                  >
+                    <Wallet size={14} /> Top Up Wallet
+                  </button>
+
+                  {Number(profile?.balance || 0) < payableTotal && (
+                    <p className="text-[10px] text-amber-400 font-bold">
+                      ⚠️ Your wallet balance is below the order total. Top up to continue.
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <div className="bg-[#181818] border border-white/10 p-4 rounded-2xl space-y-3 text-center">
+                  <p className="text-xs font-bold text-white">Sign in to pay from your wallet</p>
+                  <p className="text-[11px] text-zinc-400 leading-relaxed">
+                    Wallet payments are linked to your PinoyBoosting account so you can track your order.
+                  </p>
+                  <a
+                    href="/login"
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#1877F2] px-4 py-3 text-xs font-black uppercase tracking-wider text-white transition hover:bg-[#1877F2]/90"
+                  >
+                    Sign In to Continue
+                  </a>
                 </div>
               )}
-
-              {/* Payment Receipt Upload Container */}
-              <div className="bg-[#181818] border border-white/10 rounded-2xl p-4 space-y-3">
-                <label className="block text-xs font-bold text-zinc-300 uppercase tracking-wider flex items-center justify-between">
-                  <span>Attach Payment Screenshot <span className="text-red-400">*</span></span>
-                  <span className="text-[10px] text-zinc-500 font-normal">PNG, JPG, or WEBP</span>
-                </label>
-
-                {receiptPreviewUrl ? (
-                  /* Thumbnail preview when file selected */
-                  <div className="flex items-center gap-3 bg-black/50 border border-white/10 p-3 rounded-xl">
-                    <img 
-                      src={receiptPreviewUrl} 
-                      alt="Receipt preview" 
-                      className="w-12 h-12 object-cover rounded-lg border border-white/10 shrink-0"
-                    />
-                    <div className="min-w-0 flex-grow">
-                      <p className="text-xs font-bold text-white truncate">{receiptFile?.name}</p>
-                      <p className="text-[10px] text-emerald-400 font-medium">
-                        ✓ Ready ({((receiptFile?.size || 0) / 1024).toFixed(1)} KB)
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleReceiptChange(null)}
-                      className="text-xs text-red-400 hover:text-red-300 font-bold p-2 hover:bg-white/5 rounded-lg shrink-0 cursor-pointer"
-                    >
-                      Remove
-                    </button>
-                  </div>
-                ) : (
-                  /* File Upload Drop Area */
-                  <div>
-                    <input 
-                      type="file" 
-                      accept="image/*"
-                      onChange={(e) => handleReceiptChange(e.target.files?.[0] || null)}
-                      className="hidden"
-                      id="checkout-receipt-input"
-                    />
-                    <label 
-                      htmlFor="checkout-receipt-input"
-                      className="w-full flex flex-col items-center justify-center gap-1.5 p-4 rounded-xl bg-black/40 border border-dashed border-white/20 hover:border-[#1877F2] text-zinc-400 hover:text-white cursor-pointer transition text-center group"
-                    >
-                      <UploadCloud size={24} className="text-zinc-500 group-hover:text-[#1877F2] transition" />
-                      <span className="text-xs font-bold text-white">Tap to upload receipt screenshot</span>
-                      <span className="text-[10px] text-zinc-500">Take a screenshot of your GCash/BPI success screen</span>
-                    </label>
-                  </div>
-                )}
-
-                {/* Compression Progress Feedback */}
-                {isSubmitting && receiptFile && (
-                  <div className="rounded-xl border border-[#1877F2]/25 bg-[#1877F2]/10 p-2.5 space-y-1.5">
-                    <div className="flex items-center justify-between text-[10px] font-bold text-zinc-300">
-                      <span className="flex items-center gap-1.5 text-[#1877F2]">
-                        <Loader2 size={12} className="animate-spin" />
-                        {submitStage || "Optimizing receipt image..."}
-                      </span>
-                    </div>
-                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
-                      <div
-                        className="h-full rounded-full bg-[#1877F2] transition-all duration-300"
-                        style={{ width: `${Math.round(receiptCompressProgress * 100)}%` }}
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
 
               {error && (
                 <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-3 rounded-xl text-xs font-bold flex items-center gap-2">
@@ -1504,26 +1154,34 @@ export function OrderModal({
               {/* Final Submit Button */}
               <button 
                 type="submit" 
-                disabled={isSubmitting || !isServiceAvailable || !receiptFile}
+                disabled={isSubmitting || !isServiceAvailable || !user}
                 className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:bg-zinc-800 disabled:text-zinc-600 text-white font-black py-4 px-4 rounded-xl text-xs uppercase tracking-wider transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/30 active:scale-[0.99] cursor-pointer"
               >
                 {isSubmitting ? (
                   <>
                     <Loader2 className="animate-spin text-white" size={16} />
-                    <span>{submitStage || "Registering Order..."}</span>
+                    <span>{submitStage || "Processing Wallet Payment..."}</span>
                   </>
                 ) : (
                   <>
                     <ShieldCheck size={16} />
-                    <span>Place Order & Verify (₱{formatPrice(payableTotal)})</span>
+                    <span>Pay ₱{formatPrice(payableTotal)} from Wallet</span>
                   </>
                 )}
               </button>
             </form>
           )}
 
+
         </div>
       </div>
+
+      <TopUpModal
+        isOpen={showTopUp}
+        onClose={() => setShowTopUp(false)}
+        user={user}
+        onTopUpSuccess={refreshProfile}
+      />
     </div>
   );
 }

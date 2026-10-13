@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import Link from 'next/link';
-import { Rocket, LogOut, ClipboardList, X, Loader2, Wallet, Gift, Crown, Menu } from 'lucide-react';
+import { Rocket, LogOut, ClipboardList, X, Loader2, Wallet, Gift, Crown, Menu, ChevronDown, Sparkles, Share2 } from 'lucide-react';
 import { ThemeToggle } from "./ThemeToggle";
 import { createClient } from "@/utils/supabase/client";
 import type { User } from "@supabase/supabase-js";
 import { format } from "date-fns";
-import { isVipActive, getVipDiscountPercent } from "@/utils/vip";
+import { isVipActive } from "@/utils/vip";
 import { TopUpModal } from "./TopUpModal";
 import { ReferralsModal } from "./ReferralsModal";
 
@@ -40,6 +40,33 @@ export function Header() {
   const supabase = useMemo(() => createClient(), []);
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [showAccountMenu, setShowAccountMenu] = useState(false);
+  const accountMenuRef = useRef<HTMLDivElement>(null);
+
+  // One-letter avatar for the account menu.
+  const accountInitial = useMemo(() => {
+    const source = (user?.email ?? "").trim();
+    return source ? source[0].toUpperCase() : "U";
+  }, [user?.email]);
+
+  // Close the account menu on outside click or Escape.
+  useEffect(() => {
+    if (!showAccountMenu) return;
+    const onPointerDown = (event: MouseEvent) => {
+      if (accountMenuRef.current && !accountMenuRef.current.contains(event.target as Node)) {
+        setShowAccountMenu(false);
+      }
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setShowAccountMenu(false);
+    };
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [showAccountMenu]);
 
   const fetchProfile = async (userId: string) => {
     const { data } = await supabase.from("profiles").select("*").eq("id", userId).single();
@@ -99,7 +126,7 @@ export function Header() {
 
   return (
     <>
-      <header className="header-sticky w-full border-b border-border/40 relative z-50 overflow-hidden">
+      <header className="header-sticky w-full border-b border-border/40 relative z-50 overflow-visible">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-6 md:gap-4 md:px-6 md:py-6">
         <Link href="/" className="flex min-w-0 shrink-0 items-center gap-2 group">
           <div className="shrink-0 text-primary drop-shadow-[0_0_10px_rgba(255,255,255,0.3)] group-hover:scale-110 transition-transform duration-300">
@@ -129,67 +156,131 @@ export function Header() {
           {showMobileMenu ? <X size={20} /> : <Menu size={20} />}
         </button>
 
-        <nav className="hidden min-w-0 flex-1 md:flex md:flex-wrap md:items-center md:justify-center md:gap-x-3 md:gap-y-1 lg:gap-x-5 font-bold text-muted text-sm">
-          <Link href="/quick-start" className="nav-underline text-primary hover:text-primary-dark font-extrabold uppercase text-xs tracking-wider flex items-center gap-1 transition-colors whitespace-nowrap">Quick Start</Link>
-          <Link href="/order-page" className="nav-underline text-primary hover:text-primary-dark font-extrabold uppercase text-xs tracking-wider transition-colors whitespace-nowrap">Order Page</Link>
-          <Link href="/affiliate" className="nav-underline hover:text-fg transition-colors whitespace-nowrap">Affiliate</Link>
-          <Link href="/vip" className="nav-underline hover:text-primary transition-colors flex items-center gap-1.5 uppercase tracking-wider text-xs font-extrabold whitespace-nowrap">
-            VIP
-          </Link>
-          <Link href="/services" className="nav-underline hover:text-fg transition-colors whitespace-nowrap">Services</Link>
-          <Link href="/track" className="nav-underline hover:text-fg transition-colors whitespace-nowrap hidden lg:inline">Status Tracker</Link>
+        {/* Shop nav: one weight for every link, one clear call to action. */}
+        <nav className="hidden min-w-0 flex-1 items-center justify-center gap-x-0.5 md:flex lg:gap-x-1 font-semibold text-sm">
+          <Link href="/quick-start" className="nav-underline rounded-full px-3 py-2 text-muted transition-colors hover:text-fg whitespace-nowrap">Quick Start</Link>
+          <Link href="/services" className="nav-underline rounded-full px-3 py-2 text-muted transition-colors hover:text-fg whitespace-nowrap">Services</Link>
+          <Link href="/track" className="nav-underline hidden rounded-full px-3 py-2 text-muted transition-colors hover:text-fg whitespace-nowrap lg:inline-flex">Status Tracker</Link>
+          {!user && (
+            <>
+              <Link href="/vip" className="nav-underline rounded-full px-3 py-2 text-muted transition-colors hover:text-fg whitespace-nowrap">VIP</Link>
+              <Link href="/affiliate" className="nav-underline hidden rounded-full px-3 py-2 text-muted transition-colors hover:text-fg whitespace-nowrap lg:inline-flex">Affiliate</Link>
+            </>
+          )}
+          <Link href="/order-page" className="ml-1.5 rounded-full bg-white px-4 py-2 text-xs font-extrabold uppercase tracking-wider text-black shadow-md shadow-white/10 transition-all duration-300 hover:bg-[#d4d4d8] whitespace-nowrap">Order Page</Link>
         </nav>
 
-        <div className={user ? "hidden md:flex md:w-auto md:shrink-0 md:items-center md:justify-end md:gap-2 lg:gap-3" : "hidden md:flex md:w-auto md:shrink-0 md:items-center md:justify-end"}>
-              {user ? (
-                <div className="flex items-center gap-2 flex-wrap justify-end">
-                  {profile?.vip_plan && isVipActive(profile) && (
-                    <span className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-primary/35 bg-primary/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-primary">
-                      <Crown size={12} />
-                      VIP
-                    </span>
-                  )}
-                  <button
-                    onClick={() => setShowTopUpModal(true)}
-                    className="flex h-9 min-w-0 items-center justify-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wider text-primary transition-all hover:bg-primary/20 cursor-pointer"
-                  >
-                    <Wallet size={12} /> 
-                    ₱{profile?.balance ? Number(profile.balance).toFixed(0) : "0"}
-                  </button>
-                  <button 
-                    onClick={() => setShowReferralsModal(true)}
-                    className="flex h-9 w-9 items-center justify-center rounded-full border border-border/80 bg-card text-primary transition-all hover:bg-elevated cursor-pointer"
-                    title="Invite & Earn"
-                  >
-                    <Gift size={13} /> 
-                  </button>
-                  <button 
-                    onClick={() => setShowOrdersModal(true)}
-                    className="flex h-9 w-9 items-center justify-center rounded-full border border-border/80 bg-card text-primary transition-all hover:bg-elevated cursor-pointer"
-                    title="My Orders"
-                  >
-                    <ClipboardList size={12} /> 
-                  </button>
-                  <ThemeToggle />
-                  <button 
-                    onClick={handleSignOut}
-                    className="flex h-9 w-9 items-center justify-center rounded-full text-muted transition-colors hover:bg-red-500/10 hover:text-red-500 cursor-pointer"
-                    title="Sign Out"
-                  >
-                    <LogOut size={14} />
-                  </button>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <ThemeToggle />
-                  <Link
-                    href="/login"
-                    className="magnetic bg-white hover:bg-[#d4d4d8] text-black font-extrabold py-2 px-4 rounded-full transition-all duration-300 transform shadow-md shadow-white/10 text-xs uppercase tracking-wider"
-                  >
-                    Sign In
-                  </Link>
-                </div>
+        {/* Money + account: two targets instead of five loose icons. */}
+        <div className="hidden md:flex md:w-auto md:shrink-0 md:items-center md:justify-end md:gap-2">
+          {user ? (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowTopUpModal(true)}
+                className="flex h-10 items-center gap-2 rounded-full border border-primary/30 bg-primary/10 pl-3 pr-3.5 text-primary transition-all hover:bg-primary/20 cursor-pointer"
+                title="Wallet balance — click to top up"
+              >
+                <Wallet size={14} />
+                <span className="text-sm font-black tabular-nums tracking-tight">
+                  ₱{profile?.balance ? Number(profile.balance).toLocaleString(undefined, { maximumFractionDigits: 0 }) : "0"}
+                </span>
+              </button>
+
+              {profile?.vip_plan && isVipActive(profile) && (
+                <span className="hidden lg:inline-flex items-center gap-1 rounded-full border border-primary/35 bg-primary/10 px-2 py-1 text-[10px] font-black uppercase tracking-wide text-primary">
+                  <Crown size={12} />
+                  VIP
+                </span>
               )}
+
+              <div className="relative" ref={accountMenuRef}>
+                <button
+                  onClick={() => setShowAccountMenu((open) => !open)}
+                  className="flex h-10 items-center gap-1.5 rounded-full border border-border/80 bg-card pl-1 pr-2.5 transition-all hover:border-primary/40 cursor-pointer"
+                  aria-haspopup="menu"
+                  aria-expanded={showAccountMenu}
+                  title="My account"
+                >
+                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/15 text-sm font-black uppercase text-primary">
+                    {accountInitial}
+                  </span>
+                  <ChevronDown
+                    size={14}
+                    className={`text-muted transition-transform duration-200 ${showAccountMenu ? "rotate-180" : ""}`}
+                  />
+                </button>
+
+                {showAccountMenu && (
+                  <div
+                    role="menu"
+                    className="absolute right-0 top-[calc(100%+10px)] z-50 w-60 overflow-hidden rounded-2xl border border-border/80 bg-card p-1.5 shadow-2xl animate-in fade-in zoom-in-95 duration-150"
+                  >
+                    <div className="border-b border-border/60 px-3 pb-2.5 pt-2">
+                      <p className="truncate text-xs font-bold text-fg">{user.email}</p>
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-muted">Signed in</p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setShowAccountMenu(false);
+                        setShowOrdersModal(true);
+                      }}
+                      className="mt-1 flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-semibold text-fg transition-colors hover:bg-elevated cursor-pointer"
+                    >
+                      <ClipboardList size={16} className="text-muted" />
+                      My Orders
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowAccountMenu(false);
+                        setShowReferralsModal(true);
+                      }}
+                      className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-semibold text-fg transition-colors hover:bg-elevated cursor-pointer"
+                    >
+                      <Gift size={16} className="text-muted" />
+                      Invite &amp; Earn
+                    </button>
+                    <Link
+                      href="/vip"
+                      onClick={() => setShowAccountMenu(false)}
+                      className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-semibold text-fg transition-colors hover:bg-elevated"
+                    >
+                      <Sparkles size={16} className="text-muted" />
+                      VIP Account
+                    </Link>
+                    <Link
+                      href="/affiliate"
+                      onClick={() => setShowAccountMenu(false)}
+                      className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-semibold text-fg transition-colors hover:bg-elevated"
+                    >
+                      <Share2 size={16} className="text-muted" />
+                      Affiliate Program
+                    </Link>
+                    <div className="my-1 border-t border-border/60" />
+                    <div className="flex items-center justify-between rounded-xl px-3 py-2.5">
+                      <span className="text-sm font-semibold text-fg">Appearance</span>
+                      <ThemeToggle />
+                    </div>
+                    <button
+                      onClick={handleSignOut}
+                      className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-semibold text-red-400 transition-colors hover:bg-red-500/10 cursor-pointer"
+                    >
+                      <LogOut size={16} />
+                      Sign Out
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <ThemeToggle />
+              <Link
+                href="/login"
+                className="magnetic bg-white hover:bg-[#d4d4d8] text-black font-extrabold py-2 px-4 rounded-full transition-all duration-300 transform shadow-md shadow-white/10 text-xs uppercase tracking-wider"
+              >
+                Sign In
+              </Link>
+            </div>
+          )}
         </div>
         </div>
         {/* Mobile Navigation Menu */}
@@ -228,8 +319,24 @@ export function Header() {
                     <ClipboardList size={15} />
                     Orders
                   </button>
+                  <Link
+                    href="/vip"
+                    onClick={() => setShowMobileMenu(false)}
+                    className="flex h-11 items-center justify-center gap-2 rounded-xl border border-border/80 bg-elevated text-xs font-black uppercase tracking-wider text-primary transition-all hover:bg-card"
+                  >
+                    <Sparkles size={15} />
+                    VIP
+                  </Link>
+                  <Link
+                    href="/affiliate"
+                    onClick={() => setShowMobileMenu(false)}
+                    className="flex h-11 items-center justify-center gap-2 rounded-xl border border-border/80 bg-elevated text-xs font-black uppercase tracking-wider text-primary transition-all hover:bg-card"
+                  >
+                    <Share2 size={15} />
+                    Affiliate
+                  </Link>
                   <div className="col-span-2 flex items-center justify-between rounded-xl border border-border/80 bg-elevated px-3 py-2">
-                    <span className="text-xs font-black uppercase tracking-wider text-muted">Theme</span>
+                    <span className="text-xs font-black uppercase tracking-wider text-muted">Appearance</span>
                     <ThemeToggle />
                   </div>
                   <button
@@ -275,20 +382,24 @@ export function Header() {
               >
                 Services
               </Link>
-              <Link 
-                href="/affiliate" 
-                onClick={() => setShowMobileMenu(false)}
-                className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-fg hover:bg-white/5 transition-colors"
-              >
-                Affiliate
-              </Link>
-              <Link 
-                href="/vip" 
-                onClick={() => setShowMobileMenu(false)}
-                className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-primary hover:bg-primary/10 transition-colors"
-              >
-                VIP Account
-              </Link>
+              {!user && (
+                <>
+                  <Link 
+                    href="/vip" 
+                    onClick={() => setShowMobileMenu(false)}
+                    className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-fg hover:bg-white/5 transition-colors"
+                  >
+                    VIP Account
+                  </Link>
+                  <Link 
+                    href="/affiliate" 
+                    onClick={() => setShowMobileMenu(false)}
+                    className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-fg hover:bg-white/5 transition-colors"
+                  >
+                    Affiliate
+                  </Link>
+                </>
+              )}
               <Link 
                 href="/track" 
                 onClick={() => setShowMobileMenu(false)}

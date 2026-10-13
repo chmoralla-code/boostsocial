@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import {
   extractPaidDetails,
   isPaymongoConfigured,
+  isPaymongoTestMode,
   verifyPaymongoSignature,
 } from "@/lib/paymongo";
 import { sendAdminAlert } from "@/lib/telegram";
@@ -67,6 +68,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Missing event id" }, { status: 400 });
   }
 
+  // While a TEST key is in use, every alert is clearly tagged so test money is
+  // never mistaken for a live transaction in the Telegram channel.
+  const testTag = isPaymongoTestMode() ? "\uD83E\uDDEA [TEST] " : "";
+
   try {
     const supabase = getAdminClient();
     const details = extractPaidDetails(event);
@@ -91,7 +96,7 @@ export async function POST(req: NextRequest) {
 
     if (!details.sessionId) {
       await sendAdminAlert({
-        title: "⚠️ PayMongo webhook: no session id",
+        title: `${testTag}⚠️ PayMongo webhook: no session id`,
         message: `Event ${eventId} (${eventType}) carried no checkout session id and could not be matched.`,
       });
       return NextResponse.json({ received: true });
@@ -102,7 +107,7 @@ export async function POST(req: NextRequest) {
 
     if (details.paidCentavos === null) {
       await sendAdminAlert({
-        title: "⚠️ PayMongo webhook: missing amount",
+        title: `${testTag}⚠️ PayMongo webhook: missing amount`,
         message: `Paid event ${eventId} for session ${details.sessionId} had no amount, so it was not credited.`,
       });
       return NextResponse.json({ received: true });
@@ -140,7 +145,7 @@ export async function POST(req: NextRequest) {
 
       if (pmRow?.status === "amount_mismatch") {
         await sendAdminAlert({
-          title: "🚨 PayMongo amount mismatch",
+          title: `${testTag}🚨 PayMongo amount mismatch`,
           message:
             `Session ${details.sessionId} paid ${details.paidCentavos} centavos but expected ` +
             `${pmRow.amount_centavos} centavos (${pmRow.email}). The wallet was NOT credited. ` +
@@ -208,7 +213,7 @@ export async function POST(req: NextRequest) {
 
       try {
         await sendAdminAlert({
-          title: "✅ PayMongo top-up paid",
+          title: `${testTag}✅ PayMongo top-up paid`,
           message:
             `A PayMongo wallet top-up was paid and credited automatically.\n` +
             `Session: ${details.sessionId}\n` +

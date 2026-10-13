@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -75,8 +74,6 @@ export default function OrderPage() {
   const [followersQuantity, setFollowersQuantity] = useState(INCLUDED_FOLLOWERS);
   const [profilePhoto, setProfilePhoto] = useState<File | null>(null);
   const [coverPhoto, setCoverPhoto] = useState<File | null>(null);
-  const [receiptFile, setReceiptFile] = useState<File | null>(null);
-  const [paymentMethod, setPaymentMethod] = useState<"GCash" | "BPI" | "Wallet">("GCash");
   const [facebookFollowerService, setFacebookFollowerService] = useState<SmmService | null>(null);
   const [loadingCatalog, setLoadingCatalog] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -84,9 +81,6 @@ export default function OrderPage() {
   const [successOrderId, setSuccessOrderId] = useState("");
   const [copied, setCopied] = useState(false);
   const [showTopUp, setShowTopUp] = useState(false);
-  const [postCreateStatus, setPostCreateStatus] = useState("");
-  const [receiptUploadError, setReceiptUploadError] = useState("");
-  const [pendingReceiptFile, setPendingReceiptFile] = useState<File | null>(null);
 
   const followerUnitPrice = facebookFollowerService?.startingPrice || FALLBACK_FOLLOWER_PRICE;
   const minFollowers = facebookFollowerService?.min || FALLBACK_MIN;
@@ -180,21 +174,6 @@ export default function OrderPage() {
     return String(data.url || "N/A");
   };
 
-  const uploadReceipt = async (file: File, orderId: string) => {
-    const compressed = await compressImage(file);
-    const formData = new FormData();
-    formData.append("file", compressed);
-    formData.append("orderId", orderId);
-
-    const res = await fetch("/api/upload-receipt", {
-      method: "POST",
-      body: formData
-    });
-
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || "Failed to upload payment receipt.");
-  };
-
   const buildSpecs = (profileUrl: string, coverUrl: string) => {
     return [
       "Page Wants:",
@@ -234,119 +213,45 @@ export default function OrderPage() {
       return;
     }
 
-    if (paymentMethod !== "Wallet" && !receiptFile) {
-      setError("Please upload your payment receipt before placing the order.");
-      return;
-    }
-
     if (normalizedQuantity > maxFollowers) {
       setError(`Followers quantity cannot exceed ${maxFollowers.toLocaleString()}.`);
       return;
     }
 
-    if (paymentMethod === "Wallet") {
-      if (!user) {
-        setError("Please sign in before paying with wallet balance.");
-        return;
-      }
-      if (!canUseWallet) {
-        setError("Insufficient wallet balance. Please top up first or choose GCash.");
-        return;
-      }
+    if (!user) {
+      setError("Please sign in before paying with your wallet balance.");
+      return;
+    }
+
+    if (!canUseWallet) {
+      setError("Insufficient wallet balance. Please top up your wallet to continue.");
+      return;
     }
 
     setIsSubmitting(true);
 
     try {
-      if (paymentMethod === "Wallet" && user) {
-        const walletRes = await fetch("/api/checkout-wallet", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            userId: user.id,
-            serviceId: CUSTOM_PAGE_SERVICE_ID,
-            serviceTitle: "Custom Facebook Page + SMM #2026 Followers",
-            email: user.email,
-            url: "Compiling custom Facebook page order assets...",
-            quantity: normalizedQuantity,
-            totalPrice: grandTotal,
-            smmServiceId: FACEBOOK_FOLLOWERS_SMM_ID
-          })
-        });
-
-        const walletData = await walletRes.json();
-        if (!walletRes.ok) throw new Error(walletData.error || "Wallet payment failed.");
-
-        const order = { id: walletData.orderId };
-        if (!order.id) throw new Error("Order was created without a tracking ID.");
-
-        const [profileUrl, coverUrl] = await Promise.all([
-          uploadAsset(profilePhoto, order.id, "profile"),
-          uploadAsset(coverPhoto, order.id, "cover")
-        ]);
-        const finalSpecs = buildSpecs(profileUrl, coverUrl);
-
-        const targetRes = await fetch("/api/orders/update-target", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            orderId: order.id,
-            targetUrl: finalSpecs,
-            customerEmail: user.email
-          })
-        });
-        if (!targetRes.ok) {
-          const targetData = await targetRes.json();
-          throw new Error(targetData.error || "Failed to save page order details.");
-        }
-
-        setProfile((current) => current ? { ...current, balance: walletData.newBalance } : current);
-        window.dispatchEvent(new Event("balance-update"));
-        setSuccessOrderId(order.id);
-        setProfilePhoto(null);
-        setCoverPhoto(null);
-        setReceiptFile(null);
-
-        if (typeof window !== "undefined") {
-          localStorage.setItem("last_order_id", order.id);
-          localStorage.setItem("last_order_email", user.email || "");
-        }
-        return;
-      }
-
-      const optimisticOrderId = crypto.randomUUID();
-      const receiptToUpload = receiptFile;
-      setSuccessOrderId(optimisticOrderId);
-      setPendingReceiptFile(receiptToUpload);
-      setReceiptUploadError("");
-      setIsSubmitting(false);
-      setPostCreateStatus("Saving order...");
-
-      if (typeof window !== "undefined") {
-        localStorage.setItem("last_order_id", optimisticOrderId);
-        localStorage.setItem("last_order_email", email.trim());
-      }
-
-      const createRes = await fetch("/api/orders/create", {
+      const walletRes = await fetch("/api/checkout-wallet", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          orderId: optimisticOrderId,
+          userId: user.id,
           serviceId: CUSTOM_PAGE_SERVICE_ID,
-          email: email.trim(),
-          targetUrl: "Compiling custom Facebook page order assets...",
-          amount: grandTotal,
-          paymentMethod,
+          serviceTitle: "Custom Facebook Page + SMM #2026 Followers",
+          email: user.email,
+          url: "Compiling custom Facebook page order assets...",
           quantity: normalizedQuantity,
+          totalPrice: grandTotal,
           smmServiceId: FACEBOOK_FOLLOWERS_SMM_ID
         })
       });
-      const createData = await createRes.json();
-      if (!createRes.ok) throw new Error(createData.error || "Failed to create page order.");
 
-      const order = { id: createData.orderId || createData.data?.id || optimisticOrderId };
+      const walletData = await walletRes.json();
+      if (!walletRes.ok) throw new Error(walletData.error || "Wallet payment failed.");
 
-      setPostCreateStatus("Uploading page assets...");
+      const order = { id: walletData.orderId };
+      if (!order.id) throw new Error("Order was created without a tracking ID.");
+
       const [profileUrl, coverUrl] = await Promise.all([
         uploadAsset(profilePhoto, order.id, "profile"),
         uploadAsset(coverPhoto, order.id, "cover")
@@ -359,52 +264,32 @@ export default function OrderPage() {
         body: JSON.stringify({
           orderId: order.id,
           targetUrl: finalSpecs,
-          customerEmail: email.trim()
+          customerEmail: user.email
         })
       });
       if (!targetRes.ok) {
         const targetData = await targetRes.json();
-        setReceiptUploadError(targetData.error || "Failed to save page order details.");
+        throw new Error(targetData.error || "Failed to save page order details.");
       }
 
-      if (receiptToUpload) {
-        setPostCreateStatus("Uploading receipt...");
-        try {
-          await uploadReceipt(receiptToUpload, order.id);
-          setPendingReceiptFile(null);
-        } catch (receiptErr: unknown) {
-          setReceiptUploadError(getErrorMessage(receiptErr) || "Failed to upload payment receipt.");
-        }
-      }
-
+      setProfile((current) => current ? { ...current, balance: walletData.newBalance } : current);
+      window.dispatchEvent(new Event("balance-update"));
+      setSuccessOrderId(order.id);
       setProfilePhoto(null);
       setCoverPhoto(null);
-      setReceiptFile(null);
-      setPostCreateStatus("");
 
-      fetch("/api/notify-order", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          trackingId: `BS-${order.id.slice(0, 8).toUpperCase()}`,
-          service: "Custom Facebook Page + Facebook Followers SMM #2026",
-          email: email.trim(),
-          quantity: normalizedQuantity,
-          amount: payableTotal,
-          paymentMethod,
-          details: finalSpecs
-        })
-      }).catch(() => {});
+      if (typeof window !== "undefined") {
+        localStorage.setItem("last_order_id", order.id);
+        localStorage.setItem("last_order_email", user.email || "");
+      }
     } catch (err: unknown) {
       setSuccessOrderId("");
-      setPendingReceiptFile(null);
       setError(getErrorMessage(err) || "Failed to submit custom page order.");
       if (typeof window !== "undefined") {
         localStorage.removeItem("last_order_id");
       }
     } finally {
       setIsSubmitting(false);
-      setPostCreateStatus("");
     }
   };
 
@@ -425,7 +310,7 @@ export default function OrderPage() {
               Order a Custom <span className="text-[#1877F2]">Facebook Page</span>
             </h1>
             <p className="mx-auto mt-4 max-w-2xl text-sm font-semibold leading-relaxed text-slate-400">
-              Fill out the page details, upload profile and cover assets, choose your Facebook followers quantity, then pay through GCash or wallet balance.
+              Fill out the page details, upload profile and cover assets, choose your Facebook followers quantity, then pay from your wallet balance.
             </p>
           </div>
 
@@ -451,37 +336,6 @@ export default function OrderPage() {
                   {copied ? <Check size={16} className="text-[#1DB954]" /> : <Copy size={16} />}
                 </button>
               </div>
-              {(postCreateStatus || receiptUploadError) && (
-                <div className={`mt-4 rounded-2xl border p-3 text-left text-xs font-semibold ${receiptUploadError ? "border-red-500/30 bg-red-500/10 text-red-200" : "border-[#1DB954]/25 bg-[#1DB954]/10 text-slate-200"}`}>
-                  {postCreateStatus ? (
-                    <p className="flex items-center gap-2">
-                      <Loader2 size={14} className="animate-spin text-[#1DB954]" />
-                      {postCreateStatus}
-                    </p>
-                  ) : null}
-                  {receiptUploadError ? <p className="mt-1">{receiptUploadError}</p> : null}
-                  {receiptUploadError && pendingReceiptFile ? (
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        try {
-                          setReceiptUploadError("");
-                          setPostCreateStatus("Uploading receipt...");
-                          await uploadReceipt(pendingReceiptFile, successOrderId);
-                          setPendingReceiptFile(null);
-                          setPostCreateStatus("");
-                        } catch (err: unknown) {
-                          setReceiptUploadError(getErrorMessage(err) || "Failed to upload payment receipt.");
-                          setPostCreateStatus("");
-                        }
-                      }}
-                      className="mt-2 w-full rounded-full bg-[#1DB954] px-4 py-2 text-[10px] font-black uppercase tracking-wider text-black"
-                    >
-                      Retry receipt upload
-                    </button>
-                  ) : null}
-                </div>
-              )}
               <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <Link
                   href={`/?track=${successOrderId}`}
@@ -618,93 +472,11 @@ export default function OrderPage() {
 
                 <div className="rounded-3xl border border-slate-800/80 bg-[#121212]/95 p-5 shadow-2xl sm:p-6">
                   <h3 className="text-lg font-black text-white">Payment</h3>
-                  <div className="mt-4 grid grid-cols-3 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setPaymentMethod("GCash")}
-                      className={`rounded-2xl border px-4 py-3 text-xs font-black uppercase tracking-wider transition ${
-                        paymentMethod === "GCash"
-                          ? "border-[#1877F2] bg-[#1877F2]/15 text-[#4e8df5]"
-                          : "border-slate-800 bg-black/30 text-slate-400 hover:text-white"
-                      }`}
-                    >
-                      GCash
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setPaymentMethod("BPI")}
-                      className={`flex items-center justify-center gap-1.5 rounded-2xl border px-4 py-3 text-xs font-black uppercase tracking-wider transition ${
-                        paymentMethod === "BPI"
-                          ? "border-[#D42027] bg-[#D42027]/15 text-[#D42027]"
-                          : "border-slate-800 bg-black/30 text-slate-400 hover:text-white"
-                      }`}
-                    >
-                      <img src="/bpi-logo.svg" alt="BPI" className="h-3.5 w-auto" />
-                      BPI
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setPaymentMethod("Wallet")}
-                      className={`rounded-2xl border px-4 py-3 text-xs font-black uppercase tracking-wider transition ${
-                        paymentMethod === "Wallet"
-                          ? "border-[#1DB954] bg-[#1DB954]/15 text-[#1DB954]"
-                          : "border-slate-800 bg-black/30 text-slate-400 hover:text-white"
-                      }`}
-                    >
-                      Wallet
-                    </button>
-                  </div>
 
-                  {paymentMethod === "GCash" && (
-                    <div className="mt-5 rounded-2xl border border-slate-800 bg-black/35 p-4 text-center">
-                      <p className="text-xs font-black uppercase tracking-widest text-slate-400">Scan GCash QR</p>
-                      <div className="mx-auto mt-3 flex h-48 w-48 items-center justify-center rounded-2xl bg-white p-2">
-                        <Image src="/gcash-qr.png" alt="GCash QR code" width={192} height={192} className="h-full w-full object-contain" />
-                      </div>
-                      <p className="mt-3 text-[11px] font-semibold leading-relaxed text-slate-500">
-                        Pay exactly {formatPhp(payableTotal)}, then upload the receipt below before submitting.
-                      </p>
-                      {hasVipDiscount && (
-                        <p className="mt-2 rounded-xl border border-[#1DB954]/25 bg-[#1DB954]/10 px-3 py-2 text-[10px] font-black uppercase tracking-wider text-[#1DB954]">
-                          Regular {formatPhp(grandTotal)} {"->"} VIP {formatPhp(payableTotal)}
-                        </p>
-                      )}
-                    </div>
-                  )}
-
-                  {paymentMethod === "BPI" && (
-                    <div className="mt-5 rounded-2xl border border-slate-800 bg-black/35 p-4 text-center">
-                      <p className="text-xs font-black uppercase tracking-widest text-slate-400">BPI Bank Transfer</p>
-                      <div className="mx-auto mt-3 flex items-center justify-center rounded-2xl bg-white p-4">
-                        <div className="text-center">
-                          <img src="/bpi-logo.svg" alt="BPI" className="h-8 w-auto mx-auto mb-3" />
-                          <div className="bg-[#D42027]/5 border border-[#D42027]/20 rounded-lg p-3">
-                            <p className="text-[8px] font-black uppercase tracking-widest text-slate-500 mb-1">Account Number</p>
-                            <p className="text-xl font-black text-[#D42027] tracking-widest select-all">4059901356</p>
-                          </div>
-                        </div>
-                      </div>
-                      <button type="button" onClick={() => { navigator.clipboard.writeText('4059901356'); }} className="mt-2 text-[8px] bg-[#D42027]/10 hover:bg-[#D42027]/20 text-[#D42027] font-black uppercase tracking-wider px-3 py-1.5 rounded-lg transition-all cursor-pointer active:scale-95">Copy Account Number</button>
-                      <p className="mt-3 text-[11px] font-semibold leading-relaxed text-slate-500">
-                        Send exactly {formatPhp(payableTotal)}, then upload the receipt below before submitting.
-                      </p>
-                      <div className="mt-3 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
-                        <p className="text-[9px] text-amber-400 font-bold leading-relaxed">
-                          ⚠️ If paying via GCash to BPI, add ₱15 transfer fee or order stays Pending.
-                        </p>
-                      </div>
-                      {hasVipDiscount && (
-                        <p className="mt-2 rounded-xl border border-[#1DB954]/25 bg-[#1DB954]/10 px-3 py-2 text-[10px] font-black uppercase tracking-wider text-[#1DB954]">
-                          Regular {formatPhp(grandTotal)} {"->"} VIP {formatPhp(payableTotal)}
-                        </p>
-                      )}
-                    </div>
-                  )}
-
-                  <div className="mt-5 rounded-2xl border border-slate-800 bg-black/35 p-4">
+                  <div className="mt-4 rounded-2xl border border-slate-800 bg-black/35 p-4">
                     <div className="flex items-center justify-between gap-3">
                       <div>
-                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Ewallet Balance</p>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Wallet Balance</p>
                         <p className="mt-1 text-lg font-black text-white">{user ? formatPhp(walletBalance) : "Sign in required"}</p>
                       </div>
                       {user ? (
@@ -724,21 +496,27 @@ export default function OrderPage() {
                         </Link>
                       )}
                     </div>
-                  </div>
-
-                  {paymentMethod !== "Wallet" && (
-                    <div className="mt-5">
-                      <FileUpload id="receipt-file" title="Upload Payment Receipt" file={receiptFile} onChange={setReceiptFile} compact />
+                    <div className="mt-3 flex items-center justify-between gap-3 border-t border-slate-800 pt-3 text-xs font-bold">
+                      <span className="text-slate-400">Order total</span>
+                      <span className="text-[#1DB954]">{formatPhp(payableTotal)}</span>
                     </div>
-                  )}
+                    <p className="mt-3 text-[11px] font-semibold leading-relaxed text-slate-500">
+                      Top up instantly with GCash or Maya through PayMongo. Your wallet is credited the moment the payment is confirmed.
+                    </p>
+                    {user && walletBalance < payableTotal && (
+                      <p className="mt-3 rounded-xl border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-[10px] font-black uppercase tracking-wider text-amber-400">
+                        Balance is below the order total. Please top up first.
+                      </p>
+                    )}
+                  </div>
 
                   <button
                     type="submit"
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || !user || walletBalance < payableTotal}
                     className="mt-5 flex w-full items-center justify-center gap-2 rounded-full bg-[#1DB954] px-5 py-3.5 text-xs font-black uppercase tracking-wider text-black shadow-lg shadow-emerald-500/10 transition hover:bg-[#1ed760] disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-500"
                   >
                     {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : <ShieldCheck size={16} />}
-                    Submit Order Page
+                    Pay from Wallet
                   </button>
                   <p className="mt-3 text-center text-[11px] font-semibold leading-relaxed text-slate-500">
                     After ordering, wait within 24 business hours for the page to be done.

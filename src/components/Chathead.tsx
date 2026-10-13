@@ -6,7 +6,6 @@ import {
   X, 
   Send, 
   Loader2, 
-  Image as ImageIcon, 
   ShoppingCart, 
   Ban, 
   CheckCircle2, 
@@ -20,12 +19,11 @@ import {
   Sparkles, 
   ShieldCheck, 
   Search, 
-  ExternalLink,
-  UploadCloud
+  ExternalLink
 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
+import { TopUpModal } from "./TopUpModal";
 import { parseDescription } from "@/utils/serviceHelpers";
-import { compressImageWithStats, formatBytes, type CompressResult } from "@/utils/imageCompressor";
 import { useCustomerMessagesRealtime } from "@/hooks/useCustomerMessagesRealtime";
 import type { CustomerMessageRow } from "@/utils/realtimeChat";
 
@@ -76,15 +74,8 @@ type OfferActionStatus =
   | "idle"
   | "awaiting_target"
   | "processing"
-  | "awaiting_receipt"
   | "purchased"
   | "cancelled";
-
-type PendingReceiptOrder = {
-  orderId: string;
-  trackingId: string;
-  amount: number;
-};
 
 interface DbService {
   id: string;
@@ -273,7 +264,6 @@ export function Chathead() {
   const [isMaximized, setIsMaximized] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [isDraggingFile, setIsDraggingFile] = useState(false);
 
   const initialWelcomeMsg: Message = { 
     role: 'assistant', 
@@ -283,17 +273,14 @@ export function Chathead() {
   const [messages, setMessages] = useState<Message[]>([initialWelcomeMsg]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [uploading, setUploading] = useState(false);
   const [unreadAdminCount, setUnreadAdminCount] = useState(0);
   const [adminNotice, setAdminNotice] = useState("");
   const [pendingCheckoutOffer, setPendingCheckoutOffer] = useState<ChatOffer | null>(null);
-  const [pendingReceiptOrder, setPendingReceiptOrder] = useState<PendingReceiptOrder | null>(null);
   const [offerActionStatus, setOfferActionStatus] = useState<Record<string, OfferActionStatus>>({});
   const [offerQuantityInputs, setOfferQuantityInputs] = useState<Record<string, string>>({});
   const [loadingOfferPages, setLoadingOfferPages] = useState<Record<string, boolean>>({});
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const supabase = useMemo(() => createClient(), []);
   const [dbServices, setDbServices] = useState<DbService[]>([]);
 
@@ -337,7 +324,7 @@ export function Chathead() {
   const clearedAtRef = useRef(0);
   const clearedIdsRef = useRef<Set<string>>(new Set());
   const [confirmClear, setConfirmClear] = useState(false);
-  const [compressState, setCompressState] = useState<CompressResult | null>(null);
+  const [showTopUp, setShowTopUp] = useState(false);
 
   useEffect(() => { isOpenRef.current = isOpen; }, [isOpen]);
   useEffect(() => { customerEmailRef.current = customerEmail; }, [customerEmail]);
@@ -664,169 +651,6 @@ export function Chathead() {
     };
   }, [openSupportChat]);
 
-  const uploadReceiptFile = async (file: File) => {
-    const uuidRegex = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
-    const trackRegex = /BS-([0-9a-f]{8})/i;
-    
-    const resolveToFullUuid = async (inputStr: string): Promise<string> => {
-      const uuidMatch = inputStr.match(uuidRegex);
-      if (uuidMatch) return uuidMatch[0];
-
-      const trackMatch = inputStr.match(trackRegex);
-      if (trackMatch) {
-        const shortHex = trackMatch[1].toLowerCase();
-        const { data, error } = await supabase
-          .from('orders')
-          .select('id')
-          .gte('id', `${shortHex}-0000-0000-0000-000000000000`)
-          .lte('id', `${shortHex}-ffff-ffff-ffff-ffffffffffff`)
-          .limit(1)
-          .single();
-        if (data && !error) {
-          return data.id;
-        }
-      }
-      return "";
-    };
-
-    let resolvedId = pendingReceiptOrder?.orderId || await resolveToFullUuid(input);
-
-    if (!resolvedId && typeof window !== "undefined") {
-      const storedId = localStorage.getItem("last_order_id") || "";
-      if (storedId) {
-        resolvedId = await resolveToFullUuid(storedId);
-      }
-    }
-
-    if (!resolvedId) {
-      for (let i = messages.length - 1; i >= 0; i--) {
-        const checkId = await resolveToFullUuid(messages[i].content);
-        if (checkId) {
-          resolvedId = checkId;
-          break;
-        }
-      }
-    }
-
-    if (!resolvedId) {
-      alert("⚠️ Tracking ID not found!\n\nPlease enter your Tracking ID (e.g. BS-D5D1D849) in the text input box first before uploading/pasting your payment proof so we can match it to your order.");
-      if (fileInputRef.current) fileInputRef.current.value = "";
-      return;
-    }
-
-    setUploading(true);
-    const displayId = `BS-${resolvedId.slice(0, 8).toUpperCase()}`;
-    pushLocalMessage({ role: 'user', content: `[Attached Payment Proof for Order ${displayId}]` });
-
-    try {
-      setCompressState({
-        file,
-        originalSize: file.size,
-        compressedSize: file.size,
-        savedBytes: 0,
-        ratio: 0,
-        width: 0,
-        height: 0,
-        durationMs: 0,
-      });
-      const result = await compressImageWithStats(file, {
-        onProgress: (p) => {
-          setCompressState((prev) =>
-            prev ? { ...prev, ratio: p.progress } : prev
-          );
-        },
-      });
-      setCompressState(result);
-      setTimeout(() => setCompressState(null), 2500);
-
-      const formData = new FormData();
-      formData.append("file", result.file);
-      formData.append("orderId", resolvedId);
-
-      const res = await fetch("/api/upload-receipt", {
-        method: "POST",
-        body: formData
-      });
-
-      const uploadData = await res.json() as {
-        error?: string;
-        receiptAnalysis?: {
-          decision?: "approved" | "rejected_fake" | "rejected_duplicate" | "manual_review";
-          extractedAmount?: number | null;
-          receiverName?: string | null;
-          reason?: string;
-        };
-      };
-      if (!res.ok) {
-        throw new Error(uploadData.error || "Server upload failed");
-      }
-
-      const savedLabel = result.savedBytes > 0
-        ? ` (${formatBytes(result.originalSize)} → ${formatBytes(result.compressedSize)})`
-        : "";
-      const analysis = uploadData.receiptAnalysis;
-      const receiptAmount = analysis?.extractedAmount !== null && analysis?.extractedAmount !== undefined
-        ? formatPhp(analysis.extractedAmount)
-        : "unreadable amount";
-      const aiReviewNote = analysis?.decision === "approved"
-        ? `\n\n✅ **Payment verified:** ${receiptAmount}, destination **${analysis.receiverName || "Henry S."}**, and a unique payment reference matched. Your order is now processing!`
-        : analysis?.decision === "rejected_fake"
-          ? `\n\n❌ **Receipt rejected:** signs of an altered receipt were detected. ${analysis.reason || ""}`.trim()
-          : analysis?.decision === "rejected_duplicate"
-            ? `\n\n❌ **Receipt rejected:** that payment reference was already used on another active transaction.`
-            : `\n\n🔎 **Sent for manual review:** ${analysis?.reason || "Admin has been notified and will verify within 15 minutes."}`;
-
-      pushLocalMessage({
-        role: 'assistant',
-        content: `🎉 **Receipt screenshot successfully received!**\n\nLinked to **Tracking ID: ${displayId}**.${aiReviewNote}${savedLabel ? `\n\n📦 Image optimized${savedLabel}.` : ""}`
-      });
-      setPendingReceiptOrder(null);
-
-    } catch (err: unknown) {
-      console.error(err);
-      pushLocalMessage({
-        role: 'assistant',
-        content: `❌ **Failed to upload screenshot:** ${getErrorMessage(err)}. Please try again or contact support.`
-      });
-    } finally {
-      setUploading(false);
-      setCompressState(null);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    }
-  };
-
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      await uploadReceiptFile(file);
-    }
-  };
-
-  const handlePaste = async (e: React.ClipboardEvent<HTMLInputElement>) => {
-    const items = e.clipboardData.items;
-    for (let i = 0; i < items.length; i++) {
-      if (items[i].type.indexOf("image") !== -1) {
-        const file = items[i].getAsFile();
-        if (file) {
-          e.preventDefault();
-          await uploadReceiptFile(file);
-        }
-      }
-    }
-  };
-
-  const handleDrop = async (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDraggingFile(false);
-    const files = e.dataTransfer.files;
-    if (files && files.length > 0) {
-      const file = files[0];
-      if (file.type.startsWith("image/")) {
-        await uploadReceiptFile(file);
-      }
-    }
-  };
-
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
@@ -859,7 +683,7 @@ export function Chathead() {
   };
 
   const handleBuyOffer = async (offer: ChatOffer) => {
-    if (isLoading || uploading || pendingCheckoutOffer) return;
+    if (isLoading || pendingCheckoutOffer) return;
     updateOfferStatus(offer, "processing");
 
     const {
@@ -870,13 +694,12 @@ export function Chathead() {
       updateOfferStatus(offer, "idle");
       pushLocalMessage({
         role: "assistant",
-        content: "🔐 **Please sign in first.** Direct wallet purchases and payment-proof uploads must be linked to your PinoyBoosting account. After signing in, return here and tap Buy again.",
+        content: "🔐 **Please sign in first.** Direct wallet purchases must be linked to your PinoyBoosting account. After signing in, return here and tap Buy again.",
       });
       return;
     }
 
     setPendingCheckoutOffer(offer);
-    setPendingReceiptOrder(null);
     updateOfferStatus(offer, "awaiting_target");
     pushLocalMessage({
       role: "assistant",
@@ -945,46 +768,18 @@ export function Chathead() {
       throw new Error(walletData.error || "Wallet checkout failed.");
     }
 
-    const orderId = crypto.randomUUID();
-    const createRes = await fetch("/api/orders/create", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        orderId,
-        serviceId: offer.serviceId,
-        email: user.email,
-        targetUrl,
-        paymentMethod: "GCash",
-        quantity: offer.quantity,
-        smmServiceId: offer.smmServiceId,
-        catalogSnapshot: offer.catalogSnapshot,
-      }),
-    });
-    const createData = await createRes.json() as {
-      error?: string;
-      orderId?: string;
-      amount?: number;
-      quantity?: number;
-      serviceTitle?: string;
-    };
-    if (!createRes.ok || !createData.orderId) {
-      updateOfferStatus(offer, "awaiting_target");
-      throw new Error(createData.error || "Could not create the GCash order.");
-    }
-
-    const trackingId = `BS-${createData.orderId.slice(0, 8).toUpperCase()}`;
-    const amount = Number(createData.amount ?? walletData.requiredAmount ?? offer.total);
+    const shortfall = Number(walletData.requiredAmount ?? offer.total);
+    updateOfferStatus(offer, "idle");
     setPendingCheckoutOffer(null);
-    setPendingReceiptOrder({ orderId: createData.orderId, trackingId, amount });
-    updateOfferStatus(offer, "awaiting_receipt");
-    if (typeof window !== "undefined") {
-      localStorage.setItem("last_order_id", createData.orderId);
-      localStorage.setItem("last_order_email", user.email);
-    }
     pushLocalMessage({
       role: "assistant",
-      content: `💳 **Wallet balance is not enough, so it was not charged.**\n\nI created **${trackingId}** for payment.\n\n* **Pay exactly:** ${formatPhp(amount)}\n* **GCash destination:** 09505339963\n* **Receiver:** Henry S.\n* **BPI Option:** #4059901356\n\nPay via GCash or Bank Transfer, then click the image icon or drag-and-drop your receipt screenshot here to verify!`,
+      content: `💳 **Wallet balance is not enough.**
+
+* **Needed:** ${formatPhp(shortfall)}
+
+Top up your wallet below, then tap **Buy Now** again — your order is placed instantly from your balance, with no waiting for approval.`,
     });
+    setShowTopUp(true);
   };
 
   const handleCopy = (text: string, id: string) => {
@@ -1019,7 +814,6 @@ export function Chathead() {
     localEchoRef.current = [];
     setMessages([initialWelcomeMsg]);
     setPendingCheckoutOffer(null);
-    setPendingReceiptOrder(null);
     setConfirmClear(false);
   };
 
@@ -1116,7 +910,7 @@ export function Chathead() {
           const displayId = `BS-${data.id.slice(0, 8).toUpperCase()}`;
           const reply = `🔍 **Order Status Details:**\n\n* **Tracking ID:** ${displayId}\n* **Service:** ${data.services?.title || "Boost Service"}\n* **Quantity:** ${data.quantity.toLocaleString()} units\n* **Target Link:** ${data.target_url}\n* **Amount:** ₱${Number(data.amount).toFixed(2)} PHP\n* **Status:** **${data.status}**\n\n${
             data.status === 'Pending' 
-              ? 'Your order is currently **Pending** verification. Upload your GCash/Bank receipt screenshot here (click 📷 or drag-and-drop!) to confirm delivery! 🚀' 
+              ? 'Your order is currently **Pending**. Tap **Buy Now** again once your wallet covers the total, or use the 💳 **Top Up Wallet** button. Every order is paid instantly from your balance — no receipts, no waiting for approval. ⚡' 
               : data.status === 'Processing' 
               ? 'Your order is currently **Processing** and active! Delivery is ongoing. ⚡' 
               : data.status === 'Completed' 
@@ -1190,8 +984,8 @@ export function Chathead() {
           // Never quote a hardcoded number here: the real rates come from the
           // live catalog, and a stale guess would disagree with the website.
           responseText = `💰 I could not reach the live price list just now. Please send that again in a moment, or open the **SERVICES** section to see the current rates. Tell me the platform and goal (for example **FB followers**) and I will pull the exact price for you.`;
-        } else if (text.includes("payment") || text.includes("gcash") || text.includes("bayad") || text.includes("bpi")) {
-          responseText = `💳 We accept **GCash** (09505339963 • Henry S.) and **BPI Bank Transfer** (#4059901356). Upload your screenshot here after paying for instant approval.`;
+        } else if (text.includes("payment") || text.includes("gcash") || text.includes("bayad") || text.includes("bpi") || text.includes("top up") || text.includes("topup")) {
+          responseText = `💳 All payments go through our secure **PayMongo** checkout. Top up your wallet with the 💳 **Top Up Wallet** button (GCash, Maya, and more), then every order is paid instantly from your balance — no receipt uploads, no waiting for approval.`;
         } else if (text.includes("who") || text.includes("owner") || text.includes("create") || text.includes("developer") || text.includes("cyrhiel")) {
           responseText = `PinoyBoosting was created and developed by **Cyrhiel Moralla**. Check his Facebook profile: [Cyrhiel Moralla](https://www.facebook.com/profile.php?id=61584774638218).`;
         } else {
@@ -1316,24 +1110,12 @@ export function Chathead() {
       {/* Chat Window Modal */}
       {isOpen && (
         <div 
-          onDragOver={(e) => { e.preventDefault(); setIsDraggingFile(true); }}
-          onDragLeave={() => setIsDraggingFile(false)}
-          onDrop={handleDrop}
           className={`fixed z-[100] bg-[#121212] border border-white/15 rounded-3xl shadow-2xl flex flex-col overflow-hidden transition-all duration-300 ${
             isMaximized 
               ? "inset-2 sm:inset-auto sm:right-6 sm:bottom-6 sm:w-[720px] sm:h-[820px] sm:max-h-[92vh]" 
               : "bottom-[calc(env(safe-area-inset-bottom)+4.5rem)] left-3 right-3 h-[540px] max-h-[82vh] sm:left-auto sm:bottom-24 sm:right-6 sm:w-[410px] sm:h-[600px] sm:max-h-[85vh]"
           }`}
         >
-          {/* Drag Overlay */}
-          {isDraggingFile && (
-            <div className="absolute inset-0 z-50 bg-[#1877F2]/90 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center text-white border-2 border-dashed border-white/80 animate-in fade-in duration-200">
-              <UploadCloud size={48} className="animate-bounce mb-3" />
-              <h4 className="text-lg font-black uppercase tracking-wider">Drop Payment Screenshot</h4>
-              <p className="text-xs text-white/90 mt-1">Release file to automatically upload receipt and match with your order</p>
-            </div>
-          )}
-
           {/* Header */}
           <div className="bg-[#181818] border-b border-white/10 p-3.5 sm:p-4 text-white flex items-center justify-between select-none">
             <div className="flex items-center gap-2.5 min-w-0">
@@ -1556,7 +1338,7 @@ export function Chathead() {
                             const selectedOffer = getSelectedOffer(offer);
                             const minimumQuantity = getOfferMinimumQuantity(offer);
                             const maximumQuantity = getOfferMaximumQuantity(offer);
-                            const quantityLocked = status !== "idle" || isLoading || uploading || Boolean(pendingCheckoutOffer);
+                            const quantityLocked = status !== "idle" || isLoading || Boolean(pendingCheckoutOffer);
 
                             return (
                               <div
@@ -1570,7 +1352,6 @@ export function Chathead() {
                                     </span>
                                     <span className="text-[9px] font-bold uppercase tracking-wider text-zinc-400">
                                       {status === "awaiting_target" ? "Waiting for link" :
-                                        status === "awaiting_receipt" ? "Waiting for payment" :
                                         status === "purchased" ? "Purchased" :
                                         status === "cancelled" ? "Cancelled" :
                                         busy ? "Processing" : "Available"}
@@ -1618,7 +1399,7 @@ export function Chathead() {
                                       onClick={() => {
                                         if (selectedOffer) void handleBuyOffer(selectedOffer);
                                       }}
-                                      disabled={!selectedOffer || status !== "idle" || isLoading || uploading || Boolean(pendingCheckoutOffer)}
+                                      disabled={!selectedOffer || status !== "idle" || isLoading || Boolean(pendingCheckoutOffer)}
                                       className="flex items-center justify-center gap-1.5 rounded-xl bg-[#1DB954] hover:bg-[#1ed760] px-3 py-2 text-[10px] font-black uppercase tracking-wider text-black transition active:scale-95 disabled:opacity-50 cursor-pointer"
                                     >
                                       {busy ? <Loader2 size={12} className="animate-spin" /> :
@@ -1629,7 +1410,7 @@ export function Chathead() {
                                     <button
                                       type="button"
                                       onClick={() => handleCancelOffer(offer)}
-                                      disabled={busy || terminal || status === "awaiting_receipt" || isLoading || uploading}
+                                      disabled={busy || terminal || isLoading}
                                       className="flex items-center justify-center gap-1.5 rounded-xl border border-red-500/25 bg-red-500/10 hover:bg-red-500/20 px-3 py-2 text-[10px] font-black uppercase tracking-wider text-red-300 transition active:scale-95 disabled:opacity-50 cursor-pointer"
                                     >
                                       <Ban size={12} />
@@ -1647,7 +1428,7 @@ export function Chathead() {
                                 <button
                                   type="button"
                                   onClick={() => void handleLoadMoreOffers(msg.id!, msg.offerCatalog!)}
-                                  disabled={Boolean(loadingOfferPages[msg.id]) || isLoading || uploading}
+                                  disabled={Boolean(loadingOfferPages[msg.id]) || isLoading}
                                   className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#1DB954] hover:bg-[#1ed760] px-4 py-2 text-xs font-black uppercase tracking-wider text-black transition cursor-pointer"
                                 >
                                   {loadingOfferPages[msg.id] ? <Loader2 size={14} className="animate-spin" /> : null}
@@ -1678,37 +1459,12 @@ export function Chathead() {
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Compressing Progress Banner */}
-          {uploading && compressState && (
-            <div className="px-4 py-2 bg-[#181818] border-t border-white/10">
-              <div className="rounded-xl border border-[#1877F2]/30 bg-[#1877F2]/10 p-2.5 space-y-1.5">
-                <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-wider">
-                  <span className="flex items-center gap-1.5 text-[#4e8df5]">
-                    <Loader2 size={12} className="animate-spin" />
-                    {compressState.savedBytes > 0 ? "Receipt optimized" : "Compressing screenshot..."}
-                  </span>
-                  <span className="text-[#1DB954] font-bold">
-                    {formatBytes(compressState.originalSize)} → {formatBytes(compressState.compressedSize)}
-                  </span>
-                </div>
-                <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
-                  <div
-                    className="h-full rounded-full bg-gradient-to-r from-[#1877F2] to-[#1DB954] transition-all duration-300"
-                    style={{
-                      width: `${compressState.savedBytes > 0 ? 100 : Math.max(15, Math.min(95, 15 + compressState.ratio * 80))}%`,
-                    }}
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-
           {/* Quick Action Chips Bar */}
           <div className="px-3 py-2 bg-[#181818] border-t border-white/10 flex gap-1.5 overflow-x-auto select-none no-scrollbar">
             <button
               type="button"
               onClick={() => handleQuickAction("show me cheapest facebook followers")}
-              disabled={isLoading || uploading}
+              disabled={isLoading}
               className="text-[11px] font-bold bg-white/5 hover:bg-white/15 border border-white/10 text-zinc-300 hover:text-white px-3 py-1.5 rounded-full transition active:scale-95 shrink-0 cursor-pointer"
             >
               🚀 FB Followers
@@ -1716,7 +1472,7 @@ export function Chathead() {
             <button
               type="button"
               onClick={() => handleQuickAction("show me cheapest facebook reactions")}
-              disabled={isLoading || uploading}
+              disabled={isLoading}
               className="text-[11px] font-bold bg-white/5 hover:bg-white/15 border border-white/10 text-zinc-300 hover:text-white px-3 py-1.5 rounded-full transition active:scale-95 shrink-0 cursor-pointer"
             >
               ❤️ FB Reactions
@@ -1724,7 +1480,7 @@ export function Chathead() {
             <button
               type="button"
               onClick={() => handleQuickAction("show me cheapest tiktok followers")}
-              disabled={isLoading || uploading}
+              disabled={isLoading}
               className="text-[11px] font-bold bg-white/5 hover:bg-white/15 border border-white/10 text-zinc-300 hover:text-white px-3 py-1.5 rounded-full transition active:scale-95 shrink-0 cursor-pointer"
             >
               📱 TikTok Followers
@@ -1732,7 +1488,7 @@ export function Chathead() {
             <button
               type="button"
               onClick={() => handleQuickAction("show me cheapest tiktok views")}
-              disabled={isLoading || uploading}
+              disabled={isLoading}
               className="text-[11px] font-bold bg-white/5 hover:bg-white/15 border border-white/10 text-zinc-300 hover:text-white px-3 py-1.5 rounded-full transition active:scale-95 shrink-0 cursor-pointer"
             >
               🎥 TikTok Views
@@ -1740,7 +1496,7 @@ export function Chathead() {
             <button
               type="button"
               onClick={() => handleQuickAction("show me cheapest instagram followers")}
-              disabled={isLoading || uploading}
+              disabled={isLoading}
               className="text-[11px] font-bold bg-white/5 hover:bg-white/15 border border-white/10 text-zinc-300 hover:text-white px-3 py-1.5 rounded-full transition active:scale-95 shrink-0 cursor-pointer"
             >
               📸 IG Followers
@@ -1748,7 +1504,7 @@ export function Chathead() {
             <button
               type="button"
               onClick={() => handleQuickAction("show me cheapest youtube subscribers")}
-              disabled={isLoading || uploading}
+              disabled={isLoading}
               className="text-[11px] font-bold bg-white/5 hover:bg-white/15 border border-white/10 text-zinc-300 hover:text-white px-3 py-1.5 rounded-full transition active:scale-95 shrink-0 cursor-pointer"
             >
               ▶️ YT Subscribers
@@ -1756,23 +1512,22 @@ export function Chathead() {
             <button
               type="button"
               onClick={() => handleQuickAction("show me all smm services")}
-              disabled={isLoading || uploading}
+              disabled={isLoading}
               className="text-[11px] font-bold bg-[#1DB954]/15 hover:bg-[#1DB954]/25 border border-[#1DB954]/30 text-[#1DB954] px-3 py-1.5 rounded-full transition active:scale-95 shrink-0 cursor-pointer"
             >
               ✨ All Services
             </button>
             <button
               type="button"
-              onClick={() => handleQuickAction("how to pay with gcash or bank")}
-              disabled={isLoading || uploading}
+              onClick={() => setShowTopUp(true)}
               className="text-[11px] font-bold bg-white/5 hover:bg-white/15 border border-white/10 text-zinc-300 hover:text-white px-3 py-1.5 rounded-full transition active:scale-95 shrink-0 cursor-pointer"
             >
-              💳 GCash / Bank
+              💳 Top Up Wallet
             </button>
             <button
               type="button"
               onClick={() => handleQuickAction("who created pinoyboosting")}
-              disabled={isLoading || uploading}
+              disabled={isLoading}
               className="text-[11px] font-bold bg-white/5 hover:bg-white/15 border border-white/10 text-zinc-300 hover:text-white px-3 py-1.5 rounded-full transition active:scale-95 shrink-0 cursor-pointer"
             >
               👨‍💻 Developer
@@ -1781,50 +1536,21 @@ export function Chathead() {
 
           {/* Form Input Area */}
           <form onSubmit={handleSubmit} className="p-3 bg-[#181818] border-t border-white/10 flex gap-2 items-center">
-            <input 
-              type="file"
-              ref={fileInputRef}
-              onChange={handleFileChange}
-              accept="image/*"
-              className="hidden"
-            />
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isLoading || uploading}
-              className={`p-2.5 rounded-xl border transition flex items-center justify-center shrink-0 cursor-pointer active:scale-95 ${
-                pendingReceiptOrder 
-                  ? "border-[#1DB954] bg-[#1DB954]/15 text-[#1DB954]" 
-                  : "border-white/15 bg-black/40 text-zinc-400 hover:text-white hover:bg-white/10"
-              }`}
-              title={pendingReceiptOrder ? `Upload payment proof for ${pendingReceiptOrder.trackingId}` : "Attach payment screenshot"}
-            >
-              {uploading ? (
-                <Loader2 size={18} className="animate-spin text-[#1877F2]" />
-              ) : (
-                <ImageIcon size={18} />
-              )}
-            </button>
             <input
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              onPaste={handlePaste}
               placeholder={
-                uploading
-                  ? (compressState ? "Compressing receipt..." : "Uploading receipt...")
-                  : pendingCheckoutOffer
-                    ? "Paste public target link (https://)..."
-                    : pendingReceiptOrder
-                      ? `Upload proof for ${pendingReceiptOrder.trackingId} (${formatPhp(pendingReceiptOrder.amount)})...`
-                      : "Type message or paste Tracking ID..."
+                pendingCheckoutOffer
+                  ? "Paste public target link (https://)..."
+                  : "Type message or paste Tracking ID..."
               }
               className="flex-1 px-4 py-2.5 bg-black/50 border border-white/15 text-white rounded-xl focus:outline-none focus:border-[#1877F2] text-sm font-medium placeholder-zinc-500"
-              disabled={isLoading || uploading}
+              disabled={isLoading}
             />
             <button 
               type="submit" 
-              disabled={isLoading || uploading || !input.trim()}
+              disabled={isLoading || !input.trim()}
               className="bg-[#2f2f2f] hover:bg-[#3d3d3d] disabled:bg-white/10 disabled:text-zinc-600 text-white font-bold p-2.5 rounded-xl transition flex items-center justify-center shrink-0 cursor-pointer active:scale-95"
               title="Send message"
             >
@@ -1833,6 +1559,17 @@ export function Chathead() {
           </form>
         </div>
       )}
+
+      <TopUpModal
+        isOpen={showTopUp}
+        onClose={() => setShowTopUp(false)}
+        user={null}
+        onTopUpSuccess={() => {
+          if (typeof window !== "undefined") {
+            window.dispatchEvent(new CustomEvent("pinoyboosting-wallet-updated", { detail: {} }));
+          }
+        }}
+      />
     </>
   );
 }

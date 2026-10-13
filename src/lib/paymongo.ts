@@ -22,6 +22,15 @@ export function isPaymongoConfigured() {
   return Boolean(getEnv("PAYMONGO_SECRET_KEY") && getEnv("PAYMONGO_WEBHOOK_SECRET"));
 }
 
+/**
+ * True while the secret key is a PayMongo TEST key. Test money is not real
+ * money, so every admin alert is tagged so it can never be mistaken for a
+ * live transaction in the Telegram channel.
+ */
+export function isPaymongoTestMode() {
+  return getPaymongoSecretKey().startsWith("sk_test_");
+}
+
 /** Basic auth: the secret key is the username, the password is empty. */
 function authHeader() {
   const secret = getPaymongoSecretKey();
