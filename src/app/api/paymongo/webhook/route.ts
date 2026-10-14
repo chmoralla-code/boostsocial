@@ -94,21 +94,45 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ received: true });
     }
 
-    if (!details.sessionId) {
-      await sendAdminAlert({
-        title: `${testTag}⚠️ PayMongo webhook: no session id`,
-        message: `Event ${eventId} (${eventType}) carried no checkout session id and could not be matched.`,
-      });
+    // A `payment.paid` event carries no checkout session id of its own — only
+    // the metadata we attached when the session was created. Resolve our row
+    // from that top-up id, so the payment is still credited. When it is a
+    // duplicate of the matching `checkout_session.payment.paid` event, the RPC
+    // simply reports "already paid" and nothing is credited twice.
+    let resolvedSessionId = details.sessionId;
+    if (!resolvedSessionId && details.topupId) {
+      const { data: byTopup } = await supabase
+        .from("paymongo_topups")
+        .select("checkout_session_id")
+        .eq("topup_id", details.topupId)
+        .maybeSingle();
+      resolvedSessionId = byTopup?.checkout_session_id || null;
+    }
+
+    if (!resolvedSessionId) {
+      // Nothing here identifies one of our top-ups. One PayMongo account can
+      // serve several businesses, and every webhook on that account receives
+      // every payment — so a payment that is not ours is acknowledged quietly
+      // instead of paging an admin on every sale somewhere else.
+      // We only raise a warning when the event carries OUR top-up marker and
+      // still cannot be matched, because that means one of our own payments is
+      // genuinely unaccounted for.
+      if (details.topupId) {
+        await sendAdminAlert({
+          title: `${testTag}⚠️ PayMongo webhook: unknown top-up`,
+          message: `Event ${eventId} (${eventType}) carried our top-up id ${details.topupId} but no matching row was found.`,
+        });
+      }
       return NextResponse.json({ received: true });
     }
 
     // Captured here so the narrowing survives into the after() closure below.
-    const sessionId = details.sessionId;
+    const sessionId: string = resolvedSessionId;
 
     if (details.paidCentavos === null) {
       await sendAdminAlert({
         title: `${testTag}⚠️ PayMongo webhook: missing amount`,
-        message: `Paid event ${eventId} for session ${details.sessionId} had no amount, so it was not credited.`,
+        message: `Paid event ${eventId} for session ${sessionId} had no amount, so it was not credited.`,
       });
       return NextResponse.json({ received: true });
     }
@@ -117,7 +141,7 @@ export async function POST(req: NextRequest) {
     // The RPC locks the row, checks idempotency and the amount, flips the
     // order, credits the wallet and marks the top-up approved — all or nothing.
     const { data, error } = await supabase.rpc("confirm_paymongo_topup", {
-      p_checkout_session_id: details.sessionId,
+      p_checkout_session_id: sessionId,
       p_event_id: eventId,
       p_centavos: details.paidCentavos,
       p_method: details.method,
@@ -140,14 +164,14 @@ export async function POST(req: NextRequest) {
       const { data: pmRow } = await supabase
         .from("paymongo_topups")
         .select("status, amount_centavos, email")
-        .eq("checkout_session_id", details.sessionId)
+        .eq("checkout_session_id", sessionId)
         .maybeSingle();
 
       if (pmRow?.status === "amount_mismatch") {
         await sendAdminAlert({
           title: `${testTag}🚨 PayMongo amount mismatch`,
           message:
-            `Session ${details.sessionId} paid ${details.paidCentavos} centavos but expected ` +
+            `Session ${sessionId} paid ${details.paidCentavos} centavos but expected ` +
             `${pmRow.amount_centavos} centavos (${pmRow.email}). The wallet was NOT credited. ` +
             `Check the PayMongo dashboard before acting.`,
         });
@@ -194,7 +218,7 @@ export async function POST(req: NextRequest) {
             paymongo_payment_id: details.paymentId,
             paymongo_event_id: eventId,
           })
-          .eq("checkout_session_id", details.sessionId);
+          .eq("checkout_session_id", sessionId);
       }, "paymongo payment sync");
 
       if (customerId && amount) {
@@ -216,7 +240,7 @@ export async function POST(req: NextRequest) {
           title: `${testTag}✅ PayMongo top-up paid`,
           message:
             `A PayMongo wallet top-up was paid and credited automatically.\n` +
-            `Session: ${details.sessionId}\n` +
+            `Session: ${sessionId}\n` +
             `Method: ${details.method || "unknown"}\n` +
             `Amount: ₱${Number(amount ?? 0).toFixed(2)}\n` +
             `Top-up: ${topupId || "n/a"}`,

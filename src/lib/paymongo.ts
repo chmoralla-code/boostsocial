@@ -172,7 +172,18 @@ export type PaymongoPaidDetails = {
   paidCentavos: number | null;
   paymentId: string | null;
   method: string | null;
+  /**
+   * Our own marker, read from the payment/session metadata. A `payment.paid`
+   * event carries no checkout session id of its own, so this is how its top-up
+   * row is still found — and how a payment belonging to another business on
+   * the same PayMongo account is told apart from ours.
+   */
+  topupId: string | null;
 };
+
+// A top-up id is always a UUID. Anything else in the metadata is not ours.
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export function extractPaidDetails(event: any): PaymongoPaidDetails {
   const attributes = event?.data?.attributes || {};
@@ -190,6 +201,18 @@ export function extractPaidDetails(event: any): PaymongoPaidDetails {
     resourceAttributes.reference_number ||
     resource?.reference_number ||
     null;
+
+  // The top-up id rides in the metadata we set when creating the session, so
+  // it is present on both the session resource and the payment resource.
+  const metadata =
+    resourceAttributes.metadata && typeof resourceAttributes.metadata === "object"
+      ? resourceAttributes.metadata
+      : resource?.metadata && typeof resource.metadata === "object"
+        ? resource.metadata
+        : {};
+  const candidateTopupId =
+    typeof metadata.topup_id === "string" ? metadata.topup_id : "";
+  const topupId = UUID_PATTERN.test(candidateTopupId) ? candidateTopupId : null;
 
   const payments: any[] = Array.isArray(resourceAttributes.payments)
     ? resourceAttributes.payments
@@ -211,8 +234,16 @@ export function extractPaidDetails(event: any): PaymongoPaidDetails {
   const method =
     payment?.attributes?.source?.type ||
     payment?.attributes?.payment_method_used ||
+    resourceAttributes?.source?.type ||
     resourceAttributes?.payment_method_used ||
     null;
 
-  return { sessionId, referenceNumber, paidCentavos, paymentId, method };
+  return {
+    sessionId,
+    referenceNumber,
+    paidCentavos,
+    paymentId,
+    method,
+    topupId,
+  };
 }
