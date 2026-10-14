@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { X, Loader2, Wallet, CheckCircle } from "lucide-react";
+import { createClient } from "@/utils/supabase/client";
+import { TOPUP_BASELINE_KEY } from "./TopUpReturnWatcher";
 
 export function TopUpModal({
   isOpen,
@@ -15,6 +17,7 @@ export function TopUpModal({
   const [amount, setAmount] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const supabase = useMemo(() => createClient(), []);
   // null = still checking, true = ready, false = gateway not configured.
   const [paymongoConfigured, setPaymongoConfigured] = useState<boolean | null>(null);
 
@@ -57,6 +60,27 @@ export function TopUpModal({
 
       if (!res.ok || !data.checkoutUrl) {
         throw new Error(data.error || "Could not start the PayMongo checkout.");
+      }
+
+      // Remember the balance BEFORE paying, so the return page can tell the
+      // customer the truth about what was credited instead of guessing.
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (user) {
+          const { data: row } = await supabase
+            .from("profiles")
+            .select("balance")
+            .eq("id", user.id)
+            .single();
+          const current = Number(row?.balance ?? NaN);
+          if (Number.isFinite(current)) {
+            window.sessionStorage.setItem(TOPUP_BASELINE_KEY, String(current));
+          }
+        }
+      } catch {
+        // Not worth blocking a payment over - the return page just says less.
       }
 
       // Hand off to PayMongo's own page. The wallet is credited by the

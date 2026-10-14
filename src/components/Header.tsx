@@ -158,7 +158,9 @@ export function Header() {
 
         {/* Shop nav: one weight for every link, one clear call to action. */}
         <nav className="hidden min-w-0 flex-1 items-center justify-center gap-x-0.5 md:flex lg:gap-x-1 font-semibold text-sm">
-          <Link href="/quick-start" className="nav-underline rounded-full px-3 py-2 text-muted transition-colors hover:text-fg whitespace-nowrap">Quick Start</Link>
+          {!user && (
+            <Link href="/quick-start" className="nav-underline rounded-full px-3 py-2 text-muted transition-colors hover:text-fg whitespace-nowrap">Quick Start</Link>
+          )}
           <Link href="/services" className="nav-underline rounded-full px-3 py-2 text-muted transition-colors hover:text-fg whitespace-nowrap">Services</Link>
           <Link href="/track" className="nav-underline hidden rounded-full px-3 py-2 text-muted transition-colors hover:text-fg whitespace-nowrap lg:inline-flex">Status Tracker</Link>
           {!user && (
@@ -369,13 +371,15 @@ export function Header() {
               )}
             </div>
             <nav className="flex flex-col px-4 py-3 gap-1">
-              <Link 
-                href="/quick-start" 
-                onClick={() => setShowMobileMenu(false)}
-                className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-primary hover:bg-primary/10 transition-colors"
-              >
-                Quick Start
-              </Link>
+              {!user && (
+                <Link 
+                  href="/quick-start" 
+                  onClick={() => setShowMobileMenu(false)}
+                  className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-primary hover:bg-primary/10 transition-colors"
+                >
+                  Quick Start
+                </Link>
+              )}
               <Link 
                 href="/order-page" 
                 onClick={() => setShowMobileMenu(false)}

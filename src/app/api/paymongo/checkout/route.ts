@@ -2,6 +2,7 @@ import { after, NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createClient as createServerClient } from "@/utils/supabase/server";
 import { enforceRateLimit } from "@/utils/security/rate-limit";
+import { dualWrite } from "@/utils/supabase/dual-db";
 import {
   createCheckoutSession,
   isPaymongoConfigured,
@@ -14,6 +15,13 @@ export const runtime = "nodejs";
 // rails cannot drift apart and let a tiny or huge top-up through one door only.
 const MIN_TOPUP = 50;
 const MAX_TOPUP = 50000;
+
+// The Android app appends this marker to its user agent (capacitor.config.ts).
+// It decides where PayMongo sends the customer back to.
+function isClientApp(req: NextRequest) {
+  const userAgent = req.headers.get("user-agent") || "";
+  return userAgent.includes("PinoyBoostingClientApp");
+}
 
 function getSiteUrl(req: NextRequest) {
   const configured =
@@ -91,25 +99,53 @@ export async function POST(req: NextRequest) {
     // Create the pending top-up FIRST. Admin already understands this row, so
     // the moment PayMongo confirms, the wallet is credited through the same
     // path as a manually approved GCash top-up.
-    const { data: topup, error: topupError } = await supabase
-      .from("topups")
-      .insert([
-        {
-          user_id: user.id,
-          email: user.email,
-          amount: normalizedAmount,
-          payment_method: "PayMongo",
-          status: "pending",
-        },
-      ])
-      .select()
-      .single();
+    //
+    // Written through dualWrite so the row lands on the DigitalOcean master as
+    // well as Supabase. Writing to Supabase alone left the master without the
+    // row, and since the admin top-ups page reads the master first, a PayMongo
+    // top-up could be invisible there.
+    //
+    // The id is generated HERE, not left to each database's default, so both
+    // sides store the SAME row id. Without that the webhook would credit one
+    // database's row while the other kept a different one, and the top-up the
+    // customer sees would never match the one the gateway confirmed.
+    const topupId = crypto.randomUUID();
+
+    const { data: topup, error: topupError } = await dualWrite(async (client) => {
+      return client
+        .from("topups")
+        .insert([
+          {
+            id: topupId,
+            user_id: user.id,
+            email: user.email,
+            amount: normalizedAmount,
+            payment_method: "PayMongo",
+            status: "pending",
+          },
+        ])
+        .select()
+        .single();
+    });
 
     if (topupError || !topup) {
       throw topupError || new Error("Could not create the top-up row");
     }
 
     const siteUrl = getSiteUrl(req);
+
+    // Where PayMongo returns the customer.
+    //
+    // On the website they go back to the MAIN site, not the /app area: the
+    // wallet pill sits in the main header, and TopUpReturnWatcher shows the
+    // "payment received" notice there and refreshes that balance. Returning to
+    // /app/profile dropped website customers into the app-style pages they
+    // never opened.
+    //
+    // Inside the Android app they stay on /app/profile, which has its own
+    // poller - sending the app to the public site would push the customer out
+    // of the app shell.
+    const returnPath = isClientApp(req) ? "/app/profile" : "/";
 
     let session;
     try {
@@ -122,13 +158,15 @@ export async function POST(req: NextRequest) {
           user_id: user.id,
           email: user.email,
         },
-        successUrl: `${siteUrl}/app/profile?topup=processing`,
-        cancelUrl: `${siteUrl}/app/profile?topup=cancelled`,
+        successUrl: `${siteUrl}${returnPath}?topup=processing`,
+        cancelUrl: `${siteUrl}${returnPath}?topup=cancelled`,
         idempotencyKey: topup.id,
       });
     } catch (sessionError: any) {
       // Do not leave a dangling pending top-up if the gateway refused.
-      await supabase.from("topups").delete().eq("id", topup.id);
+      await dualWrite(async (client) => {
+        return client.from("topups").delete().eq("id", topup.id);
+      });
       throw sessionError;
     }
 
@@ -147,7 +185,9 @@ export async function POST(req: NextRequest) {
       ]);
 
     if (linkError) {
-      await supabase.from("topups").delete().eq("id", topup.id);
+      await dualWrite(async (client) => {
+        return client.from("topups").delete().eq("id", topup.id);
+      });
       throw linkError;
     }
 

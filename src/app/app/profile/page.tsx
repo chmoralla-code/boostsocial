@@ -25,6 +25,7 @@ import {
 import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/utils/supabase/client";
 import { getActiveVipPlan } from "@/utils/vip";
+import { TOPUP_BASELINE_KEY } from "@/components/TopUpReturnWatcher";
 
 type AppProfile = {
   id: string;
@@ -143,10 +144,12 @@ export default function AppProfilePage() {
     };
   }, [loadProfile, supabase.auth]);
 
-  // PayMongo returns here as /app/profile?topup=processing. The wallet is
+  // Inside the Android app PayMongo returns here as
+  // /app/profile?topup=processing. The wallet is
   // credited by the webhook, which can land a moment AFTER this page loads - so
   // poll briefly rather than showing the old balance and letting the customer
-  // think their payment failed.
+  // think their payment failed. (The website returns to / instead, where
+  // TopUpReturnWatcher does the same job.)
   useEffect(() => {
     if (typeof window === "undefined") return;
     const state = new URLSearchParams(window.location.search).get("topup");
@@ -319,6 +322,27 @@ export default function AppProfilePage() {
 
       if (!res.ok || !data.checkoutUrl) {
         throw new Error(data.error || "Could not start the payment.");
+      }
+
+      // Remember the balance BEFORE paying, so the return page can tell the
+      // customer the truth about what was credited instead of guessing.
+      try {
+        const {
+          data: { user: currentUser },
+        } = await supabase.auth.getUser();
+        if (currentUser) {
+          const { data: row } = await supabase
+            .from("profiles")
+            .select("balance")
+            .eq("id", currentUser.id)
+            .single();
+          const current = Number(row?.balance ?? NaN);
+          if (Number.isFinite(current)) {
+            window.sessionStorage.setItem(TOPUP_BASELINE_KEY, String(current));
+          }
+        }
+      } catch {
+        // Not worth blocking a payment over - the return page just says less.
       }
 
       // Hand off to PayMongo's own page. The wallet is credited by the

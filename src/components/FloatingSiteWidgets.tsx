@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { Chathead } from "@/components/Chathead";
 import { LiveOrderTicker } from "@/components/LiveOrderTicker";
 import { AnnouncementModal } from "@/components/AnnouncementModal";
+import { TopUpReturnWatcher } from "@/components/TopUpReturnWatcher";
 import { useWidgetVisibility } from "@/hooks/useWidgetVisibility";
 
 function isAdminSurface(pathname: string) {
@@ -22,6 +23,8 @@ export function FloatingSiteWidgets() {
     <>
       {visibility.chathead && <Chathead />}
       <AnnouncementModal />
+      {/* Public pages only: the app area has its own poller on /app/profile. */}
+      <TopUpReturnWatcher />
       {visibility.liveTicker && <LiveOrderTicker />}
     </>
   );
