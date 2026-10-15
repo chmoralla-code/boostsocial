@@ -2,3 +2,7 @@ android/
 android-shell/
 qa/
 dev-server*.log
+promo-video/
+.next/
+.hormachuelos/
+supabase/.temp/
