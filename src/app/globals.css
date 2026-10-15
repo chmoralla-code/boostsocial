@@ -153,11 +153,18 @@ a, button, input, textarea, select, label, [data-theme-transition] {
     animation: none !important;
     text-shadow: 0 0 20px rgba(255, 255, 255, 0.25) !important;
   }
+  /* Re-state the clip and fill: the `background` shorthand above resets
+     background-clip to border-box, which painted a solid block where the
+     headline should be. */
   [data-theme="light"] .spotify-shimmer-text {
     background: #3f3f46 !important;
+    -webkit-background-clip: text !important;
+    -webkit-text-fill-color: transparent !important;
   }
   [data-theme="light"] .fb-shimmer-text {
     background: #18181b !important;
+    -webkit-background-clip: text !important;
+    -webkit-text-fill-color: transparent !important;
   }
 
   /* Hero video: kill the filter+opacity repaints, just fade in once */
