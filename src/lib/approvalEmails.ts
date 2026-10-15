@@ -234,10 +234,10 @@ export async function sendOrderPlacedEmail(input: OrderPlacedEmailInput) {
     ``,
     isGcash
       ? [
-          `To complete payment, send the total to our GCash:`,
-          `09505339963 • Henry S.`,
-          `Then upload your receipt on the tracking page:`,
-          `${site}/track?id=${encodeURIComponent(trackingId)}`,
+          `This order is still waiting for payment.`,
+          `Top up your wallet (PayMongo: GCash, Maya and more), then pay the order from your balance:`,
+          `${site}/app/profile`,
+          `Once paid, the order moves to Processing automatically - no waiting for approval.`,
         ].join("\n")
       : `Your wallet payment was applied — your order is now processing.`,
     ``,
@@ -257,9 +257,10 @@ export async function sendOrderPlacedEmail(input: OrderPlacedEmailInput) {
       ${
         isGcash
           ? `<p style="margin:20px 0;padding:14px;border-radius:10px;background:#f4f4f5;border:1px solid #e4e4e7">
-               <strong>Complete your payment</strong><br/>
-               GCash: <strong>09505339963</strong> • Henry S.<br/>
-               <span style="font-size:13px;color:#555">Then upload your receipt on the tracking page — your order starts once payment is verified.</span>
+               <strong>This order is still waiting for payment</strong><br/>
+               Top up your wallet with our automated PayMongo checkout (GCash, Maya and more), then pay the order from your balance.<br/>
+               <a href="${escapeHtml(site)}/app/profile">Top up my wallet</a><br/>
+               <span style="font-size:13px;color:#555">Once paid, the order moves to Processing automatically - no waiting for approval.</span>
              </p>`
           : `<p style="margin:20px 0;padding:14px;border-radius:10px;background:#ecfdf5;border:1px solid #a7f3d0">Wallet payment applied — your order is now processing.</p>`
       }

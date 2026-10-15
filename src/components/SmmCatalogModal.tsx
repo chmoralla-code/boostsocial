@@ -123,14 +123,14 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
   const [orderId, setOrderId] = useState("");
   const [isWalletPayment, setIsWalletPayment] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [smmBalance, setSmmBalance] = useState<number>(100);
+  const [providerFunded, setProviderFunded] = useState(true);
   const [showTopUp, setShowTopUp] = useState(false);
 
   useEffect(() => {
     if (checkoutStep === "success") {
       fetch("/api/smm/balance")
         .then((res) => res.json())
-        .then((data) => setSmmBalance(data.balance))
+        .then((data) => setProviderFunded(data.funded !== false))
         .catch(() => {});
     }
   }, [checkoutStep]);
@@ -999,7 +999,7 @@ export function SmmCatalogModal({ isOpen, onClose, prefilledSearch }: SmmCatalog
                   <p>
                     We have securely deducted <strong className="text-fg">₱{formatPrice(payableTotal)} PHP</strong> from your internal wallet balance.
                   </p>
-                  {smmBalance <= 0 ? (
+                  {!providerFunded ? (
                     <p className="text-[10px] text-[#ff9800] font-bold mt-1.5 leading-relaxed">
                       ⚠️ **Queue Notice:** Due to a high volume of active campaigns, this order is currently queued and will be fully processed and completed within 24 hours.
                     </p>

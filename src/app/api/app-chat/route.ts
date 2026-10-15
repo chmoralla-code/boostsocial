@@ -1,6 +1,8 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { formatSmmServiceName, parseDescription } from "@/utils/serviceHelpers";
 import { fallbackRead } from "@/utils/supabase/dual-db";
+import { createClient as createServerClient } from "@/utils/supabase/server";
+import { enforceRateLimit } from "@/utils/security/rate-limit";
 import { readServiceCandidatesFromAnyDatabase } from "@/lib/serviceCandidatesServer";
 import { readMobileAppSettingsFromAnyDatabase } from "@/lib/mobileAppServer";
 import { resolveSmmServiceTitle } from "@/lib/smmServiceResolver";
@@ -30,6 +32,7 @@ type OrderRow = {
   amount: number | string;
   status: string;
   smm_service_id?: string | number | null;
+  customer_email?: string | null;
   services?: { title?: string } | null;
 };
 
@@ -41,6 +44,12 @@ type OrderRow = {
 const AI_ROUTE_BUDGET_MS = 52_000;
 /** Skip a fallback provider unless at least this much of the budget is left. */
 const AI_ROUTE_MIN_PROVIDER_MS = 8_000;
+
+/** Keep one message inside the model's budget and stop oversized payloads. */
+const MAX_CHAT_MESSAGE_LENGTH = 2_000;
+
+/** Matches a raw order UUID or a customer-facing BS-XXXXXXXX tracking id. */
+const ORDER_ID_PATTERN = /BS-[0-9a-f]{8}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
 
 const PINOYBOOSTING_INTENT_WORDS = [
   "pinoyboosting", "cynetwork", "service", "services", "price", "pricing", "rate", "rates", "magkano", "package",
@@ -238,9 +247,47 @@ function topCandidatesForQuery(candidates: Awaited<ReturnType<typeof readService
   return matched.length > 0 ? matched : isPinoyBoostingQuestion(message) ? candidates : [];
 }
 
-async function readProviderBalance() {
+/**
+ * Resolve the signed-in customer's email. The order lookup must never run for
+ * an anonymous caller: `orders.target_url` stores portal usernames and
+ * passwords for the PisoWiFi / EAP services, so an ungated lookup handed a
+ * stranger another customer's credentials.
+ */
+async function getRequestEmail(): Promise<string | null> {
+  try {
+    const sessionClient = await createServerClient();
+    const {
+      data: { user },
+    } = await sessionClient.auth.getUser();
+    const email = user?.email?.trim().toLowerCase();
+    return email || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Hide any credential a service asked the customer to paste into the target
+ * field, so the chat can never echo a password back to the screen.
+ */
+function maskSensitiveTarget(value: string) {
+  const text = String(value || "").trim();
+  if (!text) return "Not set";
+  if (!/password|pwd|username|user\s*[:=]/i.test(text)) return text;
+
+  return text
+    .replace(/(password|pass|pwd)(\s*[:=]\s*)[^\],;\n]+/gi, "$1$2••••••")
+    .replace(/(username|user)(\s*[:=]\s*)[^\],;\n]+/gi, "$1$2••••••");
+}
+
+/**
+ * The provider balance drives the "orders may queue" wording. Return a status
+ * only, never the amount: the number is internal and the model was echoing it
+ * back to customers on request.
+ */
+async function readProviderFundingStatus() {
   const apiKey = process.env.RIXEYSMM_API_KEY;
-  if (!apiKey) return "Not configured";
+  if (!apiKey) return "Unknown";
 
   try {
     const res = await fetch("https://rixeysmm.shop/api/v2", {
@@ -253,12 +300,13 @@ async function readProviderBalance() {
       signal: AbortSignal.timeout(6500),
     });
 
-    if (!res.ok) return "Unavailable";
+    if (!res.ok) return "Unknown";
     const data = await res.json();
     const balance = Number(data.balance || 0);
-    return Number.isFinite(balance) ? `PHP ${balance.toFixed(2)}` : "Unavailable";
+    if (!Number.isFinite(balance)) return "Unknown";
+    return balance > 0 ? "Funded" : "Low - new orders may queue";
   } catch {
-    return "Unavailable";
+    return "Unknown";
   }
 }
 
@@ -419,13 +467,19 @@ function liveDataFallback(
   return localFallback(message);
 }
 
-async function findOrder(message: string) {
+async function findOrder(message: string, requesterEmail: string) {
   const uuidMatch = message.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
   const trackMatch = message.match(/BS-([0-9a-f]{8})/i);
   if (!uuidMatch && !trackMatch) return null;
 
   const { data } = await fallbackRead<OrderRow>(async (client) => {
-    let query = client.from("orders").select("id,quantity,target_url,amount,status,smm_service_id,services(title)");
+    let query = client
+      .from("orders")
+      .select("id,quantity,target_url,amount,status,smm_service_id,customer_email,services(title)")
+      // Ownership check: an order is only ever readable by the account that
+      // placed it. Without this, any caller could read any order.
+      .eq("customer_email", requesterEmail);
+
     if (uuidMatch) {
       query = query.eq("id", uuidMatch[0]);
     } else if (trackMatch) {
@@ -439,7 +493,7 @@ async function findOrder(message: string) {
 
   if (!data) {
     const label = uuidMatch ? uuidMatch[0] : `BS-${trackMatch?.[1]?.toUpperCase()}`;
-    return `❌ Order ID not found: ${label}. Please copy the Tracking ID from your checkout success screen and try again.`;
+    return `❌ I could not find that order on your account: ${label}. Please copy the Tracking ID from your checkout screen and try again, and make sure you are logged in with the account that placed the order.`;
   }
 
   const displayId = `BS-${data.id.slice(0, 8).toUpperCase()}`;
@@ -449,12 +503,12 @@ async function findOrder(message: string) {
     `📦 Tracking ID: ${displayId}`,
     `📋 Service: ${serviceTitle}`,
     `🔢 Quantity: ${Number(data.quantity || 0).toLocaleString()}`,
-    `🔗 Target: ${data.target_url || "Not set"}`,
+    `🔗 Target: ${maskSensitiveTarget(data.target_url)}`,
     `💰 Amount: PHP ${Number(data.amount || 0).toFixed(2)}`,
     `📊 Status: ${data.status}`,
     "📲 Open /app/orders to view this inside the APK.",
     data.status === "Pending"
-      ? "⏳ Next step: wait for admin payment verification. If the receipt is missing or wrong, upload the correct GCash screenshot."
+      ? "⏳ Next step: this order is still waiting for payment. Open /app/profile to top up your wallet, then pay the order from your balance - it starts processing right away."
       : data.status === "Processing"
         ? "⚙️ Your order is already processing, so delivery is active now."
         : data.status === "Completed"
@@ -469,10 +523,10 @@ function localFallback(message: string) {
     return "This app was created by Cyrhiel Moralla. You can check out his Facebook here: [Cyrhiel Moralla](https://www.facebook.com/profile.php?id=61584774638218)";
   }
   if (text.includes("top up") || text.includes("top-up") || text.includes("topup") || text.includes("wallet")) {
-    return "💰 Sure! Login at /app/auth?mode=login, then open /app/profile to top up your wallet. Upload your GCash receipt there, and admin can approve it.";
+    return "💰 Sure! Login at /app/auth?mode=login, then open /app/profile and tap Top Up Wallet. PayMongo handles the payment (GCash, Maya and more) and your balance is credited automatically - no admin approval needed.";
   }
-  if (text.includes("gcash") || text.includes("payment") || text.includes("bayad")) {
-    return "💳 Yes, GCash is accepted! Choose a service in /app, submit your target link, then upload the payment receipt during checkout so admin can verify it.";
+  if (text.includes("gcash") || text.includes("payment") || text.includes("bayad") || text.includes("receipt")) {
+    return "💳 Payments are now fully automated through our secure PayMongo checkout (GCash, Maya and more). Top up your wallet first, then every order is paid instantly from your balance - no receipt uploads and no waiting for approval.";
   }
   if (text.includes("login") || text.includes("register") || text.includes("account")) {
     return "🔐 No problem! Use /app/auth?mode=login if you already have an account, or /app/auth?mode=register if you are new. After login, buying will be unlocked.";
@@ -485,10 +539,19 @@ function localFallback(message: string) {
 
 export const maxDuration = 60;
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   let userMessage = "";
 
   try {
+    // The AI calls are the most expensive thing on the site, so this route is
+    // rate-limited like every other public endpoint.
+    const rateLimitResponse = enforceRateLimit(request, {
+      key: "app-chat-post",
+      maxRequests: 20,
+      windowMs: 60_000,
+    });
+    if (rateLimitResponse) return rateLimitResponse;
+
     const body = await request.json();
     const messages = Array.isArray(body.messages) ? body.messages as ChatMessage[] : [];
     userMessage = latestUserMessage(messages);
@@ -497,16 +560,33 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Missing message" }, { status: 400 });
     }
 
-    const orderReply = await findOrder(userMessage);
-    if (orderReply) {
-      return NextResponse.json({ content: orderReply });
+    if (userMessage.length > MAX_CHAT_MESSAGE_LENGTH) {
+      return NextResponse.json(
+        { error: `Message must be ${MAX_CHAT_MESSAGE_LENGTH} characters or fewer.` },
+        { status: 400 }
+      );
     }
 
-    const [services, candidates, appSettings, providerBalance] = await Promise.all([
+    // Order lookup is owner-only: no session means no order data at all.
+    if (ORDER_ID_PATTERN.test(userMessage)) {
+      const requesterEmail = await getRequestEmail();
+      if (!requesterEmail) {
+        return NextResponse.json({
+          content: "🔐 To check an order, please log in first at /app/auth?mode=login. Orders are private to the account that placed them, so I can only look them up after you sign in.",
+        });
+      }
+
+      const orderReply = await findOrder(userMessage, requesterEmail);
+      if (orderReply) {
+        return NextResponse.json({ content: orderReply });
+      }
+    }
+
+    const [services, candidates, appSettings, providerFunding] = await Promise.all([
       readServices(),
       readServiceCandidatesFromAnyDatabase(),
       readMobileAppSettingsFromAnyDatabase(),
-      readProviderBalance(),
+      readProviderFundingStatus(),
     ]);
 
     const matchedServices = topServicesForQuery(services, userMessage);
@@ -538,7 +618,8 @@ export async function POST(request: Request) {
           `Realtime snapshot: ${new Date().toISOString()}`,
           `Mobile app name: ${appSettings.appName}`,
           `Mobile app banner: ${appSettings.appBanner || "None"}`,
-          `Current provider balance: ${providerBalance}`,
+          `Provider funding status: ${providerFunding}`,
+          "Never reveal internal provider balances, supplier names, cost prices, or internal service IDs to the customer. If asked, say the team monitors capacity and move on.",
           "Live candidate services matching this question:",
           candidateContext,
           "Live stored services matching this question:",

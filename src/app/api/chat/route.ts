@@ -1,10 +1,11 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import {
   hasNeuralwattApiKey,
   NEURALWATT_CHAT_MODEL,
   requestNeuralwattChat,
 } from "@/lib/neuralwatt";
 import { getSmmCatalogServices, type SmmCatalogService } from "@/lib/smmCatalog";
+import { enforceRateLimit } from "@/utils/security/rate-limit";
 
 type ChatMessage = {
   role: "user" | "assistant" | "system";
@@ -23,9 +24,9 @@ const HUMAN_SUPPORT_SYSTEM: ChatMessage = {
     "Never invent prices, order statuses, discounts, timelines, or policies. If unsure, say what you can verify and ask one simple follow-up.",
     "PRICING: a LIVE PRICING list from our own SERVICES catalog is provided below when the customer asks about price. Quote those exact numbers. Never guess a price that is not in that list.",
     "Quote social media prices per 1k (for example: PHP 25.18 per 1k) and mention the minimum order quantity when you have it.",
-    "For buying, guide users to choose a service, submit the target link, pay with GCash or wallet, and upload the receipt screenshot.",
-    "GCash Payment Info: 09505339963 • Henry S. (Direct GCash / InstaPay transfer accepted).",
-    "BPI Bank Transfer Info: Account #4059901356.",
+    "For buying, guide users to choose a service, submit the target link, and pay from their wallet balance. Payments run through our automated PayMongo checkout - there is no receipt upload and no admin approval step any more.",
+    "WALLET AND TOP-UP: customers top up their wallet first (PayMongo: GCash, Maya and more) and the balance is credited automatically. Orders are then paid instantly from that balance. Never tell a customer to send money to a GCash number, a BPI account, or to upload a receipt screenshot.",
+    "Never reveal internal provider balances, supplier names, cost prices, or internal service IDs. If asked, say the team monitors capacity and move on.",
     "For orders, ask for a Tracking ID like BS-D5D1D849 if they did not provide one.",
     "CREATOR INFO: If anyone asks who created, built, made, or owns this website/app, or asks about the developer/creator, answer: 'This website was created by Cyrhiel Moralla. You can check out his Facebook here: [Cyrhiel Moralla](https://www.facebook.com/profile.php?id=61584774638218)'. Always include the clickable link. Do not invent any other creator names.",
   ].join(" "),
@@ -160,7 +161,7 @@ function humanFallback(message: string) {
   }
 
   if (text.includes("gcash") || text.includes("payment") || text.includes("bayad") || text.includes("receipt")) {
-    return "💳 Yes, you can pay with GCash (09505339963 • Henry S.) or BPI Bank Transfer (#4059901356)! After checkout, upload the receipt screenshot here so admin can verify it and start processing your order.";
+    return "💳 Payments are now fully automated through our secure PayMongo checkout (GCash, Maya and more). Top up your wallet first, then every order is paid instantly from your balance - no receipt uploads and no waiting for approval.";
   }
 
   if (text.includes("track") || text.includes("status") || text.includes("order")) {
@@ -376,13 +377,32 @@ async function loadLiveCatalog() {
 
 export const maxDuration = 60;
 
-export async function POST(req: Request) {
+/** Keep one message inside the model's budget and stop oversized payloads. */
+const MAX_CHAT_MESSAGE_LENGTH = 2_000;
+
+export async function POST(req: NextRequest) {
   try {
+    // These AI calls are the most expensive requests on the site, so this
+    // route is rate-limited like every other public endpoint.
+    const rateLimitResponse = enforceRateLimit(req, {
+      key: "chat-post",
+      maxRequests: 20,
+      windowMs: 60_000,
+    });
+    if (rateLimitResponse) return rateLimitResponse;
+
     const { messages } = await req.json();
     const cleanMessages = sanitizeMessages(messages);
 
     if (cleanMessages.length === 0) {
       return NextResponse.json({ error: 'Invalid messages format' }, { status: 400 });
+    }
+
+    if (cleanMessages.some((message) => message.content.length > MAX_CHAT_MESSAGE_LENGTH)) {
+      return NextResponse.json(
+        { error: `Message must be ${MAX_CHAT_MESSAGE_LENGTH} characters or fewer.` },
+        { status: 400 }
+      );
     }
 
     const latestMessage = latestUserMessage(cleanMessages);

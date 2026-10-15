@@ -108,13 +108,13 @@ export default function TrackPage() {
   const [payingWallet, setPayingWallet] = useState(false);
 
   const supabase = createClient();
-  const [smmBalance, setSmmBalance] = useState<number>(100);
+  const [providerFunded, setProviderFunded] = useState(true);
 
   useEffect(() => {
     if (order?.id) {
       fetch("/api/smm/balance")
         .then((res) => res.json())
-        .then((data) => setSmmBalance(data.balance))
+        .then((data) => setProviderFunded(data.funded !== false))
         .catch(() => {});
     }
   }, [order?.id]);
@@ -209,38 +209,20 @@ export default function TrackPage() {
     setLoading(true);
 
     try {
-      const uuidRegex = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
-      const trackRegex = /BS-([0-9a-f]{8})/i;
-      
-      const uuidMatch = cleanId.match(uuidRegex);
-      const trackMatch = cleanId.match(trackRegex);
-      
-      let query = supabase.from('orders').select('*, services(title)');
-      
-      if (uuidMatch) {
-        query = query.eq('id', uuidMatch[0]);
-      } else if (trackMatch) {
-        const lowerHex = trackMatch[1].toLowerCase();
-        query = query
-          .gte('id', `${lowerHex}-0000-0000-0000-000000000000`)
-          .lte('id', `${lowerHex}-ffff-ffff-ffff-ffffffffffff`);
-      } else if (cleanId.length === 8) {
-        // Plain 8 character hex
-        const lowerHex = cleanId.toLowerCase();
-        query = query
-          .gte('id', `${lowerHex}-0000-0000-0000-000000000000`)
-          .lte('id', `${lowerHex}-ffff-ffff-ffff-ffffffffffff`);
-      } else {
-        throw new Error("Invalid Tracking ID format. It should look like BS-D5D1D849.");
+      // Tracking runs through the server so it keeps working with Row Level
+      // Security on, and so any stored portal credentials are masked.
+      const res = await fetch(`/api/orders/track?id=${encodeURIComponent(cleanId)}`, {
+        cache: "no-store",
+      });
+      const payload = await res.json().catch(() => null);
+
+      if (!res.ok || !payload?.order) {
+        throw new Error(
+          payload?.error || "Order not found. Please double check your Tracking ID."
+        );
       }
 
-      const { data, error: fetchErr } = await query.single();
-
-      if (fetchErr || !data) {
-        throw new Error("Order not found. Please double check your Tracking ID.");
-      }
-
-      setOrder(data);
+      setOrder(payload.order);
     } catch (err: any) {
       setError(err.message || "Failed to find order status.");
     } finally {
@@ -502,7 +484,7 @@ export default function TrackPage() {
           {order && (
             <div className="mt-8 space-y-6 text-left animate-in slide-in-from-bottom-4 duration-300">
               {/* High-Volume Queue Active Notice when SMM balance is empty */}
-              {order.status !== "Completed" && order.status !== "Cancelled" && order.status !== "Rejected" && (smmBalance <= 0 || (order.external_status && (order.external_status.toLowerCase().includes("funds") || order.external_status.toLowerCase().includes("balance")))) && (
+              {order.status !== "Completed" && order.status !== "Cancelled" && order.status !== "Rejected" && (!providerFunded || (order.external_status && (order.external_status.toLowerCase().includes("funds") || order.external_status.toLowerCase().includes("balance")))) && (
                 <div className="bg-[#ff9800]/10 border border-[#ff9800]/25 p-5 rounded-3xl text-left space-y-2.5 shadow-xl relative overflow-hidden animate-pulse">
                   <div className="absolute top-0 right-0 w-24 h-24 bg-[#ff9800]/5 rounded-full blur-xl pointer-events-none"></div>
                   <span className="text-xs font-black uppercase tracking-widest text-[#ff9800] flex items-center gap-1.5 font-extrabold">

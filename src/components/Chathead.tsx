@@ -894,19 +894,22 @@ Top up your wallet below, then tap **Buy Now** again — your order is placed in
       const trackMatch = userMsg.match(trackRegex);
       
       if (uuidMatch || trackMatch) {
-        let query = supabase.from('orders').select('*, services(title)');
-        if (uuidMatch) {
-          query = query.eq('id', uuidMatch[0]);
-        } else if (trackMatch) {
-          const lowerHex = trackMatch[1].toLowerCase();
-          query = query
-            .gte('id', `${lowerHex}-0000-0000-0000-000000000000`)
-            .lte('id', `${lowerHex}-ffff-ffff-ffff-ffffffffffff`);
+        // Served by /api/orders/track: requires no login (guest tracking is a
+        // real feature) but masks any credentials stored in the order, which
+        // this lookup used to print in full.
+        const ref = uuidMatch ? uuidMatch[0] : `BS-${trackMatch![1]}`;
+        let data: any = null;
+        try {
+          const res = await fetch(`/api/orders/track?id=${encodeURIComponent(ref)}`, {
+            cache: "no-store",
+          });
+          const payload = await res.json().catch(() => null);
+          if (res.ok && payload?.order) data = payload.order;
+        } catch {
+          data = null;
         }
 
-        const { data, error } = await query.single();
-
-        if (data && !error) {
+        if (data) {
           const displayId = `BS-${data.id.slice(0, 8).toUpperCase()}`;
           const reply = `🔍 **Order Status Details:**\n\n* **Tracking ID:** ${displayId}\n* **Service:** ${data.services?.title || "Boost Service"}\n* **Quantity:** ${data.quantity.toLocaleString()} units\n* **Target Link:** ${data.target_url}\n* **Amount:** ₱${Number(data.amount).toFixed(2)} PHP\n* **Status:** **${data.status}**\n\n${
             data.status === 'Pending' 

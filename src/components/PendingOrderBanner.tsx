@@ -132,23 +132,15 @@ export function PendingOrderBanner() {
       if (!cleanId) return;
 
       try {
-        let query = supabase.from("orders").select("*, services(title)");
+        // Served by /api/orders/track: works with RLS on, and masks any
+        // credentials stored in the order's target field.
+        const res = await fetch(`/api/orders/track?id=${encodeURIComponent(cleanId)}`, {
+          cache: "no-store",
+        });
+        const payload = await res.json().catch(() => null);
 
-        if (UUID_REGEX.test(cleanId)) {
-          query = query.eq("id", cleanId);
-        } else {
-          const trackMatch = cleanId.match(TRACK_REGEX);
-          const shortHex = trackMatch?.[1] || (/^[0-9a-f]{8}$/i.test(cleanId) ? cleanId : "");
-          if (!shortHex) return;
-
-          const lowerHex = shortHex.toLowerCase();
-          query = query
-            .gte("id", `${lowerHex}-0000-0000-0000-000000000000`)
-            .lte("id", `${lowerHex}-ffff-ffff-ffff-ffffffffffff`);
-        }
-
-        const { data, error } = await query.single();
-        if (!isMounted || error || !data) return;
+        const data = payload?.order;
+        if (!isMounted || !res.ok || !data) return;
 
         const displayId = getDisplayId(data.id);
         setOrder(data);

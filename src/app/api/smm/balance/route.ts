@@ -1,25 +1,53 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { createClient as createServerClient } from "@/utils/supabase/server";
 import { getPrimaryAdminClient } from "@/utils/supabase/dual-db";
 import { notifyLowProviderBalanceIfNeeded } from "@/lib/providerBalanceMonitor";
+import { enforceRateLimit } from "@/utils/security/rate-limit";
 
 const RIXEYSMM_API_URL = "https://rixeysmm.shop/api/v2";
 
-export async function GET() {
-  const apiKey = process.env.RIXEYSMM_API_KEY?.replace(/['"\r\n]/g, "").trim();
-
-  // A missing key is not the same as an unfunded account. Keep `balance` at 0
-  // for existing callers but make the reason explicit so an unconfigured local
-  // environment doesn't look like a real zero balance in the admin UI.
-  if (!apiKey) {
-    return NextResponse.json({
-      balance: 0.0,
-      ok: false,
-      status: "missing_key",
-      error: "RIXEYSMM_API_KEY is not configured.",
-    });
-  }
-
+async function getRequestEmail(): Promise<string | null> {
   try {
+    const sessionClient = await createServerClient();
+    const {
+      data: { user },
+    } = await sessionClient.auth.getUser();
+    return user?.email?.trim().toLowerCase() || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Reports whether the provider account is funded, not how much is in it.
+ *
+ * The exact figure used to be returned to anyone who called this endpoint,
+ * which leaked our supplier float to competitors and made the chatbot quote it
+ * back to customers. The callers only ever needed the yes/no: it decides the
+ * "your order may be queued" notice on the checkout and track screens.
+ */
+export async function GET(req: NextRequest) {
+  try {
+    const rateLimitResponse = enforceRateLimit(req, {
+      key: "smm-balance-get",
+      maxRequests: 60,
+      windowMs: 60_000,
+    });
+    if (rateLimitResponse) return rateLimitResponse;
+
+    const requesterEmail = await getRequestEmail();
+    if (!requesterEmail) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const apiKey = process.env.RIXEYSMM_API_KEY?.replace(/['"\r\n]/g, "").trim();
+
+    // A missing key is not the same as an unfunded account, so report it as
+    // unknown rather than letting it read as a real zero balance.
+    if (!apiKey) {
+      return NextResponse.json({ funded: true, ok: false, status: "missing_key" });
+    }
+
     const res = await fetch(RIXEYSMM_API_URL, {
       method: "POST",
       headers: {
@@ -29,30 +57,23 @@ export async function GET() {
         key: apiKey,
         action: "balance",
       }),
+      signal: AbortSignal.timeout(8_000),
+      cache: "no-store",
     });
 
     if (!res.ok) {
       // The panel answers a bad key with HTTP 400 + {"error":"Invalid API key"}.
-      return NextResponse.json({
-        balance: 0.0,
-        ok: false,
-        status: "provider_error",
-        error: `RixeySMM returned HTTP ${res.status}. The API key is most likely missing, malformed or revoked.`,
-      });
+      return NextResponse.json({ funded: true, ok: false, status: "provider_error" });
     }
 
     const data = await res.json();
 
     if (data?.error) {
-      return NextResponse.json({
-        balance: 0.0,
-        ok: false,
-        status: "provider_error",
-        error: String(data.error),
-      });
+      return NextResponse.json({ funded: true, ok: false, status: "provider_error" });
     }
 
     const balance = Number(data.balance || 0);
+    const funded = !Number.isFinite(balance) || balance > 0;
 
     // Only alert on a balance we actually read from the provider.
     try {
@@ -61,14 +82,9 @@ export async function GET() {
       console.error("Provider balance monitor failed:", alertErr);
     }
 
-    return NextResponse.json({ balance, ok: true, status: "ok" });
+    return NextResponse.json({ funded, ok: true, status: "ok" });
   } catch (err) {
     console.error("Failed fetching SMM balance:", err);
-    return NextResponse.json({
-      balance: 0.0,
-      ok: false,
-      status: "network_error",
-      error: err instanceof Error ? err.message : String(err),
-    });
+    return NextResponse.json({ funded: true, ok: false, status: "network_error" });
   }
 }
