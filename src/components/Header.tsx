@@ -8,6 +8,7 @@ import { createClient } from "@/utils/supabase/client";
 import type { User } from "@supabase/supabase-js";
 import { format } from "date-fns";
 import { isVipActive } from "@/utils/vip";
+import { maskEncryptedValues } from "@/lib/orderTracking";
 import { TopUpModal } from "./TopUpModal";
 import { ReferralsModal } from "./ReferralsModal";
 
@@ -476,7 +477,7 @@ export function Header() {
                             <span className="text-primary">₱{Number(order.amount).toFixed(2)}</span>
                           </div>
                           <div className="text-[10px] text-muted truncate max-w-xs sm:max-w-md font-mono select-all">
-                            {order.target_url}
+                            {maskEncryptedValues(order.target_url).value}
                           </div>
                         </div>
 

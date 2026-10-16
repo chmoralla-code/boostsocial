@@ -9,6 +9,7 @@ import { resolveOrderPricing } from "@/lib/orderPricing";
 import { validatePromoCode, applyPromoToPrice, recordPromoRedemption } from "@/lib/promo";
 import { recordOrderEvent } from "@/lib/orderEvents";
 import { sendOrderPlacedEmail } from "@/lib/approvalEmails";
+import { encryptTargetUrlSecrets } from "@/lib/fieldCrypto";
 
 const MAX_TARGET_LENGTH = 7000;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -142,7 +143,10 @@ export async function POST(req: NextRequest) {
       service_id: pricing.serviceId,
       ...(serviceTitleAvailable ? { service_title: pricing.serviceTitle } : {}),
       customer_email: email,
-      target_url: targetUrl,
+      // Portal usernames/passwords a service asked for are sealed here, before
+      // the row is written to any database. The surrounding text (links, page
+      // specs, MAC addresses) is left exactly as the customer typed it.
+      target_url: encryptTargetUrlSecrets(targetUrl),
       amount: finalAmount,
       status: "Pending",
       payment_method: paymentMethod,

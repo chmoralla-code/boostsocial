@@ -38,6 +38,18 @@ const UUID_RE = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
 const TRACK_RE = /BS-([0-9a-f]{8})/i;
 
 /**
+ * Marks an encrypted credential value inside `orders.target_url`.
+ *
+ * Kept in this browser-safe module (and NOT in the module that holds the key)
+ * so a screen can recognise an envelope without being able to open it. The
+ * matching encrypt/decrypt lives in `@/lib/fieldCrypto`, which is server-only.
+ */
+export const ENCRYPTED_VALUE_PREFIX = "enc:v1:";
+
+/** The envelope itself, as it appears inside a bracketed field. */
+const ENCRYPTED_VALUE_RE = /enc:v1:[A-Za-z0-9_-]+/g;
+
+/**
  * Patterns that mean "a credential is stored in this text". Kept deliberately
  * broad: a false positive only hides a line the customer already knows, while a
  * false negative leaks someone's password.
@@ -58,14 +70,36 @@ export function containsCredentials(text: string): boolean {
 }
 
 /**
+ * Replaces every encrypted envelope with a readable placeholder.
+ *
+ * This is what a screen without the key shows: the label stays visible (so the
+ * admin knows a password IS on file) while the sealed value is hidden. Always
+ * runs before `redactCredentials`, so an envelope can never be printed raw.
+ */
+export function maskEncryptedValues(text: string): { value: string; hidden: boolean } {
+  if (!text) return { value: "", hidden: false };
+
+  let hidden = false;
+  const value = text.replace(ENCRYPTED_VALUE_RE, () => {
+    hidden = true;
+    return "•••••• (encrypted)";
+  });
+
+  return { value, hidden };
+}
+
+/**
  * Masks anything that looks like a stored credential, keeping the surrounding
  * text (e.g. the target link) readable.
  */
 export function redactCredentials(text: string): { value: string; hidden: boolean } {
   if (!text) return { value: "", hidden: false };
 
-  let hidden = false;
-  let value = text;
+  // Seal first: an envelope must never reach the screen even when its label is
+  // one the patterns below do not recognise.
+  const sealed = maskEncryptedValues(text);
+  let hidden = sealed.hidden;
+  let value = sealed.value;
 
   for (const re of CREDENTIAL_PATTERNS) {
     value = value.replace(re, (match) => {

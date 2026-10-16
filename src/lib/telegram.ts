@@ -4,6 +4,7 @@ import {
   getAnyTelegramConfig as getResilientAnyConfig,
 } from "@/lib/telegram-config";
 import { fallbackRead } from "@/utils/supabase/dual-db";
+import { decryptTargetUrlSecrets } from "@/lib/fieldCrypto";
 
 const ADMIN_ORDERS_URL = "https://pinoyboosting.com/admin/orders";
 const ADMIN_VIP_URL = "https://pinoyboosting.com/admin/vip";
@@ -15,6 +16,17 @@ function truncateTelegramCaption(caption: string) {
 function toTelegramUrl(value?: string) {
   const trimmed = String(value || "").trim();
   return /^https?:\/\//i.test(trimmed) ? trimmed : null;
+}
+
+/**
+ * Order details shown in an admin alert.
+ *
+ * Portal credentials are stored sealed, and the Telegram chat is the admin's
+ * own private channel, so the value is opened here. Alerts are the admin's
+ * fulfilment instructions - a wall of ciphertext would be useless.
+ */
+function alertDetails(value?: string) {
+  return decryptTargetUrlSecrets(String(value || ""));
 }
 
 async function getDbTelegramConfig(key: string): Promise<{ bot_token: string; chat_id: string } | null> {
@@ -72,7 +84,7 @@ export async function sendOrderNotification(order: {
       `🔢 *Quantity:* ${escape(order.quantity)}\n` +
       `💰 *Amount:* ₱${escape(order.amount.toFixed(2))}\n` +
       `💳 *Payment:* ${escape(order.paymentMethod)}\n` +
-      (order.details ? `📝 *Details:* ${escape(order.details.slice(0, 100))}\n` : "") +
+      (order.details ? `📝 *Details:* ${escape(alertDetails(order.details).slice(0, 100))}\n` : "") +
       `🕐 *Time:* ${escape(phTime)} PHT`;
 
     await fetch(`https://api.telegram.org/bot${config.bot_token}/sendMessage`, {
@@ -138,7 +150,7 @@ export async function sendOrderApprovalNotification(order: {
       `Payment: ${order.paymentMethod}\n` +
       (order.receiverName ? `Receiver: ${order.receiverName}\n` : "") +
       (order.referenceNumber ? `Ref No: ${order.referenceNumber}\n` : "") +
-      (order.details ? `Details: ${order.details.slice(0, 250)}\n` : "") +
+      (order.details ? `Details: ${alertDetails(order.details).slice(0, 250)}\n` : "") +
       `Time: ${phTime} PHT\n` +
       (autoApproved
         ? `\n${order.aiReason || "Receiver HE•••Y S. + unique Ref No. + amount matched."}\nStatus: Processing`
@@ -214,7 +226,7 @@ export async function sendOrderCompleteNotification(order: {
       `🔢 *Quantity:* ${escape(order.quantity)}\n` +
       `💰 *Amount:* ₱${escape(order.amount.toFixed(2))}\n` +
       `💳 *Payment:* ${escape(order.paymentMethod)}\n` +
-      (order.details ? `🔗 *Link:* ${escape(order.details)}\n` : "") +
+      (order.details ? `🔗 *Link:* ${escape(alertDetails(order.details))}\n` : "") +
       `🕐 *Completed At:* ${escape(phTime)} PHT`;
 
     await fetch(`https://api.telegram.org/bot${config.bot_token}/sendMessage`, {

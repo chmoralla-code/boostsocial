@@ -12,6 +12,7 @@ import { resolveOrderPricing } from "@/lib/orderPricing";
 import { validatePromoCode, applyPromoToPrice, recordPromoRedemption } from "@/lib/promo";
 import { recordOrderEvent } from "@/lib/orderEvents";
 import { sendOrderPlacedEmail } from "@/lib/approvalEmails";
+import { encryptTargetUrlSecrets } from "@/lib/fieldCrypto";
 
 type WalletProfile = {
   balance?: number | string | null;
@@ -194,13 +195,16 @@ export async function POST(req: NextRequest) {
     await ensureOrdersSchema();
     const serviceTitleAvailable = await hasServiceTitleColumn();
 
+    // Seal any portal credential the customer typed before it is stored.
+    const storedTargetUrl = encryptTargetUrlSecrets(String(url).trim());
+
     const { data: walletRows, error: walletRpcError } = await supabase.rpc("create_wallet_order", {
       p_user_id: userId,
       p_existing_order_id: existingOrderId || null,
       p_service_id: pricing.serviceId,
       p_service_title: serviceTitleAvailable ? pricing.serviceTitle : null,
       p_customer_email: String(email).trim(),
-      p_target_url: String(url).trim(),
+      p_target_url: storedTargetUrl,
       p_amount: cost,
       p_quantity: pricing.quantity,
       p_smm_service_id: pricing.smmServiceId,
@@ -256,7 +260,7 @@ export async function POST(req: NextRequest) {
               service_id: pricing.serviceId,
               ...(serviceTitleAvailable ? { service_title: pricing.serviceTitle } : {}),
               customer_email: String(email).trim(),
-              target_url: String(url).trim(),
+              target_url: storedTargetUrl,
               amount: cost,
               status: "Processing",
               payment_method: "Wallet",

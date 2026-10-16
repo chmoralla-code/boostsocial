@@ -7,6 +7,7 @@ import { ArrowLeft, ClipboardList, Copy, Home, Loader2, LogIn, RefreshCw, Rotate
 import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/utils/supabase/client";
 import { formatSmmServiceName } from "@/utils/serviceHelpers";
+import { maskEncryptedValues } from "@/lib/orderTracking";
 
 type AppOrder = {
   id: string;
@@ -595,7 +596,7 @@ export default function AppOrdersPage() {
                   <div className="rounded-3xl border border-zinc-200 bg-white p-4">
                     <p className="text-[10px] font-black uppercase tracking-wider text-zinc-400">Target / Details</p>
                     <p className="mt-2 break-words text-sm font-semibold leading-6 text-zinc-700">
-                      {selectedTransaction.order.target_url || "No target details were attached."}
+                      {maskEncryptedValues(selectedTransaction.order.target_url || "").value || "No target details were attached."}
                     </p>
                   </div>
 

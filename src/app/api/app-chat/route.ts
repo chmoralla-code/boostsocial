@@ -6,6 +6,7 @@ import { enforceRateLimit } from "@/utils/security/rate-limit";
 import { readServiceCandidatesFromAnyDatabase } from "@/lib/serviceCandidatesServer";
 import { readMobileAppSettingsFromAnyDatabase } from "@/lib/mobileAppServer";
 import { resolveSmmServiceTitle } from "@/lib/smmServiceResolver";
+import { maskEncryptedValues } from "@/lib/orderTracking";
 import {
   hasNeuralwattApiKey,
   NEURALWATT_CHAT_MODEL,
@@ -273,9 +274,13 @@ async function getRequestEmail(): Promise<string | null> {
 function maskSensitiveTarget(value: string) {
   const text = String(value || "").trim();
   if (!text) return "Not set";
-  if (!/password|pwd|username|user\s*[:=]/i.test(text)) return text;
 
-  return text
+  // A sealed credential is hidden whatever its label says, so an envelope can
+  // never be echoed to a customer even if the pattern below misses the field.
+  const sealed = maskEncryptedValues(text);
+  if (!/password|pwd|username|user\s*[:=]/i.test(sealed.value)) return sealed.value;
+
+  return sealed.value
     .replace(/(password|pass|pwd)(\s*[:=]\s*)[^\],;\n]+/gi, "$1$2••••••")
     .replace(/(username|user)(\s*[:=]\s*)[^\],;\n]+/gi, "$1$2••••••");
 }

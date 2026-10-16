@@ -3,6 +3,7 @@ import { fallbackRead } from "@/utils/supabase/dual-db";
 import { OrdersTable } from "./OrdersTable";
 import { ShoppingBag } from "lucide-react";
 import { enrichOrdersWithResolvedServiceTitles } from "@/lib/smmServiceResolver";
+import { decryptTargetUrlSecrets } from "@/lib/fieldCrypto";
 
 export default async function OrdersPage() {
   const { data: orders } = await fallbackRead(async (db) => {
@@ -41,7 +42,17 @@ export default async function OrdersPage() {
 
   const { data: files } = await serviceSupabase.storage.from('receipts').list();
   const receiptFiles = files?.map(f => f.name) || [];
-  const enrichedOrders = await enrichOrdersWithResolvedServiceTitles(orders || []);
+
+  // The admin is the person who fulfils these orders, so the portal username
+  // and password a customer stored sealed are opened for display here. This is
+  // a server component behind the admin login + PIN gate, so the key stays on
+  // the server and the opened values never reach the browser unsealed.
+  const openedOrders = (orders || []).map((order: { target_url?: string | null }) => ({
+    ...order,
+    target_url: decryptTargetUrlSecrets(String(order.target_url || "")),
+  }));
+
+  const enrichedOrders = await enrichOrdersWithResolvedServiceTitles(openedOrders);
 
   return (
     <div className="space-y-8 animate-in fade-in duration-300">

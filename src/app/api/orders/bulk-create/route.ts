@@ -12,6 +12,7 @@ import { sendOrderPlacedEmail } from "@/lib/approvalEmails";
 import { creditReferralCommission } from "@/utils/referrals";
 import { autoPlaceRixeyOrder } from "@/lib/rixeysmm";
 import { sendOrderNotification } from "@/lib/telegram";
+import { encryptTargetUrlSecrets } from "@/lib/fieldCrypto";
 
 const MAX_BULK_URLS = 50;
 const MAX_TARGET_LENGTH = 7000;
@@ -141,12 +142,14 @@ export async function POST(req: NextRequest) {
 
     for (const targetUrl of rawUrls) {
       const orderId = crypto.randomUUID();
+      // Seal any credential typed into a bulk row before it is stored.
+      const storedTargetUrl = encryptTargetUrlSecrets(targetUrl);
       const basePayload = {
         id: orderId,
         service_id: pricing.serviceId,
         ...(serviceTitleAvailable ? { service_title: pricing.serviceTitle } : {}),
         customer_email: email,
-        target_url: targetUrl,
+        target_url: storedTargetUrl,
         amount: perOrderCost,
         status: isWallet ? "Processing" : "Pending",
         payment_method: isWallet ? "Wallet" : "GCash",
@@ -168,7 +171,7 @@ export async function POST(req: NextRequest) {
           p_service_id: pricing.serviceId,
           p_service_title: serviceTitleAvailable ? pricing.serviceTitle : null,
           p_customer_email: email,
-          p_target_url: targetUrl,
+          p_target_url: storedTargetUrl,
           p_amount: perOrderCost,
           p_quantity: pricing.quantity,
           p_smm_service_id: pricing.smmServiceId,

@@ -6,6 +6,7 @@ import { syncBackupAdminClients } from "@/utils/supabase/dual-db";
 import { notifyCustomer } from "@/lib/customerNotifications";
 import { sendAdminAlert } from "@/lib/telegram";
 import { resolveSmmServiceTitle } from "@/lib/smmServiceResolver";
+import { decryptTargetUrlSecrets } from "@/lib/fieldCrypto";
 
 const MAX_ISSUE_LENGTH = 1200;
 const VALID_CATEGORIES = new Set([
@@ -131,7 +132,7 @@ export async function POST(req: NextRequest) {
         `Status: ${order.status}\n` +
         `Service: ${resolvedServiceTitle}\n` +
         `Amount: PHP ${Number(order.amount || 0).toFixed(2)}\n` +
-        `Target: ${order.target_url || "N/A"}\n\n` +
+        `Target: ${decryptTargetUrlSecrets(String(order.target_url || "")) || "N/A"}\n\n` +
         cleanMessage,
     }).catch((telegramErr) => {
       console.error("Issue report Telegram alert failed:", telegramErr);

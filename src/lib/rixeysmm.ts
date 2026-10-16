@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { parseDescription } from "@/utils/serviceHelpers";
 import { syncBackupAdminClients } from "@/utils/supabase/dual-db";
 import { recordOrderEvent } from "@/lib/orderEvents";
+import { decryptTargetUrlSecrets } from "@/lib/fieldCrypto";
 
 const RIXEYSMM_API_URL = "https://rixeysmm.shop/api/v2";
 const PROVIDER_FUNDING_QUEUE_STATUS =
@@ -221,8 +222,10 @@ export async function autoPlaceRixeyOrder(
       console.error("[RixeySMM] Provider balance preflight failed. Continuing to panel placement attempt:", balanceErr);
     }
 
-    // Clean up target URL if it has pre-made specs formatting (just in case)
-    let cleanUrl = targetUrl.trim();
+    // Clean up target URL if it has pre-made specs formatting (just in case).
+    // Stored portal credentials are sealed, so open them here: this is the one
+    // place the provider is called from, so every caller is covered at once.
+    let cleanUrl = decryptTargetUrlSecrets(targetUrl).trim();
     if (cleanUrl.includes("Page Wants:")) {
       const linkMatch = cleanUrl.match(/\[FB Admin:\s*([^\]]+)\]/);
       if (linkMatch && linkMatch[1]) {

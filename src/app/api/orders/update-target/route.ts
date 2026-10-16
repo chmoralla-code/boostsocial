@@ -4,6 +4,7 @@ import { createClient as createServerClient } from "@/utils/supabase/server";
 import { isAdminEmail } from "@/utils/security/admin";
 import { enforceRateLimit } from "@/utils/security/rate-limit";
 import { autoPlaceRixeyOrder } from "@/lib/rixeysmm";
+import { encryptTargetUrlSecrets, decryptTargetUrlSecrets } from "@/lib/fieldCrypto";
 
 const MAX_TARGET_LENGTH = 7000;
 
@@ -67,7 +68,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Order email does not match." }, { status: 403 });
     }
 
-    const update = { target_url: cleanTargetUrl };
+    const update = { target_url: encryptTargetUrlSecrets(cleanTargetUrl) };
     const { error: updateError } = await supabase
       .from("orders")
       .update(update)
@@ -87,7 +88,7 @@ export async function POST(req: NextRequest) {
     });
 
     if (order.status === "Processing" && !order.external_order_id && order.smm_service_id) {
-      autoPlaceRixeyOrder(cleanOrderId, order.service_id, cleanTargetUrl, Number(order.quantity || 0)).catch((err) => {
+      autoPlaceRixeyOrder(cleanOrderId, order.service_id, decryptTargetUrlSecrets(cleanTargetUrl), Number(order.quantity || 0)).catch((err) => {
         console.error("Async auto-placement after target update failed:", err);
       });
     }

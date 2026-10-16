@@ -6,6 +6,8 @@ import { resolveOrderPricing, CATALOG_SERVICE_ID } from "@/lib/orderPricing";
 import { autoPlaceRixeyOrder } from "@/lib/rixeysmm";
 import { getSmmCatalogServices } from "@/lib/smmCatalog";
 import { sendOrderNotification } from "@/lib/telegram";
+import { encryptTargetUrlSecrets } from "@/lib/fieldCrypto";
+import { maskEncryptedValues } from "@/lib/orderTracking";
 import { recordOrderEvent } from "@/lib/orderEvents";
 import {
   apiError,
@@ -60,6 +62,17 @@ function getErrorMessage(error: unknown) {
 
 function trackingIdFor(orderId: string) {
   return `BS-${orderId.slice(0, 8).toUpperCase()}`;
+}
+
+/**
+ * The link an API client gets back.
+ *
+ * A reseller only ever sends ordinary target links, but a stored row could
+ * still carry a sealed portal credential. A caller has no key to open one, so
+ * it is shown as a placeholder rather than as an unreadable `enc:v1:` blob.
+ */
+function apiLink(value: unknown) {
+  return maskEncryptedValues(String(value || "")).value;
 }
 
 export async function POST(req: NextRequest) {
@@ -248,7 +261,7 @@ export async function POST(req: NextRequest) {
           p_service_id: pricing.serviceId,
           p_service_title: pricing.serviceTitle,
           p_customer_email: ownerEmail,
-          p_target_url: link,
+          p_target_url: encryptTargetUrlSecrets(link),
           p_amount: pricing.regularAmount,
           p_quantity: pricing.quantity,
           p_smm_service_id: pricing.smmServiceId,
@@ -313,7 +326,7 @@ export async function POST(req: NextRequest) {
                   service_id: pricing.serviceId,
                   service_title: pricing.serviceTitle,
                   customer_email: ownerEmail,
-                  target_url: link,
+                  target_url: encryptTargetUrlSecrets(link),
                   amount: pricing.regularAmount,
                   status: "Processing",
                   payment_method: "Wallet",
@@ -414,7 +427,7 @@ export async function POST(req: NextRequest) {
           order: order.id,
           status: order.status,
           service: order.service_title,
-          link: order.target_url,
+          link: apiLink(order.target_url),
           quantity: order.quantity,
           amount: Number(order.amount ?? 0),
           start_count: null,
@@ -455,7 +468,7 @@ export async function POST(req: NextRequest) {
             order: row.id,
             status: row.status,
             service: row.service_title,
-            link: row.target_url,
+            link: apiLink(row.target_url),
             quantity: row.quantity,
             amount: Number(row.amount ?? 0),
             start_count: null,
