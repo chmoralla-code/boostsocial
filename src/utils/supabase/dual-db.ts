@@ -143,18 +143,49 @@ export function getBackupAdminClients(): BackupAdminClient[] {
 //  SPY QUERY BUILDER (SUPABASE JS TO SQL TRANSLATOR)
 // ══════════════════════════════════════════════════════
 
+/** Supabase operator name -> SQL operator, for `.not()` and the SQL renderer. */
+const SUPABASE_OPERATOR_TO_SQL: Record<string, string> = {
+  eq: "=",
+  neq: "<>",
+  gt: ">",
+  gte: ">=",
+  lt: "<",
+  lte: "<=",
+  like: "like",
+  ilike: "ilike",
+  is: "is",
+  in: "in",
+};
+
+/** The reverse map: how a recorded filter is replayed on a real Supabase client. */
+const SQL_OPERATOR_TO_SUPABASE: Record<string, string> = {
+  "=": "eq",
+  "<>": "neq",
+  ">": "gt",
+  ">=": "gte",
+  "<": "lt",
+  "<=": "lte",
+  like: "like",
+  ilike: "ilike",
+  is: "is",
+  in: "in",
+};
+
 class SpyQueryBuilder {
   private table: string;
   private realSupabaseClient: SupabaseClient | null;
   private sqlDo: ReturnType<typeof postgres> | null;
   private action: "select" | "insert" | "update" | "upsert" | "delete";
   private columns: string;
-  private filters: Array<{ column: string; operator: string; value: any }>;
+  private filters: Array<{ column: string; operator: string; value: any; negate?: boolean }>;
   private payload: any;
   private orderByCol: string | null;
   private orderByDesc: boolean;
   private limitVal: number | null;
+  private offsetVal: number | null;
   private isSingle: boolean;
+  /** True when the caller used `maybeSingle()`, which tolerates zero rows. */
+  private isMaybeSingle: boolean;
   private selectAfterWrite: boolean;
 
   constructor(
@@ -172,7 +203,9 @@ class SpyQueryBuilder {
     this.orderByCol = null;
     this.orderByDesc = false;
     this.limitVal = null;
+    this.offsetVal = null;
     this.isSingle = false;
+    this.isMaybeSingle = false;
     this.selectAfterWrite = false;
   }
 
@@ -218,14 +251,128 @@ class SpyQueryBuilder {
     return this;
   }
 
+  /**
+   * The rest of the filter operators.
+   *
+   * Only `eq` used to exist here, so ANY query that used a range or a set threw
+   * `x.gte is not a function` on the DigitalOcean path AND on every backup -
+   * and `fallbackRead` reports that as "all databases failed". That is exactly
+   * what turned a short `BS-XXXXXXXX` tracking lookup into a 500: tracking by
+   * prefix needs a range on `id`, so the method was simply missing.
+   */
+  gte(column: string, value: any) {
+    return this.pushFilter(column, ">=", value);
+  }
+
+  lte(column: string, value: any) {
+    return this.pushFilter(column, "<=", value);
+  }
+
+  gt(column: string, value: any) {
+    return this.pushFilter(column, ">", value);
+  }
+
+  lt(column: string, value: any) {
+    return this.pushFilter(column, "<", value);
+  }
+
+  neq(column: string, value: any) {
+    return this.pushFilter(column, "<>", value);
+  }
+
+  in(column: string, values: any[]) {
+    return this.pushFilter(column, "in", values);
+  }
+
+  is(column: string, value: any) {
+    return this.pushFilter(column, "is", value);
+  }
+
+  like(column: string, value: any) {
+    return this.pushFilter(column, "like", value);
+  }
+
+  ilike(column: string, value: any) {
+    return this.pushFilter(column, "ilike", value);
+  }
+
+  /** Supabase's `.not(column, operator, value)`, e.g. `.not("id", "is", null)`. */
+  not(column: string, operator: string, value: any) {
+    this.filters.push({
+      column,
+      operator: SUPABASE_OPERATOR_TO_SQL[operator] || operator,
+      value,
+      negate: true,
+    });
+    return this;
+  }
+
+  private pushFilter(column: string, operator: string, value: any) {
+    this.filters.push({ column, operator, value });
+    return this;
+  }
+
+  /**
+   * Renders one recorded filter as SQL, pushing its values into `params`.
+   * `IS NULL` and an empty `IN ()` take no parameters, so they are handled
+   * separately rather than through the generic `column op $n` shape.
+   */
+  private renderFilterSql(
+    filter: { column: string; operator: string; value: any; negate?: boolean },
+    params: any[]
+  ): string {
+    const col = `"${filter.column}"`;
+    const not = filter.negate ? "NOT " : "";
+
+    if (filter.operator === "is") {
+      const literal =
+        filter.value === null || filter.value === undefined
+          ? "NULL"
+          : filter.value === true
+            ? "TRUE"
+            : filter.value === false
+              ? "FALSE"
+              : null;
+      // Anything other than a real boolean/null cannot be expressed with IS.
+      if (literal === null) return filter.negate ? "TRUE" : "FALSE";
+      return `${col} IS ${filter.negate ? "NOT " : ""}${literal}`;
+    }
+
+    if (filter.operator === "in") {
+      const values = Array.isArray(filter.value) ? filter.value : [filter.value];
+      // `IN ()` is invalid SQL: an empty set matches nothing, and its negation
+      // matches everything.
+      if (values.length === 0) return filter.negate ? "TRUE" : "FALSE";
+      const placeholders = values.map((value) => {
+        params.push(value);
+        return `$${params.length}`;
+      });
+      return `${col} ${not}IN (${placeholders.join(", ")})`;
+    }
+
+    params.push(filter.value);
+    return `${not}${col} ${filter.operator} $${params.length}`;
+  }
+
   single() {
     this.isSingle = true;
+    this.isMaybeSingle = false;
     this.limitVal = 1;
     return this;
   }
 
+  /**
+   * Like `single()`, but zero rows is a normal result rather than an error.
+   *
+   * The distinction has to be remembered: replaying this as `.single()` on the
+   * backup path makes supabase-js raise PGRST116 ("JSON object requested, no
+   * rows returned"), so a plain "no such order" was reported as a 500. The
+   * DigitalOcean path already returns null-with-no-error, which is why the two
+   * databases disagreed about the same lookup.
+   */
   maybeSingle() {
     this.isSingle = true;
+    this.isMaybeSingle = true;
     this.limitVal = 1;
     return this;
   }
@@ -238,6 +385,23 @@ class SpyQueryBuilder {
 
   limit(val: number) {
     this.limitVal = val;
+    return this;
+  }
+
+  /**
+   * Supabase's `.range(from, to)`: an inclusive window of rows, which is a
+   * LIMIT plus an OFFSET. Used by paged reads (the admin customers page).
+   */
+  range(from: number, to: number) {
+    const start = Math.max(0, Math.floor(Number(from) || 0));
+    const end = Math.floor(Number(to));
+    if (!Number.isFinite(end) || end < start) {
+      this.offsetVal = start;
+      this.limitVal = 0;
+      return this;
+    }
+    this.offsetVal = start;
+    this.limitVal = end - start + 1;
     return this;
   }
 
@@ -271,9 +435,16 @@ class SpyQueryBuilder {
         }
 
         for (const f of this.filters) {
-          if (f.operator === "=") {
-            builder = builder.eq(f.column, f.value);
+          const op = SQL_OPERATOR_TO_SUPABASE[f.operator];
+          if (!op) {
+            console.warn(
+              `SpyQueryBuilder: unsupported filter operator "${f.operator}" skipped on the backup path`
+            );
+            continue;
           }
+          builder = f.negate
+            ? builder.not(f.column, op, f.value)
+            : builder[op](f.column, f.value);
         }
 
         if (this.orderByCol) {
@@ -281,11 +452,18 @@ class SpyQueryBuilder {
         }
 
         if (this.limitVal !== null) {
-          builder = builder.limit(this.limitVal);
+          // A recorded offset means the caller used `.range()`, which supabase-js
+          // expresses as range(from, to) rather than limit + offset.
+          builder =
+            this.offsetVal && this.limitVal > 0
+              ? builder.range(this.offsetVal, this.offsetVal + this.limitVal - 1)
+              : builder.limit(this.limitVal);
+        } else if (this.offsetVal) {
+          builder = builder.range(this.offsetVal, this.offsetVal + 999);
         }
 
         if (this.isSingle) {
-          builder = builder.single();
+          builder = this.isMaybeSingle ? builder.maybeSingle() : builder.single();
         }
 
         supabaseResult = await builder;
@@ -335,10 +513,7 @@ class SpyQueryBuilder {
         let queryStr = `SELECT ${cleanCols} FROM ${this.table}`;
         const params: any[] = [];
         if (this.filters.length > 0) {
-          const filterClauses = this.filters.map((f) => {
-            params.push(f.value);
-            return `"${f.column}" ${f.operator} $${params.length}`;
-          });
+          const filterClauses = this.filters.map((f) => this.renderFilterSql(f, params));
           queryStr += ` WHERE ${filterClauses.join(" AND ")}`;
         }
         if (this.orderByCol) {
@@ -346,6 +521,9 @@ class SpyQueryBuilder {
         }
         if (this.limitVal) {
           queryStr += ` LIMIT ${this.limitVal}`;
+        }
+        if (this.offsetVal) {
+          queryStr += ` OFFSET ${this.offsetVal}`;
         }
 
         const rows = await this.sqlDo.unsafe(queryStr, params);
@@ -372,10 +550,7 @@ class SpyQueryBuilder {
         queryStr += setClauses.join(", ");
 
         if (this.filters.length > 0) {
-          const filterClauses = this.filters.map((f) => {
-            params.push(f.value);
-            return `"${f.column}" ${f.operator} $${params.length}`;
-          });
+          const filterClauses = this.filters.map((f) => this.renderFilterSql(f, params));
           queryStr += ` WHERE ${filterClauses.join(" AND ")}`;
         }
         queryStr += ` RETURNING *`;
@@ -414,10 +589,7 @@ class SpyQueryBuilder {
         let queryStr = `DELETE FROM ${this.table}`;
         const params: any[] = [];
         if (this.filters.length > 0) {
-          const filterClauses = this.filters.map((f) => {
-            params.push(f.value);
-            return `"${f.column}" ${f.operator} $${params.length}`;
-          });
+          const filterClauses = this.filters.map((f) => this.renderFilterSql(f, params));
           queryStr += ` WHERE ${filterClauses.join(" AND ")}`;
         }
         queryStr += ` RETURNING *`;
