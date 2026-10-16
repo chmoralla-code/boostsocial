@@ -24,6 +24,7 @@ if (typeof window !== "undefined" && window.location.hash.includes("access_token
 export default function LoginPage() {
   const [mode, setMode] = useState<"signin" | "signup" | "forgot">("signin");
   const [email, setEmail] = useState("");
+  const [fullName, setFullName] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -260,7 +261,7 @@ export default function LoginPage() {
         const res = await fetch("/api/auth/signup", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: loginEmail, password, referralCode: referralCode.trim() })
+          body: JSON.stringify({ email: loginEmail, password, referralCode: referralCode.trim(), fullName: fullName.trim() })
         });
 
         const resData = await res.json();
@@ -576,6 +577,22 @@ export default function LoginPage() {
         <form onSubmit={handleSubmit} className="space-y-4">
           {!otpMode ? (
             <>
+          {mode === "signup" && (
+            <div>
+              <label className="block text-xs font-black uppercase tracking-widest text-slate-400 mb-1.5">Your Name</label>
+              <input
+                type="text"
+                autoComplete="name"
+                maxLength={60}
+                placeholder="e.g. Juan Dela Cruz"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                className="w-full bg-[#121212] border border-slate-800/80 px-4 py-3 rounded-xl focus:outline-none focus:border-[#1877F2] text-white text-sm transition-all"
+              />
+              <p className="text-[10px] text-slate-500 mt-1.5 font-medium">Optional — shown on your orders and receipts.</p>
+            </div>
+          )}
+
           <div>
             <div className="flex justify-between items-center mb-1.5">
               <label className="block text-xs font-black uppercase tracking-widest text-slate-400">Email / Username</label>

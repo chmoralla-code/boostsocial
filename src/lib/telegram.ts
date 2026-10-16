@@ -408,18 +408,32 @@ export async function sendVipSubscriptionNotification(args: {
 export async function sendAdminAlert(alert: {
   title: string;
   message: string;
+  // Optional link button, so an alert can point straight at the queue it
+  // is talking about instead of making the admin hunt for it.
+  url?: string;
+  buttonText?: string;
 }) {
   try {
     const config = await getAnyTelegramConfig();
     if (!config?.bot_token || !config?.chat_id) return;
 
     const text = `${alert.title}\n\n${alert.message}`;
+    const link = toTelegramUrl(alert.url);
     await fetch(`https://api.telegram.org/bot${config.bot_token}/sendMessage`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         chat_id: config.chat_id,
         text,
+        ...(link
+          ? {
+              reply_markup: {
+                inline_keyboard: [
+                  [{ text: alert.buttonText || "Open Admin", url: link }],
+                ],
+              },
+            }
+          : {}),
       }),
     });
   } catch (err) {

@@ -23,6 +23,7 @@ export default function AppAuthPage() {
     return new URLSearchParams(window.location.search).get("mode") === "register" ? "register" : "login";
   });
   const [email, setEmail] = useState("");
+  const [fullName, setFullName] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -91,7 +92,7 @@ export default function AppAuthPage() {
         const res = await fetch("/api/auth/signup", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: cleanEmail, password }),
+          body: JSON.stringify({ email: cleanEmail, password, fullName: fullName.trim() }),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Registration failed.");
@@ -313,6 +314,21 @@ export default function AppAuthPage() {
           </div>
         ) : (
           <form onSubmit={submit} className="space-y-4">
+            {mode === "register" && (
+              <label className="block">
+                <span className="text-xs font-black uppercase tracking-wider text-zinc-500">Your Name (optional)</span>
+                <input
+                  type="text"
+                  autoComplete="name"
+                  maxLength={60}
+                  value={fullName}
+                  onChange={(event) => setFullName(event.target.value)}
+                  className="mt-1 h-12 w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 text-sm font-semibold outline-none focus:border-emerald-500"
+                  placeholder="e.g. Juan Dela Cruz"
+                />
+              </label>
+            )}
+
             <label className="block">
               <span className="text-xs font-black uppercase tracking-wider text-zinc-500">Email</span>
               <input

@@ -131,6 +131,7 @@ export default function QuickStartPage() {
   const supabase = useMemo(() => createClient(), []);
 
   const [email, setEmail] = useState("");
+  const [fullName, setFullName] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -215,7 +216,7 @@ export default function QuickStartPage() {
       const res = await fetch("/api/auth/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim(), password })
+        body: JSON.stringify({ email: email.trim(), password, fullName: fullName.trim() })
       });
 
       const data = await res.json();
@@ -394,6 +395,27 @@ export default function QuickStartPage() {
 
           {!otpMode ? (
           <form onSubmit={handleSubmit} className="space-y-4 text-left">
+            <div>
+              <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5">
+                Your Name <span className="text-slate-600 normal-case tracking-normal">(optional)</span>
+              </label>
+              <div className="relative">
+                <UserPlus
+                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-550"
+                  size={16}
+                />
+                <input
+                  type="text"
+                  autoComplete="name"
+                  maxLength={60}
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#0a0a0a] border border-slate-800 focus:outline-none focus:border-[#1DB954] focus:ring-1 focus:ring-[#1DB954]/20 text-xs font-semibold text-white placeholder-slate-500 transition-all"
+                  placeholder="e.g. Juan Dela Cruz"
+                />
+              </div>
+            </div>
+
             <div>
               <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5">
                 Email Address

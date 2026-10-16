@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-import { getSupabaseServiceRoleKey, getSupabaseUrl } from "@/utils/env";
+import { fallbackRead } from "@/utils/supabase/dual-db";
 import { enforceRateLimit } from "@/utils/security/rate-limit";
 import { parseTrackingInput, toSafeTrackedOrder } from "@/lib/orderTracking";
 
@@ -17,6 +16,10 @@ export const dynamic = "force-dynamic";
  *
  * Runs server-side with the service key so it keeps working now that Row Level
  * Security is enabled on `orders`.
+ *
+ * Reads through `fallbackRead` so the master database is tried first. Reading
+ * the Supabase mirror alone left orders that only exist on the master
+ * untrackable - 56 of them at the time this was found.
  */
 export async function GET(req: NextRequest) {
   const limited = enforceRateLimit(req, {
@@ -35,26 +38,28 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const admin = createClient(getSupabaseUrl(), getSupabaseServiceRoleKey(), {
-      auth: { persistSession: false },
-    });
+    const { data, error } = await fallbackRead<Parameters<typeof toSafeTrackedOrder>[0]>(
+      async (client) => {
+        let query = client
+          .from("orders")
+          .select(
+            "id,status,quantity,amount,created_at,target_url,service_title,customer_email,services(title)"
+          );
 
-    let query = admin
-      .from("orders")
-      .select("id,status,quantity,amount,created_at,target_url,service_title,customer_email,services(title)");
+        if (parsed.kind === "uuid") {
+          query = query.eq("id", parsed.value);
+        } else {
+          query = query
+            .gte("id", `${parsed.value}-0000-0000-0000-000000000000`)
+            .lte("id", `${parsed.value}-ffff-ffff-ffff-ffffffffffff`);
+        }
 
-    if (parsed.kind === "uuid") {
-      query = query.eq("id", parsed.value);
-    } else {
-      query = query
-        .gte("id", `${parsed.value}-0000-0000-0000-000000000000`)
-        .lte("id", `${parsed.value}-ffff-ffff-ffff-ffffffffffff`);
-    }
-
-    const { data, error } = await query.limit(1).maybeSingle();
+        return await query.limit(1).maybeSingle();
+      }
+    );
 
     if (error) {
-      console.error("Track order lookup failed:", error.message);
+      console.error("Track order lookup failed:", error.message || error);
       return NextResponse.json({ error: "Order lookup failed. Please try again." }, { status: 500 });
     }
 
@@ -66,7 +71,7 @@ export async function GET(req: NextRequest) {
     }
 
     return NextResponse.json(
-      { order: toSafeTrackedOrder(data as Parameters<typeof toSafeTrackedOrder>[0]) },
+      { order: toSafeTrackedOrder(data) },
       { headers: { "Cache-Control": "no-store" } }
     );
   } catch (err) {

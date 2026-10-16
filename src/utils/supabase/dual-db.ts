@@ -155,6 +155,7 @@ class SpyQueryBuilder {
   private orderByDesc: boolean;
   private limitVal: number | null;
   private isSingle: boolean;
+  private selectAfterWrite: boolean;
 
   constructor(
     table: string,
@@ -172,12 +173,19 @@ class SpyQueryBuilder {
     this.orderByDesc = false;
     this.limitVal = null;
     this.isSingle = false;
+    this.selectAfterWrite = false;
   }
 
   select(columns: string = "*") {
     this.columns = columns;
     if (this.action !== "insert" && this.action !== "update" && this.action !== "upsert" && this.action !== "delete") {
       this.action = "select";
+    } else {
+      // The caller chained .select() onto a WRITE to get the written row back.
+      // Remember it, because the Supabase path below has to chain .select() too:
+      // without it supabase-js returns data:null with error:null, which reads as
+      // success and turns a recoverable write into a hard failure.
+      this.selectAfterWrite = true;
     }
     return this;
   }
@@ -250,12 +258,16 @@ class SpyQueryBuilder {
           builder = builder.select(this.columns);
         } else if (this.action === "insert") {
           builder = builder.insert(this.payload);
+          if (this.selectAfterWrite) builder = builder.select(this.columns);
         } else if (this.action === "update") {
           builder = builder.update(this.payload);
+          if (this.selectAfterWrite) builder = builder.select(this.columns);
         } else if (this.action === "upsert") {
           builder = builder.upsert(this.payload);
+          if (this.selectAfterWrite) builder = builder.select(this.columns);
         } else if (this.action === "delete") {
           builder = builder.delete();
+          if (this.selectAfterWrite) builder = builder.select(this.columns);
         }
 
         for (const f of this.filters) {
@@ -829,7 +841,12 @@ export async function dualWrite<T = any>(
   console.warn("DigitalOcean primary database write failed. Falling back to Supabase backups:", primaryError.message || primaryError);
 
   const backupResults = await runBackupWrites();
-  const successfulBackup = backupResults.find((result) => !result.error);
+  // Prefer a backup that actually returned a row. A write can come back
+  // error-free yet empty, and handing that back as success would make the
+  // caller treat a real write as a failure.
+  const successfulBackup =
+    backupResults.find((result) => !result.error && result.data != null) ||
+    backupResults.find((result) => !result.error);
   if (successfulBackup) {
     return {
       data: successfulBackup.data,

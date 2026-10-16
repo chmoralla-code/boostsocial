@@ -15,6 +15,8 @@ import { syncBackupAdminClients } from "@/utils/supabase/dual-db";
 // Needs node crypto for the HMAC check, so keep it on the Node runtime.
 export const runtime = "nodejs";
 
+const ADMIN_TOPUPS_URL = "https://pinoyboosting.com/admin/topups";
+
 // Event types that mean "money actually arrived".
 const PAID_EVENT_TYPES = new Set([
   "checkout_session.payment.paid",
@@ -121,6 +123,8 @@ export async function POST(req: NextRequest) {
         await sendAdminAlert({
           title: `${testTag}⚠️ PayMongo webhook: unknown top-up`,
           message: `Event ${eventId} (${eventType}) carried our top-up id ${details.topupId} but no matching row was found.`,
+          url: `${ADMIN_TOPUPS_URL}`,
+          buttonText: "Open Admin Top-Ups",
         });
       }
       return NextResponse.json({ received: true });
@@ -130,9 +134,21 @@ export async function POST(req: NextRequest) {
     const sessionId: string = resolvedSessionId;
 
     if (details.paidCentavos === null) {
+      // Name the affected customer so the admin knows who to contact.
+      const { data: noAmountRow } = await supabase
+        .from("paymongo_topups")
+        .select("email")
+        .eq("checkout_session_id", sessionId)
+        .maybeSingle();
+
       await sendAdminAlert({
         title: `${testTag}⚠️ PayMongo webhook: missing amount`,
-        message: `Paid event ${eventId} for session ${sessionId} had no amount, so it was not credited.`,
+        message:
+          `Paid event ${eventId} for session ${sessionId} had no amount, so it was not credited.\n` +
+          `Customer: ${noAmountRow?.email || "unknown"}\n` +
+          `Check the PayMongo dashboard, then credit manually if the payment went through.`,
+        url: `${ADMIN_TOPUPS_URL}`,
+        buttonText: "Open Admin Top-Ups",
       });
       return NextResponse.json({ received: true });
     }
@@ -235,29 +251,58 @@ export async function POST(req: NextRequest) {
         }
       }
 
+      // Who topped up? Look the customer up BEFORE the alert so the message can
+      // name them. The email is also reused below for the receipt email and the
+      // in-app notification, so this is one query instead of two.
+      // Guarded: a null id would make PostgREST error and skip the alert.
+      const { data: profile } = customerId
+        ? await supabase
+            .from("profiles")
+            .select("email, full_name")
+            .eq("id", customerId)
+            .maybeSingle()
+        : { data: null };
+
+      let customerEmail = String(profile?.email || "").trim();
+      const customerName = String(profile?.full_name || "").trim();
+
+      // Fall back to the email stored on the gateway row, so a failed profile
+      // lookup can never make the alert say "unknown" or skip the receipt email.
+      if (!customerEmail) {
+        const { data: pmEmail } = await supabase
+          .from("paymongo_topups")
+          .select("email")
+          .eq("checkout_session_id", sessionId)
+          .maybeSingle();
+        customerEmail = String(pmEmail?.email || "").trim();
+      }
+
+      if (!customerEmail) customerEmail = "unknown";
+
       try {
         await sendAdminAlert({
           title: `${testTag}✅ PayMongo top-up paid`,
           message:
             `A PayMongo wallet top-up was paid and credited automatically.\n` +
-            `Session: ${sessionId}\n` +
-            `Method: ${details.method || "unknown"}\n` +
+            `Customer: ${customerEmail}\n` +
+            (customerName ? `Name: ${customerName}\n` : "") +
             `Amount: ₱${Number(amount ?? 0).toFixed(2)}\n` +
+            (newBalance !== null
+              ? `New balance: ₱${Number(newBalance).toFixed(2)}\n`
+              : "") +
+            `Method: ${details.method || "unknown"}\n` +
+            `Session: ${sessionId}\n` +
             `Top-up: ${topupId || "n/a"}`,
+          url: `${ADMIN_TOPUPS_URL}`,
+          buttonText: "Open Admin Top-Ups",
         });
       } catch (telegramErr) {
         console.error("PayMongo paid admin alert failed:", telegramErr);
       }
 
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("email")
-        .eq("id", customerId)
-        .maybeSingle();
-
-      if (profile?.email) {
+      if (customerEmail && customerEmail !== "unknown") {
         sendTopupApprovedEmail({
-          email: profile.email,
+          email: customerEmail,
           amount: Number(amount ?? 0),
         }).catch((emailErr) => {
           console.error("PayMongo top-up email failed:", emailErr);
@@ -265,7 +310,7 @@ export async function POST(req: NextRequest) {
 
         notifyCustomer({
           client: supabase,
-          email: profile.email,
+          email: customerEmail,
           message: `System update: Your PHP ${Number(amount ?? 0).toFixed(2)} wallet top-up was paid via PayMongo and credited instantly! 🚀`,
         }).catch((notificationErr) => {
           console.error("PayMongo customer notification failed:", notificationErr);

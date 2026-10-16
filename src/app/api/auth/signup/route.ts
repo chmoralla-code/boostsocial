@@ -145,13 +145,22 @@ function isJunkUsername(username: string): string | null {
 // ═════════════════════════════════════════════════════════════
 export async function POST(req: NextRequest) {
   try {
-    const { email, password, referralCode } = await req.json();
+    const { email, password, referralCode, fullName } = await req.json();
 
     if (!email || !password) {
       return NextResponse.json({ error: "Missing email or password" }, { status: 400 });
     }
 
     const cleanEmail = email.trim().toLowerCase();
+
+    // Optional display name. Trimmed, length-capped and stripped of control
+    // characters so it can never break an admin alert or an email subject.
+    // Left empty when not supplied — the profile column stays untouched.
+    const cleanFullName = String(fullName || "")
+      .replace(/[\u0000-\u001F\u007F]/g, "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 60);
 
     // ── CHECK 1: RFC 5322 Syntax Check ───────────────────
     const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
@@ -437,7 +446,10 @@ export async function POST(req: NextRequest) {
           email: cleanEmail,
           referral_code: generatedReferralCode,
           referred_by: referredById,
-          balance: initialBalance
+          balance: initialBalance,
+          // Only written when a name was actually given, so submitting the
+          // form without one never blanks out an existing full_name.
+          ...(cleanFullName ? { full_name: cleanFullName } : {})
         }, { onConflict: "id" })
         .select()
         .single();
